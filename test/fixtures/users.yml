@@ -1,0 +1,13 @@
+leika:
+  first_name: leika
+  last_name: kim
+  email: leika@test.com
+  nickname: martita
+  encrypted_password: <%= BCrypt::Password.create('password123') %>
+
+jaina:
+  first_name: jaina
+  last_name: kim
+  email: jaina@test.com
+  nickname: esperancita
+  encrypted_password: <%= BCrypt::Password.create('password123') %>
