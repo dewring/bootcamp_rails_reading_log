@@ -1,25 +1,34 @@
 <%= form_with model: book do |f| %>
-  <%= render "devise/shared/error_messages", resource: book %>
+  <% if book.errors.any? %>
+    <article>
+      <strong><%= book.errors.count %> error(s) prevented this book from being saved:</strong>
+      <ul>
+        <% book.errors.full_messages.each do |msg| %>
+          <li><%= msg %></li>
+        <% end %>
+      </ul>
+    </article>
+  <% end %>
 
-  <div>
+  <label>
     <%= f.label :title %>
-    <%= f.text_field :title %>
-  </div>
+    <%= f.text_field :title, placeholder: "Book title" %>
+  </label>
 
-  <div>
+  <label>
     <%= f.label :author %>
-    <%= f.text_field :author %>
-  </div>
+    <%= f.text_field :author, placeholder: "Author name" %>
+  </label>
 
-  <div>
-    <%= f.label :total_pages %>
-    <%= f.number_field :total_pages %>
-  </div>
+  <label>
+    <%= f.label :total_pages, "Total Pages" %>
+    <%= f.number_field :total_pages, placeholder: "Optional" %>
+  </label>
 
-  <div>
-    <%= f.label :cover_image %>
+  <label>
+    <%= f.label :cover_image, "Cover Image" %>
     <%= f.file_field :cover_image %>
-  </div>
+  </label>
 
-  <%= f.submit %>
+  <%= f.submit class: "contrast" %>
 <% end %>

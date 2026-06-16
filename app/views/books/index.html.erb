@@ -1,17 +1,30 @@
-<h1>Book Catalog</h1>
+<div style="display: flex; justify-content: space-between; align-items: center;">
+  <h1>Book Catalog</h1>
+  <% if current_user&.admin? %>
+    <%= link_to "＋ Add Book", new_book_path, role: "button" %>
+  <% end %>
+</div>
 
-<% if current_user&.admin? %>
-  <%= link_to "Add Book", new_book_path %>
-<% end %>
-
-<% @books.each do |book| %>
-  <div>
-    <%= image_tag book.cover_image if book.cover_image.attached? %>
-    <h2><%= link_to book.title, book %></h2>
-    <p><%= book.author %></p>
-    <% if current_user&.admin? %>
-      <%= link_to "Edit", edit_book_path(book) %>
-      <%= button_to "Delete", book_path(book), method: :delete, data: { turbo_confirm: "Are you sure?" } %>
+<% if @books.empty? %>
+  <p>No books in the catalog yet.</p>
+<% else %>
+  <div class="grid">
+    <% @books.each do |book| %>
+      <article>
+        <% if book.cover_image.attached? %>
+          <%= image_tag book.cover_image, style: "width: 100%; height: 200px; object-fit: cover;" %>
+        <% end %>
+        <h3><%= link_to book.title, book %></h3>
+        <p><small>by <%= book.author %></small></p>
+        <% if current_user&.admin? %>
+          <footer style="display: flex; gap: 0.5rem;">
+            <%= link_to "Edit", edit_book_path(book), role: "button", class: "secondary", style: "width: auto;" %>
+            <%= button_to "Delete", book_path(book), method: :delete,
+                data: { turbo_confirm: "Remove this book from the catalog?" },
+                style: "width: auto;" %>
+          </footer>
+        <% end %>
+      </article>
     <% end %>
   </div>
 <% end %>

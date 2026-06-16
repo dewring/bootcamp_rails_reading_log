@@ -1,12 +1,19 @@
-<h1>Add "<%= @book.title %>" to your reading log</h1>
+<hgroup>
+  <h1>Add to Reading Log</h1>
+  <p><%= @book.title %> by <%= @book.author %></p>
+</hgroup>
 
-<%= form_with model: @user_book, url: user_books_path do |f| %>
-  <%= f.hidden_field :book_id, value: @book.id %>
+<article>
+  <%= form_with model: @user_book, url: user_books_path do |f| %>
+    <%= f.hidden_field :book_id, value: @book.id %>
 
-  <div>
-    <%= f.label :status %>
-    <%= f.select :status, UserBook::STATUSES.map { |s| [s.humanize, s] } %>
-  </div>
+    <label>
+      <%= f.label :status, "Reading Status" %>
+      <%= f.select :status, UserBook::STATUSES.map { |s| [s.humanize, s] } %>
+    </label>
 
-  <%= f.submit "Add to log" %>
-<% end %>
+    <%= f.submit "Add to log", class: "contrast" %>
+  <% end %>
+</article>
+
+<%= link_to "← Back to book", @book %>

@@ -1,2 +1,10 @@
-<h1>Edit Book</h1>
-<%= render "form", book: @book %>
+<hgroup>
+  <h1>Edit Book</h1>
+  <p><%= @book.title %></p>
+</hgroup>
+
+<article>
+  <%= render "form", book: @book %>
+</article>
+
+<%= link_to "← Cancel", @book %>

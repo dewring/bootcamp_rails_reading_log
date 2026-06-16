@@ -1,27 +1,43 @@
-<h1>Welcome, <%= current_user.nickname %>!</h1>
-
-<%= link_to "Browse Catalog", books_path %>
-
-<h2>My Reading Log</h2>
+<hgroup>
+  <h1>Welcome, <%= current_user.nickname %>!</h1>
+  <p>Here's your reading log.</p>
+</hgroup>
 
 <% if current_user.user_books.empty? %>
-  <p>No books yet. <a href="<%= books_path %>">Browse the catalog</a> to add some.</p>
+  <article>
+    <p>No books yet. <%= link_to "Browse the catalog", books_path %> to add some.</p>
+  </article>
 <% else %>
   <% UserBook::STATUSES.each do |status| %>
-    <% books_for_status = current_user.user_books.where(status: status) %>
+    <% books_for_status = current_user.user_books.where(status: status).includes(:book) %>
     <% next if books_for_status.empty? %>
 
-    <h3><%= status.humanize %></h3>
+    <h2><%= status.humanize %></h2>
+
     <% books_for_status.each do |user_book| %>
-      <div>
-        <strong><%= user_book.book.title %></strong> by <%= user_book.book.author %>
+      <article>
+        <div style="display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap;">
+          <div>
+            <strong><%= link_to user_book.book.title, user_book.book %></strong>
+            <small>by <%= user_book.book.author %></small>
+          </div>
 
-        <%= form_with model: user_book, url: user_book_path(user_book), method: :patch do |f| %>
-          <%= f.select :status, UserBook::STATUSES.map { |s| [s.humanize, s] }, {}, { onchange: "this.form.submit()" } %>
-        <% end %>
+          <div style="display: flex; gap: 0.5rem; align-items: center;">
+            <%= form_with model: user_book, url: user_book_path(user_book), method: :patch do |f| %>
+              <%= f.select :status,
+                    UserBook::STATUSES.map { |s| [s.humanize, s] },
+                    { selected: user_book.status },
+                    { onchange: "this.form.submit()", style: "margin: 0;" } %>
+            <% end %>
 
-        <%= button_to "Remove", user_book_path(user_book), method: :delete, data: { turbo_confirm: "Remove from log?" } %>
-      </div>
+            <%= button_to "Remove", user_book_path(user_book),
+                  method: :delete,
+                  data: { turbo_confirm: "Remove from log?" },
+                  class: "secondary",
+                  style: "width: auto; margin: 0;" %>
+          </div>
+        </div>
+      </article>
     <% end %>
   <% end %>
 <% end %>

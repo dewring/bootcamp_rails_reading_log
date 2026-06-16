@@ -1,2 +1,10 @@
-<h1>Add Book to Catalog</h1>
-<%= render "form", book: @book %>
+<hgroup>
+  <h1>Add Book to Catalog</h1>
+  <p>Fill in the details below to add a new book.</p>
+</hgroup>
+
+<article>
+  <%= render "form", book: @book %>
+</article>
+
+<%= link_to "← Cancel", books_path %>
