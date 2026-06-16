@@ -1,0 +1,21 @@
+<%= image_tag @book.cover_image if @book.cover_image.attached? %>
+<h1><%= @book.title %></h1>
+<p>by <%= @book.author %></p>
+<% if @book.total_pages %>
+  <p><%= @book.total_pages %> pages</p>
+<% end %>
+
+<% if current_user && !current_user.admin? %>
+  <% user_book = current_user.user_books.find_by(book: @book) %>
+  <% if user_book %>
+    <p>Status: <%= user_book.status %></p>
+  <% else %>
+    <%= link_to "Add to my reading log", new_user_book_path(book_id: @book.id) %>
+  <% end %>
+<% end %>
+
+<% if current_user&.admin? %>
+  <%= link_to "Edit", edit_book_path(@book) %>
+<% end %>
+
+<%= link_to "Back to catalog", books_path %>

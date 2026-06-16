@@ -1,1 +1,27 @@
 <h1>Welcome, <%= current_user.nickname %>!</h1>
+
+<%= link_to "Browse Catalog", books_path %>
+
+<h2>My Reading Log</h2>
+
+<% if current_user.user_books.empty? %>
+  <p>No books yet. <a href="<%= books_path %>">Browse the catalog</a> to add some.</p>
+<% else %>
+  <% UserBook::STATUSES.each do |status| %>
+    <% books_for_status = current_user.user_books.where(status: status) %>
+    <% next if books_for_status.empty? %>
+
+    <h3><%= status.humanize %></h3>
+    <% books_for_status.each do |user_book| %>
+      <div>
+        <strong><%= user_book.book.title %></strong> by <%= user_book.book.author %>
+
+        <%= form_with model: user_book, url: user_book_path(user_book), method: :patch do |f| %>
+          <%= f.select :status, UserBook::STATUSES.map { |s| [s.humanize, s] }, {}, { onchange: "this.form.submit()" } %>
+        <% end %>
+
+        <%= button_to "Remove", user_book_path(user_book), method: :delete, data: { turbo_confirm: "Remove from log?" } %>
+      </div>
+    <% end %>
+  <% end %>
+<% end %>

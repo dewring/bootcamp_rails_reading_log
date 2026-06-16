@@ -1,0 +1,17 @@
+<h1>Book Catalog</h1>
+
+<% if current_user&.admin? %>
+  <%= link_to "Add Book", new_book_path %>
+<% end %>
+
+<% @books.each do |book| %>
+  <div>
+    <%= image_tag book.cover_image if book.cover_image.attached? %>
+    <h2><%= link_to book.title, book %></h2>
+    <p><%= book.author %></p>
+    <% if current_user&.admin? %>
+      <%= link_to "Edit", edit_book_path(book) %>
+      <%= button_to "Delete", book_path(book), method: :delete, data: { turbo_confirm: "Are you sure?" } %>
+    <% end %>
+  </div>
+<% end %>

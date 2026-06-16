@@ -1,0 +1,25 @@
+<%= form_with model: book do |f| %>
+  <%= render "devise/shared/error_messages", resource: book %>
+
+  <div>
+    <%= f.label :title %>
+    <%= f.text_field :title %>
+  </div>
+
+  <div>
+    <%= f.label :author %>
+    <%= f.text_field :author %>
+  </div>
+
+  <div>
+    <%= f.label :total_pages %>
+    <%= f.number_field :total_pages %>
+  </div>
+
+  <div>
+    <%= f.label :cover_image %>
+    <%= f.file_field :cover_image %>
+  </div>
+
+  <%= f.submit %>
+<% end %>

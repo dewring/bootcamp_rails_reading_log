@@ -1,5 +1,18 @@
 Rails.application.routes.draw do
+  get "user_books/new"
+  get "user_books/create"
+  get "user_books/update"
+  get "user_books/destroy"
+  get "books/index"
+  get "books/show"
+  get "books/new"
+  get "books/create"
+  get "books/edit"
+  get "books/update"
+  get "books/destroy"
   devise_for :users
+  resources :books
+  resources :user_books, only: [ :new, :create, :update, :destroy ]
   root to: "dashboard#index"
   # Define your application routes per the DSL in https://guides.rubyonrails.org/routing.html
 

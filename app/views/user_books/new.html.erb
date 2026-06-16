@@ -1,0 +1,12 @@
+<h1>Add "<%= @book.title %>" to your reading log</h1>
+
+<%= form_with model: @user_book, url: user_books_path do |f| %>
+  <%= f.hidden_field :book_id, value: @book.id %>
+
+  <div>
+    <%= f.label :status %>
+    <%= f.select :status, UserBook::STATUSES.map { |s| [s.humanize, s] } %>
+  </div>
+
+  <%= f.submit "Add to log" %>
+<% end %>

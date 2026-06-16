@@ -6,4 +6,12 @@ class User < ApplicationRecord
   validates :first_name, presence: true
   validates :last_name, presence: true
   validates :nickname, presence: true, uniqueness: true
+  validates :role, inclusion: { in: %w[user admin] }
+
+  has_many :user_books, dependent: :destroy
+  has_many :books, through: :user_books
+
+  def admin?
+    role == "admin"
+  end
 end

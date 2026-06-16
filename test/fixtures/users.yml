@@ -3,6 +3,7 @@ leika:
   last_name: kim
   email: leika@test.com
   nickname: martita
+  role: user
   encrypted_password: <%= BCrypt::Password.create('password123') %>
 
 jaina:
@@ -10,4 +11,13 @@ jaina:
   last_name: kim
   email: jaina@test.com
   nickname: esperancita
+  role: user
+  encrypted_password: <%= BCrypt::Password.create('password123') %>
+
+admin:
+  first_name: Admin
+  last_name: User
+  email: admin@readinglog.com
+  nickname: theadmin
+  role: admin
   encrypted_password: <%= BCrypt::Password.create('password123') %>

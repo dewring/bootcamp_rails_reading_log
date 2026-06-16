@@ -1,0 +1,9 @@
+leika_refactoring:
+  user: leika
+  book: refactoring
+  status: reading
+
+leika_pragmatic:
+  user: leika
+  book: pragmatic
+  status: want_to_read
