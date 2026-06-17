@@ -2,6 +2,17 @@ class ReadingSessionsController < ApplicationController
   before_action :authenticate_user!
   before_action :set_book, only: [ :new, :create ]   # load @book
   before_action :set_reading_session, only: [ :update, :edit, :destroy ]   # load @reading_session
+
+  def index
+    @reading_sessions = if current_user.admin?
+      ReadingSession.all
+    else
+      current_user.reading_sessions
+    end
+    respond_to do |format|
+      format.json { render json: @reading_sessions }
+    end
+  end
   def new
     @reading_session = @book.reading_sessions.build
   end
