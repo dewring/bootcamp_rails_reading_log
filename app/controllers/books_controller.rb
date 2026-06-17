@@ -4,7 +4,7 @@ class BooksController < ApplicationController
   before_action :set_book, only: [ :show, :edit, :update, :destroy ]
 
   def index
-    @books = Book.all
+    @books = Book.includes(:genres)
   end
 
   def show
@@ -17,6 +17,7 @@ class BooksController < ApplicationController
   def create
     @book = Book.new(book_params)
     if @book.save
+      assign_genres  # ← after save
       redirect_to @book, notice: "Book added to catalog."
     else
       render :new, status: :unprocessable_entity
@@ -28,6 +29,7 @@ class BooksController < ApplicationController
 
   def update
     if @book.update(book_params)
+      assign_genres  # ← after update
       redirect_to @book, notice: "Book updated."
     else
       render :edit, status: :unprocessable_entity
@@ -52,6 +54,12 @@ class BooksController < ApplicationController
   def require_admin!
     unless current_user&.admin?
       redirect_to root_path, alert: "Not authorized."
+    end
+  end
+  def assign_genres
+    genre_names = params[:book][:genre_names] || []
+    @book.genres = genre_names.reject(&:blank?).map do |name|
+      Genre.find_or_create_by!(name: name)
     end
   end
 end

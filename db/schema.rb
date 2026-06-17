@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_06_16_210853) do
+ActiveRecord::Schema[8.1].define(version: 2026_06_16_233216) do
   create_table "active_storage_attachments", force: :cascade do |t|
     t.bigint "blob_id", null: false
     t.datetime "created_at", null: false
@@ -39,12 +39,39 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_16_210853) do
     t.index ["blob_id", "variation_digest"], name: "index_active_storage_variant_records_uniqueness", unique: true
   end
 
+  create_table "book_genres", force: :cascade do |t|
+    t.integer "book_id", null: false
+    t.datetime "created_at", null: false
+    t.integer "genre_id", null: false
+    t.datetime "updated_at", null: false
+    t.index ["book_id"], name: "index_book_genres_on_book_id"
+    t.index ["genre_id"], name: "index_book_genres_on_genre_id"
+  end
+
   create_table "books", force: :cascade do |t|
     t.string "author", default: "", null: false
     t.datetime "created_at", null: false
     t.string "title", default: "", null: false
     t.integer "total_pages"
     t.datetime "updated_at", null: false
+  end
+
+  create_table "genres", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.string "name", null: false
+    t.datetime "updated_at", null: false
+  end
+
+  create_table "reading_sessions", force: :cascade do |t|
+    t.integer "book_id", null: false
+    t.datetime "created_at", null: false
+    t.text "notes"
+    t.integer "pages_read", null: false
+    t.date "read_on", null: false
+    t.datetime "updated_at", null: false
+    t.integer "user_id", null: false
+    t.index ["book_id"], name: "index_reading_sessions_on_book_id"
+    t.index ["user_id"], name: "index_reading_sessions_on_user_id"
   end
 
   create_table "user_books", force: :cascade do |t|
@@ -77,6 +104,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_16_210853) do
 
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
+  add_foreign_key "book_genres", "books"
+  add_foreign_key "book_genres", "genres"
+  add_foreign_key "reading_sessions", "books"
+  add_foreign_key "reading_sessions", "users"
   add_foreign_key "user_books", "books"
   add_foreign_key "user_books", "users"
 end

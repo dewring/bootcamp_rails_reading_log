@@ -7,6 +7,14 @@
     <h1><%= @book.title %></h1>
     <p>by <%= @book.author %></p>
   </hgroup>
+  
+    <% if @book.genres.any? %>
+    <p>
+        <% @book.genres.each do |genre| %>
+        <span><%= genre.name %></span>
+        <% end %>
+    </p>
+    <% end %>
 
   <% if @book.total_pages %>
     <p><strong><%= @book.total_pages %></strong> pages</p>

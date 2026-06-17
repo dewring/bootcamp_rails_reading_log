@@ -30,5 +30,13 @@
     <%= f.file_field :cover_image %>
   </label>
 
+    <% Genre::GENRES.each do |genre| %>
+        <label>
+            <%= check_box_tag "book[genre_names][]", genre,
+            book.genres.map(&:name).include?(genre) %>
+            <%= genre %>
+        </label>
+    <% end %>
+    
   <%= f.submit class: "contrast" %>
 <% end %>
