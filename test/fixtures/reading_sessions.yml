@@ -1,0 +1,13 @@
+one:
+  user: leika
+  book: refactoring
+  read_on: <%= Date.today %>
+  pages_read: 20
+  notes: "Great chapter on refactoring methods"
+
+two:
+  user: leika
+  book: refactoring
+  read_on: <%= Date.today - 1 %>
+  pages_read: 15
+  notes:

@@ -1,0 +1,21 @@
+<h1>Edit Reading Session for <%= @reading_session.book.title %></h1>
+
+<%= form_with model: @reading_session do |f| %>
+
+  <label>
+    <%= f.label :read_on %>
+    <%= f.date_field :read_on %>
+  </label>
+
+  <label>
+    <%= f.label :pages_read %>
+    <%= f.number_field :pages_read %>
+  </label>
+
+  <label>
+    <%= f.label :notes, "Note" %>
+    <%= f.text_area :notes %>
+  </label>
+    
+  <%= f.submit class: "contrast" %>
+<% end %>

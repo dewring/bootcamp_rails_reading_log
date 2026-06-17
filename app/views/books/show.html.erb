@@ -24,9 +24,12 @@
     <% user_book = current_user.user_books.find_by(book: @book) %>
     <% if user_book %>
       <p>Your status: <strong><%= user_book.status.humanize %></strong></p>
+      <%= link_to "＋ Log Reading Session", new_book_reading_session_path(@book), role: "button" %>
     <% else %>
       <%= link_to "＋ Add to my reading log", new_user_book_path(book_id: @book.id), role: "button" %>
     <% end %>
+
+
   <% end %>
 
   <footer style="display: flex; gap: 1rem; margin-top: 1rem;">

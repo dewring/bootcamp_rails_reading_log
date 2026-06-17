@@ -37,6 +37,22 @@
                   style: "width: auto; margin: 0;" %>
           </div>
         </div>
+
+        <% sessions = user_book.book.reading_sessions.where(user: current_user).order(read_on: :desc) %>
+        <% if sessions.any? %>
+          <hr>
+          <% sessions.each do |session| %>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <small><%= session.read_on.strftime("%b %d, %Y") %> — <%= session.pages_read %> pages<%= " — #{session.notes}" if session.notes.present? %></small>
+              <div style="display: flex; gap: 0.5rem;">
+                <%= link_to "Edit", edit_reading_session_path(session), style: "font-size: 0.8rem;" %>
+                <%= button_to "Delete", reading_session_path(session), method: :delete,
+                      data: { turbo_confirm: "Delete this session?" },
+                      style: "font-size: 0.8rem; width: auto; margin: 0; padding: 0.2rem 0.5rem;" %>
+              </div>
+            </div>
+          <% end %>
+        <% end %>
       </article>
     <% end %>
   <% end %>
