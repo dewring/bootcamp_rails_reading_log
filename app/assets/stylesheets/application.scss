@@ -1,1 +1,863 @@
-// Sassy
+// Reading Log — Desktop-first styles inspired by Millie & Kyobo
+
+// ── Variables ──────────────────────────────────────────────
+$navy:       #1a2236;
+$accent:     #3563e9;
+$gray-light: #f5f6fa;
+$gray-mid:   #e0e3ee;
+$text-muted: #6b7280;
+$radius:     10px;
+
+// ── Base ───────────────────────────────────────────────────
+body {
+  background: #fff;
+  color: $navy;
+}
+
+// ── Nav ────────────────────────────────────────────────────
+.nav-bar {
+  background: $navy;
+  border-bottom: none;
+}
+
+.nav-inner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 0.6rem;
+  padding-bottom: 0.6rem;
+  font-size: 0.88rem;
+
+  ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+  }
+
+  a {
+    color: #fff !important;
+    text-decoration: none;
+    font-weight: 500;
+
+    &:hover {
+      color: $accent !important;
+    }
+  }
+
+  strong a {
+    font-size: 1.1rem !important;
+    font-weight: 700 !important;
+    letter-spacing: -0.01em;
+  }
+}
+
+// ── Search form ────────────────────────────────────────────
+.search-form {
+  --pico-form-element-spacing-vertical: 0px;
+  --pico-form-element-spacing-horizontal: 0.75rem;
+  display: flex;
+  align-items: stretch;
+  height: 38px;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+
+  input[type="text"],
+  input[type="search"],
+  select,
+  input[type="submit"] {
+    height: 100% !important;
+    min-height: unset !important;
+    max-height: 100% !important;
+    margin: 0 !important;
+    box-sizing: border-box !important;
+    font-size: 0.85rem !important;
+    border-radius: 6px !important;
+  }
+
+  input[type="text"],
+  input[type="search"] {
+    flex: 1;
+    border: 1px solid $gray-mid !important;
+    background: #fff !important;
+    padding: 0 0.75rem !important;
+  }
+
+  select {
+    flex: 0 0 150px;
+    border: 1px solid $gray-mid !important;
+    background: #fff !important;
+    padding: 0 0.5rem !important;
+  }
+
+  input[type="submit"] {
+    flex: 0;
+    background: $accent !important;
+    border: none !important;
+    color: #fff !important;
+    font-weight: 600 !important;
+    padding: 0 1.25rem !important;
+    cursor: pointer;
+
+    &:hover { background: darken($accent, 8%) !important; }
+  }
+}
+
+// ── Catalog header ─────────────────────────────────────────
+.catalog-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+// ── Book list (Kyobo-style) ─────────────────────────────────
+.book-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.book-list-item {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 1.25rem 0;
+  border-bottom: 1px solid $gray-mid;
+
+  &:first-child { border-top: 1px solid $gray-mid; }
+}
+
+.book-list-cover {
+  flex: 0 0 72px;
+
+  a { display: block; }
+
+  .book-list-image {
+    width: 72px;
+    height: 100px;
+    object-fit: cover;
+    border-radius: 4px;
+    display: block;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+  }
+
+  .book-list-no-cover {
+    width: 72px;
+    height: 100px;
+    background: $gray-light;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    border: 1px solid $gray-mid;
+  }
+}
+
+.book-list-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.book-list-genre {
+  margin: 0 0 0.3rem;
+
+  span {
+    font-size: 0.7rem;
+    color: $text-muted;
+    background: $gray-light;
+    padding: 0.15rem 0.5rem;
+    border-radius: 20px;
+    margin-right: 0.25rem;
+  }
+}
+
+.book-list-title {
+  font-size: 1rem;
+  font-weight: 700;
+  margin: 0 0 0.25rem;
+
+  a {
+    color: $navy;
+    text-decoration: none;
+    &:hover { color: $accent; }
+  }
+}
+
+.book-list-author {
+  font-size: 0.8rem;
+  color: $text-muted;
+  margin: 0;
+}
+
+.book-list-actions {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  align-items: stretch;
+  min-width: 120px;
+}
+
+.btn-cta-danger {
+  background: #fff;
+  color: #dc2626 !important;
+  border: 1px solid #fecaca;
+
+  &:hover { background: #fef2f2; }
+}
+
+// ── Book card ──────────────────────────────────────────────
+.books-grid article {
+  border: 1px solid $gray-mid;
+  border-radius: $radius;
+  overflow: hidden;
+  padding: 0;
+  transition: box-shadow 0.2s, transform 0.2s;
+  background: #fff;
+
+  &:hover {
+    box-shadow: 0 6px 24px rgba(26, 34, 54, 0.12);
+    transform: translateY(-3px);
+  }
+
+  img {
+    width: 100%;
+    height: 220px;
+    object-fit: cover;
+    display: block;
+  }
+
+  h3, p, footer {
+    padding: 0 0.75rem;
+  }
+
+  h3 {
+    font-size: 0.95rem;
+    font-weight: 700;
+    margin: 0.75rem 0 0.25rem;
+    color: $navy;
+
+    a {
+      color: $navy;
+      text-decoration: none;
+      &:hover { color: $accent; }
+    }
+  }
+
+  p small {
+    color: $text-muted;
+    font-size: 0.8rem;
+  }
+
+  footer {
+    padding: 0.5rem 0.75rem 0.75rem;
+    display: flex;
+    gap: 0.5rem;
+  }
+}
+
+// ── Genre pills ────────────────────────────────────────────
+span {
+  display: inline-block;
+  background: $gray-light;
+  color: $text-muted;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.2rem 0.6rem;
+  border-radius: 20px;
+  margin: 0 0.2rem 0.4rem 0;
+  letter-spacing: 0.02em;
+}
+
+// ── Home page: genre pills ─────────────────────────────────
+.genre-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 2rem;
+
+  .genre-pill {
+    display: inline-block;
+    background: $gray-light;
+    color: $navy;
+    font-size: 0.8rem;
+    font-weight: 600;
+    padding: 0.35rem 0.9rem;
+    border-radius: 20px;
+    text-decoration: none;
+    border: 1px solid $gray-mid;
+    transition: background 0.15s, color 0.15s;
+
+    &:hover {
+      background: $accent;
+      color: #fff;
+      border-color: $accent;
+    }
+  }
+}
+
+// ── Home page: sections + horizontal scroll rows ────────────
+.home-section {
+  margin-bottom: 3rem;
+
+  h2 {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: $navy;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid $gray-mid;
+  }
+}
+
+.book-row {
+  display: flex;
+  gap: 1rem;
+  overflow-x: auto;
+  padding-bottom: 0.75rem;
+  scrollbar-width: thin;
+  scrollbar-color: $gray-mid transparent;
+
+  &::-webkit-scrollbar {
+    height: 4px;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: $gray-mid;
+    border-radius: 4px;
+  }
+}
+
+.book-card {
+  flex: 0 0 140px;
+  text-decoration: none;
+  color: $navy;
+  transition: transform 0.15s;
+
+  &:hover {
+    transform: translateY(-3px);
+
+    .book-title { color: $accent; }
+  }
+
+  .book-cover {
+    width: 140px !important;
+    height: 200px !important;
+    object-fit: cover !important;
+    border-radius: $radius;
+    display: block;
+    background: $gray-light;
+    border: 1px solid $gray-mid;
+    flex-shrink: 0;
+  }
+
+  .no-cover {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2.5rem;
+  }
+
+  .book-title {
+    font-size: 0.8rem;
+    font-weight: 700;
+    margin: 0.5rem 0 0.1rem;
+    line-height: 1.3;
+    color: $navy;
+  }
+
+  .book-author {
+    font-size: 0.72rem;
+    color: $text-muted;
+    margin: 0;
+  }
+}
+
+// ── Flash messages ─────────────────────────────────────────
+main > article {
+  border-left: 3px solid #93c5fd;
+  background: #f8faff;
+  color: $navy;
+  border-radius: 6px;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+}
+
+// ── Page headings ──────────────────────────────────────────
+h1 {
+  font-size: 1.75rem;
+  font-weight: 800;
+  color: $navy;
+}
+
+h2 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: $navy;
+}
+
+// ── Dashboard ──────────────────────────────────────────────
+.dashboard-book {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.dashboard-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.status-select {
+  margin: 0 !important;
+  padding: 0.35rem 0.75rem !important;
+  font-size: 0.9rem !important;
+  width: fit-content !important;
+  min-width: 0 !important;
+  border: 1px solid $gray-mid !important;
+  border-radius: 6px !important;
+  background: #fff !important;
+  color: $navy !important;
+  height: 36px !important;
+}
+
+// Remove 버튼 (status select과 같은 크기)
+.btn-md {
+  font-size: 0.9rem !important;
+  padding: 0.35rem 0.9rem !important;
+  border-radius: 6px !important;
+  border: 1px solid $gray-mid !important;
+  background: #fff !important;
+  cursor: pointer;
+  width: auto !important;
+  margin: 0 !important;
+  display: inline-flex;
+  align-items: center;
+  height: 36px !important;
+  line-height: 1;
+  text-decoration: none;
+  color: $navy !important;
+
+  &:hover { background: $gray-light !important; }
+}
+
+.session-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.35rem 0;
+  font-size: 0.75rem;
+  color: $text-muted;
+  border-bottom: 1px solid $gray-light;
+}
+
+// Edit / Delete 버튼 (더 작게)
+.btn-sm {
+  font-size: 0.72rem !important;
+  padding: 0.15rem 0.5rem !important;
+  border-radius: 4px !important;
+  border: 1px solid $gray-mid !important;
+  background: #fff !important;
+  cursor: pointer;
+  width: auto !important;
+  margin: 0 !important;
+  display: inline-flex;
+  align-items: center;
+  height: 26px !important;
+  line-height: 1;
+  text-decoration: none;
+  color: $navy !important;
+
+  &:hover { background: $gray-light !important; }
+}
+
+.btn-danger {
+  color: #dc2626 !important;
+  border-color: #fecaca !important;
+
+  &:hover { background: #fef2f2 !important; }
+}
+
+// ── Book show page ─────────────────────────────────────────
+.book-show {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  gap: 3.5rem;
+  align-items: start;
+  padding: 2.5rem 0;
+}
+
+.book-show-image {
+  width: 100%;
+  border-radius: 6px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+  display: block;
+}
+
+.book-show-no-cover {
+  width: 260px;
+  height: 370px;
+  background: $gray-light;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 4rem;
+}
+
+.book-show-genre {
+  font-size: 0.8rem;
+  color: $text-muted;
+  margin-bottom: 0.5rem;
+
+  span {
+    background: $gray-light;
+    padding: 0.2rem 0.6rem;
+    border-radius: 20px;
+    margin-right: 0.3rem;
+  }
+}
+
+.book-show-title {
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: $navy;
+  margin: 0.25rem 0 0.5rem;
+  line-height: 1.3;
+}
+
+.book-show-author {
+  font-size: 0.95rem;
+  color: $text-muted;
+  margin-bottom: 0.5rem;
+}
+
+.book-show-pages {
+  font-size: 0.85rem;
+  color: $text-muted;
+}
+
+.book-show-divider {
+  border: none;
+  border-top: 1px solid $gray-mid;
+  margin: 1.5rem 0;
+}
+
+.book-show-status {
+  font-size: 0.85rem;
+  color: $text-muted;
+  margin-bottom: 0.75rem;
+}
+
+.book-show-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.btn-cta {
+  display: inline-block;
+  text-align: center;
+  min-width: 160px;
+  background: $accent;
+  color: #fff !important;
+  font-weight: 600;
+  font-size: 0.82rem;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  text-decoration: none;
+  transition: background 0.15s;
+
+  &:hover { background: darken($accent, 8%); }
+}
+
+// ── Auth pages (sign in / sign up) ─────────────────────────
+.auth-card {
+  max-width: 400px;
+  margin: 4rem auto;
+  padding: 2.5rem 2rem;
+  border: 1px solid $gray-mid;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 4px 24px rgba(26, 34, 54, 0.07);
+}
+
+.auth-logo {
+  text-align: center;
+  margin-bottom: 1.75rem;
+
+  a {
+    text-decoration: none;
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.35rem;
+  }
+
+  span {
+    background: none !important;
+    padding: 0 !important;
+    border-radius: 0 !important;
+    margin: 0 !important;
+  }
+
+  .auth-logo-icon {
+    font-size: 2rem;
+  }
+
+  .auth-logo-name {
+    font-size: 1.1rem;
+    font-weight: 800;
+    color: $navy;
+    letter-spacing: -0.02em;
+  }
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.auth-field {
+  input {
+    width: 100%;
+    margin: 0 !important;
+    font-size: 0.82rem !important;
+    border: 1px solid $gray-mid !important;
+    border-radius: 8px !important;
+    padding: 0.55rem 0.85rem !important;
+    background: #fff !important;
+    color: $navy !important;
+    box-sizing: border-box;
+
+    &:focus {
+      border-color: $accent !important;
+      outline: none;
+      box-shadow: 0 0 0 3px rgba(53, 99, 233, 0.1) !important;
+    }
+  }
+}
+
+.auth-remember {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+  color: $text-muted;
+
+  input[type="checkbox"] {
+    width: auto !important;
+    margin: 0 !important;
+  }
+}
+
+.auth-submit {
+  margin-top: 0.5rem;
+
+  input[type="submit"] {
+    width: 100%;
+    background: $navy !important;
+    color: #fff !important;
+    border: none !important;
+    border-radius: 8px !important;
+    padding: 0.6rem !important;
+    font-size: 0.85rem !important;
+    font-weight: 700 !important;
+    cursor: pointer;
+    margin: 0 !important;
+    transition: background 0.15s;
+
+    &:hover { background: darken($navy, 5%) !important; }
+  }
+}
+
+.auth-links {
+  margin-top: 1.25rem;
+  text-align: center;
+  font-size: 0.82rem;
+
+  a {
+    color: $text-muted;
+    text-decoration: none;
+    &:hover { color: $accent; }
+  }
+
+  .auth-links-divider {
+    color: $gray-mid;
+    margin: 0 0.5rem;
+  }
+}
+
+.btn-cta-secondary {
+  background: #fff;
+  color: $navy !important;
+  border: 1px solid $gray-mid;
+
+  &:hover { background: $gray-light; }
+}
+
+// ── Admin book form ─────────────────────────────────────────
+.admin-form-card {
+  max-width: 560px;
+  margin: 2.5rem auto;
+  padding: 2rem;
+  border: 1px solid $gray-mid;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 4px 24px rgba(26, 34, 54, 0.07);
+}
+
+.admin-form-header {
+  margin-bottom: 1.75rem;
+  border-bottom: 1px solid $gray-mid;
+  padding-bottom: 1rem;
+
+  h1 {
+    font-size: 1.2rem;
+    font-weight: 800;
+    margin: 0 0 0.2rem;
+  }
+
+  p {
+    font-size: 0.82rem;
+    color: $text-muted;
+    margin: 0;
+  }
+}
+
+.admin-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.admin-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+
+  label, .admin-field-label {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: $navy;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  input[type="text"],
+  input[type="number"],
+  input[type="date"],
+  textarea,
+  select {
+    margin: 0 !important;
+    font-size: 0.85rem !important;
+    border: 1px solid $gray-mid !important;
+    border-radius: 7px !important;
+    padding: 0.55rem 0.8rem !important;
+    background: #fff !important;
+    color: $navy !important;
+    width: 100%;
+    box-sizing: border-box;
+
+    &:focus {
+      border-color: $accent !important;
+      outline: none;
+      box-shadow: 0 0 0 3px rgba(53, 99, 233, 0.1) !important;
+    }
+  }
+
+  input[type="file"] {
+    margin: 0 !important;
+    font-size: 0.78rem !important;
+    border: 1px solid $gray-mid !important;
+    border-radius: 7px !important;
+    padding: 0.3rem 0.5rem !important;
+    background: #fff !important;
+    color: $navy !important;
+    width: 100%;
+    box-sizing: border-box;
+  }
+}
+
+.admin-genre-checkboxes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+}
+
+.admin-genre-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.8rem !important;
+  font-weight: 400 !important;
+  text-transform: none !important;
+  letter-spacing: 0 !important;
+  color: $navy;
+  background: $gray-light;
+  border: 1px solid $gray-mid;
+  border-radius: 20px;
+  padding: 0.25rem 0.7rem;
+  cursor: pointer;
+  transition: background 0.15s;
+
+  input[type="checkbox"] {
+    width: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+
+  &:hover { background: $gray-mid; }
+}
+
+.admin-form-errors {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 7px;
+  padding: 0.75rem 1rem;
+  font-size: 0.82rem;
+  color: #dc2626;
+
+  ul { margin: 0.4rem 0 0 1rem; padding: 0; }
+}
+
+.admin-form-submit {
+  margin-top: 0.5rem;
+
+  input[type="submit"] {
+    background: $accent !important;
+    color: #fff !important;
+    border: none !important;
+    border-radius: 7px !important;
+    padding: 0.6rem 1.5rem !important;
+    font-size: 0.85rem !important;
+    font-weight: 700 !important;
+    cursor: pointer;
+    margin: 0 !important;
+    width: auto !important;
+    transition: background 0.15s;
+
+    &:hover { background: darken($accent, 8%) !important; }
+  }
+}
+
+.admin-form-cancel {
+  margin-top: 1rem;
+
+  a {
+    font-size: 0.8rem;
+    color: $text-muted;
+    text-decoration: none;
+    &:hover { color: $accent; }
+  }
+}
