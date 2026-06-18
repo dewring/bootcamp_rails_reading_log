@@ -1,42 +1,49 @@
-<%= form_with model: book do |f| %>
+<%= form_with model: book, html: { class: "admin-form" } do |f| %>
   <% if book.errors.any? %>
-    <article>
-      <strong><%= book.errors.count %> error(s) prevented this book from being saved:</strong>
+    <div class="admin-form-errors">
+      <strong><%= book.errors.count %> error(s):</strong>
       <ul>
         <% book.errors.full_messages.each do |msg| %>
           <li><%= msg %></li>
         <% end %>
       </ul>
-    </article>
+    </div>
   <% end %>
 
-  <label>
-    <%= f.label :title %>
+  <div class="admin-field">
+    <%= f.label :title, "Title" %>
     <%= f.text_field :title, placeholder: "Book title" %>
-  </label>
+  </div>
 
-  <label>
-    <%= f.label :author %>
+  <div class="admin-field">
+    <%= f.label :author, "Author" %>
     <%= f.text_field :author, placeholder: "Author name" %>
-  </label>
+  </div>
 
-  <label>
+  <div class="admin-field">
     <%= f.label :total_pages, "Total Pages" %>
     <%= f.number_field :total_pages, placeholder: "Optional" %>
-  </label>
+  </div>
 
-  <label>
+  <div class="admin-field">
     <%= f.label :cover_image, "Cover Image" %>
     <%= f.file_field :cover_image %>
-  </label>
+  </div>
 
-    <% Genre::GENRES.each do |genre| %>
-        <label>
-            <%= check_box_tag "book[genre_names][]", genre,
-            book.genres.map(&:name).include?(genre) %>
-            <%= genre %>
+  <div class="admin-field">
+    <label class="admin-field-label">Genres</label>
+    <div class="admin-genre-checkboxes">
+      <% Genre::GENRES.each do |genre| %>
+        <label class="admin-genre-option">
+          <%= check_box_tag "book[genre_names][]", genre,
+              book.genres.map(&:name).include?(genre) %>
+          <%= genre %>
         </label>
-    <% end %>
-    
-  <%= f.submit class: "contrast" %>
+      <% end %>
+    </div>
+  </div>
+
+  <div class="admin-form-submit">
+    <%= f.submit "Save Book" %>
+  </div>
 <% end %>

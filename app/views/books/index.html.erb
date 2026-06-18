@@ -1,37 +1,64 @@
-<div style="display: flex; justify-content: space-between; align-items: center;">
+<div class="catalog-header">
   <h1>Book Catalog</h1>
   <% if current_user&.admin? %>
-    <%= link_to "＋ Add Book", new_book_path, role: "button" %>
+    <%= link_to "＋ Add Book", new_book_path, class: "btn-cta" %>
   <% end %>
 </div>
+
+<%= form_with url: books_path, method: :get, class: "search-form" do |f| %>
+  <%= f.text_field :q, placeholder: "Search by title or author...", value: params[:q] %>
+  <%= f.select :genre,
+      Genre::GENRES,
+      { include_blank: "All Genres", selected: params[:genre] } %>
+  <%= f.submit "Search" %>
+<% end %>
 
 <% if @books.empty? %>
   <p>No books in the catalog yet.</p>
 <% else %>
-  <div class="grid">
+  <div class="book-list">
     <% @books.each do |book| %>
-      <article>
-        <% if book.cover_image.attached? %>
-          <%= image_tag book.cover_image, style: "width: 100%; height: 200px; object-fit: cover;" %>
-        <% end %>
-        <h3><%= link_to book.title, book %></h3>
-        <p><small>by <%= book.author %></small></p>
-        <% if book.genres.any? %>
-        <p>
-            <% book.genres.each do |genre| %>
-            <span><%= genre.name %></span>
+      <div class="book-list-item">
+
+        <div class="book-list-cover">
+          <%= link_to book do %>
+            <% if book.cover_image.attached? %>
+              <%= image_tag book.cover_image, class: "book-list-image" %>
+            <% else %>
+              <div class="book-list-no-cover">📚</div>
             <% end %>
-        </p>
-        <% end %>
-        <% if current_user&.admin? %>
-          <footer style="display: flex; gap: 0.5rem;">
-            <%= link_to "Edit", edit_book_path(book), role: "button", class: "secondary", style: "width: auto;" %>
+          <% end %>
+        </div>
+
+        <div class="book-list-info">
+          <% if book.genres.any? %>
+            <p class="book-list-genre">
+              <% book.genres.each do |genre| %>
+                <span><%= genre.name %></span>
+              <% end %>
+            </p>
+          <% end %>
+          <h3 class="book-list-title"><%= link_to book.title, book %></h3>
+          <p class="book-list-author">by <%= book.author %></p>
+        </div>
+
+        <div class="book-list-actions">
+          <% if current_user&.admin? %>
+            <%= link_to "Edit", edit_book_path(book), class: "btn-cta btn-cta-secondary" %>
             <%= button_to "Delete", book_path(book), method: :delete,
-                data: { turbo_confirm: "Remove this book from the catalog?" },
-                style: "width: auto;" %>
-          </footer>
-        <% end %>
-      </article>
+                data: { turbo_confirm: "Remove this book?" },
+                class: "btn-cta btn-cta-danger" %>
+          <% elsif user_signed_in? %>
+            <%= link_to "＋ Add to Log", new_user_book_path(book_id: book.id), class: "btn-cta" %>
+          <% else %>
+            <a href="#" class="btn-cta"
+               onclick="alert('Sign in or sign up to continue.'); window.location='<%= new_user_session_path %>'; return false;">
+              ＋ Add to Log
+            </a>
+          <% end %>
+        </div>
+
+      </div>
     <% end %>
   </div>
 <% end %>
