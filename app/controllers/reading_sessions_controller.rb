@@ -33,7 +33,7 @@ class ReadingSessionsController < ApplicationController
 
   def update
     if @reading_session.update(reading_session_params)
-      redirect_to book_path(@reading_session.book), notice: "Reading session updated!"
+      redirect_to dashboard_path, notice: "Reading session updated!"
     else
       render :edit, status: :unprocessable_entity
     end
@@ -41,7 +41,7 @@ class ReadingSessionsController < ApplicationController
 
   def destroy
     @reading_session.destroy
-    redirect_to book_path(@reading_session.book), notice: "Reading session deleted."
+    redirect_to dashboard_path, notice: "Reading session deleted."
   end
 
   private

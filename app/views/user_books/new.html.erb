@@ -1,19 +1,23 @@
-<hgroup>
-  <h1>Add to Reading Log</h1>
-  <p><%= @book.title %> by <%= @book.author %></p>
-</hgroup>
+<div class="admin-form-card">
+  <div class="admin-form-header">
+    <h1>Add to Reading Log</h1>
+    <p><%= @book.title %> by <%= @book.author %></p>
+  </div>
 
-<article>
-  <%= form_with model: @user_book, url: user_books_path do |f| %>
+  <%= form_with model: @user_book, url: user_books_path, html: { class: "admin-form" } do |f| %>
     <%= f.hidden_field :book_id, value: @book.id %>
 
-    <label>
+    <div class="admin-field">
       <%= f.label :status, "Reading Status" %>
       <%= f.select :status, UserBook::STATUSES.map { |s| [s.humanize, s] } %>
-    </label>
+    </div>
 
-    <%= f.submit "Add to log", class: "contrast" %>
+    <div class="admin-form-submit">
+      <%= f.submit "Add to Log" %>
+    </div>
   <% end %>
-</article>
 
-<%= link_to "← Back to book", @book %>
+  <div class="admin-form-cancel">
+    <%= link_to "← Back to book", @book %>
+  </div>
+</div>
