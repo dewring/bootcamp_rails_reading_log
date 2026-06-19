@@ -12,6 +12,7 @@ class Book < ApplicationRecord
   has_many :reading_sessions, dependent: :destroy
   has_many :book_genres, dependent: :destroy
   has_many :genres, through: :book_genres
+  has_many :reviews, dependent: :destroy
 
   # 4. Scopes
   scope :most_read, -> {

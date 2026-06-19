@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_06_16_233216) do
+ActiveRecord::Schema[8.1].define(version: 2026_06_18_211039) do
   create_table "active_storage_attachments", force: :cascade do |t|
     t.bigint "blob_id", null: false
     t.datetime "created_at", null: false
@@ -74,6 +74,17 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_16_233216) do
     t.index ["user_id"], name: "index_reading_sessions_on_user_id"
   end
 
+  create_table "reviews", force: :cascade do |t|
+    t.text "body"
+    t.integer "book_id", null: false
+    t.datetime "created_at", null: false
+    t.integer "rating", null: false
+    t.datetime "updated_at", null: false
+    t.integer "user_id", null: false
+    t.index ["book_id"], name: "index_reviews_on_book_id"
+    t.index ["user_id"], name: "index_reviews_on_user_id"
+  end
+
   create_table "user_books", force: :cascade do |t|
     t.integer "book_id", null: false
     t.datetime "created_at", null: false
@@ -108,6 +119,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_16_233216) do
   add_foreign_key "book_genres", "genres"
   add_foreign_key "reading_sessions", "books"
   add_foreign_key "reading_sessions", "users"
+  add_foreign_key "reviews", "books"
+  add_foreign_key "reviews", "users"
   add_foreign_key "user_books", "books"
   add_foreign_key "user_books", "users"
 end
