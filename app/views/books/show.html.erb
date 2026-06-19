@@ -42,3 +42,38 @@
     </div>
   </div>
 </div>
+
+<%# Reviews section %>
+<div class="reviews-section">
+  <div class="reviews-header">
+    <h2>Reviews <span class="reviews-count"><%= @reviews.count %></span></h2>
+    <% if user_signed_in? && !current_user.admin? %>
+      <% my_review = current_user.reviews.find_by(book: @book) %>
+      <div class="reviews-header-actions">
+        <% if my_review %>
+          <%= link_to "Edit my Review", edit_book_review_path(@book, my_review), class: "btn-cta" %>
+        <% end %>
+        <% unless my_review %>
+          <%= link_to "Write a Review", new_book_review_path(@book), class: "btn-cta" %>
+        <% end %>
+      </div>
+    <% end %>
+  </div>
+
+  <% if @reviews.empty? %>
+    <p class="reviews-empty">No reviews yet. Be the first to write one!</p>
+  <% else %>
+    <% @reviews.each do |review| %>
+      <div class="review-card">
+        <div class="review-top">
+          <div class="review-meta">
+            <div class="review-author"><%= review.user.nickname %></div>
+            <div class="review-date"><%= review.created_at.strftime("%Y-%m-%d") %></div>
+          </div>
+          <div class="review-rating">★ <%= review.rating %> / 5</div>
+        </div>
+        <p class="review-body"><%= review.body %></p>
+      </div>
+    <% end %>
+  <% end %>
+</div> 

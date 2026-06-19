@@ -861,3 +861,102 @@ h2 {
     &:hover { color: $accent; }
   }
 }
+// ── Reviews ────────────────────────────────────────────────
+.reviews-section {
+  margin-top: 3rem;
+  margin-bottom: 5rem;
+  border-top: 2px solid $gray-mid;
+  padding-top: 2rem;
+}
+
+.reviews-header {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  margin-bottom: 1.5rem;
+
+  h2 {
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin: 0;
+  }
+
+  .reviews-header-actions {
+    display: grid;
+    grid-template-columns: auto;
+    gap: 0.5rem;
+    justify-items: end;
+  }
+}
+
+.reviews-count {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: $text-muted;
+  background: $gray-light !important;
+  padding: 0.15rem 0.5rem !important;
+  border-radius: 20px !important;
+}
+
+.reviews-empty {
+  font-size: 0.85rem;
+  color: $text-muted;
+  padding: 1.5rem 0;
+}
+
+.review-card {
+  padding: 1.25rem 0;
+  border-bottom: 1px solid $gray-mid;
+
+  &:last-of-type { border-bottom: none; }
+}
+
+.review-top {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  margin-bottom: 0.6rem;
+}
+
+.review-meta {
+  display: grid;
+  grid-template-columns: auto auto;
+  align-items: center;
+  gap: 0.6rem;
+  justify-content: start;
+}
+
+.review-author {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: $navy;
+  background: $gray-light !important;
+  padding: 0.15rem 0.6rem !important;
+  border-radius: 20px !important;
+}
+
+.review-date {
+  font-size: 0.75rem;
+  color: $text-muted;
+  background: none !important;
+  padding: 0 !important;
+}
+
+.review-rating {
+  font-size: 0.8rem;
+  color: $accent;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.review-body {
+  font-size: 0.85rem;
+  color: $navy;
+  margin: 0 0 0.5rem;
+  line-height: 1.7;
+}
+
+.review-actions {
+  display: flex;
+  justify-content: flex-end;
+}

@@ -1,0 +1,26 @@
+<div class="admin-form-card">
+  <div class="admin-form-header">
+    <h1>Edit your Review</h1>
+    <p><%= @book.title %> by <%= @book.author %></p>
+  </div>
+
+  <%= form_with model: [@book, @review], html: { class: "admin-form" } do |f| %>
+    <div class="admin-field">
+      <%= f.label :rating, "Rating (0–5)" %>
+      <%= f.number_field :rating, min: 0, max: 5 %>
+    </div>
+
+    <div class="admin-field">
+      <%= f.label :body, "Review" %>
+      <%= f.text_area :body, rows: 4, placeholder: "Write your thoughts..." %>
+    </div>
+
+    <div class="admin-form-submit">
+      <%= f.submit "Update Review" %>
+    </div>
+  <% end %>
+
+  <div class="admin-form-cancel">
+    <%= link_to "← Back to book", @book %>
+  </div>
+</div>
