@@ -1,10 +1,12 @@
-<hgroup>
-  <h1>Add Book to Catalog</h1>
-  <p>Fill in the details below to add a new book.</p>
-</hgroup>
+<div class="admin-form-card">
+  <div class="admin-form-header">
+    <h1>Add Book</h1>
+    <p>Fill in the details to add a new book to the catalog.</p>
+  </div>
 
-<article>
   <%= render "form", book: @book %>
-</article>
 
-<%= link_to "← Cancel", books_path %>
+  <div class="admin-form-cancel">
+    <%= link_to "← Cancel", books_path %>
+  </div>
+</div>

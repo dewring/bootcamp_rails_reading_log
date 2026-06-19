@@ -16,25 +16,24 @@
 
     <% books_for_status.each do |user_book| %>
       <article>
-        <div style="display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap;">
+        <div class="dashboard-book">
           <div>
             <strong><%= link_to user_book.book.title, user_book.book %></strong>
-            <small>by <%= user_book.book.author %></small>
+            <small> by <%= user_book.book.author %></small>
           </div>
 
-          <div style="display: flex; gap: 0.5rem; align-items: center;">
+          <div class="dashboard-actions">
             <%= form_with model: user_book, url: user_book_path(user_book), method: :patch do |f| %>
               <%= f.select :status,
                     UserBook::STATUSES.map { |s| [s.humanize, s] },
                     { selected: user_book.status },
-                    { onchange: "this.form.submit()", style: "margin: 0;" } %>
+                    { onchange: "this.form.submit()", class: "status-select" } %>
             <% end %>
 
             <%= button_to "Remove", user_book_path(user_book),
                   method: :delete,
                   data: { turbo_confirm: "Remove from log?" },
-                  class: "secondary",
-                  style: "width: auto; margin: 0;" %>
+                  class: "btn-md" %>
           </div>
         </div>
 
@@ -42,13 +41,13 @@
         <% if sessions.any? %>
           <hr>
           <% sessions.each do |session| %>
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-              <small><%= session.read_on.strftime("%b %d, %Y") %> — <%= session.pages_read %> pages<%= " — #{session.notes}" if session.notes.present? %></small>
-              <div style="display: flex; gap: 0.5rem;">
-                <%= link_to "Edit", edit_reading_session_path(session), style: "font-size: 0.8rem;" %>
+            <div class="session-row">
+              <span><%= session.read_on.strftime("%b %d, %Y") %> — <%= session.pages_read %> pages<%= " — #{session.notes}" if session.notes.present? %></span>
+              <div style="display: flex; gap: 0.4rem;">
+                <%= link_to "Edit", edit_reading_session_path(session), class: "btn-sm" %>
                 <%= button_to "Delete", reading_session_path(session), method: :delete,
                       data: { turbo_confirm: "Delete this session?" },
-                      style: "font-size: 0.8rem; width: auto; margin: 0; padding: 0.2rem 0.5rem;" %>
+                      class: "btn-sm btn-danger" %>
               </div>
             </div>
           <% end %>

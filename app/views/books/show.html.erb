@@ -1,41 +1,79 @@
-<article>
-  <% if @book.cover_image.attached? %>
-    <%= image_tag @book.cover_image, style: "width: 100%; max-height: 300px; object-fit: cover; border-radius: var(--pico-border-radius);" %>
-  <% end %>
-
-  <hgroup>
-    <h1><%= @book.title %></h1>
-    <p>by <%= @book.author %></p>
-  </hgroup>
-  
-    <% if @book.genres.any? %>
-    <p>
-        <% @book.genres.each do |genre| %>
-        <span><%= genre.name %></span>
-        <% end %>
-    </p>
-    <% end %>
-
-  <% if @book.total_pages %>
-    <p><strong><%= @book.total_pages %></strong> pages</p>
-  <% end %>
-
-  <% if user_signed_in? && !current_user.admin? %>
-    <% user_book = current_user.user_books.find_by(book: @book) %>
-    <% if user_book %>
-      <p>Your status: <strong><%= user_book.status.humanize %></strong></p>
-      <%= link_to "＋ Log Reading Session", new_book_reading_session_path(@book), role: "button" %>
+<div class="book-show">
+  <div class="book-show-cover">
+    <% if @book.cover_image.attached? %>
+      <%= image_tag @book.cover_image, class: "book-show-image" %>
     <% else %>
-      <%= link_to "＋ Add to my reading log", new_user_book_path(book_id: @book.id), role: "button" %>
+      <div class="book-show-no-cover">📚</div>
+    <% end %>
+  </div>
+
+  <div class="book-show-info">
+    <% if @book.genres.any? %>
+      <p class="book-show-genre">
+        <% @book.genres.each do |genre| %>
+          <span><%= genre.name %></span>
+        <% end %>
+      </p>
     <% end %>
 
+    <h1 class="book-show-title"><%= @book.title %></h1>
+    <p class="book-show-author"><%= @book.author %></p>
 
+    <% if @book.total_pages %>
+      <p class="book-show-pages"><%= @book.total_pages %> pages</p>
+    <% end %>
+
+    <hr class="book-show-divider">
+
+    <div class="book-show-actions">
+      <% if user_signed_in? && !current_user.admin? %>
+        <% user_book = current_user.user_books.find_by(book: @book) %>
+        <% if user_book %>
+          <p class="book-show-status">Reading status: <strong><%= user_book.status.humanize %></strong></p>
+          <%= link_to "＋ Log Reading Session", new_book_reading_session_path(@book), class: "btn-cta" %>
+        <% else %>
+          <%= link_to "＋ Want to Read", new_user_book_path(book_id: @book.id), class: "btn-cta" %>
+        <% end %>
+      <% end %>
+
+      <% if current_user&.admin? %>
+        <%= link_to "Edit", edit_book_path(@book), class: "btn-cta btn-cta-secondary" %>
+      <% end %>
+    </div>
+  </div>
+</div>
+
+<%# Reviews section %>
+<div class="reviews-section">
+  <div class="reviews-header">
+    <h2>Reviews <span class="reviews-count"><%= @reviews.count %></span></h2>
+    <% if user_signed_in? && !current_user.admin? %>
+      <% my_review = current_user.reviews.find_by(book: @book) %>
+      <div class="reviews-header-actions">
+        <% if my_review %>
+          <%= link_to "Edit my Review", edit_book_review_path(@book, my_review), class: "btn-cta" %>
+        <% end %>
+        <% unless my_review %>
+          <%= link_to "Write a Review", new_book_review_path(@book), class: "btn-cta" %>
+        <% end %>
+      </div>
+    <% end %>
+  </div>
+
+  <% if @reviews.empty? %>
+    <p class="reviews-empty">No reviews yet. Be the first to write one!</p>
+  <% else %>
+    <% @reviews.each do |review| %>
+      <div class="review-card">
+        <div class="review-top">
+          <div class="review-meta">
+            <div class="review-author"><%= review.user.nickname %></div>
+            <div class="review-date"><%= review.created_at.strftime("%Y-%m-%d") %></div>
+          </div>
+          <div class="review-rating">★ <%= review.rating %> / 5</div>
+        </div>
+        <p class="review-body"><%= review.body %></p>
+      </div>
+    <% end %>
   <% end %>
-
-  <footer style="display: flex; gap: 1rem; margin-top: 1rem;">
-    <%= link_to "← Back to Catalog", books_path, class: "secondary", role: "button" %>
-    <% if current_user&.admin? %>
-      <%= link_to "Edit", edit_book_path(@book), role: "button", class: "contrast" %>
-    <% end %>
-  </footer>
-</article>
+</div> 

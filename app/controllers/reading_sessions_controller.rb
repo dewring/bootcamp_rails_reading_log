@@ -2,6 +2,17 @@ class ReadingSessionsController < ApplicationController
   before_action :authenticate_user!
   before_action :set_book, only: [ :new, :create ]   # load @book
   before_action :set_reading_session, only: [ :update, :edit, :destroy ]   # load @reading_session
+
+  def index
+    @reading_sessions = if current_user.admin?
+      ReadingSession.all
+    else
+      current_user.reading_sessions
+    end
+    respond_to do |format|
+      format.json { render json: @reading_sessions }
+    end
+  end
   def new
     @reading_session = @book.reading_sessions.build
   end
@@ -22,7 +33,7 @@ class ReadingSessionsController < ApplicationController
 
   def update
     if @reading_session.update(reading_session_params)
-      redirect_to book_path(@reading_session.book), notice: "Reading session updated!"
+      redirect_to dashboard_path, notice: "Reading session updated!"
     else
       render :edit, status: :unprocessable_entity
     end
@@ -30,7 +41,7 @@ class ReadingSessionsController < ApplicationController
 
   def destroy
     @reading_session.destroy
-    redirect_to book_path(@reading_session.book), notice: "Reading session deleted."
+    redirect_to dashboard_path, notice: "Reading session deleted."
   end
 
   private

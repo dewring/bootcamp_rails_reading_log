@@ -1,10 +1,12 @@
-<hgroup>
-  <h1>Edit Book</h1>
-  <p><%= @book.title %></p>
-</hgroup>
+<div class="admin-form-card">
+  <div class="admin-form-header">
+    <h1>Edit Book</h1>
+    <p><%= @book.title %></p>
+  </div>
 
-<article>
   <%= render "form", book: @book %>
-</article>
 
-<%= link_to "← Cancel", @book %>
+  <div class="admin-form-cancel">
+    <%= link_to "← Cancel", @book %>
+  </div>
+</div>

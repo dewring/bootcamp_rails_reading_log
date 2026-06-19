@@ -4,6 +4,10 @@ class UserBooksController < ApplicationController
 
   def new
     @book = Book.find(params[:book_id])
+    if current_user.user_books.exists?(book: @book)
+      redirect_to @book, notice: "This book is already in your reading log."
+      return
+    end
     @user_book = UserBook.new
   end
 
