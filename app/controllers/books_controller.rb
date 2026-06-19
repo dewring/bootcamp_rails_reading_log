@@ -22,6 +22,7 @@ class BooksController < ApplicationController
   end
 
   def show
+    @reviews = @book.reviews.includes(:user).order(created_at: :desc)
   end
 
   def new
