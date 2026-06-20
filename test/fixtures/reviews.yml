@@ -1,0 +1,11 @@
+review1:
+  user: leika
+  book: refactoring
+  rating: 1
+  body: "Great book"
+
+review2:
+  user: jaina
+  book: pragmatic
+  rating: 4
+  body: "Loved it"

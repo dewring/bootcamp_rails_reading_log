@@ -1,0 +1,7 @@
+some_name1:
+  book: refactoring
+  genre: fiction
+
+some_name2:
+  book: pragmatic
+  genre: nonfiction
