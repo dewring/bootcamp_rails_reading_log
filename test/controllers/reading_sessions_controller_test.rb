@@ -12,6 +12,13 @@ class ReadingSessionsControllerTest < ActionDispatch::IntegrationTest
     get new_book_reading_session_path(book_id: books(:refactoring))
     assert_redirected_to new_user_session_path
   end
+  test "create reading session shows errors on invalid submission" do
+    sign_in users(:leika)
+    post book_reading_sessions_path(books(:refactoring)), params: { reading_session: { read_on: "", pages_read: "" } }
+    assert_response :unprocessable_entity
+    assert_select "div.error-messages"
+  end
+
   test "user create reading session" do
     sign_in users(:leika)
     post book_reading_sessions_path(books(:refactoring)), params: { reading_session: { read_on: Date.today, pages_read: 15 } }
