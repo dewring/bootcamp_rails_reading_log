@@ -1,6 +1,13 @@
 require "test_helper"
 class ReadingSessionsControllerTest < ActionDispatch::IntegrationTest
   include Devise::Test::IntegrationHelpers
+  test "new reading session defaults to today's date" do
+    sign_in users(:leika)
+    get new_book_reading_session_path(book_id: books(:refactoring))
+    assert_response :success
+    assert_select "input[type='date'][value='#{Date.today}']"
+  end
+
   test "guest cannot access reading sessions" do
     get new_book_reading_session_path(book_id: books(:refactoring))
     assert_redirected_to new_user_session_path
