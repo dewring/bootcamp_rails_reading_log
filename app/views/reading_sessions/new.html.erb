@@ -5,6 +5,16 @@
   </div>
 
   <%= form_with model: [@book, @reading_session], html: { class: "admin-form" } do |f| %>
+    <% if @reading_session.errors.any? %>
+      <div class="error-messages">
+        <ul>
+          <% @reading_session.errors.full_messages.each do |message| %>
+            <li><%= message %></li>
+          <% end %>
+        </ul>
+      </div>
+    <% end %>
+
     <div class="admin-field">
       <%= f.label :read_on, "Date" %>
       <%= f.date_field :read_on %>

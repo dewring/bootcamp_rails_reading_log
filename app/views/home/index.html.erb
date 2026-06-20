@@ -4,23 +4,30 @@
 <section class="home-section">
   <h2>Most Read</h2>
   <div class="genre-pills">
-  <% Genre::GENRES.each do |genre| %>
-    <%= link_to genre, root_path(genre: genre), class: "genre-pill" %>
-  <% end %>
-  </div>
-  <div class="book-row">
-    <% @most_read.each do |book| %>
-      <%= link_to book_path(book), class: "book-card" do %>
-        <% if book.cover_image.attached? %>
-          <%= image_tag book.cover_image, class: "book-cover" %>
-        <% else %>
-          <div class="book-cover no-cover">📚</div>
-        <% end %>
-        <p class="book-title"><%= book.title %></p>
-        <p class="book-author"><%= book.author %></p>
-      <% end %>
+    <% if params[:genre].present? %>
+      <%= link_to "Reset", root_path, class: "genre-pill", style: "background-color: #f5c518; border-color: #e0b000; color: #1a2236; text-decoration: none;" %>
+    <% end %>
+    <% Genre::GENRES.each do |genre| %>
+      <%= link_to genre, root_path(genre: genre), class: "genre-pill #{'genre-pill-active' if params[:genre] == genre}" %>
     <% end %>
   </div>
+  <% if @most_read.empty? %>
+    <p class="empty-state">No books found for this genre.</p>
+  <% else %>
+    <div class="book-row">
+      <% @most_read.each do |book| %>
+        <%= link_to book_path(book), class: "book-card" do %>
+          <% if book.cover_image.attached? %>
+            <%= image_tag book.cover_image, class: "book-cover" %>
+          <% else %>
+            <div class="book-cover no-cover">📚</div>
+          <% end %>
+          <p class="book-title"><%= book.title %></p>
+          <p class="book-author"><%= book.author %></p>
+        <% end %>
+      <% end %>
+    </div>
+  <% end %>
 </section>
 
 <%# New Books %>

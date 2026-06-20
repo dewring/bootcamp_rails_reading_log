@@ -26,7 +26,7 @@
     <hr class="book-show-divider">
 
     <div class="book-show-actions">
-      <% if user_signed_in? && !current_user.admin? %>
+      <% if user_signed_in? %>
         <% user_book = current_user.user_books.find_by(book: @book) %>
         <% if user_book %>
           <p class="book-show-status">Reading status: <strong><%= user_book.status.humanize %></strong></p>

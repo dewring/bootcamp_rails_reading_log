@@ -14,7 +14,7 @@ class ReadingSessionsController < ApplicationController
     end
   end
   def new
-    @reading_session = @book.reading_sessions.build
+    @reading_session = @book.reading_sessions.build(read_on: Date.today)
   end
 
   def create

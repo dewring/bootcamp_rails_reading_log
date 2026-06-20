@@ -10,6 +10,14 @@
     <%= render "devise/shared/error_messages", resource: resource %>
 
     <div class="auth-field">
+      <%= f.text_field :first_name, placeholder: "First name", autocomplete: "given-name" %>
+    </div>
+
+    <div class="auth-field">
+      <%= f.text_field :last_name, placeholder: "Last name", autocomplete: "family-name" %>
+    </div>
+
+    <div class="auth-field">
       <%= f.text_field :nickname, placeholder: "Nickname", autocomplete: "nickname" %>
     </div>
 
