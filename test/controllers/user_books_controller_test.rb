@@ -6,6 +6,12 @@ class UserBooksControllerTest < ActionDispatch::IntegrationTest
     get new_user_book_path(book_id: books(:refactoring))
     assert_redirected_to new_user_session_path
   end
+  test "admin can add a book to their log" do
+    sign_in users(:admin)
+    post user_books_path, params: { user_book: { book_id: books(:pragmatic).id, status: "reading" } }
+    assert_redirected_to dashboard_path
+  end
+
   test "user create book log" do
     sign_in users(:jaina)
     post user_books_path, params: { user_book: { book_id: books(:refactoring).id, status: "reading" } }
