@@ -23,4 +23,10 @@ class BookTest < ActiveSupport::TestCase
     @book.total_pages = nil
     assert @book.valid?
   end
+
+  test "title and author are titleized before save" do
+    book = Book.create!(title: "the great gatsby", author: "f. scott fitzgerald", total_pages: 180)
+    assert_equal "The Great Gatsby", book.title
+    assert_equal "F. Scott Fitzgerald", book.author
+  end
 end

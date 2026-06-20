@@ -2,11 +2,14 @@ class Book < ApplicationRecord
   # 1. Attachments
   has_one_attached :cover_image
 
-  # 2. Validations
+  # 2. Callbacks
+  before_save :normalize_title_and_author
+
+  # 3. Validations
   validates :title, presence: true
   validates :author, presence: true
 
-  # 3. Associations
+  # 4. Associations
   has_many :user_books, dependent: :destroy
   has_many :users, through: :user_books
   has_many :reading_sessions, dependent: :destroy
@@ -14,15 +17,22 @@ class Book < ApplicationRecord
   has_many :genres, through: :book_genres
   has_many :reviews, dependent: :destroy
 
-  # 4. Scopes
+  # 5. Scopes
   scope :most_read, -> {
     left_joins(:reading_sessions)
       .group(:id)
       .order("COUNT(reading_sessions.id) DESC")
   }
 
-  # 5. Instance methods
+  # 6. Instance methods
   def total_pages_read
     reading_sessions.sum(:pages_read)
+  end
+
+  private
+
+  def normalize_title_and_author
+    self.title = title.titleize if title.present?
+    self.author = author.titleize if author.present?
   end
 end
