@@ -2,8 +2,9 @@ class Book < ApplicationRecord
   # 1. Attachments
   has_one_attached :cover_image
 
-  # 2. Callbacks
-  before_save :normalize_title_and_author
+  # 2. Normalizations
+  normalizes :title, with: ->(v) { v.titleize }
+  normalizes :author, with: ->(v) { v.titleize }
 
   # 3. Validations
   validates :title, presence: true
@@ -29,10 +30,4 @@ class Book < ApplicationRecord
     reading_sessions.sum(:pages_read)
   end
 
-  private
-
-  def normalize_title_and_author
-    self.title = title.titleize if title.present?
-    self.author = author.titleize if author.present?
-  end
 end
