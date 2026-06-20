@@ -791,12 +791,20 @@ h2 {
   flex-wrap: wrap;
   gap: 0.5rem;
   margin-top: 0.25rem;
+
+  input[type="checkbox"] { display: none !important; }
+
+  input:checked + .admin-genre-option {
+    background: $accent !important;
+    border-color: $accent !important;
+    color: #fff !important;
+    font-weight: 600 !important;
+  }
 }
 
 .admin-genre-option {
   display: inline-flex;
   align-items: center;
-  gap: 0.3rem;
   font-size: 0.8rem !important;
   font-weight: 400 !important;
   text-transform: none !important;
@@ -807,15 +815,7 @@ h2 {
   border-radius: 20px;
   padding: 0.25rem 0.7rem;
   cursor: pointer;
-  transition: background 0.15s;
-
-  input[type="checkbox"] {
-    width: auto !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    border: none !important;
-    box-shadow: none !important;
-  }
+  transition: background 0.15s, color 0.15s;
 
   &:hover { background: $gray-mid; }
 }

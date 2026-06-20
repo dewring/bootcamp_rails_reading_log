@@ -34,11 +34,11 @@
     <label class="admin-field-label">Genres</label>
     <div class="admin-genre-checkboxes">
       <% Genre::GENRES.each do |genre| %>
-        <label class="admin-genre-option">
-          <%= check_box_tag "book[genre_names][]", genre,
-              book.genres.map(&:name).include?(genre) %>
-          <%= genre %>
-        </label>
+        <% genre_id = "genre_#{genre.parameterize}" %>
+        <%= check_box_tag "book[genre_names][]", genre,
+            book.genres.map(&:name).include?(genre),
+            id: genre_id %>
+        <label for="<%= genre_id %>" class="admin-genre-option"><%= genre %></label>
       <% end %>
     </div>
   </div>

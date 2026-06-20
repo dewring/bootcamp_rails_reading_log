@@ -30,4 +30,11 @@ class BookControllerTest < ActionDispatch::IntegrationTest
     post books_path, params: { book: { title: "", author: "Author", total_pages: 100 } }
     assert_response :unprocessable_entity
   end
+
+  test "edit form pre-checks genres already assigned to book" do
+    sign_in users(:admin)
+    get edit_book_path(books(:refactoring))
+    assert_response :success
+    assert_select "input[type='checkbox'][value='Fiction'][checked='checked']"
+  end
 end
