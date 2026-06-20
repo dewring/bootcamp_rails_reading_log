@@ -8,19 +8,23 @@
     <%= link_to genre, root_path(genre: genre), class: "genre-pill" %>
   <% end %>
   </div>
-  <div class="book-row">
-    <% @most_read.each do |book| %>
-      <%= link_to book_path(book), class: "book-card" do %>
-        <% if book.cover_image.attached? %>
-          <%= image_tag book.cover_image, class: "book-cover" %>
-        <% else %>
-          <div class="book-cover no-cover">📚</div>
+  <% if @most_read.empty? %>
+    <p class="empty-state">No books found for this genre.</p>
+  <% else %>
+    <div class="book-row">
+      <% @most_read.each do |book| %>
+        <%= link_to book_path(book), class: "book-card" do %>
+          <% if book.cover_image.attached? %>
+            <%= image_tag book.cover_image, class: "book-cover" %>
+          <% else %>
+            <div class="book-cover no-cover">📚</div>
+          <% end %>
+          <p class="book-title"><%= book.title %></p>
+          <p class="book-author"><%= book.author %></p>
         <% end %>
-        <p class="book-title"><%= book.title %></p>
-        <p class="book-author"><%= book.author %></p>
       <% end %>
-    <% end %>
-  </div>
+    </div>
+  <% end %>
 </section>
 
 <%# New Books %>
