@@ -273,33 +273,72 @@ span {
 }
 
 // ── Home page: genre pills ─────────────────────────────────
+.genre-pill {
+  --pico-color: #{$navy};
+  --pico-background-color: #{$gray-light};
+  --pico-text-decoration: none;
+  display: inline-block;
+  background: $gray-light;
+  color: $navy;
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 0.35rem 0.9rem;
+  border-radius: 20px;
+  text-decoration: none;
+  border: 1px solid $gray-mid;
+  transition: background 0.15s, color 0.15s;
+
+  &:hover {
+    --pico-color: #fff;
+    background: $accent;
+    color: #fff;
+    border-color: $accent;
+  }
+
+  &.genre-pill-active {
+    background: $accent;
+    color: #fff;
+    border-color: $accent;
+  }
+
+  &.genre-pill-reset {
+    --pico-color: #{$navy};
+    --pico-background-color: #f5c518;
+    background: #f5c518;
+    border-color: #e0b000;
+    color: $navy;
+
+    &:hover {
+      background: #e0b000;
+      color: $navy;
+    }
+  }
+}
+
 .genre-pills {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
   margin-bottom: 2rem;
-
-  .genre-pill {
-    display: inline-block;
-    background: $gray-light;
-    color: $navy;
-    font-size: 0.8rem;
-    font-weight: 600;
-    padding: 0.35rem 0.9rem;
-    border-radius: 20px;
-    text-decoration: none;
-    border: 1px solid $gray-mid;
-    transition: background 0.15s, color 0.15s;
-
-    &:hover {
-      background: $accent;
-      color: #fff;
-      border-color: $accent;
-    }
-  }
 }
 
 // ── Home page: sections + horizontal scroll rows ────────────
+.home-section-header {
+  display: flex !important;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid $gray-mid;
+
+  h2 {
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    flex-shrink: 0;
+  }
+}
+
 .home-section {
   margin-bottom: 3rem;
 
