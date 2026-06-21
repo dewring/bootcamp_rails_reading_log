@@ -1,0 +1,55 @@
+class Admin::BooksController < ApplicationController
+  before_action :authenticate_user!
+  before_action :require_admin!
+  before_action :set_book, only: [ :edit, :update, :destroy ]
+
+  def new
+    @book = Book.new
+  end
+  def create
+    @book = Book.new(book_params)
+    if @book.save
+      assign_genres
+      redirect_to book_path(@book), notice: "Book added!"
+    else
+      render :new, status: :unprocessable_entity
+    end
+  end
+  def edit
+  end
+  def update
+    if @book.update(book_params)
+      assign_genres
+      redirect_to book_path(@book), notice: "Book updated."
+    else
+      render :edit, status: :unprocessable_entity
+    end
+  end
+  def destroy
+    @book.destroy
+    redirect_to books_path, notice: "Books deleted."
+  end
+
+  private
+  def set_book
+    @book = Book.find(params[:id])
+  end
+  def book_params
+    params.require(:book).permit(:title, :author, :total_pages, :cover_image)
+  end
+  def assign_genres
+    genre_names = params[:book][:genre_names] || []
+    @book.genres = genre_names.reject(&:blank?).map do |name|
+      Genre.find_or_create_by!(name: name)
+    end
+  end
+  def require_admin!
+    unless current_user&.admin?
+      if request.format.json?
+        render json: { error: "Forbidden" }, status: 403
+      else
+        redirect_to root_path, alert: "Not authorized."
+      end
+    end
+  end
+end
