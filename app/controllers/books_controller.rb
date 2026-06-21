@@ -7,9 +7,9 @@ class BooksController < ApplicationController
 
   def index
     @books = if params[:q].present?
-      Book.search(title: params[:q], author: params[:q]).includes(:genres)
+      policy_scope(Book).search(title: params[:q], author: params[:q]).includes(:genres)
     else
-      Book.includes(:genres)
+      policy_scope(Book).includes(:genres)
     end
     @books = @books.joins(:genres).where(genres: { name: params[:genre] }) if params[:genre].present?
     sort_col = SORTABLE_COLUMNS.include?(params[:sort]) ? params[:sort] : "title"
@@ -22,6 +22,7 @@ class BooksController < ApplicationController
   end
 
   def show
+    authorize @book
     @reviews = @book.reviews.includes(:user).order(created_at: :desc)
   end
   def most_recent_session
