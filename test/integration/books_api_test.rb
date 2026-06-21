@@ -70,7 +70,7 @@ class BooksApiTest < ActionDispatch::IntegrationTest
 
   test "GET /books/:id/edit.json returns 403 for non-admin" do
     sign_in @user
-    get edit_book_path(@book, format: :json)
+    get edit_admin_book_path(@book, format: :json)
     assert_response :forbidden
     json = JSON.parse(response.body)
     assert_equal "Forbidden", json["error"]

@@ -1,7 +1,9 @@
 <div class="catalog-header">
   <h1>Book Catalog</h1>
   <% if current_user&.admin? %>
-    <%= link_to "＋ Add Book", new_book_path, class: "btn-cta" %>
+    <%= link_to "＋ Add Book", new_admin_book_path, class: "btn-cta" %>
+  <% elsif user_signed_in? %>
+    <%= link_to "🔍 Discover", discover_books_path, class: "btn-cta" %>
   <% end %>
 </div>
 
@@ -44,8 +46,8 @@
 
         <div class="book-list-actions">
           <% if current_user&.admin? %>
-            <%= link_to "Edit", edit_book_path(book), class: "btn-cta btn-cta-secondary" %>
-            <%= button_to "Delete", book_path(book), method: :delete,
+            <%= link_to "Edit", edit_admin_book_path(book), class: "btn-cta btn-cta-secondary" %>
+            <%= button_to "Delete", admin_book_path(book), method: :delete,
                 data: { turbo_confirm: "Remove this book?" },
                 class: "btn-cta btn-cta-danger" %>
           <% elsif user_signed_in? %>

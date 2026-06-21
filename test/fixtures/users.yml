@@ -21,3 +21,4 @@ admin:
   nickname: theadmin
   role: admin
   encrypted_password: <%= BCrypt::Password.create('password123') %>
+  
