@@ -45,7 +45,7 @@
         </div>
 
         <div class="book-list-actions">
-          <% if current_user&.admin? %>
+          <% if policy(book).edit? %>
             <%= link_to "Edit", edit_admin_book_path(book), class: "btn-cta btn-cta-secondary" %>
             <%= button_to "Delete", admin_book_path(book), method: :delete,
                 data: { turbo_confirm: "Remove this book?" },
