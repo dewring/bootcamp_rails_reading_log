@@ -1,4 +1,4 @@
-<%= form_with model: book, html: { class: "admin-form" } do |f| %>
+<%= form_with model: [:admin, book], html: { class: "admin-form" } do |f| %>
   <% if book.errors.any? %>
     <div class="admin-form-errors">
       <strong><%= book.errors.count %> error(s):</strong>

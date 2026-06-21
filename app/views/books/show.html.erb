@@ -28,16 +28,21 @@
     <div class="book-show-actions">
       <% if user_signed_in? %>
         <% user_book = current_user.user_books.find_by(book: @book) %>
-        <% if user_book %>
-          <p class="book-show-status">Reading status: <strong><%= user_book.status.humanize %></strong></p>
-          <%= link_to "＋ Log Reading Session", new_book_reading_session_path(@book), class: "btn-cta" %>
-        <% else %>
+          <% if user_book %>
+            <p class="book-show-status">Reading status: <strong><%= user_book.status.humanize %></strong></p>
+            <%= link_to "＋ Log Reading Session", new_book_reading_session_path(@book), class: "btn-cta" %>
+            
+            <%# only show if they have sessions for this book %>
+            <% if @book.reading_sessions.where(user: current_user).any? %>
+              <%= link_to "📖 Most Recent Session", most_recent_session_book_path(@book), class: "btn-cta btn-cta-secondary" %>
+            <% end %>
+          <% else %>
           <%= link_to "＋ Want to Read", new_user_book_path(book_id: @book.id), class: "btn-cta" %>
         <% end %>
       <% end %>
 
       <% if current_user&.admin? %>
-        <%= link_to "Edit", edit_book_path(@book), class: "btn-cta btn-cta-secondary" %>
+        <%= link_to "Edit", edit_admin_book_path(@book), class: "btn-cta btn-cta-secondary" %>
       <% end %>
     </div>
   </div>
