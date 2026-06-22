@@ -4,22 +4,20 @@ class ReadingSessionsController < ApplicationController
   before_action :set_reading_session, only: [ :update, :edit, :destroy ]   # load @reading_session
 
   def index
-    @reading_sessions = if current_user.admin?
-      ReadingSession.all
-    else
-      current_user.reading_sessions
-    end
+    @reading_sessions = policy_scope(ReadingSession)
     respond_to do |format|
       format.json { render json: @reading_sessions }
     end
   end
   def new
     @reading_session = @book.reading_sessions.build(read_on: Date.today)
+    authorize @reading_session
   end
 
   def create
     @reading_session = @book.reading_sessions.build(reading_session_params)
     @reading_session.user = current_user
+    authorize @reading_session
     if @reading_session.save
       redirect_to book_path(@book), notice: "Reading session logged!"
     else
@@ -28,10 +26,11 @@ class ReadingSessionsController < ApplicationController
   end
 
   def edit
-    # nothing needed!
+    authorize @reading_session
   end
 
   def update
+    authorize @reading_session
     if @reading_session.update(reading_session_params)
       redirect_to dashboard_path, notice: "Reading session updated!"
     else
@@ -40,6 +39,7 @@ class ReadingSessionsController < ApplicationController
   end
 
   def destroy
+    authorize @reading_session
     @reading_session.destroy
     redirect_to dashboard_path, notice: "Reading session deleted."
   end
