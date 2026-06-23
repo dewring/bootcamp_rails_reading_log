@@ -15,7 +15,7 @@ class ReadingSessionsController < ApplicationController
   end
 
   def create
-    @reading_session = ReadingSessionRecorder.new(current_user, @book, reading_session_params).record
+    @reading_session = ReadingSessionRecorder.new(@book, current_user, reading_session_params).record
     authorize @reading_session
     if @reading_session.persisted?
       redirect_to book_path(@book), notice: "Reading session logged!"
