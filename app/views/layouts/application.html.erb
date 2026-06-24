@@ -38,12 +38,7 @@
     </nav>
 
     <main class="container">
-      <% if notice %>
-        <article><%= notice %></article>
-      <% end %>
-      <% if alert %>
-        <article><%= alert %></article>
-      <% end %>
+      <%= render "shared/flash_messages" %>
 
       <%= yield %>
     </main>

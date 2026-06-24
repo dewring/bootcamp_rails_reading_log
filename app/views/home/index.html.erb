@@ -16,15 +16,7 @@
   <% else %>
     <div class="book-row">
       <% @most_read.each do |book| %>
-        <%= link_to book_path(book), class: "book-card" do %>
-          <% if book.cover_image.attached? %>
-            <%= image_tag book.cover_image, class: "book-cover" %>
-          <% else %>
-            <div class="book-cover no-cover">📚</div>
-          <% end %>
-          <p class="book-title"><%= book.title %></p>
-          <p class="book-author"><%= book.author %></p>
-        <% end %>
+        <%= render "home/book_card", book: book %>
       <% end %>
     </div>
   <% end %>
@@ -35,15 +27,7 @@
   <h2>New Books</h2>
   <div class="book-row">
     <% @new_books.each do |book| %>
-      <%= link_to book_path(book), class: "book-card" do %>
-        <% if book.cover_image.attached? %>
-          <%= image_tag book.cover_image, class: "book-cover" %>
-        <% else %>
-          <div class="book-cover no-cover">📚</div>
-        <% end %>
-        <p class="book-title"><%= book.title %></p>
-        <p class="book-author"><%= book.author %></p>
-      <% end %>
+      <%= render "home/book_card", book: book %>
     <% end %>
   </div>
 </section>

@@ -6,10 +6,11 @@ class BooksController < ApplicationController
   before_action :set_book, only: [ :show, :most_recent_session ]
 
   def index
+    book = policy_scope(Book).with_attached_cover_image
     @books = if params[:q].present?
-      policy_scope(Book).search(title: params[:q], author: params[:q]).includes(:genres)
+      book.search(title: params[:q], author: params[:q]).includes(:genres)
     else
-      policy_scope(Book).includes(:genres)
+      book.includes(:genres)
     end
     @books = @books.joins(:genres).where(genres: { name: params[:genre] }) if params[:genre].present?
     sort_col = SORTABLE_COLUMNS.include?(params[:sort]) ? params[:sort] : "title"
