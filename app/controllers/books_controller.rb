@@ -6,7 +6,7 @@ class BooksController < ApplicationController
   before_action :set_book, only: [ :show, :most_recent_session ]
 
   def index
-    book = policy_scope(Book).with_attached_cover_image
+    book = policy_scope(Book)
     @books = if params[:q].present?
       book.search(title: params[:q], author: params[:q]).includes(:genres)
     else
@@ -17,8 +17,12 @@ class BooksController < ApplicationController
     @books = @books.order(sort_col)
 
     respond_to do |format|
-      format.html
-      format.json { render json: @books, include: :genres }
+      format.html do
+        @books = @books.with_attached_cover_image
+      end
+      format.json  do
+        render json: @books, include: :genres
+      end
     end
   end
 
