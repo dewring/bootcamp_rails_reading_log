@@ -1,8 +1,8 @@
 <div class="catalog-header">
   <h1>Book Catalog</h1>
-  <% if current_user&.admin? %>
+  <% if policy(Book).new? %>
     <%= link_to "＋ Add Book", new_admin_book_path, class: "btn-cta" %>
-  <% elsif user_signed_in? %>
+  <% elsif policy(Book).discover? %>
     <%= link_to "🔍 Discover", discover_books_path, class: "btn-cta" %>
   <% end %>
 </div>
@@ -47,12 +47,14 @@
         <div class="book-list-actions">
           <% if policy(book).edit? %>
             <%= link_to "Edit", edit_admin_book_path(book), class: "btn-cta btn-cta-secondary" %>
+          <% end %>
+          <% if policy(book).destroy? %>
             <%= button_to "Delete", admin_book_path(book), method: :delete,
                 data: { turbo_confirm: "Remove this book?" },
                 class: "btn-cta btn-cta-danger" %>
-          <% elsif user_signed_in? %>
+          <% elsif user_signed_in? && policy(UserBook.new(user: current_user, book: book)).new? %>
             <%= link_to "＋ Add to Log", new_user_book_path(book_id: book.id), class: "btn-cta" %>
-          <% else %>
+          <% elsif !user_signed_in? %>
             <a href="#" class="btn-cta"
                onclick="alert('Sign in or sign up to continue.'); window.location='<%= new_user_session_path %>'; return false;">
               ＋ Add to Log
