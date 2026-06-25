@@ -3,13 +3,13 @@
   <p>Here's your reading log.</p>
 </hgroup>
 
-<% if current_user.user_books.empty? %>
+<% if @user_books_by_status.empty? %>
   <article>
     <p>No books yet. <%= link_to "Browse the catalog", books_path %> to add some.</p>
   </article>
 <% else %>
   <% UserBook::STATUSES.each do |status| %>
-    <% books_for_status = current_user.user_books.where(status: status).includes(:book) %>
+    <% books_for_status = @user_books_by_status[status] || [] %>
     <% next if books_for_status.empty? %>
 
     <h2><%= status.humanize %></h2>
@@ -23,31 +23,39 @@
           </div>
 
           <div class="dashboard-actions">
-            <%= form_with model: user_book, url: user_book_path(user_book), method: :patch do |f| %>
-              <%= f.select :status,
-                    UserBook::STATUSES.map { |s| [s.humanize, s] },
-                    { selected: user_book.status },
-                    { onchange: "this.form.submit()", class: "status-select" } %>
+            <% if policy(user_book).edit? %>
+              <%= form_with model: user_book, url: user_book_path(user_book), method: :patch do |f| %>
+                <%= f.select :status,
+                      UserBook::STATUSES.map { |s| [s.humanize, s] },
+                      { selected: user_book.status },
+                      { onchange: "this.form.submit()", class: "status-select" } %>
+              <% end %>
             <% end %>
 
-            <%= button_to "Remove", user_book_path(user_book),
-                  method: :delete,
-                  data: { turbo_confirm: "Remove from log?" },
-                  class: "btn-md" %>
+            <% if policy(user_book).destroy? %>
+              <%= button_to "Remove", user_book_path(user_book),
+                    method: :delete,
+                    data: { turbo_confirm: "Remove from log?" },
+                    class: "btn-md" %>
+            <% end %>
           </div>
         </div>
 
-        <% sessions = user_book.book.reading_sessions.where(user: current_user).order(read_on: :desc) %>
+        <% sessions = policy_scope(user_book.book.reading_sessions).order(read_on: :desc) %>
         <% if sessions.any? %>
           <hr>
           <% sessions.each do |session| %>
             <div class="session-row">
               <span><%= session.read_on.strftime("%b %d, %Y") %> — <%= session.pages_read %> pages<%= " — #{session.notes}" if session.notes.present? %></span>
               <div style="display: flex; gap: 0.4rem;">
-                <%= link_to "Edit", edit_reading_session_path(session), class: "btn-sm" %>
-                <%= button_to "Delete", reading_session_path(session), method: :delete,
-                      data: { turbo_confirm: "Delete this session?" },
-                      class: "btn-sm btn-danger" %>
+                <% if policy(session).edit? %>
+                  <%= link_to "Edit", edit_reading_session_path(session), class: "btn-sm" %>
+                <% end %>
+                <% if policy(session).destroy? %>
+                  <%= button_to "Delete", reading_session_path(session), method: :delete,
+                        data: { turbo_confirm: "Delete this session?" },
+                        class: "btn-sm btn-danger" %>
+                <% end %>
               </div>
             </div>
           <% end %>
