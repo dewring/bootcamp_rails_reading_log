@@ -2,7 +2,27 @@ require "test_helper"
 class BookPolicyTest < ActiveSupport::TestCase
   # index? — 누구나 볼 수 있어요 | anyone can see
   test "anyone can view book index" do
-    assert BookPolicy.new(users(:leika), books(:refactoring)).index?
+    assert BookPolicy.new(nil, books(:refactoring)).index?
+  end
+
+  test "anyone can view a book" do
+    assert BookPolicy.new(nil, books(:refactoring)).show?
+  end
+
+  test "logged-in user can discover books" do
+    assert BookPolicy.new(users(:leika), Book).discover?
+  end
+
+  test "guest cannot discover books" do
+    refute BookPolicy.new(nil, Book).discover?
+  end
+
+  test "logged-in user can request most recent session" do
+    assert BookPolicy.new(users(:leika), books(:refactoring)).most_recent_session?
+  end
+
+  test "guest cannot request most recent session" do
+    refute BookPolicy.new(nil, books(:refactoring)).most_recent_session?
   end
 
   # create? — admin만 | admin only
