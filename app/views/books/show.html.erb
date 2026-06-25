@@ -30,13 +30,15 @@
         <% user_book = current_user.user_books.find_by(book: @book) %>
           <% if user_book %>
             <p class="book-show-status">Reading status: <strong><%= user_book.status.humanize %></strong></p>
-            <%= link_to "＋ Log Reading Session", new_book_reading_session_path(@book), class: "btn-cta" %>
+            <% if policy(ReadingSession.new(user: current_user, book: @book)).new? %>
+              <%= link_to "＋ Log Reading Session", new_book_reading_session_path(@book), class: "btn-cta" %>
+            <% end %>
             
             <%# only show if they have sessions for this book %>
-            <% if @book.reading_sessions.where(user: current_user).any? %>
+            <% if policy(@book).most_recent_session? && policy_scope(@book.reading_sessions).exists? %>
               <%= link_to "📖 Most Recent Session", most_recent_session_book_path(@book), class: "btn-cta btn-cta-secondary" %>
             <% end %>
-          <% else %>
+          <% elsif policy(UserBook.new(user: current_user, book: @book)).new? %>
           <%= link_to "＋ Want to Read", new_user_book_path(book_id: @book.id), class: "btn-cta" %>
         <% end %>
       <% end %>
@@ -52,13 +54,13 @@
 <div class="reviews-section">
   <div class="reviews-header">
     <h2>Reviews <span class="reviews-count"><%= @reviews.count %></span></h2>
-    <% if user_signed_in? && !current_user.admin? %>
+    <% if user_signed_in? %>
       <% my_review = current_user.reviews.find_by(book: @book) %>
       <div class="reviews-header-actions">
-        <% if my_review %>
+        <% if my_review && policy(my_review).edit? %>
           <%= link_to "Edit my Review", edit_book_review_path(@book, my_review), class: "btn-cta" %>
         <% end %>
-        <% unless my_review %>
+        <% if my_review.blank? && policy(Review.new(user: current_user, book: @book)).new? %>
           <%= link_to "Write a Review", new_book_review_path(@book), class: "btn-cta" %>
         <% end %>
       </div>

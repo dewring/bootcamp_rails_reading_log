@@ -11,13 +11,20 @@ class BookControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
   end
   test "most_recent_session redirects to dashboard when sessions exist" do
+    sign_in users(:leika)
     get most_recent_session_book_path(books(:refactoring))
     assert_redirected_to dashboard_path
   end
 
   test "most_recent_session redirects back to book when no sessions exist" do
+    sign_in users(:leika)
     get most_recent_session_book_path(books(:pragmatic))
     assert_redirected_to book_path(books(:pragmatic)), alert: "No reading sessions yet."
+  end
+
+  test "guest cannot access most recent session" do
+    get most_recent_session_book_path(books(:refactoring))
+    assert_redirected_to new_user_session_path
   end
 
   test "discover redirects to a random unread book" do

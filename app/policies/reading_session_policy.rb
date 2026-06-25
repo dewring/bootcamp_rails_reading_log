@@ -4,7 +4,7 @@ class ReadingSessionPolicy < ApplicationPolicy
   end
 
   def show?
-    record.user == user || user.admin?
+    owner? || admin?
   end
 
   def create?
@@ -12,15 +12,17 @@ class ReadingSessionPolicy < ApplicationPolicy
   end
 
   def update?
-    record.user == user
+    owner?
   end
 
   def destroy?
-    record.user == user
+    owner?
   end
 
   class Scope < ApplicationPolicy::Scope
     def resolve
+      return scope.none unless user
+
       if user.admin?
         scope.all
       else

@@ -22,9 +22,31 @@ class UserBooksControllerTest < ActionDispatch::IntegrationTest
     patch user_book_path(user_books(:leika_refactoring)), params: { user_book: { status: "completed" } }
     assert_redirected_to dashboard_path
   end
+
+  test "user cannot update another user's book log" do
+    sign_in users(:jaina)
+    user_book = user_books(:leika_refactoring)
+    previous_status = user_book.status
+
+    patch user_book_path(user_book), params: { user_book: { status: "finished" } }
+
+    assert_redirected_to root_path
+    assert_equal previous_status, user_book.reload.status
+  end
+
   test "user destroy book log" do
     sign_in users(:leika)
     delete user_book_path(user_books(:leika_refactoring))
     assert_redirected_to dashboard_path
+  end
+
+  test "user cannot destroy another user's book log" do
+    sign_in users(:jaina)
+
+    assert_no_difference "UserBook.count" do
+      delete user_book_path(user_books(:leika_refactoring))
+    end
+
+    assert_redirected_to root_path
   end
 end

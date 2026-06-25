@@ -48,6 +48,7 @@ class Admin::BooksController < ApplicationController
       Genre.find_or_create_by!(name: name)
     end
   end
+
   def require_admin!
     unless current_user&.admin?
       if request.format.json?

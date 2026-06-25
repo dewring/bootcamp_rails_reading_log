@@ -21,4 +21,23 @@ class ReviewsControllerTest < ActionDispatch::IntegrationTest
     patch book_review_path(books(:refactoring), reviews(:review1)), params: { review: { rating: 5, body: "Updated!" } }
     assert_redirected_to book_path(books(:refactoring))
   end
+
+  test "user cannot edit another user's review" do
+    sign_in users(:jaina)
+
+    get edit_book_review_path(books(:refactoring), reviews(:review1))
+
+    assert_redirected_to root_path
+  end
+
+  test "user cannot update another user's review" do
+    sign_in users(:jaina)
+    review = reviews(:review1)
+    previous_body = review.body
+
+    patch book_review_path(books(:refactoring), review), params: { review: { rating: 5, body: "Changed!" } }
+
+    assert_redirected_to root_path
+    assert_equal previous_body, review.reload.body
+  end
 end

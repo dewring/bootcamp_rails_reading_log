@@ -1,18 +1,10 @@
-class BookPolicy < ApplicationPolicy
+class BookGenrePolicy < ApplicationPolicy
   def index?
     true
   end
 
   def show?
     true
-  end
-
-  def discover?
-    user.present?
-  end
-
-  def most_recent_session?
-    user.present?
   end
 
   def create?
