@@ -1,5 +1,6 @@
 class Admin::BooksController < ApplicationController
   before_action :authenticate_user!
+  before_action :require_admin!
   before_action :set_book, only: [ :edit, :update, :destroy ]
 
   def new
@@ -45,6 +46,16 @@ class Admin::BooksController < ApplicationController
     genre_names = params[:book][:genre_names] || []
     @book.genres = genre_names.reject(&:blank?).map do |name|
       Genre.find_or_create_by!(name: name)
+    end
+  end
+
+  def require_admin!
+    unless current_user&.admin?
+      if request.format.json?
+        render json: { error: "Forbidden" }, status: 403
+      else
+        redirect_to root_path, alert: "Not authorized."
+      end
     end
   end
 end
