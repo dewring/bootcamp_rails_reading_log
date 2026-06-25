@@ -21,7 +21,12 @@ class ApplicationController < ActionController::Base
   private
 
   def user_not_authorized
-    flash[:alert] = "You are not authorized to perform this action."
-    redirect_back(fallback_location: root_path)
+    respond_to do |format|
+      format.json { render json: { error: "Forbidden" }, status: :forbidden }
+      format.any do
+        flash[:alert] = "You are not authorized to perform this action."
+        redirect_back(fallback_location: root_path)
+      end
+    end
   end
 end
