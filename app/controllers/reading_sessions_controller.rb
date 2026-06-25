@@ -4,6 +4,7 @@ class ReadingSessionsController < ApplicationController
   before_action :set_reading_session, only: [ :update, :edit, :destroy ]   # load @reading_session
 
   def index
+    authorize ReadingSession
     @reading_sessions = policy_scope(ReadingSession)
     respond_to do |format|
       format.json { render json: @reading_sessions }
@@ -15,8 +16,8 @@ class ReadingSessionsController < ApplicationController
   end
 
   def create
+    authorize @book.reading_sessions.build(user: current_user), :create?
     @reading_session = ReadingSessionRecorder.new(@book, current_user, reading_session_params).record
-    authorize @reading_session
     if @reading_session.persisted?
       redirect_to book_path(@book), notice: "Reading session logged!"
     else
@@ -44,6 +45,7 @@ class ReadingSessionsController < ApplicationController
   end
 
   private
+
   def set_book
     @book = Book.find(params[:book_id])
   end
@@ -51,6 +53,7 @@ class ReadingSessionsController < ApplicationController
   def set_reading_session
     @reading_session = ReadingSession.find(params[:id])
   end
+
   def reading_session_params
     params.require(:reading_session).permit(:read_on, :pages_read, :notes)
   end
