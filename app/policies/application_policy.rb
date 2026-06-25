@@ -36,6 +36,20 @@ class ApplicationPolicy
     false
   end
 
+  private
+
+  def admin?
+    user&.admin?
+  end
+
+  def owner?
+    return true if record == user
+    return false unless user
+    return record.user_id == user.id if record.respond_to?(:user_id)
+
+    record.respond_to?(:user) && record.user == user
+  end
+
   class Scope
     def initialize(user, scope)
       @user = user
