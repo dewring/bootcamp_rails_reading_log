@@ -1,10 +1,11 @@
 class HomeController < ApplicationController
   def index
+    book_most_read = Book.most_read.with_attached_cover_image
     @most_read = if params[:genre].present?
-      Book.most_read.joins(:genres).where(genres: { name: params[:genre] }).limit(8)  # genre 있을 때
+      book_most_read.joins(:genres).where(genres: { name: params[:genre] }).limit(8)  # genre 있을 때
     else
-      Book.most_read.limit(8)  # genre 없을 때
+      book_most_read.limit(8)  # genre 없을 때
     end
-    @new_books = Book.order(created_at: :desc).limit(8)
+    @new_books = Book.with_attached_cover_image.order(created_at: :desc).limit(8)
   end
 end

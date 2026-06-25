@@ -4,7 +4,7 @@ class ReadingSessionPolicy < ApplicationPolicy
   end
 
   def show?
-    record.user == user
+    record.user == user || user.admin?
   end
 
   def create?
@@ -21,7 +21,11 @@ class ReadingSessionPolicy < ApplicationPolicy
 
   class Scope < ApplicationPolicy::Scope
     def resolve
-      scope.where(user: user)
+      if user.admin?
+        scope.all
+      else
+        scope.where(user: user)
+      end
     end
   end
 end
