@@ -15,7 +15,7 @@ class BooksApiTest < ActionDispatch::IntegrationTest
     get books_path(format: :json)
     assert_response :ok
     json = JSON.parse(response.body)
-    assert json.is_a?(Array)
+    assert json["books"].is_a?(Array)
     assert json.length >= 1
   end
 
@@ -23,7 +23,7 @@ class BooksApiTest < ActionDispatch::IntegrationTest
     sign_in @user
     get books_path(format: :json)
     json = JSON.parse(response.body)
-    assert json.first.key?("genres")
+    assert json["books"].first.key?("genres")
   end
 
   # --- Search ---
@@ -32,14 +32,14 @@ class BooksApiTest < ActionDispatch::IntegrationTest
     sign_in @user
     get books_path(format: :json, q: "Refactoring")
     json = JSON.parse(response.body)
-    assert json.all? { |b| b["title"].downcase.include?("refactoring") || b["author"].downcase.include?("refactoring") }
+    assert json["books"].all? { |b| b["title"].downcase.include?("refactoring") || b["author"].downcase.include?("refactoring") }
   end
 
   test "GET /books.json?q= with no match returns empty array" do
     sign_in @user
     get books_path(format: :json, q: "zzznomatch")
     json = JSON.parse(response.body)
-    assert_equal [], json
+    assert_equal [], json["books"]
   end
 
   # --- Sort ---

@@ -16,13 +16,17 @@ class BooksController < ApplicationController
     @books = @books.joins(:genres).where(genres: { name: params[:genre] }) if params[:genre].present?
     sort_col = SORTABLE_COLUMNS.include?(params[:sort]) ? params[:sort] : "title"
     @books = @books.order(sort_col)
+    @pagy, @books = pagy(:offset, @books, limit: 10)
 
     respond_to do |format|
       format.html do
         @books = @books.with_attached_cover_image
       end
-      format.json  do
-        render json: @books, include: :genres
+      format.json do
+        render json: {
+          pagination: @pagy.data_hash,
+          books: @books.as_json(include: :genres)
+        }
       end
     end
   end
