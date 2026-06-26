@@ -29,5 +29,4 @@ class Book < ApplicationRecord
   def total_pages_read
     reading_sessions.sum(:pages_read)
   end
-
 end
