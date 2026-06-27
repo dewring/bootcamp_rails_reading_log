@@ -29,4 +29,13 @@ class Book < ApplicationRecord
   def total_pages_read
     reading_sessions.sum(:pages_read)
   end
+
+  def self.find_or_create_from_search_result(doc)
+    return nil if doc["key"].blank?
+
+    find_or_create_by(ol_work_key: doc["key"]) do |book|
+      book.title  = doc["title"]
+      book.author = doc["author_name"].first
+    end
+  end
 end
