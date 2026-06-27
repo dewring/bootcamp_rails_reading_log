@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_06_18_211039) do
+ActiveRecord::Schema[8.1].define(version: 2026_06_26_221659) do
   create_table "active_storage_attachments", force: :cascade do |t|
     t.bigint "blob_id", null: false
     t.datetime "created_at", null: false
@@ -51,9 +51,11 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_18_211039) do
   create_table "books", force: :cascade do |t|
     t.string "author", default: "", null: false
     t.datetime "created_at", null: false
+    t.string "ol_work_key"
     t.string "title", default: "", null: false
     t.integer "total_pages"
     t.datetime "updated_at", null: false
+    t.index ["ol_work_key"], name: "index_books_on_ol_work_key", unique: true
   end
 
   create_table "genres", force: :cascade do |t|
