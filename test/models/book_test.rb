@@ -29,4 +29,38 @@ class BookTest < ActiveSupport::TestCase
     assert_equal "The Great Gatsby", book.title
     assert_equal "F. Scott Fitzgerald", book.author
   end
+
+  test "find_or_create_from_search_result creates a book from a search doc" do
+    doc = {
+      "key"         => "/works/OL82563W",
+      "title"       => "Harry Potter",
+      "author_name" => [ "J. K. Rowling" ]
+    }
+
+    book = Book.find_or_create_from_search_result(doc)
+
+    assert_equal "/works/OL82563W", book.ol_work_key
+    assert_equal "Harry Potter", book.title
+    assert_equal "J. K. Rowling", book.author
+  end
+
+  test "does not create duplicate books" do
+    doc = {
+      "key"         => "/works/OL82563W",
+      "title"       => "Harry Potter",
+      "author_name" => [ "J. K. Rowling" ]
+    }
+
+    Book.find_or_create_from_search_result(doc)
+    assert_no_difference "Book.count" do
+      Book.find_or_create_from_search_result(doc)
+    end
+  end
+  test "returns nil when doc key is blank" do
+    doc = { "key" => nil, "title" => "Harry Potter", "author_name" => [ "J. K. Rowling" ] }
+
+    result = Book.find_or_create_from_search_result(doc)
+
+    assert_nil result
+  end
 end
