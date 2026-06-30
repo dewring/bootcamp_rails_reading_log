@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_06_26_221659) do
+ActiveRecord::Schema[8.1].define(version: 2026_06_29_231626) do
   create_table "active_storage_attachments", force: :cascade do |t|
     t.bigint "blob_id", null: false
     t.datetime "created_at", null: false
@@ -39,6 +39,22 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_26_221659) do
     t.index ["blob_id", "variation_digest"], name: "index_active_storage_variant_records_uniqueness", unique: true
   end
 
+  create_table "book_editions", force: :cascade do |t|
+    t.integer "book_id", null: false
+    t.datetime "created_at", null: false
+    t.string "format"
+    t.string "isbn"
+    t.string "language"
+    t.string "ol_edition_key", null: false
+    t.integer "page_count"
+    t.string "publish_year"
+    t.string "publisher"
+    t.datetime "updated_at", null: false
+    t.index ["book_id"], name: "index_book_editions_on_book_id"
+    t.index ["isbn"], name: "index_book_editions_on_isbn"
+    t.index ["ol_edition_key"], name: "index_book_editions_on_ol_edition_key", unique: true
+  end
+
   create_table "book_genres", force: :cascade do |t|
     t.integer "book_id", null: false
     t.datetime "created_at", null: false
@@ -51,7 +67,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_26_221659) do
   create_table "books", force: :cascade do |t|
     t.string "author", default: "", null: false
     t.datetime "created_at", null: false
+    t.text "description"
     t.string "ol_work_key"
+    t.text "subjects"
     t.string "title", default: "", null: false
     t.integer "total_pages"
     t.datetime "updated_at", null: false
@@ -65,6 +83,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_26_221659) do
   end
 
   create_table "reading_sessions", force: :cascade do |t|
+    t.integer "book_edition_id"
     t.integer "book_id", null: false
     t.datetime "created_at", null: false
     t.text "notes"
@@ -72,6 +91,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_26_221659) do
     t.date "read_on", null: false
     t.datetime "updated_at", null: false
     t.integer "user_id", null: false
+    t.index ["book_edition_id"], name: "index_reading_sessions_on_book_edition_id"
     t.index ["book_id"], name: "index_reading_sessions_on_book_id"
     t.index ["user_id"], name: "index_reading_sessions_on_user_id"
   end
@@ -117,8 +137,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_26_221659) do
 
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
+  add_foreign_key "book_editions", "books"
   add_foreign_key "book_genres", "books"
   add_foreign_key "book_genres", "genres"
+  add_foreign_key "reading_sessions", "book_editions"
   add_foreign_key "reading_sessions", "books"
   add_foreign_key "reading_sessions", "users"
   add_foreign_key "reviews", "books"
