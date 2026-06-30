@@ -1,7 +1,7 @@
 class BooksController < ApplicationController
   SORTABLE_COLUMNS = %w[title author total_pages].freeze
 
-  before_action :authenticate_user!, only: [ :discover, :most_recent_session ]
+  before_action :authenticate_user!, only: [ :discover, :most_recent_session, :search, :import ]
   rescue_from ActiveRecord::RecordNotFound, with: :not_found
   before_action :set_book, only: [ :show, :most_recent_session ]
 
@@ -9,7 +9,7 @@ class BooksController < ApplicationController
     authorize Book
     books = policy_scope(Book)
     @books = if params[:q].present?
-      books.search(title: params[:q], author: params[:q]).includes(:genres)
+      books.search(title: params[:q], author: params[:q])
     else
       books.includes(:genres)
     end
@@ -33,6 +33,11 @@ class BooksController < ApplicationController
 
   def show
     authorize @book
+    if @book.book_editions.empty? && @book.ol_work_key.present?
+      BookMirrorService.new(@book.ol_work_key.delete_prefix("/works/")).call
+      @book.reload
+    end
+    @book_editions = @book.book_editions.includes(:cover_image_attachment)
     @reviews = policy_scope(@book.reviews).includes(:user).order(created_at: :desc)
   end
 
@@ -44,6 +49,23 @@ class BooksController < ApplicationController
     else
       redirect_to book_path(@book), alert: "No reading sessions yet."
     end
+  end
+
+  def import
+    authorize Book, :import?
+    doc = {
+      "key"         => params[:ol_work_key],
+      "title"       => params[:title],
+      "author_name" => [ params[:author] ]
+    }
+    book = Book.find_or_create_from_search_result(doc)
+    redirect_to book_path(book), notice: "Book added!"
+  end
+
+  def search
+    authorize Book, :search?
+    @query = params[:q].to_s.strip
+    @results = @query.present? ? OpenLibraryClient.new.search(@query) : []
   end
 
   def discover
