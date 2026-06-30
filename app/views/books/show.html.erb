@@ -23,6 +23,28 @@
       <p class="book-show-pages"><%= @book.total_pages %> pages</p>
     <% end %>
 
+  <% if @book.description.present? %>
+    <%
+      desc = @book.description
+      main_text = desc.gsub(/\(\[source\]\(.*?\)\)/, "").strip
+      source_match = desc.match(/\(\[source\]\((.*?)\)\)/)
+    %>
+    <p class="book-show-description"><%= main_text %></p>
+    <% if source_match %>
+      <p class="book-show-source">
+        <a href="<%= source_match[1] %>" target="_blank">source</a>
+      </p>
+    <% end %>
+  <% end %>
+
+  <% if @book.subjects.present? %>
+    <div class="book-show-subjects">
+      <% @book.subjects.each do |subject| %>
+        <span><%= subject %></span>
+      <% end %>
+    </div>
+  <% end %>
+
     <hr class="book-show-divider">
 
     <div class="book-show-actions">
@@ -49,6 +71,29 @@
     </div>
   </div>
 </div>
+
+<%# Edition section %>
+<% if @book_editions.any? %>
+  <div class="book-editions-section">
+    <h2>Editions</h2>
+    <div class="editions-grid">
+      <% @book_editions.each do |edition| %>
+        <%= link_to "https://openlibrary.org#{edition.ol_edition_key}", target: "_blank", class: "edition-card" do %>
+          <div class="edition-cover">
+            <% if edition.cover_image.attached? %>
+              <%= image_tag edition.cover_image %>
+            <% else %>
+              <div class="edition-no-cover">📚</div>
+            <% end %>
+          </div>
+          <p><%= edition.publisher %></p>
+          <p><%= edition.publish_year %></p>
+          <p><%= edition.language %></p>
+        <% end %>
+      <% end %>
+    </div>
+  </div>
+<% end %>
 
 <%# Reviews section %>
 <div class="reviews-section">
