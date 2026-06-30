@@ -23,4 +23,45 @@ class OpenLibraryClientTest < ActiveSupport::TestCase
     result = OpenLibraryClient.new.search("anything")
     assert_equal [], result
   end
+  test "fetch_work returns parsed hash" do
+    stub_request(:get, "https://openlibrary.org/works/OL45804W.json")
+      .to_return(
+        status: 200,
+        body: '{"title": "Harry Potter", "description": "A wizard story"}',
+        headers: { "Content-Type" => "application/json" }
+      )
+
+    result = OpenLibraryClient.new.fetch_work("OL45804W")
+    assert result.key?("title")
+    assert result.key?("description")
+  end
+
+  test "fetch_work returns nil on Faraday error" do
+    stub_request(:get, "https://openlibrary.org/works/OL45804W.json")
+      .to_raise(Faraday::TimeoutError)
+
+    result = OpenLibraryClient.new.fetch_work("OL45804W")
+    assert_nil result
+  end
+
+  test "fetch_editions returns parsed hash with entries" do
+    stub_request(:get, "https://openlibrary.org/works/OL45804W/editions.json")
+      .to_return(
+        status: 200,
+        body: '{"entries": [{"key": "/books/OL123M", "publishers": ["Scholastic"]}]}',
+        headers: { "Content-Type" => "application/json" }
+      )
+
+    result = OpenLibraryClient.new.fetch_editions("OL45804W")
+    assert result.key?("entries")
+    assert_not_empty result["entries"]
+  end
+
+  test "fetch_editions returns nil on Faraday error" do
+    stub_request(:get, "https://openlibrary.org/works/OL45804W/editions.json")
+      .to_raise(Faraday::TimeoutError)
+
+    result = OpenLibraryClient.new.fetch_editions("OL45804W")
+    assert_nil result
+  end
 end
