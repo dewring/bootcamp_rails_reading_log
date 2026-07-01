@@ -9,7 +9,12 @@ class BooksController < ApplicationController
     authorize Book
     books = policy_scope(Book)
     @books = if params[:q].present?
-      books.search(title: params[:q], author: params[:q])
+      books.left_joins(:book_editions)
+     .where(
+       "books.title LIKE :q OR books.author LIKE :q OR book_editions.title LIKE :q",
+       q: "%#{params[:q]}%"
+     )
+     .distinct
     else
       books.includes(:genres)
     end
