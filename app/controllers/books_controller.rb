@@ -37,7 +37,9 @@ class BooksController < ApplicationController
       BookMirrorService.new(@book.ol_work_key.delete_prefix("/works/")).call
       @book.reload
     end
-    @book_editions = @book.book_editions.includes(:cover_image_attachment)
+    @book_editions = Rails.cache.fetch("book:#{@book.id}:editions:list", expires_in: 1.day) do
+      @book.book_editions.includes(:cover_image_attachment).to_a
+    end
     @reviews = policy_scope(@book.reviews).includes(:user).order(created_at: :desc)
   end
 

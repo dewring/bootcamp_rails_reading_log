@@ -2,6 +2,7 @@ require "test_helper"
 
 class BookMirrorServiceTest < ActiveSupport::TestCase
   def setup
+    Rails.cache.clear
     @book = Book.create!(
       title: "Harry Potter",
       author: "J. K. Rowling",
