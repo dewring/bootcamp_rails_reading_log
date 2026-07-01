@@ -236,4 +236,15 @@ class BookControllerTest < ActionDispatch::IntegrationTest
 
     assert_nil Rails.cache.read("book:#{book.id}:editions:list")
   end
+
+  test "searching by edition title returns the parent book" do
+    sign_in users(:leika)
+    book = Book.create!(title: "Some Book", author: "Author", total_pages: 100)
+    BookEdition.create!(ol_edition_key: "/books/OL001M", book: book, title: "마법사의 돌")
+
+    get books_path, params: { q: "마법사의 돌" }
+
+    assert_response :success
+    assert_includes assigns(:books), book
+  end
 end
