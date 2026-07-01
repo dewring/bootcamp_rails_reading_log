@@ -1,5 +1,4 @@
 require "test_helper"
-
 class BookControllerTest < ActionDispatch::IntegrationTest
   include Devise::Test::IntegrationHelpers
   test "Book index page loads successfully" do
@@ -205,5 +204,47 @@ class BookControllerTest < ActionDispatch::IntegrationTest
       }
     end
     assert_redirected_to book_path(Book.last)
+  end
+
+  test "caches edition list on show" do
+    Rails.cache = ActiveSupport::Cache::MemoryStore.new
+
+    Rails.cache.clear
+    sign_in users(:leika)
+
+    get book_path(books(:refactoring))
+    assert_response :success
+
+    cached = Rails.cache.read("book:#{books(:refactoring).id}:editions:list")
+    assert_not_nil cached
+  end
+
+  test "invalidates edition cache after mirroring" do
+    Rails.cache = ActiveSupport::Cache::MemoryStore.new
+
+    book = Book.create!(
+      title: "Test Book",
+      author: "Author",
+      total_pages: 100,
+      ol_work_key: "/works/OL123W"
+    )
+    Rails.cache.write("book:#{book.id}:editions:list", [ "fake" ])
+
+    stub_request(:get, /openlibrary.org/).to_return(status: 200, body: "{}", headers: {})
+
+    BookMirrorService.new("OL123W").call
+
+    assert_nil Rails.cache.read("book:#{book.id}:editions:list")
+  end
+
+  test "searching by edition title returns the parent book" do
+    sign_in users(:leika)
+    book = Book.create!(title: "Some Book", author: "Author", total_pages: 100)
+    BookEdition.create!(ol_edition_key: "/books/OL001M", book: book, title: "마법사의 돌")
+
+    get books_path, params: { q: "마법사의 돌" }
+
+    assert_response :success
+    assert_includes assigns(:books), book
   end
 end

@@ -4,7 +4,7 @@ class ReadingSessionPolicy < ApplicationPolicy
   end
 
   def show?
-    owner? || admin?
+    owner?
   end
 
   def create?
@@ -22,12 +22,7 @@ class ReadingSessionPolicy < ApplicationPolicy
   class Scope < ApplicationPolicy::Scope
     def resolve
       return scope.none unless user
-
-      if user.admin?
-        scope.all
-      else
-        scope.where(user: user)
-      end
+      scope.where(user: user)
     end
   end
 end

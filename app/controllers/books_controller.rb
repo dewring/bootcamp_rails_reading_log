@@ -9,7 +9,12 @@ class BooksController < ApplicationController
     authorize Book
     books = policy_scope(Book)
     @books = if params[:q].present?
-      books.search(title: params[:q], author: params[:q])
+      books.left_joins(:book_editions)
+     .where(
+       "books.title LIKE :q OR books.author LIKE :q OR book_editions.title LIKE :q",
+       q: "%#{params[:q]}%"
+     )
+     .distinct
     else
       books.includes(:genres)
     end
@@ -37,7 +42,9 @@ class BooksController < ApplicationController
       BookMirrorService.new(@book.ol_work_key.delete_prefix("/works/")).call
       @book.reload
     end
-    @book_editions = @book.book_editions.includes(:cover_image_attachment)
+    @book_editions = Rails.cache.fetch("book:#{@book.id}:editions:list", expires_in: 1.day) do
+      @book.book_editions.includes(:cover_image_attachment).to_a
+    end
     @reviews = policy_scope(@book.reviews).includes(:user).order(created_at: :desc)
   end
 
