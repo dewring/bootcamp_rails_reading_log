@@ -86,6 +86,9 @@
               <div class="edition-no-cover">📚</div>
             <% end %>
           </div>
+              <% if edition.title.present? %>
+                <p><%= edition.title %></p>
+             <% end %>
           <p><%= edition.publisher %></p>
           <p><%= edition.publish_year %></p>
           <p><%= edition.language %></p>

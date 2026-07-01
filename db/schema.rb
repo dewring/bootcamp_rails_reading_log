@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_06_29_231626) do
+ActiveRecord::Schema[8.1].define(version: 2026_07_01_040402) do
   create_table "active_storage_attachments", force: :cascade do |t|
     t.bigint "blob_id", null: false
     t.datetime "created_at", null: false
@@ -49,6 +49,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_29_231626) do
     t.integer "page_count"
     t.string "publish_year"
     t.string "publisher"
+    t.string "title"
     t.datetime "updated_at", null: false
     t.index ["book_id"], name: "index_book_editions_on_book_id"
     t.index ["isbn"], name: "index_book_editions_on_isbn"

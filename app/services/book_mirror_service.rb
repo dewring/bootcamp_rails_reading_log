@@ -39,14 +39,15 @@ class BookMirrorService
 
   def mirror_editions(book, editions_data)
     editions_data["entries"]&.each do |entry|
-      edition = BookEdition.find_or_create_by(ol_edition_key: entry["key"]) do |e|
-        e.book         = book
-        e.isbn         = entry["isbn_13"]&.first || entry["isbn_10"]&.first
-        e.publisher    = entry["publishers"]&.first
-        e.publish_year = entry["publish_date"]
-        e.page_count   = entry["number_of_pages"]
-        e.language     = entry["languages"]&.first&.dig("key")&.split("/")&.last
-      end
+      edition = BookEdition.find_or_initialize_by(ol_edition_key: entry["key"])
+      edition.book         = book
+      edition.isbn         = entry["isbn_13"]&.first || entry["isbn_10"]&.first
+      edition.title        = entry["title"]
+      edition.publisher    = entry["publishers"]&.first
+      edition.publish_year = entry["publish_date"]
+      edition.page_count   = entry["number_of_pages"]
+      edition.language     = entry["languages"]&.first&.dig("key")&.split("/")&.last
+      edition.save!
       attach_cover(edition, entry["covers"]&.first)
     end
     Rails.cache.delete("book:#{book.id}:editions:list")
