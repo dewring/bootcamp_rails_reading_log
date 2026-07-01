@@ -16,8 +16,8 @@ class ReadingSessionPolicyTest < ActiveSupport::TestCase
     refute ReadingSessionPolicy.new(users(:jaina), reading_sessions(:one)).show?
   end
 
-  test "admin can show any session" do
-    assert ReadingSessionPolicy.new(users(:admin), reading_sessions(:one)).show?
+  test "admin can't show any session" do
+    refute ReadingSessionPolicy.new(users(:admin), reading_sessions(:one)).show?
   end
 
   test "logged-in user can create a reading session" do
@@ -37,5 +37,9 @@ class ReadingSessionPolicyTest < ActiveSupport::TestCase
 
   test "non-owner cannot destroy someone else's session" do
     refute ReadingSessionPolicy.new(users(:admin), reading_sessions(:one)).destroy?
+  end
+  test "scope only returns user's own sessions" do
+    result = ReadingSessionPolicy::Scope.new(users(:leika), ReadingSession.all).resolve
+    assert result.all? { |s| s.user == users(:leika) }
   end
 end
