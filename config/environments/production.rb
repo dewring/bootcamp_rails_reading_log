@@ -37,6 +37,15 @@ Rails.application.configure do
   config.log_tags = [ :request_id ]
   config.logger   = ActiveSupport::TaggedLogging.logger(STDOUT)
 
+  # Structured logging: format every Rails.logger line as a JSON string so hash
+  # payloads (event, status, duration_ms, etc.) are searchable by centralized
+  # log tooling. rails_semantic_logger serializes the hash for us here — no
+  # manual .to_json needed in application code.
+  # (`format =` is deprecated in rails_semantic_logger 5.0 — appenders block replaces it.)
+  config.rails_semantic_logger.appenders do |appenders|
+    appenders.add(io: $stdout, formatter: :json)
+  end
+
   # Change to "debug" to log everything (including potentially personally-identifiable information!).
   config.log_level = ENV.fetch("RAILS_LOG_LEVEL", "info")
 

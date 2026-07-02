@@ -7,20 +7,32 @@ class BookMirrorService
   end
 
   def call
-    Rails.cache.fetch("book:#{@ol_work_key}:mirrored", expires_in: 24.hours) do
+    book = Book.find_by(ol_work_key: "/works/#{@ol_work_key}")
+    if book.nil?
       work_data = @client.fetch_work(@ol_work_key)
-      return nil if work_data.nil?
 
-      book = Book.find_by(ol_work_key: "/works/#{@ol_work_key}")
-      return nil if book.nil?
+      if work_data.nil?
+        Rails.logger.warn(
+          event: "book_mirror.degraded",
+          ol_work_key: @ol_work_key,
+          outcome: "open_library_unavailable_no_local_copy"
+        )
+      end
 
-      enrich_work(book, work_data)
+      return nil
+    end
 
+    unless book.cover_image.attached?
+      work_data = @client.fetch_work(@ol_work_key)
+      enrich_work(book, work_data) if work_data
+    end
+
+    if book.book_editions.empty? || book.book_editions.where(title: [ nil, "" ]).exists?
       editions_data = @client.fetch_editions(@ol_work_key)
       mirror_editions(book, editions_data) if editions_data
-
-      book
     end
+
+    book
   end
 
   private

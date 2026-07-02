@@ -23,6 +23,8 @@ gem "pundit"
 gem "pagy"
 gem "faraday"
 gem "redis", ">= 4.0.1"
+gem "rails_semantic_logger"
+gem "amazing_print"
 # Use Active Model has_secure_password [https://guides.rubyonrails.org/active_model_basics.html#securepassword]
 # gem "bcrypt", "~> 3.1.7"
 
@@ -61,6 +63,7 @@ group :development, :test do
   gem "rubocop-rails-omakase", require: false
   gem "rails-controller-testing"
   gem "webmock"
+  gem "minitest-mock"
 end
 
 group :development do

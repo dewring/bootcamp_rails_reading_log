@@ -6,6 +6,17 @@ Rails.application.configure do
   # Make code changes take effect immediately without server restart.
   config.enable_reloading = true
 
+  # Pretty, colorized console output instead of raw JSON — easier for a human
+  # to read while developing. Hash payloads still show up, just not as a JSON string.
+  # (`format =` is deprecated in rails_semantic_logger 5.0 — appenders block replaces it.)
+  config.rails_semantic_logger.appenders do |appenders|
+    appenders.add(file_name: Rails.root.join("log", "development.log").to_s, formatter: :color)
+    appenders.add(io: $stdout, formatter: { color: { ap: { multiline: true, indent: 2 } } })
+  end
+  config.log_tags = {}
+  config.rails_semantic_logger.started = true
+  config.semantic_logger.backtrace_level = :info
+
   # Do not eager load code on boot.
   config.eager_load = false
 

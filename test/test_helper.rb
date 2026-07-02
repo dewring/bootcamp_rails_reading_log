@@ -3,6 +3,7 @@ require_relative "../config/environment"
 require "rails/test_help"
 require "bcrypt"
 require "webmock/minitest"
+require "minitest/mock"
 
 class ActiveSupport::TestCase
   parallelize(workers: :number_of_processors)

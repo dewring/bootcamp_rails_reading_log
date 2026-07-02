@@ -9,6 +9,13 @@ Rails.application.configure do
   # While tests run files are not watched, reloading is not necessary.
   config.enable_reloading = false
 
+  # Pretty console output for test runs, same reasoning as development.
+  # (`format =` is deprecated in rails_semantic_logger 5.0 — appenders block replaces it.)
+  # config.rails_semantic_logger.appenders do |appenders|
+  #   appenders.add(file_name: Rails.root.join("log", "test.log").to_s, formatter: :color)
+  #   appenders.add(io: $stdout, formatter: :color)
+  # end
+
   # Eager loading loads your entire application. When running a single test locally,
   # this is usually not necessary, and can slow down your test suite. However, it's
   # recommended that you enable it in continuous integration systems to ensure eager
