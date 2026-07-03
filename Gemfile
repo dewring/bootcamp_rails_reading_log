@@ -25,6 +25,7 @@ gem "faraday"
 gem "redis", ">= 4.0.1"
 gem "rails_semantic_logger"
 gem "amazing_print"
+gem "aws-sdk-s3", require: false
 # Use Active Model has_secure_password [https://guides.rubyonrails.org/active_model_basics.html#securepassword]
 # gem "bcrypt", "~> 3.1.7"
 
@@ -47,6 +48,7 @@ gem "thruster", require: false
 
 # Use Active Storage variants [https://guides.rubyonrails.org/active_storage_overview.html#transforming-images]
 gem "image_processing", "~> 2.0"
+gem "ruby-vips", "~> 2.0"
 
 group :development, :test do
   gem "bullet"
