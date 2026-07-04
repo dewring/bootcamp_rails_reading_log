@@ -25,7 +25,7 @@ class BooksController < ApplicationController
 
     respond_to do |format|
       format.html do
-        @books = @books.with_attached_cover_image
+        @books = @books.includes([ :cover_image_attachment ]).to_a
       end
       format.json do
         render json: {
