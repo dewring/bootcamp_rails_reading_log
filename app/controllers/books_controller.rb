@@ -39,7 +39,7 @@ class BooksController < ApplicationController
   def show
     authorize @book
     if @book.book_editions.empty? && @book.ol_work_key.present?
-      result = BookMirrorService.new(@book.ol_work_key.delete_prefix("/works/")).call
+      result = BookMirrorService.new(@book.ol_work_key).call
 
       if result.nil?
         render json: { error: "catalog_unavailable", message: "open_library_unavailable_serving_local" }, status: 503
