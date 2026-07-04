@@ -7,18 +7,20 @@ class BookMirrorService
   end
 
   def call
-    work_data = @client.fetch_work(@ol_work_key)
-    return nil if work_data.nil?
+    Rails.cache.fetch("book:#{@ol_work_key}:mirrored", expires_in: 24.hours) do
+      work_data = @client.fetch_work(@ol_work_key)
+      return nil if work_data.nil?
 
-    book = Book.find_by(ol_work_key: "/works/#{@ol_work_key}")
-    return nil if book.nil?
+      book = Book.find_by(ol_work_key: "/works/#{@ol_work_key}")
+      return nil if book.nil?
 
-    enrich_work(book, work_data)
+      enrich_work(book, work_data)
 
-    editions_data = @client.fetch_editions(@ol_work_key)
-    mirror_editions(book, editions_data) if editions_data
+      editions_data = @client.fetch_editions(@ol_work_key)
+      mirror_editions(book, editions_data) if editions_data
 
-    book
+      book
+    end
   end
 
   private
@@ -37,17 +39,18 @@ class BookMirrorService
 
   def mirror_editions(book, editions_data)
     editions_data["entries"]&.each do |entry|
-      edition = BookEdition.find_or_create_by(ol_edition_key: entry["key"]) do |e|
-        e.book         = book
-        e.isbn         = entry["isbn_13"]&.first || entry["isbn_10"]&.first
-        e.publisher    = entry["publishers"]&.first
-        e.publish_year = entry["publish_date"]
-        e.page_count   = entry["number_of_pages"]
-        e.language     = entry["languages"]&.first&.dig("key")&.split("/")&.last
-        e.format       = entry["physical_format"]
-      end
+      edition = BookEdition.find_or_initialize_by(ol_edition_key: entry["key"])
+      edition.book         = book
+      edition.isbn         = entry["isbn_13"]&.first || entry["isbn_10"]&.first
+      edition.title        = entry["title"]
+      edition.publisher    = entry["publishers"]&.first
+      edition.publish_year = entry["publish_date"]
+      edition.page_count   = entry["number_of_pages"]
+      edition.language     = entry["languages"]&.first&.dig("key")&.split("/")&.last
+      edition.save!
       attach_cover(edition, entry["covers"]&.first)
     end
+    Rails.cache.delete("book:#{book.id}:editions:list")
   end
 
   def attach_cover(record, cover_id)

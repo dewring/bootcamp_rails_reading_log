@@ -2,6 +2,7 @@ require "test_helper"
 
 class BookMirrorServiceTest < ActiveSupport::TestCase
   def setup
+    Rails.cache.clear
     @book = Book.create!(
       title: "Harry Potter",
       author: "J. K. Rowling",
@@ -62,5 +63,50 @@ class BookMirrorServiceTest < ActiveSupport::TestCase
     assert_no_difference "BookEdition.count" do
       BookMirrorService.new("OL45804W").call
     end
+  end
+  test "mirror_editions saves title from Open Library" do
+    stub_request(:get, "https://openlibrary.org/works/OL45804W.json")
+      .to_return(
+        status: 200,
+        body: { title: "Harry Potter", description: "A wizard", subjects: [] }.to_json,
+        headers: { "Content-Type" => "application/json" }
+      )
+
+    stub_request(:get, "https://openlibrary.org/works/OL45804W/editions.json")
+      .to_return(
+        status: 200,
+        body: {
+          entries: [ { key: "/books/OL999M", title: "Harry Potter" } ]
+        }.to_json,
+        headers: { "Content-Type" => "application/json" }
+      )
+
+    BookMirrorService.new("OL45804W").call
+
+    edition = BookEdition.find_by(ol_edition_key: "/books/OL999M")
+    assert_equal "Harry Potter", edition.title
+  end
+
+  test "mirror_editions updates title on existing edition" do
+    BookEdition.create!(ol_edition_key: "/books/OL999M", book: @book, title: nil)
+
+    stub_request(:get, "https://openlibrary.org/works/OL45804W.json")
+      .to_return(
+        status: 200,
+        body: { "description" => "A great book", "subjects" => [], "covers" => [] }.to_json,
+        headers: { "Content-Type" => "application/json" }
+      )
+
+    stub_request(:get, "https://openlibrary.org/works/OL45804W/editions.json")
+      .to_return(
+        status: 200,
+        body: { entries: [ { key: "/books/OL999M", title: "Harry Potter" } ] }.to_json,
+        headers: { "Content-Type" => "application/json" }
+      )
+
+    BookMirrorService.new("OL45804W").call
+
+    edition = BookEdition.find_by(ol_edition_key: "/books/OL999M")
+    assert_equal "Harry Potter", edition.title
   end
 end
