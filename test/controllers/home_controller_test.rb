@@ -23,4 +23,14 @@ class HomeControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_select "p.empty-state", "No books found for this genre."
   end
+
+  test "home page renders resized cover variant when attached" do
+    book = Book.create!(title: "Cover Test Book", author: "Author", total_pages: 100)
+    book.cover_image.attach(fixture_file_upload("cover_test.jpg", "image/jpeg"))
+
+    get root_path
+
+    assert_response :success
+    assert_select "img.book-cover"
+  end
 end

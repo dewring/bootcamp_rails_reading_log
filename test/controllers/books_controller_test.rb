@@ -234,6 +234,16 @@ class BookControllerTest < ActionDispatch::IntegrationTest
     assert_not_nil cached
   end
 
+  test "show page renders resized cover variant when attached" do
+    book = books(:refactoring)
+    book.cover_image.attach(fixture_file_upload("cover_test.jpg", "image/jpeg"))
+
+    get book_path(book)
+
+    assert_response :success
+    assert_select "img.book-show-image"
+  end
+
   test "invalidates edition cache after mirroring" do
     Rails.cache = ActiveSupport::Cache::MemoryStore.new
 
