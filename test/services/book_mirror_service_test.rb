@@ -1,6 +1,12 @@
 require "test_helper"
 
 class BookMirrorServiceTest < ActiveSupport::TestCase
+  include ActiveJob::TestHelper
+
+  def queue_adapter_for_test
+    ActiveJob::QueueAdapters::TestAdapter.new
+  end
+
   def setup
     Rails.cache.clear
     @book = Book.create!(
@@ -121,5 +127,48 @@ class BookMirrorServiceTest < ActiveSupport::TestCase
 
     edition = BookEdition.find_by(ol_edition_key: "/books/OL999M")
     assert_equal "Harry Potter", edition.title
+  end
+
+  test "enqueues CoverAttachJob when a cover is available and not yet attached" do
+    stub_request(:get, "https://openlibrary.org/works/OL45804W.json")
+      .to_return(
+        status: 200,
+        body: { description: "A story", subjects: [], covers: [ 1234 ] }.to_json,
+        headers: { "Content-Type" => "application/json" }
+      )
+    stub_request(:get, "https://openlibrary.org/works/OL45804W/editions.json")
+      .to_return(status: 200, body: '{"entries": []}', headers: { "Content-Type" => "application/json" })
+
+    assert_enqueued_with(job: CoverAttachJob) do
+      BookMirrorService.new("OL45804W").call
+    end
+  end
+
+  test "does not enqueue CoverAttachJob when the cover is already attached" do
+    @book.cover_image.attach(io: StringIO.new("fake image data"), filename: "existing.jpg", content_type: "image/jpeg")
+
+    stub_request(:get, "https://openlibrary.org/works/OL45804W.json")
+      .to_return(
+        status: 200,
+        body: { description: "A story", subjects: [], covers: [ 12345 ] }.to_json,
+        headers: { "Content-Type" => "application/json" }
+      )
+    stub_request(:get, "https://openlibrary.org/works/OL45804W/editions.json")
+      .to_return(status: 200, body: '{"entries": []}', headers: { "Content-Type" => "application/json" })
+
+    assert_no_enqueued_jobs do
+      BookMirrorService.new("OL45804W").call
+    end
+  end
+  test "accepts ol_work_key with the /works/ prefix already included" do
+    stub_request(:get, "https://openlibrary.org/works/OL45804W.json")
+      .to_raise(Faraday::TimeoutError)
+
+    stub_request(:get, "https://openlibrary.org/works/OL45804W/editions.json")
+      .to_return(status: 200, body: '{"entries": []}', headers: { "Content-Type" => "application/json" })
+
+    result = BookMirrorService.new("/works/OL45804W").call
+
+    assert_equal @book, result
   end
 end
