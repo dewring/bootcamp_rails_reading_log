@@ -10,11 +10,24 @@ class BookMirrorServiceTest < ActiveSupport::TestCase
     )
   end
 
-  test "returns nil when fetch_work returns nil" do
+  test "returns existing book and still mirrors editions when fetch_work fails" do
     stub_request(:get, "https://openlibrary.org/works/OL45804W.json")
       .to_raise(Faraday::TimeoutError)
 
+    stub_request(:get, "https://openlibrary.org/works/OL45804W/editions.json")
+      .to_return(status: 200, body: '{"entries": []}', headers: { "Content-Type" => "application/json" })
+
     result = BookMirrorService.new("OL45804W").call
+
+    assert_equal @book, result
+  end
+
+  test "returns nil when no local book exists and Open Library is unreachable" do
+    stub_request(:get, "https://openlibrary.org/works/ABCDEFG.json")
+      .to_raise(Faraday::TimeoutError)
+
+    result = BookMirrorService.new("ABCDEFG").call
+
     assert_nil result
   end
 
