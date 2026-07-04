@@ -170,4 +170,40 @@ class BookControllerTest < ActionDispatch::IntegrationTest
     assert data["pagination"].present?
     assert_equal 1, data["pagination"]["page"]
   end
+
+  test "GET search redirects when not signed in" do
+    get search_books_url
+    assert_redirected_to new_user_session_path
+  end
+
+  test "GET search returns results for signed-in user" do
+    stub_request(:get, "https://openlibrary.org/search.json")
+      .with(query: { q: "Harry Potter" })
+      .to_return(
+        status: 200,
+        body: '{"docs": [{"key": "/works/OL82563W", "title": "Harry Potter"}]}',
+        headers: { "Content-Type" => "application/json" }
+      )
+
+    sign_in users(:leika)
+    get search_books_url, params: { q: "Harry Potter" }
+    assert_response :success
+  end
+
+  test "POST import redirects when not signed in" do
+    post import_books_url, params: { ol_work_key: "/works/OL82563W", title: "Harry Potter", author: "J. K. Rowling" }
+    assert_redirected_to new_user_session_path
+  end
+
+  test "POST import creates a book and redirects" do
+    sign_in users(:leika)
+    assert_difference "Book.count", 1 do
+      post import_books_url, params: {
+        ol_work_key: "/works/OL999W",
+        title:       "New Book",
+        author:      "Some Author"
+      }
+    end
+    assert_redirected_to book_path(Book.last)
+  end
 end

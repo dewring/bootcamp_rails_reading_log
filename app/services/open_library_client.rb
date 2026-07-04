@@ -14,4 +14,20 @@ class OpenLibraryClient
     Rails.logger.error("OpenLibraryClient#search failed: #{e.message}")
     []
   end
+  def fetch_work(ol_work_key)
+    response = @conn.get("/works/#{ol_work_key}.json")
+    result = JSON.parse(response.body)
+    result
+  rescue Faraday::Error => e
+    Rails.logger.error("OpenLibraryClient#fetch_work failed: #{e.message}")
+    nil
+  end
+  def fetch_editions(ol_work_key)
+    response = @conn.get("/works/#{ol_work_key}/editions.json")
+    result = JSON.parse(response.body)
+    result
+  rescue Faraday::Error => e
+    Rails.logger.error("OpenLibraryClient#fetch_editions failed: #{e.message}")
+    nil
+  end
 end

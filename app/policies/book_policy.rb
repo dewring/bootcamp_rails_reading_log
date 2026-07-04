@@ -11,6 +11,14 @@ class BookPolicy < ApplicationPolicy
     user.present?
   end
 
+  def search?
+    user.present?
+  end
+
+  def import?
+    user.present?
+  end
+
   def most_recent_session?
     user.present?
   end

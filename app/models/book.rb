@@ -2,6 +2,8 @@ class Book < ApplicationRecord
   # 1. Attachments
   has_one_attached :cover_image
 
+  serialize :subjects, coder: JSON
+
   # 2. Normalizations
   normalizes :title, with: ->(v) { v.titleize }
   normalizes :author, with: ->(v) { v.titleize }
@@ -17,6 +19,7 @@ class Book < ApplicationRecord
   has_many :book_genres, dependent: :destroy
   has_many :genres, through: :book_genres
   has_many :reviews, dependent: :destroy
+  has_many :book_editions, dependent: :destroy
 
   # 5. Scopes
   scope :most_read, -> {

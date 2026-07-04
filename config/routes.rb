@@ -6,6 +6,8 @@ Rails.application.routes.draw do
     end
     collection do
       get :discover
+      get :search
+      post :import
     end
     resources :reading_sessions, only: [ :new, :create ]
     resources :reviews, only: [ :new, :create, :edit, :update ]

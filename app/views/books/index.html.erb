@@ -1,5 +1,6 @@
 <div class="catalog-header">
   <h1>Book Catalog</h1>
+  <%= link_to "🔍 Search Open Library", search_books_path, class: "btn-cta btn-cta-secondary" %>
   <% if policy(Book).new? %>
     <%= link_to "＋ Add Book", new_admin_book_path, class: "btn-cta" %>
   <% elsif policy(Book).discover? %>

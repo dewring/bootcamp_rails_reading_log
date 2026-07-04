@@ -616,6 +616,95 @@ h2 {
   &:hover { background: darken($accent, 8%); }
 }
 
+// ── Book show — description & subjects ─────────────────────
+.book-show-description {
+  font-size: 0.9rem;
+  line-height: 1.75;
+  color: $navy;
+  margin-bottom: 0.5rem;
+}
+
+.book-show-source {
+  font-size: 0.72rem;
+  color: $text-muted;
+  margin-top: 0.25rem;
+
+  a {
+    color: $text-muted;
+    text-decoration: underline;
+    &:hover { color: $accent; }
+  }
+}
+
+.book-show-subjects {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0.75rem 0;
+}
+
+// ── Editions grid ───────────────────────────────────────────
+.book-editions-section {
+  margin: 2rem 0;
+  border-top: 1px solid $gray-mid;
+  padding-top: 1.5rem;
+}
+
+.editions-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.edition-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  text-decoration: none;
+  color: $navy;
+  padding: 0.6rem;
+  border: 1px solid $gray-mid;
+  border-radius: $radius;
+  font-size: 0.75rem;
+  transition: box-shadow 0.15s, transform 0.15s;
+
+  &:hover {
+    box-shadow: 0 4px 16px rgba(26, 34, 54, 0.1);
+    transform: translateY(-2px);
+  }
+
+  p {
+    font-size: 0.72rem;
+    color: $text-muted;
+    margin: 0;
+    background: none !important;
+    padding: 0 !important;
+    border-radius: 0 !important;
+  }
+}
+
+.edition-cover {
+  img {
+    width: 100%;
+    max-height: 140px;
+    object-fit: contain;
+    border-radius: 4px;
+  }
+}
+
+.edition-no-cover {
+  width: 100%;
+  height: 140px;
+  background: $gray-light;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  border: 1px solid $gray-mid;
+}
+
 // ── Auth pages (sign in / sign up) ─────────────────────────
 .auth-card {
   max-width: 400px;
