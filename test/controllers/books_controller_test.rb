@@ -206,6 +206,21 @@ class BookControllerTest < ActionDispatch::IntegrationTest
     assert_redirected_to book_path(Book.last)
   end
 
+  test "returns 503 JSON when BookMirrorService returns nil" do
+    book = Book.create!(title: "being cute", author: "leika", ol_work_key: "/works/leicaca")
+
+    fake_service = Object.new
+    def fake_service.call; nil; end
+
+    BookMirrorService.stub(:new, ->(*) { fake_service }) do
+      get book_path(book)
+    end
+
+    assert_response 503
+    json = JSON.parse(response.body)
+    assert_equal "catalog_unavailable", json["error"]
+  end
+
   test "caches edition list on show" do
     Rails.cache = ActiveSupport::Cache::MemoryStore.new
 
