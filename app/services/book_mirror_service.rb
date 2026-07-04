@@ -1,8 +1,6 @@
-require "open-uri"
-
 class BookMirrorService
   def initialize(ol_work_key)
-    @ol_work_key = ol_work_key
+    @ol_work_key = ol_work_key.delete_prefix("/works/")
     @client = OpenLibraryClient.new
   end
 
@@ -68,14 +66,6 @@ class BookMirrorService
   def attach_cover(record, cover_id)
     return if cover_id.nil?
     return if record.cover_image.attached?
-
-    url = "https://covers.openlibrary.org/b/id/#{cover_id}-M.jpg"
-    record.cover_image.attach(
-      io: URI.open(url),
-      filename: "cover_#{cover_id}.jpg",
-      content_type: "image/jpeg"
-    )
-  rescue => e
-    Rails.logger.error("attach_cover failed: #{e.message}")
+    CoverAttachJob.perform_later(record, cover_id)
   end
 end
