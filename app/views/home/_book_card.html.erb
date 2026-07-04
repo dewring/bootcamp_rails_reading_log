@@ -1,6 +1,6 @@
 <%= link_to book_path(book), class: "book-card" do %>
   <% if book.cover_image.attached? %>
-    <%= image_tag book.cover_image, class: "book-cover" %>
+    <%= image_tag book.cover_image.variant(resize_to_fill: [150, 220]), class: "book-cover" %>
   <% else %>
     <div class="book-cover no-cover">📚</div>
   <% end %>

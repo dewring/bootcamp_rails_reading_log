@@ -1,7 +1,7 @@
 <div class="book-show">
   <div class="book-show-cover">
     <% if @book.cover_image.attached? %>
-      <%= image_tag @book.cover_image, class: "book-show-image" %>
+      <%= image_tag @book.cover_image.variant(resize_to_limit: [200, 300]), class: "book-show-image" %>
     <% else %>
       <div class="book-show-no-cover">📚</div>
     <% end %>
