@@ -20,12 +20,14 @@ gem "dartsass-rails"
 gem "jbuilder"
 gem "devise"
 gem "pundit"
+gem "mission_control-jobs"
 gem "pagy"
 gem "faraday"
 gem "redis", ">= 4.0.1"
 gem "rails_semantic_logger"
 gem "amazing_print"
 gem "aws-sdk-s3", require: false
+gem "mission_control-jobs"
 # Use Active Model has_secure_password [https://guides.rubyonrails.org/active_model_basics.html#securepassword]
 # gem "bcrypt", "~> 3.1.7"
 
