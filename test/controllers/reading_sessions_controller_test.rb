@@ -1,6 +1,11 @@
 require "test_helper"
 class ReadingSessionsControllerTest < ActionDispatch::IntegrationTest
   include Devise::Test::IntegrationHelpers
+  include ActiveJob::TestHelper
+
+  def queue_adapter_for_test
+    ActiveJob::QueueAdapters::TestAdapter.new
+  end
   test "new reading session defaults to today's date" do
     sign_in users(:leika)
     get new_book_reading_session_path(book_id: books(:refactoring))
@@ -33,5 +38,13 @@ class ReadingSessionsControllerTest < ActionDispatch::IntegrationTest
     sign_in users(:leika)
     delete reading_session_path(reading_sessions(:one))
     assert_redirected_to dashboard_path
+  end
+
+  test "create enqueues BookProgressJob" do
+    sign_in users(:leika)
+
+    assert_enqueued_with(job: BookProgressJob) do
+      post book_reading_sessions_path(books(:refactoring)), params: { reading_session: { read_on: Date.today, pages_read: 15 } }
+    end
   end
 end
