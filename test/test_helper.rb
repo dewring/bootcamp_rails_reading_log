@@ -4,6 +4,7 @@ require "rails/test_help"
 require "bcrypt"
 require "webmock/minitest"
 require "minitest/mock"
+require "rspec/mocks/minitest_integration"
 
 class ActiveSupport::TestCase
   parallelize(workers: :number_of_processors)

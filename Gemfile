@@ -68,6 +68,7 @@ group :development, :test do
   gem "rails-controller-testing"
   gem "webmock"
   gem "minitest-mock"
+  gem "rspec-mocks"
 end
 
 group :development do

@@ -34,10 +34,10 @@ class JobErrorReportingTest < ActiveSupport::TestCase
     book.destroy
     fake_logger = FakeLogger.new
 
-    SemanticLogger.stub(:[], fake_logger) do
-      perform_enqueued_jobs do
-        CoverAttachJob.perform_later(book, 123)
-      end
+    allow(SemanticLogger).to receive(:[]).and_call_original
+    allow(SemanticLogger).to receive(:[]).with("JobErrorReporting").and_return(fake_logger)
+    perform_enqueued_jobs do
+      CoverAttachJob.perform_later(book, 123)
     end
 
     assert_equal 1, fake_logger.calls.size
@@ -50,10 +50,10 @@ class JobErrorReportingTest < ActiveSupport::TestCase
   test "logs when a job fails with an unhandled error" do
     fake_logger = FakeLogger.new
 
+    allow(SemanticLogger).to receive(:[]).and_call_original
+    allow(SemanticLogger).to receive(:[]).with("JobErrorReporting").and_return(fake_logger)
     assert_raises(RuntimeError) do
-      SemanticLogger.stub(:[], fake_logger) do
-        BoomJob.perform_now
-      end
+      BoomJob.perform_now
     end
 
     assert_equal 1, fake_logger.calls.size
