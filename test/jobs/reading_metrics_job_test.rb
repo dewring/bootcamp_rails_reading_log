@@ -46,4 +46,20 @@ class ReadingMetricsJobTest < ActiveSupport::TestCase
       ReadingMetricsJob.new.perform
     end
   end
+
+  test "continues to next user when one user's calculation fails" do
+    broken_user = users(:jaina)
+    working_user = users(:admin)
+    ReadingSession.create!(user: broken_user, book: books(:refactoring), read_on: Date.current, pages_read: 10)
+    ReadingSession.create!(user: working_user, book: books(:pragmatic), read_on: Date.current, pages_read: 10)
+
+    job = ReadingMetricsJob.new
+    allow(job).to receive(:calculate_metrics).and_call_original
+    allow(job).to receive(:calculate_metrics).with(broken_user).and_raise("boom")
+
+    job.perform
+
+    assert_not ReadingMetric.exists?(user: broken_user)
+    assert ReadingMetric.exists?(user: working_user)
+  end
 end

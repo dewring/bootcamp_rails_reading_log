@@ -1,5 +1,6 @@
 class ReadingMetricsJob < ApplicationJob
   include SemanticLogger::Loggable
+  include ActiveJob::Continuable
 
   queue_as :default
 
@@ -10,8 +11,15 @@ class ReadingMetricsJob < ApplicationJob
       "Calculating reading metrics",
       payload: { user_count: users.count }
     ) do
-      users.each do |user|
-        calculate_metrics(user)
+      step :calculate_metrics_for_users, start: 0 do |step|
+        users.find_each(start: step.cursor) do |user|
+          begin
+            calculate_metrics(user)
+          rescue => e
+            logger.error("Failed to calculate metrics for user", user_id: user.id, error_message: e.message)
+          end
+          step.advance! from: user.id
+        end
       end
     end
   end
