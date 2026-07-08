@@ -3,6 +3,11 @@
   <p>Here's your reading log.</p>
 </hgroup>
 
+<div data-controller="hello">
+  <span data-hello-target="message"></span>
+  <button data-action="click->hello#greet">greeting</button>
+</div>
+
 <% if @user_books_by_status.empty? %>
   <article>
     <p>No books yet. <%= link_to "Browse the catalog", books_path %> to add some.</p>
