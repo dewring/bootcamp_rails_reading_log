@@ -38,16 +38,7 @@ class BooksController < ApplicationController
 
   def show
     authorize @book
-    if @book.book_editions.empty? && @book.ol_work_key.present?
-      result = BookMirrorService.new(@book.ol_work_key).call
 
-      if result.nil?
-        render json: { error: "catalog_unavailable", message: "open_library_unavailable_serving_local" }, status: 503
-        return
-      end
-
-      @book.reload
-    end
     @book_editions = Rails.cache.fetch("book:#{@book.id}:editions:list", expires_in: 1.day) do
       @book.book_editions.includes(:cover_image_attachment).to_a
     end
@@ -72,7 +63,8 @@ class BooksController < ApplicationController
       "author_name" => [ params[:author] ]
     }
     book = Book.find_or_create_from_search_result(doc)
-    redirect_to book_path(book), notice: "Book added!"
+    BookMirrorJob.perform_later(book)
+    redirect_to book_path(book), notice: "Book added! Editions are loading in the background."
   end
 
   def search

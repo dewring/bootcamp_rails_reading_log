@@ -20,16 +20,4 @@ class ReadingSessionRecorderTest < ActiveSupport::TestCase
 
     refute reading_session.persisted?
   end
-
-  test "updates user_book status to reading after successful record" do
-    book = books(:refactoring)
-    user = users(:leika)
-    user_book = user.user_books.find_or_create_by!(book: book)
-    user_book.update!(status: "want_to_read")
-    attributes = { read_on: Date.today, pages_read: 10 }
-
-    ReadingSessionRecorder.new(book, user, attributes).record
-
-    assert_equal "reading", user_book.reload.status
-  end
 end

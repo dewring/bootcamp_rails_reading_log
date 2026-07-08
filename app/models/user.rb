@@ -12,6 +12,7 @@ class User < ApplicationRecord
   has_many :books, through: :user_books
   has_many :reading_sessions
   has_many :reviews, dependent: :destroy
+  has_one :reading_metric
 
   def admin?
     role == "admin"

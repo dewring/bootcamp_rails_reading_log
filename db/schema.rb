@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_07_01_040402) do
+ActiveRecord::Schema[8.1].define(version: 2026_07_05_045516) do
   create_table "active_storage_attachments", force: :cascade do |t|
     t.bigint "blob_id", null: false
     t.datetime "created_at", null: false
@@ -83,6 +83,19 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_01_040402) do
     t.datetime "updated_at", null: false
   end
 
+  create_table "reading_metrics", force: :cascade do |t|
+    t.integer "books_finished", default: 0
+    t.integer "books_in_progress", default: 0
+    t.datetime "calculated_at"
+    t.datetime "created_at", null: false
+    t.integer "current_streak", default: 0
+    t.integer "pages_this_week", default: 0
+    t.integer "pages_today", default: 0
+    t.datetime "updated_at", null: false
+    t.integer "user_id", null: false
+    t.index ["user_id"], name: "index_reading_metrics_on_user_id", unique: true
+  end
+
   create_table "reading_sessions", force: :cascade do |t|
     t.integer "book_edition_id"
     t.integer "book_id", null: false
@@ -141,6 +154,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_01_040402) do
   add_foreign_key "book_editions", "books"
   add_foreign_key "book_genres", "books"
   add_foreign_key "book_genres", "genres"
+  add_foreign_key "reading_metrics", "users"
   add_foreign_key "reading_sessions", "book_editions"
   add_foreign_key "reading_sessions", "books"
   add_foreign_key "reading_sessions", "users"

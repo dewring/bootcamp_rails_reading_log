@@ -22,6 +22,11 @@ Rails.application.routes.draw do
     resources :reading_sessions, only: [ :index, :show, :create ]
   end
   resources :user_books, only: [ :new, :create, :update, :destroy ]
+
+  authenticate :user, ->(u) { u.admin? } do
+    mount MissionControl::Jobs::Engine, at: "/jobs"
+  end
+
   get "dashboard", to: "dashboard#index", as: :dashboard
   root to: "home#index"
   get "up" => "rails/health#show", as: :rails_health_check

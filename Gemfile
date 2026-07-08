@@ -20,6 +20,7 @@ gem "dartsass-rails"
 gem "jbuilder"
 gem "devise"
 gem "pundit"
+gem "mission_control-jobs"
 gem "pagy"
 gem "faraday"
 gem "redis", ">= 4.0.1"
@@ -66,6 +67,7 @@ group :development, :test do
   gem "rails-controller-testing"
   gem "webmock"
   gem "minitest-mock"
+  gem "rspec-mocks"
 end
 
 group :development do
