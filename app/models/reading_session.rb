@@ -5,4 +5,12 @@ class ReadingSession < ApplicationRecord
 
   validates :read_on, presence: true
   validates :pages_read, presence: true, numericality: { greater_than: 0 }
+
+  after_commit :recalculate_progress
+
+  private
+
+  def recalculate_progress
+    BookProgressJob.perform_later(user, book)
+  end
 end

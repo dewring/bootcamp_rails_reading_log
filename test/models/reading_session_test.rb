@@ -1,6 +1,12 @@
 require "test_helper"
 
 class ReadingSessionTest < ActiveSupport::TestCase
+  include ActiveJob::TestHelper
+
+  def queue_adapter_for_test
+    ActiveJob::QueueAdapters::TestAdapter.new
+  end
+
   def setup
     @user = users(:leika)
     @book = books(:refactoring)
@@ -47,5 +53,27 @@ class ReadingSessionTest < ActiveSupport::TestCase
 
   test "belongs to a book" do
     assert_equal @book, @session.book
+  end
+
+  test "enqueues BookProgressJob after create" do
+    assert_enqueued_with(job: BookProgressJob) do
+      @session.save!
+    end
+  end
+
+  test "enqueues BookProgressJob after update" do
+    session = reading_sessions(:one)
+
+    assert_enqueued_with(job: BookProgressJob) do
+      session.update!(pages_read: 20)
+    end
+  end
+
+  test "enqueues BookProgressJob after destroy" do
+    session = reading_sessions(:one)
+
+    assert_enqueued_with(job: BookProgressJob) do
+      session.destroy
+    end
   end
 end

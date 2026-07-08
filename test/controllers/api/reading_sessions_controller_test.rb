@@ -1,6 +1,11 @@
 require "test_helper"
 class Api::ReadingSessionsControllerTest < ActionDispatch::IntegrationTest
   include Devise::Test::IntegrationHelpers
+  include ActiveJob::TestHelper
+
+  def queue_adapter_for_test
+    ActiveJob::QueueAdapters::TestAdapter.new
+  end
 
   test "index returns user's reading sessions" do
     sign_in users(:leika)
@@ -20,6 +25,16 @@ class Api::ReadingSessionsControllerTest < ActionDispatch::IntegrationTest
                    reading_session: { read_on: Date.today, pages_read: 10 } },
          as: :json
 
+    assert_response :created
+  end
+  test "create enqueues BookProgressJob" do
+    sign_in users(:leika)
+    assert_enqueued_with(job: BookProgressJob) do
+      post api_reading_sessions_path,
+           params: { book_id: books(:refactoring).id,
+                     reading_session: { read_on: Date.today, pages_read: 10 } },
+           as: :json
+    end
     assert_response :created
   end
   test "returns 401 when not logged in" do
