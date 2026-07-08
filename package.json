@@ -4,9 +4,10 @@
   "devDependencies": {
     "esbuild": "^0.28.1"
   },
-  "scripts": {
-    "build": "esbuild app/javascript/*.* --bundle --sourcemap --format=esm --outdir=app/assets/builds --public-path=/assets"
-  },
+"scripts": {
+  "build": "esbuild app/javascript/*.ts --bundle --sourcemap --format=esm --outdir=app/assets/builds --public-path=/assets",
+  "typecheck": "tsc --noEmit"
+},
   "dependencies": {
     "@hotwired/stimulus": "^3.2.2",
     "@hotwired/turbo-rails": "^8.0.23",
