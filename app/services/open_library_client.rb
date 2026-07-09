@@ -8,21 +8,21 @@ class OpenLibraryClient
       f.options.open_timeout = 15
     end
   end
-  def search(query)
+  def search(query, page: 1, limit: 10)
     logger.measure_info(
       "Searching in Open Library",
       payload: { event: "open_library.search", query: query, status: "success" }
     ) do
-      response = @conn.get("/search.json", { q: query })
+      response = @conn.get("/search.json", { q: query, page: page, limit: limit })
       result = JSON.parse(response.body)
-      result["docs"]
+      { docs: result["docs"] || [], total: result["numFound"] || 0 }
     rescue Faraday::Error => e
       Rails.logger.error(
         "Searching in Open Library",
         event: "open_library.search", query: query, status: "error",
         exception_class: e.class.name, error: e.message
       )
-      []
+      { docs: [], total: 0 }
     end
   end
 

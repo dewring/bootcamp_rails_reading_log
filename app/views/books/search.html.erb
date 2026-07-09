@@ -1,31 +1,10 @@
 <h1>Search Books</h1>
 
-<%# 1. 검색 폼 - GET으로 자기 자신에게 %>
-<%= form_with url: search_books_path, method: :get do |f| %>
-  <%= f.text_field :q, value: @query, placeholder: "Search by title or author..." %>
-  <%= f.submit "Search" %>
-<% end %>
-
-<%# 2. 결과가 있을 때만 표시 %>
-<% if @results&.any? %>
-  <% @results.each do |result| %>
-    <div>
-      <%# 커버 이미지 (cover_i가 있을 때만) %>
-      <% if result["cover_i"] %>
-        <%= image_tag "https://covers.openlibrary.org/b/id/#{result["cover_i"]}-M.jpg" %>
-      <% end %>
-      
-      <p><%= result["title"] %></p>
-      <p><%= result["author_name"]&.first %></p>
-      <p><%= result["first_publish_year"] %></p>
-      
-      <%# import POST 폼 - hidden fields로 데이터 전송 %>
-      <%= form_with url: import_books_path, method: :post do |f| %>
-        <%= f.hidden_field :ol_work_key, value: result["key"] %>
-        <%= f.hidden_field :title, value: result["title"] %>
-        <%= f.hidden_field :author, value: result["author_name"]&.first %>
-        <%= f.submit "Add to Library" %>
-      <% end %>
-    </div>
+<%= form_with url: search_books_path, method: :get, data: { controller: "search", turbo_frame: "search-results" } do |f| %>
+  <%= f.text_field :q, data: { search_target: "input", action: "input->search#query" }, value: @query, placeholder: "Search by title or author..." %>
+    <%= f.submit "Search" %>
   <% end %>
-<% end %>
+
+<turbo-frame id="search-results">
+  <%= render "search_results", results: @results, pagy: @pagy %>
+</turbo-frame>

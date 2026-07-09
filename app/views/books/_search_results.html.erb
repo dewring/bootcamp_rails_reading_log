@@ -1,0 +1,23 @@
+<% if results&.any? %>
+  <% results.each do |result| %>
+    <div>
+      <%# 커버 이미지 (cover_i가 있을 때만) %>
+      <% if result["cover_i"] %>
+        <%= image_tag "https://covers.openlibrary.org/b/id/#{result["cover_i"]}-M.jpg" %>
+      <% end %>
+      
+      <p><%= result["title"] %></p>
+      <p><%= result["author_name"]&.first %></p>
+      <p><%= result["first_publish_year"] %></p>
+      
+      <%# import POST 폼 - hidden fields로 데이터 전송 %>
+      <%= form_with url: import_books_path, method: :post do |f| %>
+        <%= f.hidden_field :ol_work_key, value: result["key"] %>
+        <%= f.hidden_field :title, value: result["title"] %>
+        <%= f.hidden_field :author, value: result["author_name"]&.first %>
+        <%= f.submit "Add to Library" %>
+      <% end %>
+    </div>
+  <% end %>
+<% end %>
+<%== pagy.series_nav if pagy && pagy.last > 1 %>
