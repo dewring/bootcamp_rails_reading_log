@@ -4,13 +4,15 @@
   "devDependencies": {
     "esbuild": "^0.28.1"
   },
-"scripts": {
-  "build": "esbuild app/javascript/*.ts --bundle --sourcemap --format=esm --outdir=app/assets/builds --public-path=/assets",
-  "typecheck": "tsc --noEmit"
-},
+  "scripts": {
+    "build": "esbuild app/javascript/*.ts --bundle --sourcemap --format=esm --outdir=app/assets/builds --public-path=/assets",
+    "typecheck": "tsc --noEmit"
+  },
   "dependencies": {
     "@hotwired/stimulus": "^3.2.2",
     "@hotwired/turbo-rails": "^8.0.23",
+    "@types/lodash": "^4.17.24",
+    "lodash": "^4.18.1",
     "typescript": "^6.0.3"
   }
 }
