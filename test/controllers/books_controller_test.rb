@@ -110,6 +110,7 @@ class BookControllerTest < ActionDispatch::IntegrationTest
 
     assert (page_1_ids & page_2_ids).empty?
   end
+
   test "search filter is preserved on page 2" do
     sign_in users(:leika)
 
@@ -183,16 +184,37 @@ class BookControllerTest < ActionDispatch::IntegrationTest
 
   test "GET search returns results for signed-in user" do
     stub_request(:get, "https://openlibrary.org/search.json")
-      .with(query: { q: "Harry Potter" })
+      .with(query: { q: "Harry Potter", page: 1, limit: 100 })
       .to_return(
         status: 200,
-        body: '{"docs": [{"key": "/works/OL82563W", "title": "Harry Potter"}]}',
+        body: '{"docs": [{"key": "/works/OL82563W", "title": "Harry Potter"}], "numFound": 1000}',
         headers: { "Content-Type" => "application/json" }
       )
 
     sign_in users(:leika)
-    get search_books_url, params: { q: "Harry Potter" }
+    get search_books_url, params: { q: "Harry Potter", page: 1, limit: 10 }
     assert_response :success
+  end
+
+  test "GET search page 2 returns different results than page 1" do
+    docs = (1..25).map { |i| { "key" => "/works/OL#{i}W", "title" => "Book #{i}" } }
+    stub_request(:get, "https://openlibrary.org/search.json")
+      .with(query: { q: "Harry Potter", page: 1, limit: 100 })
+      .to_return(
+        status: 200,
+        body: { docs: docs, numFound: 25 }.to_json,
+        headers: { "Content-Type" => "application/json" }
+      )
+
+    sign_in users(:leika)
+
+    get search_books_url, params: { q: "Harry Potter" }
+    page_1_keys = assigns(:results).map { |r| r["key"] }
+
+    get search_books_url, params: { q: "Harry Potter", page: 2 }
+    page_2_keys = assigns(:results).map { |r| r["key"] }
+
+    assert (page_1_keys & page_2_keys).empty?
   end
 
   test "POST import redirects when not signed in" do

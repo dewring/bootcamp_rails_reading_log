@@ -70,7 +70,14 @@ class BooksController < ApplicationController
   def search
     authorize Book, :search?
     @query = params[:q].to_s.strip
-    @results = @query.present? ? OpenLibraryClient.new.search(@query) : []
+
+    if @query.present?
+      search_result = OpenLibraryClient.new.search(@query, limit: 100)
+      @pagy, @results = pagy(:offset, search_result[:docs], limit: 10)
+    else
+      @results = []
+      @pagy = nil
+    end
   end
 
   def discover
