@@ -14,9 +14,12 @@ Rails.application.routes.draw do
   end
 
   resources :reading_sessions, only: [ :index, :edit, :update, :destroy ]
+  resources :challenges, only: [ :index, :show ]
+  resources :user_challenges, only: [ :create, :destroy ]
 
   namespace :admin do
     resources :books, only: [ :new, :create, :edit, :update, :destroy ]
+    resources :challenges, only: [ :new, :create, :edit, :update, :destroy ]
   end
   namespace :api do
     resources :reading_sessions, only: [ :index, :show, :create ]
