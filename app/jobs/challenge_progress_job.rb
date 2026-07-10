@@ -28,7 +28,7 @@ class ChallengeProgressJob < ApplicationJob
       finalize_count_based(user_challenge, challenge, count)
 
     when "streak_days"
-      streak = current_streak(user_challenge.user)
+      streak = ReadingSession.current_streak(user_challenge.user)
       finalize_count_based(user_challenge, challenge, streak)
 
     when "pages_per_day"
@@ -86,17 +86,5 @@ class ChallengeProgressJob < ApplicationJob
     return if user_challenge.status == status.to_s && user_challenge.progress == progress
 
     user_challenge.update!(status: status, progress: progress)
-  end
-
-  def current_streak(user)
-    session_dates = ReadingSession.where(user: user, read_on: 90.days.ago.to_date..Date.current)
-                                   .distinct.pluck(:read_on).to_set
-    streak = 0
-    date = Date.current
-    while session_dates.include?(date)
-      streak += 1
-      date -= 1.day
-    end
-    streak
   end
 end
