@@ -86,5 +86,9 @@ class ChallengeProgressJob < ApplicationJob
     return if user_challenge.status == status.to_s && user_challenge.progress == progress
 
     user_challenge.update!(status: status, progress: progress)
+
+    if status == :completed
+      ChallengeMailer.challenge_completed(user_challenge.user, user_challenge).deliver_later
+    end
   end
 end
