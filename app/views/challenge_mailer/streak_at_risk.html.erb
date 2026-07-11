@@ -1,0 +1,13 @@
+<h1>
+<%= "Hi, #{@user.nickname}" %>
+</h1>
+
+<p>
+<%= "Your Streak is #{pluralize(@current_streak, "day")}" %>
+</p>
+
+<ul>
+  <% @streak_challenging.each do |uc| %>
+    <li><%= uc.challenge.title %></li>
+  <% end %>
+</ul>
