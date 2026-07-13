@@ -1,6 +1,6 @@
 class Admin::ChallengesController < ApplicationController
   before_action :authenticate_user!
-  before_action :require_admin!
+  include RequireAdmin
   before_action :set_challenge, only: [ :edit, :update, :destroy ]
 
   def new
@@ -40,15 +40,5 @@ class Admin::ChallengesController < ApplicationController
 
   def challenge_params
     params.require(:challenge).permit(:title, :goal_type, :goal_value, :starts_at, :ends_at, :active)
-  end
-
-  def require_admin!
-    unless current_user&.admin?
-      if request.format.json?
-        render json: { error: "Forbidden" }, status: 403
-      else
-        redirect_to root_path, alert: "Not authorized."
-      end
-    end
   end
 end
