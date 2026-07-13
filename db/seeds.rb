@@ -20,6 +20,18 @@ user = User.find_or_create_by!(nickname: "chii") do |u|
   u.role       = "user"
 end
 
+# ── Regular user's challenge ─────────────────────────────────────────────────────────────
+challenge = Challenge.find_or_create_by!(title: "streak 7 days") do |c|
+  c.goal_type = "streak_days"
+  c.goal_value = 7
+  c.starts_at = 7.days.ago
+  c.ends_at = 7.days.from_now
+end
+
+user_challenge = UserChallenge.find_or_create_by!(user: user, challenge: challenge) do |uc|
+  uc.status = "in_progress"
+end
+
 # ── Books ───────────────────────────────────────────────────────────────────
 # Cover images from Open Library: https://covers.openlibrary.org/b/id/{id}-L.jpg
 books_data = [

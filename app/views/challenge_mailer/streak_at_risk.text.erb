@@ -1,0 +1,8 @@
+<%= "Hi, #{@user.nickname}" %>
+
+<%= "Your Streak is #{pluralize(@current_streak, "day")}" %>
+<% @streak_challenging.each do |uc| %>
+----------------------
+<%= "#{uc.challenge.title}" %>
+----------------------
+<% end %>
