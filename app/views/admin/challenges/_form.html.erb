@@ -1,0 +1,46 @@
+<%= form_with model: [:admin, challenge], html: { class: "admin-form" } do |f| %>
+  <% if challenge.errors.any? %>
+    <div class="admin-form-errors">
+      <strong><%= challenge.errors.count %> error(s):</strong>
+      <ul>
+        <% challenge.errors.full_messages.each do |msg| %>
+          <li><%= msg %></li>
+        <% end %>
+      </ul>
+    </div>
+  <% end %>
+
+  <div class="admin-field">
+    <%= f.label :title, "Title" %>
+    <%= f.text_field :title, placeholder: "Challenge title" %>
+  </div>
+
+  <div class="admin-field">
+    <%= f.label :goal_type, "Goal Type" %>
+    <%= f.select :goal_type, Challenge.goal_types.keys %>
+  </div>
+
+  <div class="admin-field">
+    <%= f.label :goal_value, "Goal Value" %>
+    <%= f.number_field :goal_value %>
+  </div>
+
+  <div class="admin-field">
+    <%= f.label :starts_at, "Starts At" %>
+    <%= f.datetime_field :starts_at %>
+  </div>
+
+  <div class="admin-field">
+    <%= f.label :ends_at, "Ends At" %>
+    <%= f.datetime_field :ends_at %>
+  </div>
+
+  <div class="admin-field">
+    <%= f.label :active, "Active" %>
+    <%= f.check_box :active %>
+  </div>
+
+  <div class="admin-form-submit">
+    <%= f.submit "Save Challenge" %>
+  </div>
+<% end %>

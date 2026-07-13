@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_07_05_045516) do
+ActiveRecord::Schema[8.1].define(version: 2026_07_09_210558) do
   create_table "active_storage_attachments", force: :cascade do |t|
     t.bigint "blob_id", null: false
     t.datetime "created_at", null: false
@@ -77,6 +77,17 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_05_045516) do
     t.index ["ol_work_key"], name: "index_books_on_ol_work_key", unique: true
   end
 
+  create_table "challenges", force: :cascade do |t|
+    t.boolean "active", default: true, null: false
+    t.datetime "created_at", null: false
+    t.datetime "ends_at", null: false
+    t.string "goal_type", null: false
+    t.integer "goal_value", null: false
+    t.datetime "starts_at", null: false
+    t.string "title", null: false
+    t.datetime "updated_at", null: false
+  end
+
   create_table "genres", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.string "name", null: false
@@ -132,6 +143,18 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_05_045516) do
     t.index ["user_id"], name: "index_user_books_on_user_id"
   end
 
+  create_table "user_challenges", force: :cascade do |t|
+    t.integer "challenge_id", null: false
+    t.datetime "created_at", null: false
+    t.integer "progress", default: 0, null: false
+    t.string "status", default: "active", null: false
+    t.datetime "updated_at", null: false
+    t.integer "user_id", null: false
+    t.index ["challenge_id"], name: "index_user_challenges_on_challenge_id"
+    t.index ["user_id", "challenge_id"], name: "index_user_challenges_on_user_id_and_challenge_id", unique: true
+    t.index ["user_id"], name: "index_user_challenges_on_user_id"
+  end
+
   create_table "users", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.string "email", default: "", null: false
@@ -162,4 +185,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_05_045516) do
   add_foreign_key "reviews", "users"
   add_foreign_key "user_books", "books"
   add_foreign_key "user_books", "users"
+  add_foreign_key "user_challenges", "challenges"
+  add_foreign_key "user_challenges", "users"
 end

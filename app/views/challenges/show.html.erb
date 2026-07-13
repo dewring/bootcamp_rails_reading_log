@@ -1,0 +1,38 @@
+<article>
+  <hgroup>
+    <h1><%= @challenge.title %></h1>
+    <p><%= @challenge.goal_type.humanize %> — goal: <%= @challenge.goal_value %></p>
+  </hgroup>
+
+  <p>
+    <%= @challenge.starts_at.strftime("%b %d, %Y") %> – <%= @challenge.ends_at.strftime("%b %d, %Y") %>
+  </p>
+
+  <% if policy(@challenge).edit? %>
+    <p><%= link_to "Edit", edit_admin_challenge_path(@challenge), class: "btn-cta btn-cta-secondary" %></p>
+  <% end %>
+
+  <% user_challenge = current_user.user_challenges.find_by(challenge: @challenge) %>
+
+  <%= turbo_frame_tag dom_id(@challenge, :enrollment) do %>
+    <% if user_challenge %>
+      <p><span class="challenge-status">Status: <%= user_challenge.status.humanize %></span></p>
+
+      <div data-controller="progress-bar" data-progress-bar-percent-value="<%= user_challenge.progress %>">
+        <p><%= user_challenge.progress %>% complete</p>
+        <div class="progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="<%= user_challenge.progress %>">
+          <div class="progress-fill" data-progress-bar-target="bar"></div>
+        </div>
+      </div>
+
+      <% if user_challenge.status.in?(%w[active in_progress]) %>
+        <%= button_to "Abandon", user_challenge_path(user_challenge), method: :delete,
+              data: { turbo_confirm: "Abandon this challenge?" },
+              class: "btn-md btn-danger" %>
+      <% end %>
+    <% else %>
+      <%= button_to "Enroll", user_challenges_path(user_challenge: { challenge_id: @challenge.id }),
+            class: "btn-cta" %>
+    <% end %>
+  <% end %>
+</article>

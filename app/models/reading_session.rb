@@ -7,6 +7,19 @@ class ReadingSession < ApplicationRecord
   validates :pages_read, presence: true, numericality: { greater_than: 0 }
 
   after_commit :recalculate_progress
+  include RecalculateChallengeProgress
+
+  def self.current_streak(user)
+    session_dates = where(user: user, read_on: 90.days.ago.to_date..Date.current)
+                                   .distinct.pluck(:read_on).to_set
+    streak = 0
+    date = Date.current
+    while session_dates.include?(date)
+      streak += 1
+      date -= 1.day
+    end
+    streak
+  end
 
   private
 

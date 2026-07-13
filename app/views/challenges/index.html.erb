@@ -1,0 +1,50 @@
+<div class="catalog-header">
+  <hgroup>
+    <h1>Challenges</h1>
+    <p>Browse active reading challenges and track your progress.</p>
+  </hgroup>
+  <% if policy(Challenge).new? %>
+    <%= link_to "＋ Add Challenge", new_admin_challenge_path, class: "btn-cta" %>
+  <% end %>
+</div>
+
+<% if @challenges.empty? %>
+  <article>
+    <p>No active challenges right now.</p>
+  </article>
+<% else %>
+  <% user_challenges_by_challenge_id = current_user.user_challenges.index_by(&:challenge_id) %>
+
+  <% @challenges.each do |challenge| %>
+    <article>
+      <strong><%= link_to challenge.title, challenge %></strong>
+      <p><%= challenge.goal_type.humanize %> — goal: <%= challenge.goal_value %></p>
+
+      <% user_challenge = user_challenges_by_challenge_id[challenge.id] %>
+      <% if user_challenge %>
+        <span class="challenge-status">Status: <%= user_challenge.status.humanize %></span>
+
+        <div data-controller="progress-bar" data-progress-bar-percent-value="<%= user_challenge.progress %>">
+          <div class="progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="<%= user_challenge.progress %>">
+            <div class="progress-fill" data-progress-bar-target="bar"></div>
+          </div>
+        </div>
+      <% else %>
+        <span>Not enrolled</span>
+      <% end %>
+
+      <% if policy(challenge).edit? || policy(challenge).destroy? %>
+        <div class="challenge-admin-actions">
+          <% if policy(challenge).edit? %>
+            <%= link_to "Edit", edit_admin_challenge_path(challenge), class: "btn-sm" %>
+          <% end %>
+          <% if policy(challenge).destroy? %>
+            <%= button_to "Delete", admin_challenge_path(challenge), method: :delete,
+                  data: { turbo_confirm: "Remove this challenge?" },
+                  class: "btn-sm btn-danger" %>
+          <% end %>
+        </div>
+      <% end %>
+    </article>
+  <% end %>
+<% end %>

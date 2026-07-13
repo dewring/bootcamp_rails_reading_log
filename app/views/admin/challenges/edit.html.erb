@@ -1,0 +1,12 @@
+<div class="admin-form-card">
+  <div class="admin-form-header">
+    <h1>Edit Challenge</h1>
+    <p><%= @challenge.title %></p>
+  </div>
+
+  <%= render "form", challenge: @challenge %>
+
+  <div class="admin-form-cancel">
+    <%= link_to "← Cancel", @challenge %>
+  </div>
+</div>
