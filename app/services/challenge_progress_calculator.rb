@@ -75,6 +75,16 @@ class ChallengeProgressCalculator
 
     if status == :completed
       ChallengeMailer.challenge_completed(@user_challenge.user, @user_challenge).deliver_later
+
+      @user_challenge.user.webhook_endpoints.where(active: true)
+        .select { |endpoint| endpoint.events&.include?("challenge_completed") }
+        .each do |endpoint|
+          WebhookDeliveryJob.perform_later(endpoint, "challenge_completed", {
+            challenge_id: @user_challenge.challenge_id,
+            user_challenge_id: @user_challenge.id,
+            completed_at: Time.current.iso8601
+          })
+        end
     end
   end
 end
