@@ -12,6 +12,8 @@ Rails.application.routes.draw do
     resources :reading_sessions, only: [ :new, :create ]
     resources :reviews, only: [ :new, :create, :edit, :update ]
   end
+  resources :webhook_endpoints, only: [ :index, :create, :destroy ]
+  post "/inbound_webhooks", to: "inbound_webhooks#receive"
 
   resources :reading_sessions, only: [ :index, :edit, :update, :destroy ]
   resources :challenges, only: [ :index, :show ]

@@ -1,0 +1,37 @@
+<div class="admin-form-card">
+  <h1>Webhook Endpoints</h1>
+
+  <% if flash[:plain_secret] %>
+    <article>
+      <strong>Save this secret now — it won't be shown again:</strong>
+      <p><code><%= flash[:plain_secret] %></code></p>
+    </article>
+  <% end %>
+
+  <%= form_with model: @webhook_endpoint, url: webhook_endpoints_path, html: { class: "admin-form" } do |f| %>
+    <div class="admin-field">
+      <%= f.label :url, "Endpoint URL" %>
+      <%= f.text_field :url %>
+    </div>
+
+    <div class="admin-field">
+      <%= f.label :active %>
+      <%= f.check_box :active %>
+    </div>
+
+    <div class="admin-form-submit">
+      <%= f.submit "Add Endpoint" %>
+    </div>
+  <% end %>
+
+  <% @webhook_endpoints.each do |endpoint| %>
+    <article>
+      <span><%= endpoint.url %></span>
+      <span><%= endpoint.active? ? "Active" : "Inactive" %></span>
+
+      <% if policy(endpoint).destroy? %>
+        <%= button_to "Delete", webhook_endpoint_path(endpoint), method: :delete, data: { turbo_confirm: "Remove this endpoint?" }, class: "btn-sm btn-danger" %>
+      <% end %>
+    </article>
+  <% end %>
+</div>
