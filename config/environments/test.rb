@@ -68,4 +68,8 @@ Rails.application.configure do
     Bullet.add_safelist type: :unused_eager_loading, class_name: "ActiveStorage::Blob", association: :preview_image_attachment
     Bullet.stacktrace_excludes = [ "/test" ]
   end
+
+  config.active_record.encryption.primary_key = "86eCKP95rN7Ims6ZN0MNIewarF1BesqL"
+  config.active_record.encryption.deterministic_key = "NmcTPOAslby0EOPoX3z2qggViiHMhopM"
+  config.active_record.encryption.key_derivation_salt = "0QydSrMeXZKNuerIzbXRLoaK8XSyhFl2"
 end
