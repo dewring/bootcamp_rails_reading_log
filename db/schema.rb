@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_07_13_231147) do
+ActiveRecord::Schema[8.1].define(version: 2026_07_15_013341) do
   create_table "active_storage_attachments", force: :cascade do |t|
     t.bigint "blob_id", null: false
     t.datetime "created_at", null: false
@@ -118,7 +118,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_13_231147) do
     t.integer "user_id", null: false
     t.index ["book_edition_id"], name: "index_reading_sessions_on_book_edition_id"
     t.index ["book_id"], name: "index_reading_sessions_on_book_id"
-    t.index ["user_id"], name: "index_reading_sessions_on_user_id"
+    t.index ["user_id", "book_id"], name: "index_reading_sessions_on_user_id_and_book_id"
+    t.index ["user_id", "read_on"], name: "index_reading_sessions_on_user_id_and_read_on"
   end
 
   create_table "reviews", force: :cascade do |t|
@@ -152,7 +153,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_13_231147) do
     t.integer "user_id", null: false
     t.index ["challenge_id"], name: "index_user_challenges_on_challenge_id"
     t.index ["user_id", "challenge_id"], name: "index_user_challenges_on_user_id_and_challenge_id", unique: true
-    t.index ["user_id"], name: "index_user_challenges_on_user_id"
+    t.index ["user_id", "status"], name: "index_user_challenges_on_user_id_and_status"
+    t.index ["user_id"], name: "index_user_challenges_on_user_id_and_status_active", where: "status = 'active'"
   end
 
   create_table "users", force: :cascade do |t|
