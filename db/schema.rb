@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_07_15_013341) do
+ActiveRecord::Schema[8.1].define(version: 2026_07_16_223324) do
   create_table "active_storage_attachments", force: :cascade do |t|
     t.bigint "blob_id", null: false
     t.datetime "created_at", null: false
@@ -61,7 +61,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_15_013341) do
     t.datetime "created_at", null: false
     t.integer "genre_id", null: false
     t.datetime "updated_at", null: false
-    t.index ["book_id"], name: "index_book_genres_on_book_id"
+    t.index ["book_id", "genre_id"], name: "index_book_genres_on_book_id_and_genre_id", unique: true
     t.index ["genre_id"], name: "index_book_genres_on_genre_id"
   end
 
@@ -74,7 +74,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_15_013341) do
     t.string "title", default: "", null: false
     t.integer "total_pages"
     t.datetime "updated_at", null: false
+    t.index ["author"], name: "index_books_on_author"
     t.index ["ol_work_key"], name: "index_books_on_ol_work_key", unique: true
+    t.index ["title"], name: "index_books_on_title"
+    t.index ["total_pages"], name: "index_books_on_total_pages"
   end
 
   create_table "challenges", force: :cascade do |t|
@@ -129,8 +132,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_15_013341) do
     t.integer "rating", null: false
     t.datetime "updated_at", null: false
     t.integer "user_id", null: false
-    t.index ["book_id"], name: "index_reviews_on_book_id"
-    t.index ["user_id"], name: "index_reviews_on_user_id"
+    t.index ["book_id", "user_id"], name: "index_reviews_on_book_id_and_user_id", unique: true
   end
 
   create_table "user_books", force: :cascade do |t|
@@ -141,7 +143,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_15_013341) do
     t.integer "user_id", null: false
     t.index ["book_id"], name: "index_user_books_on_book_id"
     t.index ["user_id", "book_id"], name: "index_user_books_on_user_id_and_book_id", unique: true
-    t.index ["user_id"], name: "index_user_books_on_user_id"
+    t.index ["user_id", "status"], name: "index_user_books_on_user_id_and_status"
   end
 
   create_table "user_challenges", force: :cascade do |t|
@@ -182,7 +184,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_15_013341) do
     t.datetime "updated_at", null: false
     t.string "url", null: false
     t.integer "user_id", null: false
-    t.index ["user_id"], name: "index_webhook_endpoints_on_user_id"
+    t.index ["user_id", "active"], name: "index_webhook_endpoints_on_user_id_and_active"
+    t.index ["user_id"], name: "index_webhook_endpoints_on_user_id_and_active_true", where: "active = true"
   end
 
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
