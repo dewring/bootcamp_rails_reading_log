@@ -3,6 +3,20 @@ require "open-uri"
 # ── Genres ─────────────────────────────────────────────────────────────────
 Genre::GENRES.each { |name| Genre.find_or_create_by!(name: name) }
 
+# ── Badges ─────────────────────────────────────────────────────────────────
+[
+  { badge_type: "first_session",      name: "First Session",      description: "Logged your first reading session." },
+  { badge_type: "week_streak",        name: "Week Streak",        description: "Read for 7 or more days in a row." },
+  { badge_type: "bookworm",           name: "Bookworm",           description: "Finished 5 or more books." },
+  { badge_type: "challenge_complete", name: "Challenge Complete", description: "Completed a reading challenge." },
+  { badge_type: "page_turner",        name: "Page Turner",        description: "Logged 500 or more total pages read." }
+].each do |data|
+  Badge.find_or_create_by!(badge_type: data[:badge_type]) do |b|
+    b.name        = data[:name]
+    b.description = data[:description]
+  end
+end
+
 # ── Admin user ──────────────────────────────────────────────────────────────
 User.find_or_create_by!(nickname: "admin") do |u|
   u.first_name = "Admin"
