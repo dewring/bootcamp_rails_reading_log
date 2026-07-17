@@ -75,6 +75,7 @@ class ChallengeProgressCalculator
 
     if status == :completed
       ChallengeMailer.challenge_completed(@user_challenge.user, @user_challenge).deliver_later
+      BadgeAwardJob.perform_later(@user_challenge.user)
 
       @user_challenge.user.webhook_endpoints.where(active: true)
         .select { |endpoint| endpoint.events&.include?("challenge_completed") }
