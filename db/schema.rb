@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_07_16_223324) do
+ActiveRecord::Schema[8.1].define(version: 2026_07_17_013510) do
   create_table "active_storage_attachments", force: :cascade do |t|
     t.bigint "blob_id", null: false
     t.datetime "created_at", null: false
@@ -37,6 +37,16 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_16_223324) do
     t.bigint "blob_id", null: false
     t.string "variation_digest", null: false
     t.index ["blob_id", "variation_digest"], name: "index_active_storage_variant_records_uniqueness", unique: true
+  end
+
+  create_table "badges", force: :cascade do |t|
+    t.string "badge_type", null: false
+    t.datetime "created_at", null: false
+    t.text "description", null: false
+    t.string "name", null: false
+    t.datetime "updated_at", null: false
+    t.index ["badge_type"], name: "index_badges_on_badge_type", unique: true
+    t.index ["name"], name: "index_badges_on_name", unique: true
   end
 
   create_table "book_editions", force: :cascade do |t|
@@ -135,6 +145,17 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_16_223324) do
     t.index ["book_id", "user_id"], name: "index_reviews_on_book_id_and_user_id", unique: true
   end
 
+  create_table "user_badges", force: :cascade do |t|
+    t.datetime "awarded_at", null: false
+    t.integer "badge_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.integer "user_id", null: false
+    t.index ["badge_id"], name: "index_user_badges_on_badge_id"
+    t.index ["user_id", "badge_id"], name: "index_user_badges_on_user_id_and_badge_id", unique: true
+    t.index ["user_id"], name: "index_user_badges_on_user_id"
+  end
+
   create_table "user_books", force: :cascade do |t|
     t.integer "book_id", null: false
     t.datetime "created_at", null: false
@@ -199,6 +220,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_16_223324) do
   add_foreign_key "reading_sessions", "users"
   add_foreign_key "reviews", "books"
   add_foreign_key "reviews", "users"
+  add_foreign_key "user_badges", "badges"
+  add_foreign_key "user_badges", "users"
   add_foreign_key "user_books", "books"
   add_foreign_key "user_books", "users"
   add_foreign_key "user_challenges", "challenges"
