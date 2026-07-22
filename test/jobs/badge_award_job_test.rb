@@ -80,10 +80,104 @@ class BadgeAwardJobTest < ActiveSupport::TestCase
     assert_not UserBadge.exists?(user: users(:leika), badge: badge)
   end
 
+  test "does not award challenge_complete badge when user has no completed challenge" do
+    BadgeAwardJob.new.perform(users(:jaina))
+    badge = Badge.find_by(badge_type: "challenge_complete")
+
+    assert_not UserBadge.exists?(user: users(:jaina), badge: badge)
+  end
+
+  test "awards challenge_complete badge when user has a completed challenge" do
+    create_challenge_and_userchallenge(users(:jaina))
+
+    BadgeAwardJob.new.perform(users(:jaina))
+    badge = Badge.find_by(badge_type: "challenge_complete")
+
+    assert UserBadge.exists?(user: users(:jaina), badge: badge)
+  end
+
+  test "does not count a challenge with an in_progress or failed status" do
+    in_progress_challenge = Challenge.create!(
+      title: "reading book total 1000 pages",
+      goal_type: "books_total",
+      goal_value: 1000,
+      starts_at: 2.week.ago,
+      ends_at: Date.today
+    )
+    UserChallenge.create!(user: users(:jaina), challenge: in_progress_challenge, status: "in_progress")
+
+    failed_challenge = Challenge.create!(
+      title: "reading book total 500 pages",
+      goal_type: "books_total",
+      goal_value: 500,
+      starts_at: 2.week.ago,
+      ends_at: Date.today
+    )
+    UserChallenge.create!(user: users(:jaina), challenge: failed_challenge, status: "failed")
+
+    BadgeAwardJob.new.perform(users(:jaina))
+    badge = Badge.find_by(badge_type: "challenge_complete")
+
+    assert_not UserBadge.exists?(user: users(:jaina), badge: badge)
+  end
+
+  test "challenge_complete badge is linked to the correct user, not another user" do
+    create_challenge_and_userchallenge(users(:jaina))
+
+    BadgeAwardJob.new.perform(users(:jaina))
+    badge = Badge.find_by(badge_type: "challenge_complete")
+
+    assert UserBadge.exists?(user: users(:jaina), badge: badge)
+    assert_not UserBadge.exists?(user: users(:leika), badge: badge)
+  end
+
+  test "does not award page_turner badge when total pages read is below 500" do
+    ReadingSession.create!(user: users(:jaina), book: books(:refactoring), read_on: Date.today, pages_read: 499)
+    BadgeAwardJob.new.perform(users(:jaina))
+    badge = Badge.find_by(badge_type: "page_turner")
+
+    assert_not UserBadge.exists?(user: users(:jaina), badge: badge)
+  end
+
+  test "awards page_turner badge when total pages read reaches 500 across multiple sessions" do
+    ReadingSession.create!(user: users(:jaina), book: books(:refactoring), read_on: Date.today, pages_read: 510)
+    ReadingSession.create!(user: users(:jaina), book: books(:pragmatic), read_on: Date.today, pages_read: 500)
+    BadgeAwardJob.new.perform(users(:jaina))
+    badge = Badge.find_by(badge_type: "page_turner")
+
+    assert UserBadge.exists?(user: users(:jaina), badge: badge)
+  end
+
+  test "page_turner badge is linked to the correct user, not another user" do
+    ReadingSession.create!(user: users(:jaina), book: books(:refactoring), read_on: Date.today, pages_read: 510)
+
+    BadgeAwardJob.new.perform(users(:jaina))
+    badge = Badge.find_by(badge_type: "page_turner")
+
+
+    assert UserBadge.exists?(user: users(:jaina), badge: badge)
+    assert_not UserBadge.exists?(user: users(:leika), badge: badge)
+  end
+
 private
 
   def create_finished_book_for(user)
     book = Book.create!(title: "Book #{SecureRandom.hex(4)}", author: "Test Author")
     UserBook.create!(user: user, book: book, status: "finished")
+  end
+
+  def create_challenge_and_userchallenge(user)
+    challenge = Challenge.create!(
+      title: "streak 7 days",
+      goal_type: "streak_days",
+      goal_value: 7,
+      starts_at: 1.week.ago,
+      ends_at: Date.today
+    )
+    UserChallenge.create!(
+      user: user,
+      challenge: challenge,
+      status: "completed"
+    )
   end
 end
