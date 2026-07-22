@@ -3,6 +3,18 @@
   <p>Here's your reading log.</p>
 </hgroup>
 
+<% if @badges.any? %>
+  <h2>Badges</h2>
+  <div class="badges-grid">
+    <% @badges.each do |badge| %>
+      <article>
+        <strong><%= badge.name %></strong>
+        <p><%= badge.description %></p>
+      </article>
+    <% end %>
+  </div>
+<% end %>
+
 <div data-controller="hello">
   <span data-hello-target="message"></span>
   <button data-action="click->hello#greet">greeting</button>

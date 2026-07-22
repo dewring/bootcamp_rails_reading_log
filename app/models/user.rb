@@ -15,6 +15,8 @@ class User < ApplicationRecord
   has_many :user_challenges, dependent: :destroy
   has_many :challenges, through: :user_challenges
   has_many :webhook_endpoints, dependent: :destroy
+  has_many :user_badges, dependent: :destroy
+  has_many :badges, through: :user_badges
 
   has_one :reading_metric
 
