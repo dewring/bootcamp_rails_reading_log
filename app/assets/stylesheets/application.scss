@@ -1089,6 +1089,55 @@ h2 {
   justify-content: flex-end;
 }
 
+// ── Pagination (Pagy series-nav) ────────────────────────────
+.pagy.series-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0;
+  width: 50%;
+  margin: 1.5rem auto;
+  font-size: 0.85rem;
+
+  a {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.5rem;
+    height: 1.5rem;
+    padding: 0 0.2rem;
+    border-radius: 6px;
+    color: $navy;
+    text-decoration: none !important;
+    font-weight: 500;
+
+    &:hover {
+      background: $gray-light;
+      color: $accent;
+    }
+  }
+
+  a[aria-disabled="true"] {
+    color: $text-muted;
+    cursor: default;
+
+    &:hover { background: none; color: $text-muted; }
+  }
+
+  a[aria-current="page"] {
+    color: $accent;
+    font-weight: 700;
+
+    &:hover { background: none; color: $accent; }
+  }
+
+  a[role="separator"] {
+    min-width: auto;
+    padding: 0 0.2rem;
+  }
+}
+
 // ── Challenges: progress bar ────────────────────────────────
 .progress-track {
   width: 100%;
