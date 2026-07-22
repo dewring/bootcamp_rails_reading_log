@@ -149,7 +149,7 @@ class BadgeAwardJobTest < ActiveSupport::TestCase
   end
 
   test "page_turner badge is linked to the correct user, not another user" do
-    ReadingSession.create!(user: users(:jaina), book: books(:refactoring), read_on: Date.today, pages_read: 510)
+    ReadingSession.create!(user: users(:jaina), book: books(:refactoring), read_on: Date.today, pages_read: 500)
 
     BadgeAwardJob.new.perform(users(:jaina))
     badge = Badge.find_by(badge_type: "page_turner")
