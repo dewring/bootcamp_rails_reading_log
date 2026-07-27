@@ -51,8 +51,6 @@ gem "image_processing", "~> 2.0"
 gem "ruby-vips", "~> 2.0"
 
 group :development, :test do
-  # Use sqlite3 as the database for Active Record
-  gem "sqlite3", ">= 2.1"
   gem "bullet"
   # See https://guides.rubyonrails.org/debugging_rails_applications.html#debugging-with-the-debug-gem
   gem "debug", platforms: %i[ mri windows ], require: "debug/prelude"
@@ -71,8 +69,7 @@ group :development, :test do
   gem "rspec-mocks"
 end
 
-# Use pg as the database for Active Record in production
-gem "pg", "~> 1.5", group: :production
+gem "pg", "~> 1.5"
 
 group :development do
   # Use console on exceptions pages [https://github.com/rails/web-console]
