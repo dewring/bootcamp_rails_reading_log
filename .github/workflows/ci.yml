@@ -28,6 +28,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Install libvips
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libvips-dev
+
       - name: Checkout code
         uses: actions/checkout@v7
 
@@ -38,6 +43,24 @@ jobs:
 
       - name: Scan for security vulnerabilities in JavaScript dependencies
         run: bin/importmap audit
+
+  typecheck:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24.18.0"
+
+      - name: Install JS dependencies
+        run: yarn install
+
+      - name: Type check TypeScript
+        run: yarn typecheck
 
   lint:
     runs-on: ubuntu-latest
@@ -71,13 +94,14 @@ jobs:
 
   test:
     runs-on: ubuntu-latest
-
-    # services:
-    #  redis:
-    #    image: valkey/valkey:8
-    #    ports:
-    #      - 6379:6379
-    #    options: --health-cmd "redis-cli ping" --health-interval 10s --health-timeout 5s --health-retries 5
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_PASSWORD: 1234
+        ports:
+          - 5432:5432
+        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
     steps:
       - name: Install libvips
         run: |
@@ -94,8 +118,9 @@ jobs:
       - name: Run tests
         env:
           RAILS_ENV: test
-          # RAILS_MASTER_KEY: ${{ secrets.RAILS_MASTER_KEY }}
-          # REDIS_URL: redis://localhost:6379/0
+          PGHOST: localhost
+          PGUSER: postgres
+          PGPASSWORD: 1234
         run: |
           bin/rails db:test:prepare
           bin/rails test
