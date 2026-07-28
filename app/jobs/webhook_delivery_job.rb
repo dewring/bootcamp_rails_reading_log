@@ -18,6 +18,9 @@ class WebhookDeliveryJob < ApplicationJob
       req.headers["X-Reading-Log-Signature"] = "sha256=#{signature}"
       req.body = payload
     end
+  rescue => e
+    Rails.error.report(e, context: { user_id: webhook_endpoint.user_id })
+    raise
   end
 
   private
