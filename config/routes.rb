@@ -33,6 +33,7 @@ Rails.application.routes.draw do
   end
 
   get "dashboard", to: "dashboard#index", as: :dashboard
+  get "test_error", to: proc { raise "Sentry test error" }
   root to: "home#index"
   get "up" => "rails/health#show", as: :rails_health_check
 end
