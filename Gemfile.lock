@@ -439,6 +439,13 @@ GEM
     securerandom (0.4.1)
     semantic_logger (5.0.0)
       concurrent-ruby (~> 1.0)
+    sentry-rails (6.6.2)
+      railties (>= 5.2.0)
+      sentry-ruby (~> 6.6.2)
+    sentry-ruby (6.6.2)
+      bigdecimal
+      concurrent-ruby (~> 1.0, >= 1.0.2)
+      logger
     solid_cable (4.0.0)
       actioncable (>= 7.2)
       activejob (>= 7.2)
@@ -546,6 +553,8 @@ DEPENDENCIES
   rspec-mocks
   rubocop-rails-omakase
   ruby-vips (~> 2.0)
+  sentry-rails
+  sentry-ruby
   solid_cable
   solid_cache
   solid_queue

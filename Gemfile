@@ -23,6 +23,8 @@ gem "pagy"
 gem "faraday"
 gem "redis", ">= 4.0.1"
 gem "rails_semantic_logger"
+gem "sentry-ruby"
+gem "sentry-rails"
 gem "amazing_print"
 gem "aws-sdk-s3", require: false
 gem "premailer-rails"
