@@ -20,17 +20,23 @@ class BookMirrorService
       return nil
     end
 
-    unless book.cover_image.attached?
-      work_data = @client.fetch_work(@ol_work_key)
-      enrich_work(book, work_data) if work_data
-    end
+    needs_work = !book.cover_image.attached?
+    needs_editions = book.book_editions.empty? || book.book_editions.where(title: [ nil, "" ]).exists?
 
-    if book.book_editions.empty? || book.book_editions.where(title: [ nil, "" ]).exists?
-      editions_data = @client.fetch_editions(@ol_work_key)
-      mirror_editions(book, editions_data) if editions_data
-    end
+    work_future     = needs_work     ? Concurrent::Future.execute { OpenLibraryClient.new.fetch_work(@ol_work_key) }     : nil
+    editions_future = needs_editions ? Concurrent::Future.execute { OpenLibraryClient.new.fetch_editions(@ol_work_key) } : nil
+
+    enrich_work(book, work_future.value) if work_future&.value
+    mirror_editions(book, editions_future.value) if editions_future&.value
 
     book
+  end
+
+  def call_for_isbn(isbn)
+    book = call
+    return nil if book.nil?
+
+    book.book_editions.reload.find_by(isbn: isbn)
   end
 
   private

@@ -1,0 +1,20 @@
+<h1>Quick Add by ISBN</h1>
+
+<div data-controller="quick-add isbn-scanner">
+  <div id="isbn-scanner-viewport" data-isbn-scanner-target="viewport" class="isbn-scanner-viewport"></div>
+  <p data-isbn-scanner-target="status" class="isbn-scanner-status"></p>
+
+  <%= form_with url: quick_add_books_path, method: :post,
+      data: { action: "turbo:submit-start->quick-add#submitting turbo:submit-end->quick-add#done" } do |f| %>
+    <%= f.text_field :isbn, value: @isbn, placeholder: "Enter ISBN (10 or 13 digit)", data: { quick_add_target: "input", isbn_scanner_target: "input" } %>
+    <%= f.submit "Find Book", class: "btn-cta", data: { quick_add_target: "submit" } %>
+  <% end %>
+
+  <p data-quick-add-target="status" hidden>Checking Open Library…</p>
+</div>
+
+<% if @error %>
+  <p class="quick-add-error"><%= @error %></p>
+<% elsif @not_found %>
+  <p class="quick-add-not-found">We couldn't find that ISBN locally or on Open Library.</p>
+<% end %>

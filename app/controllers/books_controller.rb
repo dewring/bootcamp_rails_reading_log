@@ -1,7 +1,7 @@
 class BooksController < ApplicationController
   SORTABLE_COLUMNS = %w[title author total_pages].freeze
 
-  before_action :authenticate_user!, only: [ :discover, :most_recent_session, :search, :import ]
+  before_action :authenticate_user!, only: [ :discover, :most_recent_session, :search, :import, :quick_add ]
   rescue_from ActiveRecord::RecordNotFound, with: :not_found
   before_action :set_book, only: [ :show, :most_recent_session ]
 
@@ -78,6 +78,32 @@ class BooksController < ApplicationController
       @results = []
       @pagy = nil
     end
+  end
+
+  def quick_add
+    authorize Book, :quick_add?
+
+    return if request.get?
+
+    isbn = params[:isbn].to_s.strip.delete(" -")
+    if isbn.blank?
+      @error = "Please enter an ISBN."
+      return render :quick_add, status: :unprocessable_entity
+    end
+
+    edition = BookEdition.find_by(isbn: isbn)
+    if edition
+      return redirect_to book_path(edition.book), notice: "Found it locally!"
+    end
+
+    imported_edition = IsbnImportService.new(isbn).call
+    if imported_edition
+      return redirect_to book_path(imported_edition.book), notice: "Found it on Open Library and added it!"
+    end
+
+    @isbn = isbn
+    @not_found = true
+    render :quick_add, status: :unprocessable_entity
   end
 
   def discover

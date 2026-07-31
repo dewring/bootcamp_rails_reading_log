@@ -293,4 +293,71 @@ class BookControllerTest < ActionDispatch::IntegrationTest
       post import_books_url, params: { ol_work_key: "/works/OL82563W", title: "Harry Potter", author: "J. K. Rowling" }
     end
   end
+
+  test "guest cannot quick_add" do
+    get quick_add_books_url
+    assert_redirected_to new_user_session_path
+  end
+
+  test "GET quick_add renders the form" do
+    sign_in users(:leika)
+    get quick_add_books_url
+    assert_response :success
+  end
+
+  test "POST quick_add with blank isbn re-renders with an error" do
+    sign_in users(:leika)
+    post quick_add_books_url, params: { isbn: "" }
+    assert_response :unprocessable_entity
+    assert_select ".quick-add-error"
+  end
+
+  test "POST quick_add redirects to book on local ISBN match" do
+    sign_in users(:leika)
+    book = Book.create!(title: "Test Book", author: "Author")
+    BookEdition.create!(book: book, ol_edition_key: "/books/OL1M", isbn: "9780134757599")
+
+    post quick_add_books_url, params: { isbn: "9780134757599" }
+
+    assert_redirected_to book_path(book)
+  end
+
+  test "POST quick_add imports from Open Library on local miss and remote hit" do
+    sign_in users(:leika)
+    stub_request(:get, "https://openlibrary.org/isbn/9780134757599.json")
+      .to_return(
+        status: 200,
+        body: { title: "Refactoring", works: [ { key: "/works/OL45804W" } ], by_statement: "Martin Fowler" }.to_json,
+        headers: { "Content-Type" => "application/json" }
+      )
+    stub_request(:get, "https://openlibrary.org/works/OL45804W.json")
+      .to_return(
+        status: 200,
+        body: { title: "Refactoring", description: "", subjects: [] }.to_json,
+        headers: { "Content-Type" => "application/json" }
+      )
+    stub_request(:get, "https://openlibrary.org/works/OL45804W/editions.json")
+      .to_return(
+        status: 200,
+        body: { entries: [ { key: "/books/OL1M", isbn_13: [ "9780134757599" ] } ] }.to_json,
+        headers: { "Content-Type" => "application/json" }
+      )
+
+    post quick_add_books_url, params: { isbn: "9780134757599" }
+
+    assert_redirected_to book_path(Book.last)
+  end
+
+  test "POST quick_add reaches not-found state when ISBN is unknown everywhere" do
+    sign_in users(:leika)
+    stub_request(:get, "https://openlibrary.org/isbn/0000000000.json")
+      .to_return(status: 404, body: "")
+
+    assert_no_difference [ "Book.count", "BookEdition.count" ] do
+      post quick_add_books_url, params: { isbn: "0000000000" }
+    end
+
+    assert_response :unprocessable_entity
+    assert_select ".quick-add-not-found"
+  end
 end
