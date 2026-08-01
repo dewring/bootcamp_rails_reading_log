@@ -26,6 +26,7 @@ user says otherwise in the conversation.
    or frequently queried columns.
 9. Never edit existing, committed migration files. Always create a new
    migration file when modifying schema structure.
+10. Don't use generic words as methods name. ie. call
 
 ## Project shape
 
