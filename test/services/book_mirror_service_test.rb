@@ -23,7 +23,7 @@ class BookMirrorServiceTest < ActiveSupport::TestCase
     stub_request(:get, "https://openlibrary.org/works/OL45804W/editions.json")
       .to_return(status: 200, body: '{"entries": []}', headers: { "Content-Type" => "application/json" })
 
-    result = BookMirrorService.new("OL45804W").call
+    result = BookMirrorService.new("OL45804W").mirror_book
 
     assert_equal @book, result
   end
@@ -32,7 +32,7 @@ class BookMirrorServiceTest < ActiveSupport::TestCase
     stub_request(:get, "https://openlibrary.org/works/ABCDEFG.json")
       .to_raise(Faraday::TimeoutError)
 
-    result = BookMirrorService.new("ABCDEFG").call
+    result = BookMirrorService.new("ABCDEFG").mirror_book
 
     assert_nil result
   end
@@ -56,7 +56,7 @@ class BookMirrorServiceTest < ActiveSupport::TestCase
         headers: { "Content-Type" => "application/json" }
       )
 
-    result = BookMirrorService.new("OL45804W").call
+    result = BookMirrorService.new("OL45804W").mirror_book
     assert_equal "A story about a wizard", result.description
     assert_includes result.subjects, "Magic"
   end
@@ -78,9 +78,9 @@ class BookMirrorServiceTest < ActiveSupport::TestCase
         headers: { "Content-Type" => "application/json" }
       )
 
-    BookMirrorService.new("OL45804W").call
+    BookMirrorService.new("OL45804W").mirror_book
     assert_no_difference "BookEdition.count" do
-      BookMirrorService.new("OL45804W").call
+      BookMirrorService.new("OL45804W").mirror_book
     end
   end
   test "mirror_editions saves title from Open Library" do
@@ -100,7 +100,7 @@ class BookMirrorServiceTest < ActiveSupport::TestCase
         headers: { "Content-Type" => "application/json" }
       )
 
-    BookMirrorService.new("OL45804W").call
+    BookMirrorService.new("OL45804W").mirror_book
 
     edition = BookEdition.find_by(ol_edition_key: "/books/OL999M")
     assert_equal "Harry Potter", edition.title
@@ -123,7 +123,7 @@ class BookMirrorServiceTest < ActiveSupport::TestCase
         headers: { "Content-Type" => "application/json" }
       )
 
-    BookMirrorService.new("OL45804W").call
+    BookMirrorService.new("OL45804W").mirror_book
 
     edition = BookEdition.find_by(ol_edition_key: "/books/OL999M")
     assert_equal "Harry Potter", edition.title
@@ -140,7 +140,7 @@ class BookMirrorServiceTest < ActiveSupport::TestCase
       .to_return(status: 200, body: '{"entries": []}', headers: { "Content-Type" => "application/json" })
 
     assert_enqueued_with(job: CoverAttachJob) do
-      BookMirrorService.new("OL45804W").call
+      BookMirrorService.new("OL45804W").mirror_book
     end
   end
 
@@ -157,7 +157,7 @@ class BookMirrorServiceTest < ActiveSupport::TestCase
       .to_return(status: 200, body: '{"entries": []}', headers: { "Content-Type" => "application/json" })
 
     assert_no_enqueued_jobs do
-      BookMirrorService.new("OL45804W").call
+      BookMirrorService.new("OL45804W").mirror_book
     end
   end
   test "accepts ol_work_key with the /works/ prefix already included" do
@@ -167,8 +167,56 @@ class BookMirrorServiceTest < ActiveSupport::TestCase
     stub_request(:get, "https://openlibrary.org/works/OL45804W/editions.json")
       .to_return(status: 200, body: '{"entries": []}', headers: { "Content-Type" => "application/json" })
 
-    result = BookMirrorService.new("/works/OL45804W").call
+    result = BookMirrorService.new("/works/OL45804W").mirror_book
 
     assert_equal @book, result
+  end
+
+  test "call_for_isbn returns the edition matching the given isbn" do
+    stub_request(:get, "https://openlibrary.org/works/OL45804W.json")
+      .to_return(
+        status: 200,
+        body: { title: "Harry Potter", description: "A wizard", subjects: [] }.to_json,
+        headers: { "Content-Type" => "application/json" }
+      )
+    stub_request(:get, "https://openlibrary.org/works/OL45804W/editions.json")
+      .to_return(
+        status: 200,
+        body: { entries: [ { key: "/books/OL999M", isbn_13: [ "9780134757599" ] } ] }.to_json,
+        headers: { "Content-Type" => "application/json" }
+      )
+
+    result = BookMirrorService.new("OL45804W").call_for_isbn("9780134757599")
+
+    assert_kind_of BookEdition, result
+    assert_equal "9780134757599", result.isbn
+  end
+
+  test "call_for_isbn returns nil when no edition matches the isbn" do
+    stub_request(:get, "https://openlibrary.org/works/OL45804W.json")
+      .to_return(
+        status: 200,
+        body: { title: "Harry Potter", description: "A wizard", subjects: [] }.to_json,
+        headers: { "Content-Type" => "application/json" }
+      )
+    stub_request(:get, "https://openlibrary.org/works/OL45804W/editions.json")
+      .to_return(
+        status: 200,
+        body: { entries: [ { key: "/books/OL999M", isbn_13: [ "9780134757599" ] } ] }.to_json,
+        headers: { "Content-Type" => "application/json" }
+      )
+
+    result = BookMirrorService.new("OL45804W").call_for_isbn("0000000000")
+
+    assert_nil result
+  end
+
+  test "call_for_isbn returns nil when the work isn't found locally or on Open Library" do
+    stub_request(:get, "https://openlibrary.org/works/ABCDEFG.json")
+      .to_raise(Faraday::TimeoutError)
+
+    result = BookMirrorService.new("ABCDEFG").call_for_isbn("9780134757599")
+
+    assert_nil result
   end
 end

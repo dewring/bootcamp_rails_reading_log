@@ -15,7 +15,7 @@ class BookMirrorJob < ApplicationJob
       payload: { book_id: book.id, ol_work_key: book.ol_work_key }
     ) do
       Rails.cache.delete("book:#{bare_key}:mirrored")
-      BookMirrorService.new(bare_key).call
+      BookMirrorService.new(bare_key).mirror_book
     end
   end
 end

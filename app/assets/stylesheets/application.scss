@@ -113,6 +113,47 @@ body {
   margin-bottom: 1.5rem;
 }
 
+.catalog-header-actions {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+}
+
+// ── ISBN quick-add scanner ─────────────────────────────────
+// No display:none / :empty hiding here on purpose: html5-qrcode reads
+// this element's clientWidth to size the video it injects, at the moment
+// .start() is called — before that video exists. A hidden container reads
+// as width 0 and the library silently falls back to a 300px default,
+// which can render invisibly small or not at all. Keeping a real,
+// always-visible box with a concrete width guarantees an accurate,
+// non-zero measurement.
+.isbn-scanner-viewport {
+  width: 100%;
+  max-width: 400px;
+  min-height: 280px;
+  margin-bottom: .75rem;
+  background: #000;
+  border-radius: 8px;
+  overflow: hidden;
+
+  video, canvas {
+    width: 100% !important;
+    height: auto !important;
+    display: block;
+    border-radius: 8px;
+  }
+}
+
+.isbn-scanner-status {
+  font-size: .82rem;
+  color: #6b7280;
+  margin: 0 0 .75rem;
+
+  &:empty {
+    display: none;
+  }
+}
+
 // ── Book list (Kyobo-style) ─────────────────────────────────
 .book-list {
   display: flex;

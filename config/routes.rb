@@ -8,6 +8,8 @@ Rails.application.routes.draw do
       get :discover
       get :search
       post :import
+      get :quick_add
+      post :quick_add
     end
     resources :reading_sessions, only: [ :new, :create ]
     resources :reviews, only: [ :new, :create, :edit, :update ]

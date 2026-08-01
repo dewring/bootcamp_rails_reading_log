@@ -1,11 +1,14 @@
 <div class="catalog-header">
   <h1>Book Catalog</h1>
-  <%= link_to "🔍 Search Open Library", search_books_path, class: "btn-cta btn-cta-secondary" %>
-  <% if policy(Book).new? %>
-    <%= link_to "＋ Add Book", new_admin_book_path, class: "btn-cta" %>
-  <% elsif policy(Book).discover? %>
-    <%= link_to "🔍 Discover", discover_books_path, class: "btn-cta" %>
-  <% end %>
+  <div class="catalog-header-actions">
+    <%= link_to "🔍 Search Open Library", search_books_path, class: "btn-cta btn-cta-secondary" %>
+    <%= link_to "🔢 Quick Add by ISBN", quick_add_books_path, class: "btn-cta btn-cta-secondary" %>
+    <% if policy(Book).new? %>
+      <%= link_to "＋ Add Book", new_admin_book_path, class: "btn-cta" %>
+    <% elsif policy(Book).discover? %>
+      <%= link_to "🔍 Discover", discover_books_path, class: "btn-cta" %>
+    <% end %>
+  </div>
 </div>
 
 <%= form_with url: books_path, method: :get, class: "search-form" do |f| %>
