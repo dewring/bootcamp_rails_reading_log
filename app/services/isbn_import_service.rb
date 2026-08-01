@@ -6,13 +6,13 @@ class IsbnImportService
     @client = OpenLibraryClient.new
   end
 
-  def call
+  def import_edition
     logger.measure_info(
       "Importing book by ISBN",
-      payload: { event: "isbn_import.call", isbn: @isbn }
+      payload: { event: "isbn_import.import_edition", isbn: @isbn }
     ) do
-      existing = BookEdition.find_by(isbn: @isbn)
-      next existing if existing
+      existing_edition = BookEdition.find_by(isbn: @isbn)
+      next existing_edition if existing_edition
 
       edition_data = @client.fetch_by_isbn(@isbn)
       next nil if edition_data.nil?

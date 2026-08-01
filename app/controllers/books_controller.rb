@@ -96,7 +96,7 @@ class BooksController < ApplicationController
       return redirect_to book_path(edition.book), notice: "Found it locally!"
     end
 
-    imported_edition = IsbnImportService.new(isbn).call
+    imported_edition = IsbnImportService.new(isbn).import_edition
     if imported_edition
       return redirect_to book_path(imported_edition.book), notice: "Found it on Open Library and added it!"
     end

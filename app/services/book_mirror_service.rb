@@ -4,7 +4,7 @@ class BookMirrorService
     @client = OpenLibraryClient.new
   end
 
-  def call
+  def mirror_book
     book = Book.find_by(ol_work_key: "/works/#{@ol_work_key}")
     if book.nil?
       work_data = @client.fetch_work(@ol_work_key)
@@ -33,7 +33,7 @@ class BookMirrorService
   end
 
   def call_for_isbn(isbn)
-    book = call
+    book = mirror_book
     return nil if book.nil?
 
     book.book_editions.reload.find_by(isbn: isbn)

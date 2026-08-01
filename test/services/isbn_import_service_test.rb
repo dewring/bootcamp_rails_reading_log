@@ -26,7 +26,7 @@ class IsbnImportServiceTest < ActiveSupport::TestCase
       )
 
     assert_difference [ "Book.count", "BookEdition.count" ], 1 do
-      result = IsbnImportService.new("9780134757599").call
+      result = IsbnImportService.new("9780134757599").import_edition
       assert_equal "9780134757599", result.isbn
     end
   end
@@ -60,7 +60,7 @@ class IsbnImportServiceTest < ActiveSupport::TestCase
         headers: { "Content-Type" => "application/json" }
       )
 
-    result = IsbnImportService.new("9781982143619").call
+    result = IsbnImportService.new("9781982143619").import_edition
 
     assert_equal "9781982143619", result.isbn
     assert_equal "Troy Denning", result.book.author
@@ -100,7 +100,7 @@ class IsbnImportServiceTest < ActiveSupport::TestCase
         headers: { "Content-Type" => "application/json" }
       )
 
-    result = IsbnImportService.new("9780441172719").call
+    result = IsbnImportService.new("9780441172719").import_edition
 
     assert_equal "9780441172719", result.isbn
     assert_equal "Dune", result.book.title
@@ -139,7 +139,7 @@ class IsbnImportServiceTest < ActiveSupport::TestCase
         headers: { "Content-Type" => "application/json" }
       )
 
-    result = IsbnImportService.new("9780439023481").call
+    result = IsbnImportService.new("9780439023481").import_edition
 
     assert_equal "9780439023481", result.isbn
     assert_equal "Suzanne Collins", result.book.author
@@ -151,7 +151,7 @@ class IsbnImportServiceTest < ActiveSupport::TestCase
       .to_return(status: 404, body: "")
 
     assert_no_difference [ "Book.count", "BookEdition.count" ] do
-      assert_nil IsbnImportService.new("0000000000").call
+      assert_nil IsbnImportService.new("0000000000").import_edition
     end
   end
 
@@ -175,9 +175,9 @@ class IsbnImportServiceTest < ActiveSupport::TestCase
         headers: { "Content-Type" => "application/json" }
       )
 
-    first = IsbnImportService.new("9780134757599").call
+    first = IsbnImportService.new("9780134757599").import_edition
     assert_no_difference "BookEdition.count" do
-      second = IsbnImportService.new("9780134757599").call
+      second = IsbnImportService.new("9780134757599").import_edition
       assert_equal first, second
     end
 

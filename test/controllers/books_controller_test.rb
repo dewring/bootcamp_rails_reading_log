@@ -270,7 +270,7 @@ class BookControllerTest < ActionDispatch::IntegrationTest
 
     stub_request(:get, /openlibrary.org/).to_return(status: 200, body: "{}", headers: {})
 
-    BookMirrorService.new("OL123W").call
+    BookMirrorService.new("OL123W").mirror_book
 
     assert_nil Rails.cache.read("book:#{book.id}:editions:list")
   end
