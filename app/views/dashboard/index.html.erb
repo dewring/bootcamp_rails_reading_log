@@ -5,20 +5,19 @@
 
 <% if @badges.any? %>
   <h2>Badges</h2>
-  <div class="badges-grid">
+  <div class="badge-row">
     <% @badges.each do |badge| %>
-      <article>
-        <strong><%= badge.name %></strong>
-        <p><%= badge.description %></p>
-      </article>
+      <div class="badge-card">
+        <svg class="badge-icon" viewBox="0 0 48 48" width="40" height="40" aria-hidden="true">
+          <circle cx="24" cy="24" r="20" fill="<%= badge.color %>" />
+          <path d="M24 14l2.7 6.9 7.4.6-5.7 4.8 1.8 7.2-6.2-4-6.2 4 1.8-7.2-5.7-4.8 7.4-.6z" fill="#fff" />
+        </svg>
+        <p class="badge-title"><%= badge.name %></p>
+        <p class="badge-desc"><%= badge.description %></p>
+      </div>
     <% end %>
   </div>
 <% end %>
-
-<div data-controller="hello">
-  <span data-hello-target="message"></span>
-  <button data-action="click->hello#greet">greeting</button>
-</div>
 
 <% if @user_books_by_status.empty? %>
   <article>
@@ -49,6 +48,10 @@
               <% end %>
             <% end %>
 
+            <% if user_book.status == "reading" && policy(ReadingSession.new(user: current_user, book: user_book.book)).new? %>
+              <%= link_to "＋ Log Pages", new_book_reading_session_path(user_book.book), class: "btn-md" %>
+            <% end %>
+
             <% if policy(user_book).destroy? %>
               <%= button_to "Remove", user_book_path(user_book),
                     method: :delete,
@@ -63,7 +66,12 @@
           <hr>
           <% sessions.each do |session| %>
             <div class="session-row">
-              <span><%= session.read_on.strftime("%b %d, %Y") %> — <%= session.pages_read %> pages<%= " — #{session.notes}" if session.notes.present? %></span>
+              <div class="session-meta">
+                <span class="session-meta-line"><%= session.read_on.strftime("%b %d, %Y") %> — <%= session.pages_read %> pages</span>
+                <% if session.notes.present? %>
+                  <span class="session-note">“<%= session.notes %>”</span>
+                <% end %>
+              </div>
               <div style="display: flex; gap: 0.4rem;">
                 <% if policy(session).edit? %>
                   <%= link_to "Edit", edit_reading_session_path(session), class: "btn-sm" %>

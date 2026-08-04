@@ -1,9 +1,10 @@
-<h1>Search Books</h1>
+<h1>Search Books in Open Library</h1>
+<p class="page-hint">Can't find a book in our catalog? Search Open Library's collection here and add it to yours.</p>
 
-<%= form_with url: search_books_path, method: :get, data: { controller: "search", turbo_frame: "search-results" } do |f| %>
+<%= form_with url: search_books_path, method: :get, class: "search-form", data: { controller: "search", turbo_frame: "search-results" } do |f| %>
   <%= f.text_field :q, data: { search_target: "input", action: "input->search#query" }, value: @query, placeholder: "Search by title or author..." %>
-    <%= f.submit "Search" %>
-  <% end %>
+  <%= f.submit "Search" %>
+<% end %>
 
 <turbo-frame id="search-results">
   <%= render "search_results", results: @results, pagy: @pagy %>

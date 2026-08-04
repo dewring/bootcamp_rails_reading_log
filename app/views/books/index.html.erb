@@ -1,8 +1,6 @@
 <div class="catalog-header">
   <h1>Book Catalog</h1>
   <div class="catalog-header-actions">
-    <%= link_to "🔍 Search Open Library", search_books_path, class: "btn-cta btn-cta-secondary" %>
-    <%= link_to "🔢 Quick Add by ISBN", quick_add_books_path, class: "btn-cta btn-cta-secondary" %>
     <% if policy(Book).new? %>
       <%= link_to "＋ Add Book", new_admin_book_path, class: "btn-cta" %>
     <% elsif policy(Book).discover? %>
@@ -17,6 +15,15 @@
       Genre::GENRES,
       { include_blank: "All Genres", selected: params[:genre] } %>
   <%= f.submit "Search" %>
+  <div class="search-dropdown">
+    <span class="btn-cta btn-cta-secondary search-dropdown-trigger">More Search Options ▾</span>
+    <div class="search-dropdown-menu">
+      <div class="search-dropdown-menu-panel">
+        <%= link_to "Search Open Library", search_books_path, class: "search-dropdown-item" %>
+        <%= link_to "Search ISBN", quick_add_books_path, class: "search-dropdown-item" %>
+      </div>
+    </div>
+  </div>
 <% end %>
 
 <% if @books.empty? %>
