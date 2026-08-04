@@ -54,6 +54,13 @@ body {
   }
 }
 
+// ── Page hint ──────────────────────────────────────────────
+.page-hint {
+  font-size: 0.8rem;
+  color: $text-muted;
+  margin: -0.5rem 0 1.25rem;
+}
+
 // ── Search form ────────────────────────────────────────────
 .search-form {
   --pico-form-element-spacing-vertical: 0px;
@@ -103,6 +110,69 @@ body {
 
     &:hover { background: darken($accent, 8%) !important; }
   }
+
+  .btn-cta {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 0;
+    height: 100%;
+    box-sizing: border-box;
+    white-space: nowrap;
+  }
+
+  .search-dropdown {
+    position: relative;
+    flex: 0 0 auto;
+    height: 100%;
+  }
+}
+
+.search-dropdown-trigger {
+  cursor: default;
+  user-select: none;
+}
+
+// Invisible hit-area bridging the gap to the trigger above, so moving the
+// cursor down into the menu never leaves a hoverable element (which would
+// otherwise close the menu, a classic CSS-hover-dropdown dead zone).
+.search-dropdown-menu {
+  display: none;
+  position: absolute;
+  top: 100%;
+  right: 0;
+  padding-top: 0.35rem;
+  z-index: 20;
+}
+
+.search-dropdown-menu-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 200px;
+  background: #fff;
+  border: 1px solid $gray-mid;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(26, 34, 54, 0.12);
+  padding: 0.35rem;
+}
+
+.search-dropdown:hover .search-dropdown-menu,
+.search-dropdown:focus-within .search-dropdown-menu {
+  display: block;
+}
+
+.search-dropdown-item {
+  display: block;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.85rem;
+  color: $navy;
+  text-decoration: none;
+  border-radius: 6px;
+  white-space: nowrap;
+
+  &:hover { background: $gray-light; }
 }
 
 // ── Catalog header ─────────────────────────────────────────
@@ -131,7 +201,7 @@ body {
   width: 100%;
   max-width: 400px;
   min-height: 280px;
-  margin-bottom: .75rem;
+  margin: 0 auto .75rem;
   background: #000;
   border-radius: 8px;
   overflow: hidden;
@@ -455,6 +525,57 @@ span {
   }
 }
 
+// ── Badges ─────────────────────────────────────────────────
+.badge-row {
+  display: flex;
+  gap: 1rem;
+  overflow-x: auto;
+  padding-bottom: 0.75rem;
+  margin-bottom: 1.5rem;
+  scrollbar-width: thin;
+  scrollbar-color: $gray-mid transparent;
+
+  &::-webkit-scrollbar {
+    height: 4px;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: $gray-mid;
+    border-radius: 4px;
+  }
+}
+
+.badge-card {
+  flex: 0 0 110px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 0.9rem 0.6rem;
+  border: 1px solid $gray-mid;
+  border-radius: $radius;
+  background: #fff;
+
+  .badge-icon {
+    flex-shrink: 0;
+    margin-bottom: 0.5rem;
+  }
+
+  .badge-title {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: $navy;
+    margin: 0 0 0.2rem;
+    line-height: 1.3;
+  }
+
+  .badge-desc {
+    font-size: 0.68rem;
+    color: $text-muted;
+    margin: 0;
+    line-height: 1.35;
+  }
+}
+
 // ── Flash messages ─────────────────────────────────────────
 main > article {
   border-left: 3px solid #93c5fd;
@@ -530,10 +651,30 @@ h2 {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0.35rem 0;
+  padding: 0.5rem 0;
   font-size: 0.75rem;
   color: $text-muted;
   border-bottom: 1px solid $gray-light;
+}
+
+.session-meta {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.session-meta-line {
+  flex-shrink: 0;
+}
+
+.session-note {
+  font-style: italic;
+  color: $navy;
+  background: $gray-light;
+  border-radius: 6px;
+  padding: 0.25rem 0.6rem;
 }
 
 // Edit / Delete 버튼 (더 작게)

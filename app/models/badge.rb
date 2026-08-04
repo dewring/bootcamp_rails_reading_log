@@ -13,4 +13,16 @@ class Badge < ApplicationRecord
   validates :badge_type, presence: true, uniqueness: true
   validates :name, presence: true, uniqueness: true
   validates :description, presence: true
+
+  COLORS = {
+    "first_session"      => "#3563e9",
+    "week_streak"        => "#f59e0b",
+    "bookworm"           => "#8b5cf6",
+    "challenge_complete" => "#10b981",
+    "page_turner"        => "#ec4899"
+  }.freeze
+
+  def color
+    COLORS.fetch(badge_type, "#3563e9")
+  end
 end
