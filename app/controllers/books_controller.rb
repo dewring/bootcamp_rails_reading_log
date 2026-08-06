@@ -40,7 +40,9 @@ class BooksController < ApplicationController
     authorize @book
 
     @book_editions = Rails.cache.fetch("book:#{@book.id}:editions:list", expires_in: 1.day) do
-      @book.book_editions.includes(:cover_image_attachment).to_a
+      editions = @book.book_editions.includes(:cover_image_attachment).to_a
+      with_cover, without_cover = editions.partition { |edition| edition.cover_image.attached? }
+      with_cover + without_cover
     end
     @reviews = policy_scope(@book.reviews).includes(:user).order(created_at: :desc)
   end
@@ -63,6 +65,7 @@ class BooksController < ApplicationController
       "author_name" => [ params[:author] ]
     }
     book = Book.find_or_create_from_search_result(doc)
+    attach_cover_now(book, params[:cover_i])
     BookMirrorJob.perform_later(book)
     redirect_to book_path(book), notice: "Book added! Editions are loading in the background."
   end
@@ -117,6 +120,18 @@ class BooksController < ApplicationController
   end
 
   private
+
+  # Open Library search results already carry the cover id, so attach it
+  # synchronously here instead of waiting on BookMirrorJob's background
+  # fetch — otherwise a freshly imported book has no cover until a job
+  # worker happens to pick it up.
+  def attach_cover_now(book, cover_id)
+    return if cover_id.blank? || book.cover_image.attached?
+
+    CoverAttachJob.perform_now(book, cover_id)
+  rescue StandardError => e
+    Rails.logger.error("Failed to attach cover synchronously for book #{book.id}: #{e.message}")
+  end
 
   def set_book
     @book = Book.find(params[:id])
