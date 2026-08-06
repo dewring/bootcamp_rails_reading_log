@@ -5,7 +5,7 @@
   <h2>Most Read</h2>
   <div class="genre-pills">
     <% if params[:genre].present? %>
-      <%= link_to "Reset", root_path, class: "genre-pill", style: "background-color: #f5c518; border-color: #e0b000; color: #1a2236; text-decoration: none;" %>
+      <%= link_to "Reset", root_path, class: "genre-pill", style: "background-color: #f5c518; border-color: #e0b000; color: #16281d; text-decoration: none;" %>
     <% end %>
     <% Genre::GENRES.each do |genre| %>
       <%= link_to genre, root_path(genre: genre), class: "genre-pill #{'genre-pill-active' if params[:genre] == genre}" %>

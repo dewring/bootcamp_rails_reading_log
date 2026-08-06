@@ -15,7 +15,7 @@ class Badge < ApplicationRecord
   validates :description, presence: true
 
   COLORS = {
-    "first_session"      => "#3563e9",
+    "first_session"      => "#8bc34a",
     "week_streak"        => "#f59e0b",
     "bookworm"           => "#8b5cf6",
     "challenge_complete" => "#10b981",
@@ -23,6 +23,6 @@ class Badge < ApplicationRecord
   }.freeze
 
   def color
-    COLORS.fetch(badge_type, "#3563e9")
+    COLORS.fetch(badge_type, "#2f9e44")
   end
 end

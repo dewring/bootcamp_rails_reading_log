@@ -19,10 +19,22 @@
   </head>
 
   <body>
-    <nav class="nav-bar">
+    <nav class="nav-bar" data-controller="navbar">
       <div class="container nav-inner">
         <ul>
-          <li><strong><a href="<%= root_path %>">📖 The Books</a></strong></li>
+          <li>
+            <a href="<%= root_path %>" class="nav-logo" aria-label="The Books">
+              <svg width="160" height="32" viewBox="0 0 160 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <g class="nav-logo-mark">
+                  <rect x="2" y="6" width="6" height="18" rx="1" fill="currentColor"/>
+                  <rect x="11" y="3" width="6" height="21" rx="1" fill="currentColor"/>
+                  <rect x="20" y="8" width="6" height="16" rx="1" fill="currentColor"/>
+                  <path d="M0 27H28" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+                </g>
+                <text x="36" y="21" font-family="system-ui, -apple-system, sans-serif" font-weight="700" font-size="18" fill="currentColor">The Books</text>
+              </svg>
+            </a>
+          </li>
         </ul>
         <ul>
           <li><%= link_to "Catalog", books_path %></li>
