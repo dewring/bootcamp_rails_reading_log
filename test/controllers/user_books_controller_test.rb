@@ -23,6 +23,13 @@ class UserBooksControllerTest < ActionDispatch::IntegrationTest
     assert_redirected_to dashboard_path
   end
 
+  test "switching status to reading redirects to the log-pages form" do
+    sign_in users(:leika)
+    user_book = user_books(:leika_pragmatic)
+    patch user_book_path(user_book), params: { user_book: { status: "reading" } }
+    assert_redirected_to new_book_reading_session_path(user_book.book)
+  end
+
   test "user cannot update another user's book log" do
     sign_in users(:jaina)
     user_book = user_books(:leika_refactoring)

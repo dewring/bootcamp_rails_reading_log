@@ -33,7 +33,11 @@ class UserBooksController < ApplicationController
   def update
     authorize @user_book
     if @user_book.update(user_book_params)
-      redirect_to dashboard_path, notice: "Status updated."
+      if @user_book.status == "reading"
+        redirect_to new_book_reading_session_path(@user_book.book), notice: "Status updated. Log your progress!"
+      else
+        redirect_to dashboard_path, notice: "Status updated."
+      end
     else
       redirect_to dashboard_path, alert: "Could not update status."
     end

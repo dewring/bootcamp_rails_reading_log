@@ -27,7 +27,7 @@ class ReadingSessionsControllerTest < ActionDispatch::IntegrationTest
   test "user create reading session" do
     sign_in users(:leika)
     post book_reading_sessions_path(books(:refactoring)), params: { reading_session: { read_on: Date.today, pages_read: 15 } }
-    assert_redirected_to book_path(books(:refactoring))
+    assert_redirected_to dashboard_path
   end
   test "user update reading session" do
     sign_in users(:leika)
