@@ -15,6 +15,19 @@ class BookControllerTest < ActionDispatch::IntegrationTest
     get book_path(books(:refactoring))
     assert_response :success
   end
+
+  test "editions with a cover image are listed before editions without one" do
+    book = books(:refactoring)
+    without_cover = book.book_editions.create!(ol_edition_key: "/books/OL1M")
+    with_cover = book.book_editions.create!(ol_edition_key: "/books/OL2M")
+    with_cover.cover_image.attach(fixture_file_upload("cover_test.jpg", "image/jpeg"))
+
+    get book_path(book)
+
+    editions = assigns(:book_editions)
+    assert_equal with_cover, editions.first
+    assert_includes editions, without_cover
+  end
   test "most_recent_session redirects to dashboard when sessions exist" do
     sign_in users(:leika)
     get most_recent_session_book_path(books(:refactoring))
@@ -284,6 +297,35 @@ class BookControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     assert_includes assigns(:books), book
+  end
+
+  test "import synchronously attaches the cover from the search result" do
+    sign_in users(:leika)
+    stub_request(:get, "https://covers.openlibrary.org/b/id/12345-M.jpg")
+      .to_return(status: 200, body: file_fixture("cover_test.jpg").read, headers: { "Content-Type" => "image/jpeg" })
+
+    post import_books_url, params: {
+      ol_work_key: "/works/OL888W",
+      title:       "Cover Book",
+      author:      "Some Author",
+      cover_i:     "12345"
+    }
+
+    book = Book.find_by!(ol_work_key: "/works/OL888W")
+    assert book.cover_image.attached?
+  end
+
+  test "import skips cover attachment when no cover_i is given" do
+    sign_in users(:leika)
+
+    post import_books_url, params: {
+      ol_work_key: "/works/OL889W",
+      title:       "No Cover Book",
+      author:      "Some Author"
+    }
+
+    book = Book.find_by!(ol_work_key: "/works/OL889W")
+    assert_not book.cover_image.attached?
   end
 
   test "import enqueues BookMirrorJob" do

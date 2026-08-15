@@ -19,7 +19,7 @@ class ReadingSessionsController < ApplicationController
     authorize @book.reading_sessions.build(user: current_user), :create?
     @reading_session = ReadingSessionRecorder.new(@book, current_user, reading_session_params).record
     if @reading_session.persisted?
-      redirect_to book_path(@book), notice: "Reading session logged!"
+      redirect_to dashboard_path, notice: "Reading session logged!"
     else
       render :new, status: :unprocessable_entity
     end
