@@ -9,19 +9,14 @@
 
 # Make sure RUBY_VERSION matches the Ruby version in .ruby-version
 ARG RUBY_VERSION=3.4.5
-# Pin libvips to the version verified against the ruby-vips gem (see Gemfile.lock)
-# so builds don't silently pick up a different libvips across environments/CI.
-ARG LIBVIPS_VERSION=8.14.1-3+deb12u3
-
 FROM docker.io/library/ruby:$RUBY_VERSION-slim AS base
-ARG LIBVIPS_VERSION
 
 # Rails app lives here
 WORKDIR /rails
 
 # Install base packages
 RUN apt-get update -qq && \
-    apt-get install --no-install-recommends -y curl wget libjemalloc2 "libvips=${LIBVIPS_VERSION}" sqlite3 && \
+    apt-get install --no-install-recommends -y curl wget libjemalloc2 libvips sqlite3 && \
     ln -s /usr/lib/$(uname -m)-linux-gnu/libjemalloc.so.2 /usr/local/lib/libjemalloc.so && \
     rm -rf /var/lib/apt/lists /var/cache/apt/archives
 
@@ -34,11 +29,10 @@ ENV RAILS_ENV="production" \
 
 # Throw-away build stage to reduce size of final image
 FROM base AS build
-ARG LIBVIPS_VERSION
 
 # Install packages needed to build gems
 RUN apt-get update -qq && \
-    apt-get install --no-install-recommends -y build-essential git "libvips=${LIBVIPS_VERSION}" libyaml-dev pkg-config nodejs npm && \
+    apt-get install --no-install-recommends -y build-essential git libvips libyaml-dev pkg-config nodejs npm && \
     rm -rf /var/lib/apt/lists /var/cache/apt/archives
 
 RUN npm install -g yarn
