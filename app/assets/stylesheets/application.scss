@@ -1438,6 +1438,20 @@ h2 {
 
 .challenge-admin-actions {
   display: flex;
+  align-items: center;
   gap: 0.5rem;
   margin-top: 0.75rem;
+
+  // button_to renders its button inside a <form>. Left as a plain block,
+  // that form isn't a flex item's inline-flex context, so the inline-flex
+  // button inside it picks up extra line-height "leading" space and sits a
+  // few px lower than the plain <a> next to it. Making the form itself an
+  // inline-flex container (rather than display: contents, which Safari
+  // still doesn't apply consistently to form elements) puts the button in
+  // the same box-alignment context as the link, with no leading offset.
+  form {
+    display: inline-flex;
+    align-items: center;
+    margin: 0;
+  }
 }

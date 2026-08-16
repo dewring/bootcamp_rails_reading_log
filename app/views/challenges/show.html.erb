@@ -1,12 +1,9 @@
 <article>
   <hgroup>
     <h1><%= @challenge.title %></h1>
-    <p><%= @challenge.goal_type.humanize %> — goal: <%= @challenge.goal_value %></p>
+    <p><%= @challenge.goal_summary %></p>
+    <p><%= @challenge.date_range %></p>
   </hgroup>
-
-  <p>
-    <%= @challenge.starts_at.strftime("%b %d, %Y") %> – <%= @challenge.ends_at.strftime("%b %d, %Y") %>
-  </p>
 
   <% if policy(@challenge).edit? %>
     <p><%= link_to "Edit", edit_admin_challenge_path(@challenge), class: "btn-cta btn-cta-secondary" %></p>
