@@ -1,24 +1,34 @@
 <% if results&.any? %>
-  <% results.each do |result| %>
-    <div>
-      <%# 커버 이미지 (cover_i가 있을 때만) %>
-      <% if result["cover_i"] %>
-        <%= image_tag "https://covers.openlibrary.org/b/id/#{result["cover_i"]}-M.jpg" %>
-      <% end %>
-      
-      <p><%= result["title"] %></p>
-      <p><%= result["author_name"]&.first %></p>
-      <p><%= result["first_publish_year"] %></p>
-      
-      <%# import POST 폼 - hidden fields로 데이터 전송 %>
-      <%= form_with url: import_books_path, method: :post, data: { turbo_frame: "_top" } do |f| %>
-        <%= f.hidden_field :ol_work_key, value: result["key"] %>
-        <%= f.hidden_field :title, value: result["title"] %>
-        <%= f.hidden_field :author, value: result["author_name"]&.first %>
-        <%= f.hidden_field :cover_i, value: result["cover_i"] %>
-        <%= f.submit "Add to Library" %>
-      <% end %>
-    </div>
-  <% end %>
+  <div class="book-list">
+    <% results.each do |result| %>
+      <div class="book-list-item">
+        <div class="book-list-cover">
+          <%# 커버 이미지 (cover_i가 있을 때만) %>
+          <% if result["cover_i"] %>
+            <%= image_tag "https://covers.openlibrary.org/b/id/#{result["cover_i"]}-M.jpg", class: "book-list-image" %>
+          <% else %>
+            <div class="book-list-no-cover">📚</div>
+          <% end %>
+        </div>
+
+        <div class="book-list-info">
+          <h3 class="book-list-title"><%= result["title"] %></h3>
+          <p class="book-list-author">by <%= result["author_name"]&.first %></p>
+          <p class="book-list-author"><%= result["first_publish_year"] %></p>
+        </div>
+
+        <div class="book-list-actions">
+          <%# import POST 폼 - hidden fields로 데이터 전송 %>
+          <%= form_with url: import_books_path, method: :post, data: { turbo_frame: "_top" } do |f| %>
+            <%= f.hidden_field :ol_work_key, value: result["key"] %>
+            <%= f.hidden_field :title, value: result["title"] %>
+            <%= f.hidden_field :author, value: result["author_name"]&.first %>
+            <%= f.hidden_field :cover_i, value: result["cover_i"] %>
+            <%= f.submit "Add to Library", class: "btn-cta" %>
+          <% end %>
+        </div>
+      </div>
+    <% end %>
+  </div>
 <% end %>
 <%== pagy.series_nav if pagy && pagy.last > 1 %>

@@ -2,9 +2,17 @@ import { Controller } from "@hotwired/stimulus"
 
 // Toggles a "condensed" class on the nav bar once the page scrolls past a
 // small threshold, so the sticky header shrinks instead of staying full height.
+//
+// Uses two thresholds (enter/exit) instead of one so scroll positions that
+// hover right at the boundary don't flip the class back and forth on every
+// scroll event, which caused the header to visibly blink.
 export default class extends Controller {
-  static values = { threshold: { type: Number, default: 12 } }
-  declare thresholdValue: number
+  static values = {
+    enterThreshold: { type: Number, default: 40 },
+    exitThreshold: { type: Number, default: 12 }
+  }
+  declare enterThresholdValue: number
+  declare exitThresholdValue: number
 
   private boundOnScroll = this.onScroll.bind(this)
 
@@ -18,6 +26,11 @@ export default class extends Controller {
   }
 
   private onScroll(): void {
-    this.element.classList.toggle("is-condensed", window.scrollY > this.thresholdValue)
+    const scrollY = window.scrollY
+    if (scrollY > this.enterThresholdValue) {
+      this.element.classList.add("is-condensed")
+    } else if (scrollY <= this.exitThresholdValue) {
+      this.element.classList.remove("is-condensed")
+    }
   }
 }

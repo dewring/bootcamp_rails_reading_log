@@ -18,7 +18,8 @@
   <% @challenges.each do |challenge| %>
     <article>
       <strong><%= link_to challenge.title, challenge %></strong>
-      <p><%= challenge.goal_type.humanize %> — goal: <%= challenge.goal_value %></p>
+      <p><%= challenge.goal_summary %></p>
+      <p><%= challenge.date_range %></p>
 
       <% user_challenge = user_challenges_by_challenge_id[challenge.id] %>
       <% if user_challenge %>
