@@ -115,6 +115,66 @@ body {
   align-items: center;
 }
 
+.nav-menu {
+  position: relative;
+
+  // top: 100% (no gap) keeps the hoverable area unbroken between the
+  // trigger and the panel — a visual gap here would drop the :hover
+  // state in the dead space before the mouse reaches the dropdown.
+  .nav-dropdown {
+    display: none;
+    position: absolute;
+    top: 100%;
+    right: 0;
+    z-index: 50;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+    background: #fff;
+    border: 1px solid $gray-mid;
+    border-radius: $radius;
+    box-shadow: 0 4px 24px rgba(26, 34, 54, 0.12);
+    padding: 0.6rem 0.4rem 0.4rem;
+    min-width: 160px;
+
+    li {
+      width: 100%;
+    }
+
+    a {
+      display: block;
+      padding: 0.5rem 0.75rem;
+      border-radius: 6px;
+
+      &:hover {
+        background: $gray-light;
+      }
+    }
+  }
+
+  &:hover .nav-dropdown {
+    display: flex;
+  }
+}
+
+// Resets the global `span` genre-pill styling (background/padding/pill
+// shape) so this reads as a plain nav link like Catalog and Sign out.
+.nav-menu-button {
+  display: inline;
+  background: none;
+  color: $ink;
+  font-size: inherit;
+  font-weight: 500;
+  padding: 0;
+  margin: 0;
+  border-radius: 0;
+  letter-spacing: normal;
+
+  .nav-menu:hover & {
+    color: $accent;
+  }
+}
+
 // ── Page hint ──────────────────────────────────────────────
 .page-hint {
   font-size: 0.8rem;
@@ -1076,7 +1136,7 @@ h2 {
 }
 
 // ── Admin book form ─────────────────────────────────────────
-.admin-form-card {
+.form-card {
   max-width: 560px;
   margin: 2.5rem auto;
   padding: 2rem;
@@ -1086,7 +1146,7 @@ h2 {
   box-shadow: 0 4px 24px rgba(26, 34, 54, 0.07);
 }
 
-.admin-form-header {
+.form-header {
   margin-bottom: 1.75rem;
   border-bottom: 1px solid $gray-mid;
   padding-bottom: 1rem;
@@ -1104,18 +1164,18 @@ h2 {
   }
 }
 
-.admin-form {
+.form {
   display: flex;
   flex-direction: column;
   gap: 1rem;
 }
 
-.admin-field {
+.field {
   display: flex;
   flex-direction: column;
   gap: 0.3rem;
 
-  label, .admin-field-label {
+  label, .field-label {
     font-size: 0.78rem;
     font-weight: 600;
     color: $ink;
@@ -1192,7 +1252,7 @@ h2 {
   &:hover { background: $gray-mid; }
 }
 
-.admin-form-errors {
+.form-errors {
   background: #fef2f2;
   border: 1px solid #fecaca;
   border-radius: 7px;
@@ -1203,7 +1263,7 @@ h2 {
   ul { margin: 0.4rem 0 0 1rem; padding: 0; }
 }
 
-.admin-form-submit {
+.form-submit {
   margin-top: 0.5rem;
 
   input[type="submit"] {
@@ -1223,7 +1283,7 @@ h2 {
   }
 }
 
-.admin-form-cancel {
+.form-cancel {
   margin-top: 1rem;
 
   a {

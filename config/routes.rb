@@ -29,6 +29,12 @@ Rails.application.routes.draw do
     resources :reading_sessions, only: [ :index, :show, :create ]
   end
   resources :user_books, only: [ :new, :create, :update, :destroy ]
+  resources :book_clubs, only: [ :index, :show, :new, :create ] do
+    member do
+      post :join
+      delete :leave
+    end
+  end
 
   authenticate :user, ->(u) { u.admin? } do
     mount MissionControl::Jobs::Engine, at: "/jobs"

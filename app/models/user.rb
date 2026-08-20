@@ -17,6 +17,8 @@ class User < ApplicationRecord
   has_many :webhook_endpoints, dependent: :destroy
   has_many :user_badges, dependent: :destroy
   has_many :badges, through: :user_badges
+  has_many :book_club_memberships, dependent: :destroy
+  has_many :book_clubs, through: :book_club_memberships
 
   has_one :reading_metric
 
