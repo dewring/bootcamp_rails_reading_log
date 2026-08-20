@@ -1,4 +1,4 @@
-<div class="admin-form-card">
+<div class="form-card">
   <h1>Webhook Endpoints</h1>
 
   <% if flash[:plain_secret] %>
@@ -8,18 +8,18 @@
     </article>
   <% end %>
 
-  <%= form_with model: @webhook_endpoint, url: webhook_endpoints_path, html: { class: "admin-form" } do |f| %>
-    <div class="admin-field">
+  <%= form_with model: @webhook_endpoint, url: webhook_endpoints_path, html: { class: "form" } do |f| %>
+    <div class="field">
       <%= f.label :url, "Endpoint URL" %>
       <%= f.text_field :url %>
     </div>
 
-    <div class="admin-field">
+    <div class="field">
       <%= f.label :active %>
       <%= f.check_box :active %>
     </div>
 
-    <div class="admin-form-submit">
+    <div class="form-submit">
       <%= f.submit "Add Endpoint" %>
     </div>
   <% end %>

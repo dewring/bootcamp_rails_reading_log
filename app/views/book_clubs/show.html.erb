@@ -1,0 +1,21 @@
+<article>
+  <hgroup>
+    <h1><%= @book_club.name %></h1>
+    <p><%= @book_club.description %></p>
+  </hgroup>
+
+  <p><%= pluralize(@book_club.book_club_memberships.count, "member") %></p>
+
+  <% if policy(@book_club).join? %>
+    <%= button_to "Join", join_book_club_path(@book_club), class: "btn-cta" %>
+  <% elsif policy(@book_club).leave? %>
+    <%= button_to "Leave", leave_book_club_path(@book_club), method: :delete,
+          data: { turbo_confirm: "Leave this club?" }, class: "btn-md btn-danger" %>
+  <% end %>
+
+  <ul>
+    <% @book_club.book_club_memberships.includes(:user).each do |membership| %>
+      <li><%= membership.user.nickname %> — <%= membership.role.humanize %></li>
+    <% end %>
+  </ul>
+</article>

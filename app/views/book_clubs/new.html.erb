@@ -1,0 +1,25 @@
+<div class="form-card">
+  <div class="form-header">
+    <h1>New Book Club</h1>
+  </div>
+
+  <%= form_with model: @book_club, url: book_clubs_path, html: { class: "form" } do |f| %>
+    <div class="field">
+      <%= f.label :name %>
+      <%= f.text_field :name %>
+    </div>
+
+    <div class="field">
+      <%= f.label :description %>
+      <%= f.text_area :description %>
+    </div>
+
+    <div class="form-submit">
+      <%= f.submit "Create Book Club" %>
+    </div>
+  <% end %>
+
+  <div class="form-cancel">
+    <%= link_to "← Back to book clubs", book_clubs_path %>
+  </div>
+</div>

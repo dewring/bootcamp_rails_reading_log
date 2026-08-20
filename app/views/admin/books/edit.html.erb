@@ -1,12 +1,12 @@
-<div class="admin-form-card">
-  <div class="admin-form-header">
+<div class="form-card">
+  <div class="form-header">
     <h1>Edit Book</h1>
     <p><%= @book.title %></p>
   </div>
 
   <%= render "form", book: @book %>
 
-  <div class="admin-form-cancel">
+  <div class="form-cancel">
     <%= link_to "← Cancel", @book %>
   </div>
 </div>

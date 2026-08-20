@@ -1,0 +1,22 @@
+<div class="catalog-header">
+  <hgroup>
+    <h1>Book Clubs</h1>
+    <p>Find a club to join, or start your own.</p>
+  </hgroup>
+  <% if policy(BookClub).new? %>
+    <%= link_to "＋ New Book Club", new_book_club_path, class: "btn-cta" %>
+  <% end %>
+</div>
+
+<% if @book_clubs.empty? %>
+  <article>
+    <p>No book clubs yet.</p>
+  </article>
+<% else %>
+  <% @book_clubs.each do |book_club| %>
+    <article>
+      <strong><%= link_to book_club.name, book_club %></strong>
+      <p><%= pluralize(book_club.book_club_memberships.count, "member") %></p>
+    </article>
+  <% end %>
+<% end %>

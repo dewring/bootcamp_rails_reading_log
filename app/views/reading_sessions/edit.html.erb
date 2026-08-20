@@ -1,31 +1,31 @@
-<div class="admin-form-card">
-  <div class="admin-form-header">
+<div class="form-card">
+  <div class="form-header">
     <h1>Edit Reading Session</h1>
     <p><%= @reading_session.book.title %> — <%= @reading_session.read_on.strftime("%b %d, %Y") %></p>
   </div>
 
-  <%= form_with model: @reading_session, html: { class: "admin-form" } do |f| %>
-    <div class="admin-field">
+  <%= form_with model: @reading_session, html: { class: "form" } do |f| %>
+    <div class="field">
       <%= f.label :read_on, "Date" %>
       <%= f.date_field :read_on %>
     </div>
 
-    <div class="admin-field">
+    <div class="field">
       <%= f.label :pages_read, "Pages Read" %>
       <%= f.number_field :pages_read %>
     </div>
 
-    <div class="admin-field">
+    <div class="field">
       <%= f.label :notes, "Notes (optional)" %>
       <%= f.text_area :notes, placeholder: "Any thoughts on today's reading...", rows: 3 %>
     </div>
 
-    <div class="admin-form-submit">
+    <div class="form-submit">
       <%= f.submit "Save Session" %>
     </div>
   <% end %>
 
-  <div class="admin-form-cancel">
+  <div class="form-cancel">
     <%= link_to "← Back to dashboard", dashboard_path %>
   </div>
 </div>

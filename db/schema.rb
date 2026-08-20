@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_07_17_013510) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_19_000001) do
   create_table "active_storage_attachments", force: :cascade do |t|
     t.bigint "blob_id", null: false
     t.datetime "created_at", null: false
@@ -47,6 +47,24 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_17_013510) do
     t.datetime "updated_at", null: false
     t.index ["badge_type"], name: "index_badges_on_badge_type", unique: true
     t.index ["name"], name: "index_badges_on_name", unique: true
+  end
+
+  create_table "book_club_memberships", force: :cascade do |t|
+    t.bigint "book_club_id", null: false
+    t.datetime "created_at", null: false
+    t.string "role", default: "member", null: false
+    t.datetime "updated_at", null: false
+    t.bigint "user_id", null: false
+    t.index ["book_club_id", "user_id"], name: "index_book_club_memberships_on_book_club_id_and_user_id", unique: true
+    t.index ["book_club_id"], name: "index_book_club_memberships_on_book_club_id"
+    t.index ["user_id"], name: "index_book_club_memberships_on_user_id"
+  end
+
+  create_table "book_clubs", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.text "description"
+    t.string "name", null: false
+    t.datetime "updated_at", null: false
   end
 
   create_table "book_editions", force: :cascade do |t|
@@ -211,6 +229,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_17_013510) do
 
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
+  add_foreign_key "book_club_memberships", "book_clubs"
+  add_foreign_key "book_club_memberships", "users"
   add_foreign_key "book_editions", "books"
   add_foreign_key "book_genres", "books"
   add_foreign_key "book_genres", "genres"
