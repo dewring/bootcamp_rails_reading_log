@@ -16,13 +16,17 @@ class BookClubPolicy < ApplicationPolicy
   end
 
   def leave?
-    member?
+    member? && !manage?
   end
 
   def manage?
     return false unless user
 
     record.book_club_memberships.exists?(user_id: user.id, role: "owner")
+  end
+
+  def destroy?
+    manage?
   end
 
   class Scope < ApplicationPolicy::Scope
