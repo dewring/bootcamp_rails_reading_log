@@ -13,6 +13,11 @@
           data: { turbo_confirm: "Leave this club?" }, class: "btn-md btn-danger" %>
   <% end %>
 
+  <% if policy(@book_club).destroy? %>
+    <%= button_to "Delete Club", @book_club, method: :delete,
+          data: { turbo_confirm: "Delete this club? This cannot be undone." }, class: "btn-md btn-danger" %>
+  <% end %>
+
   <ul>
     <% @book_club.book_club_memberships.includes(:user).each do |membership| %>
       <li><%= membership.user.nickname %> — <%= membership.role.humanize %></li>
@@ -23,6 +28,9 @@
 <article>
   <h2>Current Pick</h2>
   <% if @book_club.current_book %>
+    <% if @book_club.current_book.cover_image.attached? %>
+      <%= image_tag @book_club.current_book.cover_image.variant(resize_to_limit: [200, 300]), class: "book-show-image" %>
+    <% end %>
     <p><%= link_to @book_club.current_book.title, @book_club.current_book %> by <%= @book_club.current_book.author %></p>
     <% if @book_club.reading_deadline %>
       <p>Deadline: <%= @book_club.reading_deadline.to_fs(:long) %></p>
