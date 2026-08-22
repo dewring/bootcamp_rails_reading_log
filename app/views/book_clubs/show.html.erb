@@ -19,3 +19,61 @@
     <% end %>
   </ul>
 </article>
+
+<article>
+  <h2>Current Pick</h2>
+  <% if @book_club.current_book %>
+    <p><%= link_to @book_club.current_book.title, @book_club.current_book %> by <%= @book_club.current_book.author %></p>
+    <% if @book_club.reading_deadline %>
+      <p>Deadline: <%= @book_club.reading_deadline.to_fs(:long) %></p>
+    <% end %>
+  <% else %>
+    <p>No current pick yet.</p>
+  <% end %>
+
+  <% if policy(@book_club).manage? %>
+    <%= form_with model: @book_club, url: set_current_book_book_club_path(@book_club), method: :patch, html: { class: "form" } do |f| %>
+      <div class="field">
+        <%= f.label :current_book_id, "Current Pick" %>
+        <%= f.collection_select :current_book_id, Book.order(:title), :id, :title, include_blank: true %>
+      </div>
+
+      <div class="field">
+        <%= f.label :reading_deadline %>
+        <%= f.date_field :reading_deadline %>
+      </div>
+
+      <div class="form-submit">
+        <%= f.submit "Update Pick" %>
+      </div>
+    <% end %>
+  <% end %>
+</article>
+
+<article>
+  <h2>Leaderboard</h2>
+  <% if @book_club.current_book.nil? %>
+    <p>Set a current pick to start the leaderboard.</p>
+  <% elsif @book_club.leaderboard.empty? %>
+    <p>No pages logged for the current pick yet.</p>
+  <% else %>
+    <ol>
+      <% @book_club.leaderboard.each do |user| %>
+        <li><%= user.nickname %> — <%= pluralize(user.total_pages_read, "page") %></li>
+      <% end %>
+    </ol>
+  <% end %>
+</article>
+
+<article>
+  <h2>Past Picks</h2>
+  <% if @book_club.pick_history.empty? %>
+    <p>No past picks yet.</p>
+  <% else %>
+    <ul>
+      <% @book_club.pick_history.each do |entry| %>
+        <li><%= entry[:book]&.title || "Unknown book" %> — picked on <%= entry[:changed_at].to_date.to_fs(:long) %></li>
+      <% end %>
+    </ul>
+  <% end %>
+</article>

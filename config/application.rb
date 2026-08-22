@@ -43,5 +43,10 @@ module BootcampRailsReadingLog
     # level (see config/routes.rb), so we disable its built-in HTTP Basic Auth
     # rather than configuring separate mission_control credentials.
     config.mission_control.jobs.http_basic_auth_enabled = false
+
+    # audited's `audited_changes` column is serialized via the safe YAML coder,
+    # which by default only permits Symbol. Audited attribute values like
+    # BookClub#reading_deadline are Date objects, so they need to be permitted too.
+    config.active_record.yaml_column_permitted_classes = [ Symbol, Date, Time, ActiveSupport::TimeWithZone, BigDecimal ]
   end
 end

@@ -10,7 +10,10 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_19_000001) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_21_231352) do
+  # These are extensions that must be enabled in order to support this database
+  enable_extension "pg_catalog.plpgsql"
+
   create_table "active_storage_attachments", force: :cascade do |t|
     t.bigint "blob_id", null: false
     t.datetime "created_at", null: false
@@ -39,6 +42,28 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_19_000001) do
     t.index ["blob_id", "variation_digest"], name: "index_active_storage_variant_records_uniqueness", unique: true
   end
 
+  create_table "audits", force: :cascade do |t|
+    t.string "action"
+    t.integer "associated_id"
+    t.string "associated_type"
+    t.integer "auditable_id"
+    t.string "auditable_type"
+    t.text "audited_changes"
+    t.string "comment"
+    t.datetime "created_at"
+    t.string "remote_address"
+    t.string "request_uuid"
+    t.integer "user_id"
+    t.string "user_type"
+    t.string "username"
+    t.integer "version", default: 0
+    t.index ["associated_type", "associated_id"], name: "associated_index"
+    t.index ["auditable_type", "auditable_id", "version"], name: "auditable_index"
+    t.index ["created_at"], name: "index_audits_on_created_at"
+    t.index ["request_uuid"], name: "index_audits_on_request_uuid"
+    t.index ["user_id", "user_type"], name: "user_index"
+  end
+
   create_table "badges", force: :cascade do |t|
     t.string "badge_type", null: false
     t.datetime "created_at", null: false
@@ -62,9 +87,12 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_19_000001) do
 
   create_table "book_clubs", force: :cascade do |t|
     t.datetime "created_at", null: false
+    t.bigint "current_book_id"
     t.text "description"
     t.string "name", null: false
+    t.date "reading_deadline"
     t.datetime "updated_at", null: false
+    t.index ["current_book_id"], name: "index_book_clubs_on_current_book_id"
   end
 
   create_table "book_editions", force: :cascade do |t|
@@ -195,7 +223,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_19_000001) do
     t.index ["challenge_id"], name: "index_user_challenges_on_challenge_id"
     t.index ["user_id", "challenge_id"], name: "index_user_challenges_on_user_id_and_challenge_id", unique: true
     t.index ["user_id", "status"], name: "index_user_challenges_on_user_id_and_status"
-    t.index ["user_id"], name: "index_user_challenges_on_user_id_and_status_active", where: "status = 'active'"
+    t.index ["user_id"], name: "index_user_challenges_on_user_id_and_status_active", where: "((status)::text = 'active'::text)"
   end
 
   create_table "users", force: :cascade do |t|
@@ -224,13 +252,14 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_19_000001) do
     t.string "url", null: false
     t.integer "user_id", null: false
     t.index ["user_id", "active"], name: "index_webhook_endpoints_on_user_id_and_active"
-    t.index ["user_id"], name: "index_webhook_endpoints_on_user_id_and_active_true", where: "active = true"
+    t.index ["user_id"], name: "index_webhook_endpoints_on_user_id_and_active_true", where: "(active = true)"
   end
 
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
   add_foreign_key "book_club_memberships", "book_clubs"
   add_foreign_key "book_club_memberships", "users"
+  add_foreign_key "book_clubs", "books", column: "current_book_id"
   add_foreign_key "book_editions", "books"
   add_foreign_key "book_genres", "books"
   add_foreign_key "book_genres", "genres"

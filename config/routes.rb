@@ -33,6 +33,7 @@ Rails.application.routes.draw do
     member do
       post :join
       delete :leave
+      patch :set_current_book
     end
   end
 

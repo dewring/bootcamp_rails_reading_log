@@ -52,6 +52,9 @@ gem "thruster", require: false
 gem "image_processing", "~> 2.0"
 gem "ruby-vips", "~> 2.0"
 
+# Track changes to models as a historic audit trail [https://github.com/collectiveidea/audited]
+gem "audited"
+
 group :development, :test do
   gem "bullet"
   # See https://guides.rubyonrails.org/debugging_rails_applications.html#debugging-with-the-debug-gem

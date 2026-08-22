@@ -1,6 +1,6 @@
 class BookClubsController < ApplicationController
   before_action :authenticate_user!
-  before_action :set_book_club, only: [ :show, :join, :leave ]
+  before_action :set_book_club, only: [ :show, :join, :leave, :set_current_book ]
 
   def index
     @book_clubs = policy_scope(BookClub)
@@ -40,6 +40,12 @@ class BookClubsController < ApplicationController
     redirect_to book_clubs_path, notice: "You've left #{@book_club.name}."
   end
 
+  def set_current_book
+    authorize @book_club, :manage?
+    @book_club.update!(current_book_params)
+    redirect_to @book_club, notice: "Current pick updated."
+  end
+
   private
 
   def set_book_club
@@ -48,5 +54,9 @@ class BookClubsController < ApplicationController
 
   def book_club_params
     params.require(:book_club).permit(:name, :description)
+  end
+
+  def current_book_params
+    params.require(:book_club).permit(:current_book_id, :reading_deadline)
   end
 end
