@@ -61,4 +61,27 @@ class BookClubsControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :redirect
   end
+
+  test "a club owner can set the current pick" do
+    book_club = BookClub.create!(name: "Sci-Fi Society")
+    book_club.book_club_memberships.create!(user: users(:leika), role: "owner")
+
+    sign_in users(:leika)
+    patch set_current_book_book_club_path(book_club), params: { book_club: { current_book_id: books(:refactoring).id } }
+
+    assert_redirected_to book_club_path(book_club)
+    assert_equal books(:refactoring), book_club.reload.current_book
+  end
+
+  test "a non-owner member cannot set the current pick" do
+    book_club = BookClub.create!(name: "Sci-Fi Society")
+    book_club.book_club_memberships.create!(user: users(:leika), role: "owner")
+    book_club.book_club_memberships.create!(user: users(:jaina), role: "member")
+
+    sign_in users(:jaina)
+    patch set_current_book_book_club_path(book_club), params: { book_club: { current_book_id: books(:refactoring).id } }
+
+    assert_response :redirect
+    assert_nil book_club.reload.current_book
+  end
 end
