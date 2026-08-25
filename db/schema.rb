@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_21_231352) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_25_020337) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -86,6 +86,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_21_231352) do
   end
 
   create_table "book_clubs", force: :cascade do |t|
+    t.integer "book_club_memberships_count", default: 0, null: false
     t.datetime "created_at", null: false
     t.bigint "current_book_id"
     t.text "description"
