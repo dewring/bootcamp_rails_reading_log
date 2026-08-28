@@ -1,5 +1,5 @@
 class BookClubMembership < ApplicationRecord
-  belongs_to :book_club
+  belongs_to :book_club, counter_cache: true
   belongs_to :user
 
   ROLES = [ "owner", "member" ].freeze

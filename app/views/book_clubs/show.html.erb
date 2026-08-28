@@ -4,13 +4,18 @@
     <p><%= @book_club.description %></p>
   </hgroup>
 
-  <p><%= pluralize(@book_club.book_club_memberships.count, "member") %></p>
+  <p><%= pluralize(@book_club.book_club_memberships_count, "member") %></p>
 
   <% if policy(@book_club).join? %>
     <%= button_to "Join", join_book_club_path(@book_club), class: "btn-cta" %>
   <% elsif policy(@book_club).leave? %>
     <%= button_to "Leave", leave_book_club_path(@book_club), method: :delete,
           data: { turbo_confirm: "Leave this club?" }, class: "btn-md btn-danger" %>
+  <% end %>
+
+  <% if policy(@book_club).destroy? %>
+    <%= button_to "Delete Club", @book_club, method: :delete,
+          data: { turbo_confirm: "Delete this club? This cannot be undone." }, class: "btn-md btn-danger" %>
   <% end %>
 
   <ul>
@@ -23,6 +28,9 @@
 <article>
   <h2>Current Pick</h2>
   <% if @book_club.current_book %>
+    <% if @book_club.current_book.cover_image.attached? %>
+      <%= image_tag @book_club.current_book.cover_image.variant(resize_to_limit: [200, 300]), class: "book-show-image" %>
+    <% end %>
     <p><%= link_to @book_club.current_book.title, @book_club.current_book %> by <%= @book_club.current_book.author %></p>
     <% if @book_club.reading_deadline %>
       <p>Deadline: <%= @book_club.reading_deadline.to_fs(:long) %></p>
@@ -33,9 +41,18 @@
 
   <% if policy(@book_club).manage? %>
     <%= form_with model: @book_club, url: set_current_book_book_club_path(@book_club), method: :patch, html: { class: "form" } do |f| %>
-      <div class="field">
-        <%= f.label :current_book_id, "Current Pick" %>
-        <%= f.collection_select :current_book_id, Book.order(:title), :id, :title, include_blank: true %>
+      <div class="field" data-controller="book-picker">
+        <%= f.label :current_book_search, "Current Pick" %>
+        <input type="text" id="book_club_current_book_search" list="book_club_book_options"
+               placeholder="Search books by title..." autocomplete="off"
+               value="<%= @book_club.current_book&.title %>"
+               data-book-picker-target="search" data-action="input->book-picker#input">
+        <datalist id="book_club_book_options" data-book-picker-target="options">
+          <% if @book_club.current_book %>
+            <option value="<%= @book_club.current_book.title %>" data-id="<%= @book_club.current_book.id %>"></option>
+          <% end %>
+        </datalist>
+        <%= f.hidden_field :current_book_id, data: { book_picker_target: "hidden" } %>
       </div>
 
       <div class="field">

@@ -16,7 +16,7 @@
   <% @book_clubs.each do |book_club| %>
     <article>
       <strong><%= link_to book_club.name, book_club %></strong>
-      <p><%= pluralize(book_club.book_club_memberships.count, "member") %></p>
+      <p><%= pluralize(book_club.book_club_memberships_count, "member") %></p>
     </article>
   <% end %>
 <% end %>

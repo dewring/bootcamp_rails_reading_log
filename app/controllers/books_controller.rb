@@ -11,7 +11,7 @@ class BooksController < ApplicationController
     @books = if params[:q].present?
       books.left_joins(:book_editions)
      .where(
-       "books.title LIKE :q OR books.author LIKE :q OR book_editions.title LIKE :q",
+       "books.title ILIKE :q OR books.author ILIKE :q OR book_editions.title ILIKE :q",
        q: "%#{params[:q]}%"
      )
      .distinct

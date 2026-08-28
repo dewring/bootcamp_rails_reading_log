@@ -1,6 +1,6 @@
 class BookClubsController < ApplicationController
   before_action :authenticate_user!
-  before_action :set_book_club, only: [ :show, :join, :leave, :set_current_book ]
+  before_action :set_book_club, only: [ :show, :join, :leave, :set_current_book, :destroy ]
 
   def index
     @book_clubs = policy_scope(BookClub)
@@ -44,6 +44,12 @@ class BookClubsController < ApplicationController
     authorize @book_club, :manage?
     @book_club.update!(current_book_params)
     redirect_to @book_club, notice: "Current pick updated."
+  end
+
+  def destroy
+    authorize @book_club, :destroy?
+    @book_club.destroy!
+    redirect_to book_clubs_path, notice: "#{@book_club.name} deleted."
   end
 
   private
