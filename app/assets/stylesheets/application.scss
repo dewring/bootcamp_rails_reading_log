@@ -389,6 +389,16 @@ body {
   }
 }
 
+.book-club-cover-image {
+  width: 104px;
+  height: 148px;
+  object-fit: cover;
+  border-radius: 4px;
+  display: block;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  margin-bottom: 0.75rem;
+}
+
 .book-list-info {
   flex: 1;
   min-width: 0;
