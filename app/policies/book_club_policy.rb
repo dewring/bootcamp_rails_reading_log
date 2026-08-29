@@ -19,6 +19,14 @@ class BookClubPolicy < ApplicationPolicy
     member? && !manage?
   end
 
+  def edit?
+    manage?
+  end
+
+  def update?
+    manage?
+  end
+
   def manage?
     return false unless user
 

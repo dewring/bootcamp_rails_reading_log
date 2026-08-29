@@ -12,8 +12,8 @@ class BookClub < ApplicationRecord
       .joins(:reading_sessions)
       .where(reading_sessions: { book_id: current_book_id })
       .group("users.id")
-      .order(Arel.sql("SUM(reading_sessions.pages_read) DESC"))
-      .select("users.*, SUM(reading_sessions.pages_read) AS total_pages_read")
+      .order(Arel.sql("MAX(reading_sessions.pages_read) DESC"))
+      .select("users.*, MAX(reading_sessions.pages_read) AS furthest_page_read")
   end
 
   def pick_history
@@ -24,6 +24,7 @@ class BookClub < ApplicationRecord
         new_value = audit.audited_changes["current_book_id"]
         book_id = new_value.is_a?(Array) ? new_value.last : new_value
         next if book_id.blank?
+        next if book_id.to_i == current_book_id
 
         { book: Book.find_by(id: book_id), changed_at: audit.created_at }
       end

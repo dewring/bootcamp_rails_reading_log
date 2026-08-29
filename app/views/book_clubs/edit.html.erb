@@ -1,0 +1,25 @@
+<div class="form-card">
+  <div class="form-header">
+    <h1>Edit Book Club</h1>
+  </div>
+
+  <%= form_with model: @book_club, url: book_club_path(@book_club), method: :patch, html: { class: "form" } do |f| %>
+    <div class="field">
+      <%= f.label :name %>
+      <%= f.text_field :name %>
+    </div>
+
+    <div class="field">
+      <%= f.label :description %>
+      <%= f.text_area :description %>
+    </div>
+
+    <div class="form-submit">
+      <%= f.submit "Save Changes" %>
+    </div>
+  <% end %>
+
+  <div class="form-cancel">
+    <%= link_to "← Back to club", book_club_path(@book_club) %>
+  </div>
+</div>

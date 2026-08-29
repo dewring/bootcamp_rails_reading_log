@@ -9,17 +9,20 @@ class BookClubTest < ActiveSupport::TestCase
     assert_not BookClub.new(name: "").valid?
   end
 
-  test "leaderboard orders members by total pages read, descending" do
+  test "leaderboard ranks members by furthest page reached, not total pages logged" do
     book_club = BookClub.create!(name: "Sci-Fi Society", current_book: books(:refactoring))
     leader = users(:leika)
     runner_up = users(:jaina)
     book_club.book_club_memberships.create!(user: leader, role: "owner")
     book_club.book_club_memberships.create!(user: runner_up, role: "member")
 
-    ReadingSession.create!(user: leader, book: books(:refactoring), read_on: Date.today, pages_read: 50)
-    ReadingSession.create!(user: runner_up, book: books(:refactoring), read_on: Date.today, pages_read: 20)
+    # runner_up logged more sessions but never read as far into the book
+    ReadingSession.create!(user: runner_up, book: books(:refactoring), read_on: 2.days.ago, pages_read: 30)
+    ReadingSession.create!(user: runner_up, book: books(:refactoring), read_on: Date.today, pages_read: 40)
+    ReadingSession.create!(user: leader, book: books(:refactoring), read_on: Date.today, pages_read: 60)
 
     assert_equal [ leader, runner_up ], book_club.leaderboard.to_a
+    assert_equal 60, book_club.leaderboard.first.furthest_page_read.to_i
   end
 
   test "leaderboard excludes non-members even for the same book" do
@@ -42,6 +45,6 @@ class BookClubTest < ActiveSupport::TestCase
     ReadingSession.create!(user: member, book: books(:refactoring), read_on: Date.today, pages_read: 10)
     ReadingSession.create!(user: member, book: books(:pragmatic), read_on: Date.today, pages_read: 999)
 
-    assert_equal 10, book_club.leaderboard.first.total_pages_read.to_i
+    assert_equal 10, book_club.leaderboard.first.furthest_page_read.to_i
   end
 end

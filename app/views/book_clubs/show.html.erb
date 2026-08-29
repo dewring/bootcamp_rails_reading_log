@@ -13,6 +13,10 @@
           data: { turbo_confirm: "Leave this club?" }, class: "btn-md btn-danger" %>
   <% end %>
 
+  <% if policy(@book_club).edit? %>
+    <%= link_to "Edit Club", edit_book_club_path(@book_club), class: "btn-md" %>
+  <% end %>
+
   <% if policy(@book_club).destroy? %>
     <%= button_to "Delete Club", @book_club, method: :delete,
           data: { turbo_confirm: "Delete this club? This cannot be undone." }, class: "btn-md btn-danger" %>
@@ -29,7 +33,7 @@
   <h2>Current Pick</h2>
   <% if @book_club.current_book %>
     <% if @book_club.current_book.cover_image.attached? %>
-      <%= image_tag @book_club.current_book.cover_image.variant(resize_to_limit: [200, 300]), class: "book-show-image" %>
+      <%= image_tag @book_club.current_book.cover_image.variant(resize_to_limit: [104, 148]), class: "book-club-cover-image" %>
     <% end %>
     <p><%= link_to @book_club.current_book.title, @book_club.current_book %> by <%= @book_club.current_book.author %></p>
     <% if @book_club.reading_deadline %>
@@ -76,7 +80,7 @@
   <% else %>
     <ol>
       <% @book_club.leaderboard.each do |user| %>
-        <li><%= user.nickname %> — <%= pluralize(user.total_pages_read, "page") %></li>
+        <li><%= user.nickname %> — page <%= user.furthest_page_read %></li>
       <% end %>
     </ol>
   <% end %>
