@@ -809,6 +809,11 @@ h2 {
   padding: 0.25rem 0.6rem;
 }
 
+.session-actions {
+  display: flex;
+  gap: 0.4rem;
+}
+
 // Edit / Delete 버튼 (더 작게)
 .btn-sm {
   font-size: 0.72rem !important;
