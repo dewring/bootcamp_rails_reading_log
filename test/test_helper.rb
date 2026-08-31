@@ -9,4 +9,5 @@ require "rspec/mocks/minitest_integration"
 class ActiveSupport::TestCase
   parallelize(workers: :number_of_processors)
   fixtures :all
+  Rack::Attack.cache.store = ActiveSupport::Cache::MemoryStore.new
 end
