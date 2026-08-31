@@ -48,5 +48,10 @@ module BootcampRailsReadingLog
     # which by default only permits Symbol. Audited attribute values like
     # BookClub#reading_deadline are Date objects, so they need to be permitted too.
     config.active_record.yaml_column_permitted_classes = [ Symbol, Date, Time, ActiveSupport::TimeWithZone, BigDecimal ]
+
+    # Coolify's Traefik proxy runs in the same Docker network as this container
+    # Docker's private bridge subnets already fall inside Rails' default trusted ranges, so nothing needs to be added
+    # note that this is confirmed for real once Step 8 makes the client IP visible in logs.
+    config.action_dispatch.trusted_proxies = ActionDispatch::RemoteIp::TRUSTED_PROXIES
   end
 end
