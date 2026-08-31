@@ -1,7 +1,7 @@
 source "https://rubygems.org"
 
 # Bundle edge Rails instead: gem "rails", github: "rails/rails", branch: "main"
-gem "rails", "~> 8.1.3"
+gem "rails", "~> 8.1.3.1"
 # The modern asset pipeline for Rails [https://github.com/rails/propshaft]
 gem "propshaft"
 # Use the Puma web server [https://github.com/puma/puma]
@@ -19,15 +19,22 @@ gem "jbuilder"
 gem "devise"
 gem "pundit"
 gem "mission_control-jobs"
-gem "pagy"
+gem "pagy", "~> 43.6.1"
 gem "faraday"
 gem "redis", ">= 4.0.1"
-gem "rails_semantic_logger"
+gem "rails_semantic_logger", "~> 5.1.0"
 gem "sentry-ruby"
 gem "sentry-rails"
 gem "amazing_print"
-gem "aws-sdk-s3", require: false
+gem "aws-sdk-s3", "~> 1.229.0", require: false
 gem "premailer-rails"
+
+# ~> x.y.z means ">= x.y.z and < x.(y+1).0"
+
+# Security Updates (Bundler Audit)
+gem "mail", "~> 2.9.1"
+
+
 # Use Active Model has_secure_password [https://guides.rubyonrails.org/active_model_basics.html#securepassword]
 # gem "bcrypt", "~> 3.1.7"
 
@@ -36,17 +43,17 @@ gem "tzinfo-data", platforms: %i[ windows jruby ]
 
 # Use the database-backed adapters for Rails.cache, Active Job, and Action Cable
 gem "solid_cache"
-gem "solid_queue"
-gem "solid_cable"
+gem "solid_queue", "~> 1.6.0"
+gem "solid_cable", "~> 4.0.2"
 
 # Reduces boot times through caching; required in config/boot.rb
-gem "bootsnap", require: false
+gem "bootsnap", "~> 1.25.0", require: false
 
 # Deploy this application anywhere as a Docker container [https://kamal-deploy.org]
-gem "kamal", require: false
+gem "kamal", "~>2.12.0", require: false
 
 # Add HTTP asset caching/compression and X-Sendfile acceleration to Puma [https://github.com/basecamp/thruster/]
-gem "thruster", require: false
+gem "thruster", "~> 0.1.25", require: false
 
 # Use Active Storage variants [https://guides.rubyonrails.org/active_storage_overview.html#transforming-images]
 gem "image_processing", "~> 2.0"
