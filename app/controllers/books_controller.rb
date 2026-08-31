@@ -86,7 +86,7 @@ class BooksController < ApplicationController
   def quick_add
     authorize Book, :quick_add?
 
-    return if request.get?
+    return if request.get? || request.head?
 
     isbn = params[:isbn].to_s.strip.delete(" -")
     if isbn.blank?
