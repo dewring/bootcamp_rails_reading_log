@@ -62,6 +62,9 @@ gem "ruby-vips", "~> 2.0"
 # Track changes to models as a historic audit trail [https://github.com/collectiveidea/audited]
 gem "audited"
 
+# Security
+gem "rack-attack", "~> 6.8"
+
 group :development, :test do
   gem "bullet"
   # See https://guides.rubyonrails.org/debugging_rails_applications.html#debugging-with-the-debug-gem

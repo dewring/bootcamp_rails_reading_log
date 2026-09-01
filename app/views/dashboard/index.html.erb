@@ -72,7 +72,7 @@
                   <span class="session-note">“<%= session.notes %>”</span>
                 <% end %>
               </div>
-              <div style="display: flex; gap: 0.4rem;">
+              <div class="session-actions">
                 <% if policy(session).edit? %>
                   <%= link_to "Edit", edit_reading_session_path(session), class: "btn-sm" %>
                 <% end %>

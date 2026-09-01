@@ -25,16 +25,16 @@ Rails.application.configure do
   config.active_storage.service = :ministack
 
   # Assume all access to the app is happening through a SSL-terminating reverse proxy.
-  # config.assume_ssl = true
+  config.assume_ssl = true
 
   # Force all access to the app over SSL, use Strict-Transport-Security, and use secure cookies.
-  # config.force_ssl = true
+  config.force_ssl = true
 
   # Skip http-to-https redirect for the default health check endpoint.
-  # config.ssl_options = { redirect: { exclude: ->(request) { request.path == "/up" } } }
+  config.ssl_options = { redirect: { exclude: ->(request) { request.path == "/up" } } }
 
   # Log to STDOUT with the current request id as a default log tag.
-  config.log_tags = [ :request_id ]
+  config.log_tags = { request_id: :request_id, remote_ip: :remote_ip }
   config.logger   = ActiveSupport::TaggedLogging.logger(STDOUT)
 
   # Structured logging: format every Rails.logger line as a JSON string so hash
