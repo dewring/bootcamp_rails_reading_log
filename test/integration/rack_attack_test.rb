@@ -7,12 +7,14 @@ class RackAttackTest < ActionDispatch::IntegrationTest
   end
 
   test "throttles sign-in attempts after 5 requests in 20 seconds" do
-    5.times do
-      post user_session_path, params: { user: { email: @user.email, password: "wrong" } }
-      assert_response :unprocessable_entity
-    end
+    travel_to Time.current do
+      5.times do
+        post user_session_path, params: { user: { email: @user.email, password: "wrong" } }
+        assert_response :unprocessable_entity
+      end
 
-    post user_session_path, params: { user: { email: @user.email, password: "wrong" } }
-    assert_response 429
+      post user_session_path, params: { user: { email: @user.email, password: "wrong" } }
+      assert_response 429
+    end
   end
 end
