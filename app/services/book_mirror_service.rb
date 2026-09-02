@@ -58,7 +58,7 @@ class BookMirrorService
       edition = BookEdition.find_or_initialize_by(ol_edition_key: entry["key"])
       edition.book         = book
       edition.isbn         = entry["isbn_13"]&.first || entry["isbn_10"]&.first
-      edition.title        = entry["title"]
+      edition.title        = entry["title"] || book.title
       edition.publisher    = entry["publishers"]&.first
       edition.publish_year = entry["publish_date"]
       edition.page_count   = entry["number_of_pages"]
