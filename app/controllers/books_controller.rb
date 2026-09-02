@@ -1,4 +1,6 @@
 class BooksController < ApplicationController
+  include LogsRecordNotFound
+
   SORTABLE_COLUMNS = %w[title author total_pages].freeze
 
   before_action :authenticate_user!, only: [ :discover, :most_recent_session, :search, :import, :quick_add ]
