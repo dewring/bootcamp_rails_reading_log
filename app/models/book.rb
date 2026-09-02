@@ -1,4 +1,6 @@
 class Book < ApplicationRecord
+  include Displayable
+
   # 1. Attachments
   has_one_attached :cover_image
 
@@ -9,8 +11,8 @@ class Book < ApplicationRecord
   normalizes :author, with: ->(v) { v.titleize }
 
   # 3. Validations
-  validates :title, presence: true
   validates :author, presence: true
+  validates :title, presence: true
 
   # 4. Associations
   has_many :user_books, dependent: :destroy

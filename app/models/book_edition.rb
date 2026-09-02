@@ -1,4 +1,7 @@
 class BookEdition < ApplicationRecord
+  include Displayable
+  include CatalogEntry
+
   belongs_to :book
   has_one_attached :cover_image
 
