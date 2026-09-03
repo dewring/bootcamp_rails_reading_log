@@ -1,9 +1,8 @@
 class Book < ApplicationRecord
   include Displayable
+  include HasAttachedCoverImage
 
   # 1. Attachments
-  has_one_attached :cover_image
-
   serialize :subjects, coder: JSON
 
   # 2. Normalizations
