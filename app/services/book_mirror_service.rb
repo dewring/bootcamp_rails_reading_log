@@ -20,8 +20,8 @@ class BookMirrorService
       return nil
     end
 
-    needs_work = !book.cover_image.attached?
-    needs_editions = book.book_editions.empty? || book.book_editions.where(title: [ nil, "" ]).exists?
+    needs_work = book.missing_cover?
+    needs_editions = book.book_editions.empty? || book.book_editions.missing_display_title.exists?
 
     work_future     = needs_work     ? Concurrent::Future.execute { OpenLibraryClient.new.fetch_work(@ol_work_key) }     : nil
     editions_future = needs_editions ? Concurrent::Future.execute { OpenLibraryClient.new.fetch_editions(@ol_work_key) } : nil
@@ -58,7 +58,7 @@ class BookMirrorService
       edition = BookEdition.find_or_initialize_by(ol_edition_key: entry["key"])
       edition.book         = book
       edition.isbn         = entry["isbn_13"]&.first || entry["isbn_10"]&.first
-      edition.title        = entry["title"]
+      edition.title        = entry["title"] || book.title
       edition.publisher    = entry["publishers"]&.first
       edition.publish_year = entry["publish_date"]
       edition.page_count   = entry["number_of_pages"]
@@ -71,7 +71,7 @@ class BookMirrorService
 
   def attach_cover(record, cover_id)
     return if cover_id.nil?
-    return if record.cover_image.attached?
+    return if !record.missing_cover?
     CoverAttachJob.perform_later(record, cover_id)
   end
 end

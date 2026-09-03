@@ -1,7 +1,8 @@
 class Book < ApplicationRecord
-  # 1. Attachments
-  has_one_attached :cover_image
+  include Displayable
+  include HasAttachedCoverImage
 
+  # 1. Attachments
   serialize :subjects, coder: JSON
 
   # 2. Normalizations
@@ -9,8 +10,8 @@ class Book < ApplicationRecord
   normalizes :author, with: ->(v) { v.titleize }
 
   # 3. Validations
-  validates :title, presence: true
   validates :author, presence: true
+  validates :title, presence: true
 
   # 4. Associations
   has_many :user_books, dependent: :destroy
