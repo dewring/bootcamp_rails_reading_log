@@ -128,7 +128,7 @@ class BooksController < ApplicationController
   # fetch — otherwise a freshly imported book has no cover until a job
   # worker happens to pick it up.
   def attach_cover_now(book, cover_id)
-    return if cover_id.blank? || book.cover_image.attached?
+    return if cover_id.blank? || !book.missing_cover?
 
     CoverAttachJob.perform_now(book, cover_id)
   rescue StandardError => e
