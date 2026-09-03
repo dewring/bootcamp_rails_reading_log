@@ -1,6 +1,5 @@
 class Admin::BooksController < ApplicationController
-  before_action :authenticate_user!
-  include RequireAdmin
+  include RequireAuthenticatedAdmin
   before_action :set_book, only: [ :edit, :update, :destroy ]
 
   def new

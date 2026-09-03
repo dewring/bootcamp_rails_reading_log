@@ -1,6 +1,5 @@
 class Admin::ChallengesController < ApplicationController
-  before_action :authenticate_user!
-  include RequireAdmin
+  include RequireAuthenticatedAdmin
   before_action :set_challenge, only: [ :edit, :update, :destroy ]
 
   def new
