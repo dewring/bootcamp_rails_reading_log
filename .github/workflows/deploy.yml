@@ -57,4 +57,4 @@ jobs:
           glitchtip-cli releases new ${{ github.sha }}
           glitchtip-cli releases set-commits ${{ github.sha }} --auto
           glitchtip-cli releases finalize ${{ github.sha }}
-          glitchtip-cli deploys new ${{ github.sha }} --env production
+          glitchtip-cli deploys --release ${{ github.sha }} new --env production
