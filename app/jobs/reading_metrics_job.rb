@@ -22,13 +22,6 @@ class ReadingMetricsJob < ApplicationJob
         end
       end
     end
-    if ENV["READING_METRICS_HEARTBEAT_URL"]
-      begin
-        Faraday.post(ENV["READING_METRICS_HEARTBEAT_URL"])
-      rescue => e
-        logger.error("Heartbeat ping failed", error_message: e.message)
-      end
-    end
   end
 
   private
