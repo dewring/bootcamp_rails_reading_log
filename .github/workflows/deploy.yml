@@ -44,3 +44,15 @@ jobs:
       - name: Trigger Coolify deploy
         run: |
           curl --request POST '${{ secrets.COOLIFY_WEBHOOK }}' --header 'Authorization: Bearer ${{ secrets.COOLIFY_TOKEN }}'
+      - name: Record GlitchTip release
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.GLITCHTIP_TOKEN }}
+          SENTRY_ORG: bootcamp
+          SENTRY_PROJECT: reading-log-jade
+          SENTRY_URL: https://glitchtip-jade.rocio.ornelas.io
+        run: |
+          curl -fsSL https://glitchtip.com/install.sh | sh 
+          glitchtip-cli releases new ${{ github.sha }}
+          glitchtip-cli releases set-commits ${{ github.sha }} --auto
+          glitchtip-cli releases finalize ${{ github.sha }}
+          glitchtip-cli deploys new ${{ github.sha }} --env production

@@ -19,6 +19,9 @@ production:
   streak_reminder: 
     class: StreakReminderJob
     schedule: "0 19 * * *"
+  queue_heartbeat:
+    class: QueueHeartbeatJob
+    schedule: "<%= ENV.fetch('HEARTBEAT_INTERVAL', '*/10 * * * *') %>"
 
 development:
   reading_metrics:
@@ -27,3 +30,6 @@ development:
   streak_reminder: 
     class: StreakReminderJob
     schedule: "0 19 * * *"
+  queue_heartbeat:
+    class: QueueHeartbeatJob
+    schedule: "<%= ENV.fetch('HEARTBEAT_INTERVAL', '*/10 * * * *') %>"
