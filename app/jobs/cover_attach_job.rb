@@ -24,6 +24,7 @@ class CoverAttachJob < ApplicationJob
         filename: "cover_#{cover_id}.jpg",
         content_type: "image/jpeg"
       )
+      record.cover_image.variant(resize_to_fill: [ 150, 220 ]).processed
     end
   rescue OpenURI::HTTPError => e
     status = e.io.status.first.to_i

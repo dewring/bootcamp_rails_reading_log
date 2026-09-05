@@ -21,6 +21,16 @@ class CoverAttachJobTest < ActiveSupport::TestCase
     end
   end
 
+  test "pre-generates the 150x220 variant when attaching a cover" do
+    stub_request(:get, "https://covers.openlibrary.org/b/id/12345-M.jpg").to_return(
+      status: 200, body: file_fixture("cover_test.jpg").read,
+      headers: { "Content-Type" => "image/jpeg" }
+      )
+    assert_difference "ActiveStorage::VariantRecord.count", 1 do
+      CoverAttachJob.new.perform(@book, 12345)
+    end
+  end
+
   test "discards job when record no longer exists" do
     book = Book.create!(title: "Temp", author: "Temp")
     book.destroy
