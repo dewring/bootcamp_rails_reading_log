@@ -47,4 +47,19 @@ class BookClubTest < ActiveSupport::TestCase
 
     assert_equal 10, book_club.leaderboard.first.furthest_page_read.to_i
   end
+
+  test "leaderboard gives tied members the same rank" do
+    current_book = Book.create!(title: "Leaderboard Tie Book", author: "Test Author")
+    book_club = BookClub.create!(name: "Tie Test Club", current_book: current_book)
+    member_one = users(:leika)
+    member_two = users(:jaina)
+    book_club.book_club_memberships.create!(user: member_one, role: "owner")
+    book_club.book_club_memberships.create!(user: member_two, role: "member")
+    ReadingSession.create!(user: member_one, book: current_book, read_on: Date.today, pages_read: 50)
+    ReadingSession.create!(user: member_two, book: current_book, read_on: Date.today, pages_read: 50)
+
+    ranks = book_club.leaderboard.map(&:rank)
+
+    assert_equal [ 1, 1 ], ranks
+  end
 end

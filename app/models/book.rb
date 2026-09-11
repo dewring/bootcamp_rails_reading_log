@@ -29,6 +29,39 @@ class Book < ApplicationRecord
       .order("COUNT(reading_sessions.id) DESC")
   }
 
+  scope :top_book_per_genre, -> {
+    ranked = joins(:genres)
+      .joins("LEFT JOIN reading_sessions ON reading_sessions.book_id = books.id")
+      .group(Arel.sql("books.id, genres.id"))
+      .select(Arel.sql(<<~SQL.squish))
+        books.*,
+        ROW_NUMBER() OVER (
+          PARTITION BY genres.id
+          ORDER BY COUNT(reading_sessions.id) DESC, books.id ASC
+        ) AS rn
+      SQL
+
+    with(ranked_books: ranked)
+      .from("ranked_books AS books")
+      .where(rn: 1)
+  }
+
+  scope :above_average_reads, -> {
+    joins(:reading_sessions)
+      .group("books.id")
+      .having(Arel.sql(<<~SQL.squish))
+        SUM(reading_sessions.pages_read) > (
+          SELECT AVG(book_totals.total_pages)
+          FROM (
+            SELECT SUM(avg_sessions.pages_read) AS total_pages
+            FROM books AS avg_books
+            INNER JOIN reading_sessions AS avg_sessions ON avg_sessions.book_id = avg_books.id
+            GROUP BY avg_books.id
+          ) AS book_totals
+        )
+      SQL
+  }
+
   # 6. Instance methods
   def total_pages_read
     reading_sessions.sum(:pages_read)

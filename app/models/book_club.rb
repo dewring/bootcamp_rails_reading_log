@@ -13,7 +13,11 @@ class BookClub < ApplicationRecord
       .where(reading_sessions: { book_id: current_book_id })
       .group("users.id")
       .order(Arel.sql("MAX(reading_sessions.pages_read) DESC"))
-      .select("users.*, MAX(reading_sessions.pages_read) AS furthest_page_read")
+      .select(<<~SQL.squish)
+        users.*,
+        MAX(reading_sessions.pages_read) AS furthest_page_read,
+        RANK() OVER (ORDER BY MAX(reading_sessions.pages_read) DESC) AS rank
+      SQL
   end
 
   def pick_history

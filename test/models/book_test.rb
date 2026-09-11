@@ -63,4 +63,41 @@ class BookTest < ActiveSupport::TestCase
 
     assert_nil result
   end
+
+  test "top_book_per_genre returns exactly one book when tied on session count" do
+    genre = Genre.create!(name: "Mystery")
+    book_a = Book.create!(title: "Tie Book A", author: "Test Author", genres: [ genre ])
+    book_b = Book.create!(title: "Tie Book B", author: "Test Author", genres: [ genre ])
+    ReadingSession.create!(user: users(:leika), book: book_a, read_on: Date.today, pages_read: 10)
+    ReadingSession.create!(user: users(:leika), book: book_b, read_on: Date.today, pages_read: 10)
+
+    result = Book.top_book_per_genre.where(id: [ book_a.id, book_b.id ])
+
+    assert_equal 1, result.count
+    assert_equal book_a, result.first
+  end
+
+  test "top_book_per_genre includes a book with zero reading sessions" do
+    genre = Genre.create!(name: "Thriller")
+    lonely_book = Book.create!(title: "Zero Sessions Book", author: "Test Author", genres: [ genre ])
+
+    result = Book.top_book_per_genre.where(id: lonely_book.id)
+
+    assert_equal [ lonely_book ], result.to_a
+  end
+
+  test "above_average_reads excludes a book whose total exactly equals the average" do
+    # Fixtures load "refactoring" with two reading sessions (20 + 15 = 35 pages) and
+    # "pragmatic" with none. refactoring is the ONLY book with any sessions, so it IS
+    # the average by itself (35 / 1 = 35). 35 is not strictly greater than 35.
+    assert_not_includes Book.above_average_reads, books(:refactoring)
+  end
+
+  test "above_average_reads includes a book that exceeds the average" do
+    high_volume_book = Book.create!(title: "High Volume Book", author: "Test Author")
+    ReadingSession.create!(user: users(:leika), book: high_volume_book, read_on: Date.today, pages_read: 100)
+    # Totals now: refactoring = 35, high_volume_book = 100 -> average = 67.5
+    assert_includes Book.above_average_reads, high_volume_book
+    assert_not_includes Book.above_average_reads, books(:refactoring)
+  end
 end
