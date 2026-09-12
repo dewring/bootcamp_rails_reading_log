@@ -3,7 +3,7 @@ class BookEdition < ApplicationRecord
   include CatalogEntry
   include HasAttachedCoverImage
 
-  belongs_to :book
+  belongs_to :book, touch: true
 
   validates :ol_edition_key, presence: true
 
