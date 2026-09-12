@@ -1,101 +1,105 @@
 <div class="book-show">
-  <div class="book-show-cover">
-    <% if @book.cover_image.attached? %>
-      <%= image_tag @book.cover_image.variant(resize_to_limit: [200, 300]), class: "book-show-image" %>
-    <% else %>
-      <div class="book-show-no-cover">📚</div>
+  <% cache @book do %>
+    <div class="book-show-cover">
+      <% if @book.cover_image.attached? %>
+        <%= image_tag @book.cover_image.variant(resize_to_limit: [200, 300]), class: "book-show-image" %>
+      <% else %>
+        <div class="book-show-no-cover">📚</div>
+      <% end %>
+    </div>
+
+    <div class="book-show-info">
+      <% if @book.genres.any? %>
+        <p class="book-show-genre">
+          <% @book.genres.each do |genre| %>
+            <span><%= genre.name %></span>
+          <% end %>
+        </p>
+      <% end %>
+
+      <h1 class="book-show-title"><%= @book.title %></h1>
+      <p class="book-show-author"><%= @book.author %></p>
+
+      <% if @book.total_pages %>
+        <p class="book-show-pages"><%= @book.total_pages %> pages</p>
+      <% end %>
+
+    <% if @book.description.present? %>
+      <%
+        desc = @book.description
+        main_text = desc.gsub(/\(\[source\]\(.*?\)\)/, "").strip
+        source_match = desc.match(/\(\[source\]\((.*?)\)\)/)
+      %>
+      <p class="book-show-description"><%= main_text %></p>
+      <% if source_match %>
+        <p class="book-show-source">
+          <a href="<%= source_match[1] %>" target="_blank">source</a>
+        </p>
+      <% end %>
     <% end %>
+
+    <% if @book.subjects.present? %>
+      <div class="book-show-subjects">
+        <% @book.subjects.each do |subject| %>
+          <span><%= subject %></span>
+        <% end %>
+      </div>
+    <% end %>
+
+      <hr class="book-show-divider">
+
+      <div class="book-show-actions">
+        <% if user_signed_in? %>
+          <% user_book = current_user.user_books.find_by(book: @book) %>
+            <% if user_book %>
+              <p class="book-show-status">Reading status: <strong><%= user_book.status.humanize %></strong></p>
+              <% if policy(ReadingSession.new(user: current_user, book: @book)).new? %>
+                <%= link_to "＋ Log Reading Session", new_book_reading_session_path(@book), class: "btn-cta" %>
+              <% end %>
+              
+              <%# only show if they have sessions for this book %>
+              <% if policy(@book).most_recent_session? && policy_scope(@book.reading_sessions).exists? %>
+                <%= link_to "📖 Most Recent Session", most_recent_session_book_path(@book), class: "btn-cta btn-cta-secondary" %>
+              <% end %>
+            <% elsif policy(UserBook.new(user: current_user, book: @book)).new? %>
+            <%= link_to "＋ Want to Read", new_user_book_path(book_id: @book.id), class: "btn-cta" %>
+          <% end %>
+        <% end %>
+
+        <% if policy(@book).edit? %>
+          <%= link_to "Edit", edit_admin_book_path(@book), class: "btn-cta btn-cta-secondary" %>
+        <% end %>
+      </div>
+    </div>
   </div>
 
-  <div class="book-show-info">
-    <% if @book.genres.any? %>
-      <p class="book-show-genre">
-        <% @book.genres.each do |genre| %>
-          <span><%= genre.name %></span>
+  <%# Edition section %>
+  <% if @book_editions.any? %>
+    <div class="book-editions-section">
+      <h2>Editions</h2>
+      <div class="editions-grid">
+        <% @book_editions.each do |edition| %>
+          <% cache edition do %>
+            <%= link_to "https://openlibrary.org#{edition.ol_edition_key}", target: "_blank", class: "edition-card" do %>
+              <div class="edition-cover">
+                <% if edition.cover_image.attached? %>
+                  <%= image_tag edition.cover_image %>
+                <% else %>
+                  <div class="edition-no-cover">📚</div>
+                <% end %>
+              </div>
+                  <% if edition.title.present? %>
+                    <p><%= edition.title %></p>
+                <% end %>
+              <p><%= edition.publisher %></p>
+              <p><%= edition.publish_year %></p>
+              <p><%= edition.language %></p>
+            <% end %>
+          <% end %>
         <% end %>
-      </p>
-    <% end %>
-
-    <h1 class="book-show-title"><%= @book.title %></h1>
-    <p class="book-show-author"><%= @book.author %></p>
-
-    <% if @book.total_pages %>
-      <p class="book-show-pages"><%= @book.total_pages %> pages</p>
-    <% end %>
-
-  <% if @book.description.present? %>
-    <%
-      desc = @book.description
-      main_text = desc.gsub(/\(\[source\]\(.*?\)\)/, "").strip
-      source_match = desc.match(/\(\[source\]\((.*?)\)\)/)
-    %>
-    <p class="book-show-description"><%= main_text %></p>
-    <% if source_match %>
-      <p class="book-show-source">
-        <a href="<%= source_match[1] %>" target="_blank">source</a>
-      </p>
-    <% end %>
-  <% end %>
-
-  <% if @book.subjects.present? %>
-    <div class="book-show-subjects">
-      <% @book.subjects.each do |subject| %>
-        <span><%= subject %></span>
-      <% end %>
+      </div>
     </div>
   <% end %>
-
-    <hr class="book-show-divider">
-
-    <div class="book-show-actions">
-      <% if user_signed_in? %>
-        <% user_book = current_user.user_books.find_by(book: @book) %>
-          <% if user_book %>
-            <p class="book-show-status">Reading status: <strong><%= user_book.status.humanize %></strong></p>
-            <% if policy(ReadingSession.new(user: current_user, book: @book)).new? %>
-              <%= link_to "＋ Log Reading Session", new_book_reading_session_path(@book), class: "btn-cta" %>
-            <% end %>
-            
-            <%# only show if they have sessions for this book %>
-            <% if policy(@book).most_recent_session? && policy_scope(@book.reading_sessions).exists? %>
-              <%= link_to "📖 Most Recent Session", most_recent_session_book_path(@book), class: "btn-cta btn-cta-secondary" %>
-            <% end %>
-          <% elsif policy(UserBook.new(user: current_user, book: @book)).new? %>
-          <%= link_to "＋ Want to Read", new_user_book_path(book_id: @book.id), class: "btn-cta" %>
-        <% end %>
-      <% end %>
-
-      <% if policy(@book).edit? %>
-        <%= link_to "Edit", edit_admin_book_path(@book), class: "btn-cta btn-cta-secondary" %>
-      <% end %>
-    </div>
-  </div>
-</div>
-
-<%# Edition section %>
-<% if @book_editions.any? %>
-  <div class="book-editions-section">
-    <h2>Editions</h2>
-    <div class="editions-grid">
-      <% @book_editions.each do |edition| %>
-        <%= link_to "https://openlibrary.org#{edition.ol_edition_key}", target: "_blank", class: "edition-card" do %>
-          <div class="edition-cover">
-            <% if edition.cover_image.attached? %>
-              <%= image_tag edition.cover_image %>
-            <% else %>
-              <div class="edition-no-cover">📚</div>
-            <% end %>
-          </div>
-              <% if edition.title.present? %>
-                <p><%= edition.title %></p>
-             <% end %>
-          <p><%= edition.publisher %></p>
-          <p><%= edition.publish_year %></p>
-          <p><%= edition.language %></p>
-        <% end %>
-      <% end %>
-    </div>
-  </div>
 <% end %>
 
 <%# Reviews section %>
