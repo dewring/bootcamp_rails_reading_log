@@ -4,6 +4,7 @@ class ChallengeProgressJob < ApplicationJob
 
   queue_as :default
   discard_on ActiveRecord::RecordNotFound
+  retry_on ActiveRecord::StaleObjectError, attempts: 5
 
   def perform(user)
     logger.measure_info("Recalculating challenge progress", payload: { user_id: user.id }) do

@@ -157,4 +157,24 @@ class ChallengeProgressJobTest < ActiveSupport::TestCase
       end
     end
   end
+
+  # ── optimistic locking (Issue #116) ─────────────────────────
+  test "StaleObjectError is raised when two processes save the same UserChallenge without knowing about each other's change" do
+    challenge = Challenge.create!(
+      title: "Read 5 books", goal_type: "books_total", goal_value: 5,
+      starts_at: 10.days.ago, ends_at: 10.days.from_now
+    )
+    user_challenge = users(:leika).user_challenges.create!(challenge: challenge, status: :active, progress: 0)
+
+    a = UserChallenge.find(user_challenge.id)
+    b = UserChallenge.find(user_challenge.id)
+
+    a.update!(progress: 30)
+
+    assert_raises(ActiveRecord::StaleObjectError) do
+      b.update!(progress: 60)
+    end
+
+    assert_equal 30, user_challenge.reload.progress
+  end
 end
