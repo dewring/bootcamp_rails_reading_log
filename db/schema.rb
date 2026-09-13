@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_25_020337) do
+ActiveRecord::Schema[8.1].define(version: 2026_09_12_220520) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -160,6 +160,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_25_020337) do
     t.datetime "calculated_at"
     t.datetime "created_at", null: false
     t.integer "current_streak", default: 0
+    t.integer "lock_version", default: 0, null: false
     t.integer "pages_this_week", default: 0
     t.integer "pages_today", default: 0
     t.datetime "updated_at", null: false
@@ -217,6 +218,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_25_020337) do
   create_table "user_challenges", force: :cascade do |t|
     t.integer "challenge_id", null: false
     t.datetime "created_at", null: false
+    t.integer "lock_version", default: 0, null: false
     t.integer "progress", default: 0, null: false
     t.string "status", default: "active", null: false
     t.datetime "updated_at", null: false
