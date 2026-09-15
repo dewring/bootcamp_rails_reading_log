@@ -7,6 +7,8 @@ require "minitest/mock"
 require "rspec/mocks/minitest_integration"
 
 class ActiveSupport::TestCase
+  require "turbo/broadcastable/test_helper"
+  include Turbo::Broadcastable::TestHelper
   parallelize(workers: :number_of_processors)
   fixtures :all
   Rack::Attack.cache.store = ActiveSupport::Cache::MemoryStore.new
