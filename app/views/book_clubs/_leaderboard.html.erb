@@ -1,0 +1,14 @@
+<article id="<%= dom_id(book_club, :leaderboard) %>">
+  <h2>Leaderboard</h2>
+  <% if book_club.current_book.nil? %>
+    <p>Set a current pick to start the leaderboard.</p>
+  <% elsif book_club.leaderboard.empty? %>
+    <p>No pages logged for the current pick yet.</p>
+  <% else %>
+    <ol>
+      <% book_club.leaderboard.each do |user| %>
+        <li><%= user.nickname %> — page <%= user.furthest_page_read %></li>
+      <% end %>
+    </ol>
+  <% end %>
+</article>

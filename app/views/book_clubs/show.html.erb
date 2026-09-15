@@ -1,3 +1,4 @@
+<%= turbo_stream_from @book_club %>
 <article>
   <hgroup>
     <h1><%= @book_club.name %></h1>
@@ -71,20 +72,7 @@
   <% end %>
 </article>
 
-<article>
-  <h2>Leaderboard</h2>
-  <% if @book_club.current_book.nil? %>
-    <p>Set a current pick to start the leaderboard.</p>
-  <% elsif @book_club.leaderboard.empty? %>
-    <p>No pages logged for the current pick yet.</p>
-  <% else %>
-    <ol>
-      <% @book_club.leaderboard.each do |user| %>
-        <li><%= user.nickname %> — page <%= user.furthest_page_read %></li>
-      <% end %>
-    </ol>
-  <% end %>
-</article>
+<%= render "leaderboard", book_club: @book_club %>
 
 <article>
   <h2>Past Picks</h2>
