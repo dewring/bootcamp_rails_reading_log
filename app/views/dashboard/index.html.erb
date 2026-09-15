@@ -44,7 +44,7 @@
                 <%= f.select :status,
                       UserBook::STATUSES.map { |s| [s.humanize, s] },
                       { selected: user_book.status },
-                      { onchange: "this.form.submit()", class: "status-select" } %>
+                      { class: "status-select", data: { controller: "submit-on-change", action: "change->submit-on-change#submit" } } %>
               <% end %>
             <% end %>
 
