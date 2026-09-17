@@ -73,6 +73,19 @@ class BookClubsControllerTest < ActionDispatch::IntegrationTest
     assert_equal books(:refactoring), book_club.reload.current_book
   end
 
+  test "show renders stable shared panel targets and keeps the owner form separate" do
+    book_club = BookClub.create!(name: "Sci-Fi Society", current_book: books(:refactoring))
+    book_club.book_club_memberships.create!(user: users(:leika), role: "owner")
+
+    sign_in users(:leika)
+    get book_club_path(book_club)
+
+    assert_response :success
+    assert_select "article##{ActionView::RecordIdentifier.dom_id(book_club, :current_pick)}"
+    assert_select "article##{ActionView::RecordIdentifier.dom_id(book_club, :leaderboard)}"
+    assert_select "form[action='#{set_current_book_book_club_path(book_club)}']"
+  end
+
   test "a non-owner member cannot set the current pick" do
     book_club = BookClub.create!(name: "Sci-Fi Society")
     book_club.book_club_memberships.create!(user: users(:leika), role: "owner")

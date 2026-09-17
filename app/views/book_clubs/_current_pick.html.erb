@@ -1,0 +1,14 @@
+<article id="<%= dom_id(book_club, :current_pick) %>">
+  <h2>Current Pick</h2>
+  <% if book_club.current_book %>
+    <% if book_club.current_book.cover_image.attached? %>
+      <%= image_tag book_club.current_book.cover_image.variant(resize_to_limit: [ 104, 148 ]), class: "book-club-cover-image" %>
+    <% end %>
+    <p><%= link_to book_club.current_book.title, book_club.current_book %> by <%= book_club.current_book.author %></p>
+    <% if book_club.reading_deadline %>
+      <p>Deadline: <%= book_club.reading_deadline.to_fs(:long) %></p>
+    <% end %>
+  <% else %>
+    <p>No current pick yet.</p>
+  <% end %>
+</article>
