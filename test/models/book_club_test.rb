@@ -1,6 +1,12 @@
 require "test_helper"
 
 class BookClubTest < ActiveSupport::TestCase
+  include ActiveJob::TestHelper
+
+  def queue_adapter_for_test
+    ActiveJob::QueueAdapters::TestAdapter.new
+  end
+
   test "valid book club is valid" do
     assert BookClub.new(name: "Sci-Fi Society").valid?
   end
@@ -61,5 +67,57 @@ class BookClubTest < ActiveSupport::TestCase
     ranks = book_club.leaderboard.map(&:rank)
 
     assert_equal [ 1, 1 ], ranks
+  end
+
+  test "changing the current pick refreshes both live panels after commit" do
+    book_club = BookClub.create!(name: "Sci-Fi Society", current_book: books(:refactoring))
+    clear_enqueued_jobs
+
+    book_club.update!(current_book: books(:pragmatic))
+
+    assert_enqueued_with(job: BookClubCurrentPickJob, args: [ book_club.id ])
+    assert_enqueued_with(job: BookClubLeaderboardJob, args: [ book_club.id ])
+  end
+
+  test "clearing the current pick refreshes both live panels after commit" do
+    book_club = BookClub.create!(name: "Sci-Fi Society", current_book: books(:refactoring))
+    clear_enqueued_jobs
+
+    book_club.update!(current_book: nil)
+
+    assert_enqueued_with(job: BookClubCurrentPickJob, args: [ book_club.id ])
+    assert_enqueued_with(job: BookClubLeaderboardJob, args: [ book_club.id ])
+  end
+
+  test "changing only the deadline refreshes the current-pick panel" do
+    book_club = BookClub.create!(name: "Sci-Fi Society", current_book: books(:refactoring))
+    clear_enqueued_jobs
+
+    book_club.update!(reading_deadline: Date.current + 7.days)
+
+    assert_enqueued_with(job: BookClubCurrentPickJob, args: [ book_club.id ])
+    assert_no_enqueued_jobs(only: BookClubLeaderboardJob)
+  end
+
+  test "unrelated club changes do not refresh live panels" do
+    book_club = BookClub.create!(name: "Sci-Fi Society", current_book: books(:refactoring))
+    clear_enqueued_jobs
+
+    book_club.update!(name: "New Name")
+
+    assert_no_enqueued_jobs(only: [ BookClubCurrentPickJob, BookClubLeaderboardJob ])
+  end
+
+  test "club panel jobs are not enqueued when the update rolls back" do
+    book_club = BookClub.create!(name: "Sci-Fi Society", current_book: books(:refactoring))
+    clear_enqueued_jobs
+
+    BookClub.transaction do
+      book_club.update!(current_book: books(:pragmatic))
+      raise ActiveRecord::Rollback
+    end
+
+    assert_no_enqueued_jobs(only: [ BookClubCurrentPickJob, BookClubLeaderboardJob ])
+    assert_equal books(:refactoring), book_club.reload.current_book
   end
 end
