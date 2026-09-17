@@ -6,6 +6,7 @@ class ReadingSession < ApplicationRecord
   validates :read_on, presence: true
   validates :pages_read, presence: true, numericality: { greater_than: 0 }
 
+  after_commit :refresh_book_club_leaderboards, on: [ :create, :update, :destroy ]
   after_commit :recalculate_progress
   after_commit :award_badges
   include RecalculateChallengeProgress
@@ -30,5 +31,16 @@ class ReadingSession < ApplicationRecord
 
   def award_badges
     BadgeAwardJob.perform_later(user)
+  end
+
+  def refresh_book_club_leaderboards
+    BookClub
+      .where(current_book_id: affected_book_ids)
+      .pluck(:id)
+      .each { |book_club_id| BookClubLeaderboardJob.perform_later(book_club_id) }
+  end
+
+  def affected_book_ids
+    [ book_id, previous_changes.dig("book_id", 0) ].compact.uniq
   end
 end

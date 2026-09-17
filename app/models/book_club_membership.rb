@@ -4,6 +4,14 @@ class BookClubMembership < ApplicationRecord
 
   ROLES = [ "owner", "member" ].freeze
 
+  after_commit :refresh_book_club_leaderboard, on: [ :create, :update, :destroy ]
+
   validates :role, inclusion: { in: ROLES }
   validates :user_id, uniqueness: { scope: :book_club_id, message: "is already a member of this club" }
+
+  private
+
+  def refresh_book_club_leaderboard
+    BookClubLeaderboardJob.perform_later(book_club_id)
+  end
 end

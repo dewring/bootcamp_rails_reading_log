@@ -76,4 +76,52 @@ class ReadingSessionTest < ActiveSupport::TestCase
       session.destroy
     end
   end
+
+  test "enqueues leaderboard updates for clubs reading the session book" do
+    matching_club = BookClub.create!(name: "Matching Club", current_book: @book)
+    other_club = BookClub.create!(name: "Other Club", current_book: books(:pragmatic))
+    clear_enqueued_jobs
+
+    assert_enqueued_with(job: BookClubLeaderboardJob, args: [ matching_club.id ]) do
+      @session.save!
+    end
+
+    leaderboard_job_ids = enqueued_jobs.filter_map do |job|
+      job[:args].first if job[:job] == BookClubLeaderboardJob
+    end
+    assert_equal [ matching_club.id ], leaderboard_job_ids
+    assert_not_includes leaderboard_job_ids, other_club.id
+  end
+
+  test "enqueues leaderboard updates after a session update" do
+    session = reading_sessions(:one)
+    BookClub.create!(name: "Matching Club", current_book: session.book)
+
+    assert_enqueued_with(job: BookClubLeaderboardJob) do
+      session.update!(pages_read: 20)
+    end
+  end
+
+  test "enqueues leaderboard updates after a session destroy" do
+    session = reading_sessions(:one)
+    BookClub.create!(name: "Matching Club", current_book: session.book)
+
+    assert_enqueued_with(job: BookClubLeaderboardJob) do
+      session.destroy!
+    end
+  end
+
+  test "does not enqueue a leaderboard update when the transaction rolls back" do
+    matching_club = BookClub.create!(name: "Matching Club", current_book: @book)
+    clear_enqueued_jobs
+
+    assert_no_enqueued_jobs(only: BookClubLeaderboardJob) do
+      ReadingSession.transaction do
+        @session.save!
+        raise ActiveRecord::Rollback
+      end
+    end
+    assert_not @session.persisted?
+    assert matching_club.persisted?
+  end
 end

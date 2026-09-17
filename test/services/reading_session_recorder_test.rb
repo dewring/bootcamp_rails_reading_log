@@ -1,6 +1,12 @@
 require "test_helper"
 
 class ReadingSessionRecorderTest < ActiveSupport::TestCase
+  include ActiveJob::TestHelper
+
+  def queue_adapter_for_test
+    ActiveJob::QueueAdapters::TestAdapter.new
+  end
+
   test "successfully records a reading session" do
     book = books(:refactoring)
     user = users(:leika)
@@ -21,19 +27,19 @@ class ReadingSessionRecorderTest < ActiveSupport::TestCase
     refute reading_session.persisted?
   end
 
-  test "broadcasts a leaderboard update when logging a session for a club's current pick" do
+  test "enqueues a leaderboard update when logging a session for a club's current pick" do
     book = books(:refactoring)
     user = users(:leika)
     book_club = BookClub.create!(name: "Sci-Fi Society", current_book: book)
     book_club.book_club_memberships.create!(user: user, role: "owner")
     attributes = { read_on: Date.today, pages_read: 10 }
 
-    assert_turbo_stream_broadcasts(book_club) do
+    assert_enqueued_with(job: BookClubLeaderboardJob, args: [ book_club.id ]) do
       ReadingSessionRecorder.new(book, user, attributes).record
     end
   end
 
-  test "does not broadcast when the book isn't the club's current pick" do
+  test "does not enqueue a leaderboard update when the book isn't the club's current pick" do
     book1 = books(:refactoring)
     book2 = books(:pragmatic)
     user = users(:leika)
@@ -41,7 +47,7 @@ class ReadingSessionRecorderTest < ActiveSupport::TestCase
     book_club.book_club_memberships.create!(user: user, role: "owner")
     attributes = { read_on: Date.today, pages_read: 10 }
 
-    assert_no_turbo_stream_broadcasts(book_club) do
+    assert_no_enqueued_jobs(only: BookClubLeaderboardJob) do
       ReadingSessionRecorder.new(book2, user, attributes).record
     end
   end
