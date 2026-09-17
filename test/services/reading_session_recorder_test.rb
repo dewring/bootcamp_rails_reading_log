@@ -33,8 +33,9 @@ class ReadingSessionRecorderTest < ActiveSupport::TestCase
     book_club = BookClub.create!(name: "Sci-Fi Society", current_book: book)
     book_club.book_club_memberships.create!(user: user, role: "owner")
     attributes = { read_on: Date.today, pages_read: 10 }
+    clear_enqueued_jobs
 
-    assert_enqueued_with(job: BookClubLeaderboardJob, args: [ book_club.id ]) do
+    assert_enqueued_jobs 1, only: BookClubLeaderboardJob do
       ReadingSessionRecorder.new(book, user, attributes).record
     end
   end

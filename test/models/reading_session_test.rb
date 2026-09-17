@@ -102,6 +102,20 @@ class ReadingSessionTest < ActiveSupport::TestCase
     end
   end
 
+  test "refreshes clubs for both books when a session changes books" do
+    old_book_club = BookClub.create!(name: "Old Book Club", current_book: @book)
+    new_book_club = BookClub.create!(name: "New Book Club", current_book: books(:pragmatic))
+    session = ReadingSession.create!(user: @user, book: @book, read_on: Date.current, pages_read: 10)
+    clear_enqueued_jobs
+
+    session.update!(book: books(:pragmatic))
+
+    leaderboard_job_ids = enqueued_jobs.filter_map do |job|
+      job[:args].first if job[:job] == BookClubLeaderboardJob
+    end
+    assert_equal [ old_book_club.id, new_book_club.id ].sort, leaderboard_job_ids.sort
+  end
+
   test "enqueues leaderboard updates after a session destroy" do
     session = reading_sessions(:one)
     BookClub.create!(name: "Matching Club", current_book: session.book)
