@@ -7,6 +7,9 @@ class BookClubsController < ApplicationController
   end
 
   def show
+    @book_club = BookClub
+      .includes(:current_book)
+      .find(@book_club.id)
     authorize @book_club
   end
 

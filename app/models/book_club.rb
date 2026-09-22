@@ -5,6 +5,8 @@ class BookClub < ApplicationRecord
   has_many :book_club_memberships, dependent: :destroy
   has_many :users, through: :book_club_memberships
 
+  after_commit :refresh_live_panels, on: :update
+
   validates :name, presence: true
 
   def leaderboard
@@ -33,5 +35,12 @@ class BookClub < ApplicationRecord
         { book: Book.find_by(id: book_id), changed_at: audit.created_at }
       end
       .reverse
+  end
+
+  private
+
+  def refresh_live_panels
+    BookClubCurrentPickJob.perform_later(id) if saved_change_to_current_book_id? || saved_change_to_reading_deadline?
+    BookClubLeaderboardJob.perform_later(id) if saved_change_to_current_book_id?
   end
 end
