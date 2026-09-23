@@ -5,7 +5,7 @@ class DeliveryMethods::TurboStream < ApplicationDeliveryMethod
       :notifications,
       target: "notifications_panel",
       partial: "notifications/panel",
-      locals: { user: recipient }
+      locals: NotificationsPanel.new(recipient).locals
     )
   end
 end

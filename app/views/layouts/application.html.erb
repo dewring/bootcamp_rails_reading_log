@@ -64,9 +64,7 @@
       <%= render "shared/flash_messages" %>
 
       <% if user_signed_in? %>
-        <%= render "notifications/panel",
-              notifications: notification_panel_notifications,
-              unread_count: notification_panel_unread_count %>
+        <%= render "notifications/panel", notification_panel_locals %>
       <% end %>
 
       <%= yield %>

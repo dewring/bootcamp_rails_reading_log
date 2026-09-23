@@ -37,7 +37,8 @@ class BookClubPickNotifierTest < ActiveSupport::TestCase
     assert_equal [ @user, :notifications ], broadcasts.first.first
     assert_equal "notifications_panel", broadcasts.first.last[:target]
     assert_equal "notifications/panel", broadcasts.first.last[:partial]
-    assert_equal({ user: @user }, broadcasts.first.last[:locals])
+    assert_equal [ notification ], broadcasts.first.last[:locals][:notifications].to_a
+    assert_equal 1, broadcasts.first.last[:locals][:unread_count]
   end
 
   test "delivery retries do not create another event or notification" do

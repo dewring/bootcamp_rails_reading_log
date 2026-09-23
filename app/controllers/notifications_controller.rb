@@ -43,7 +43,7 @@ class NotificationsController < ApplicationController
       :notifications,
       target: "notifications_panel",
       partial: "notifications/panel",
-      locals: { notifications: notification_scope, unread_count: unread_notification_count }
+      locals: NotificationsPanel.new(current_user).locals
     )
   end
 end
