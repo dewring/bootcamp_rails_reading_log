@@ -56,8 +56,18 @@
       </div>
     </nav>
 
+    <% if user_signed_in? %>
+      <%= turbo_stream_from current_user, :notifications %>
+    <% end %>
+
     <main class="container">
       <%= render "shared/flash_messages" %>
+
+      <% if user_signed_in? %>
+        <%= render "notifications/panel",
+              notifications: notification_panel_notifications,
+              unread_count: notification_panel_unread_count %>
+      <% end %>
 
       <%= yield %>
     </main>

@@ -1,0 +1,33 @@
+<article id="notifications_panel" class="notifications-panel">
+  <header class="notifications-header">
+    <h2>Notifications <small>(<%= unread_count %> unread)</small></h2>
+    <%= link_to "View all", notifications_path %>
+  </header>
+
+  <% if notifications.empty? %>
+    <p>No notifications yet.</p>
+  <% else %>
+    <ul class="notification-list">
+      <% notifications.each do |notification| %>
+        <li id="<%= dom_id(notification) %>" class="<%= "notification-unread" if notification.unread? %>">
+          <div>
+            <% if notification.record.present? %>
+              <%= link_to notification.message, book_club_path(notification.record) %>
+            <% else %>
+              <span><%= notification.message %></span>
+            <% end %>
+            <small><%= l(notification.created_at, format: :short) %></small>
+          </div>
+
+          <% if notification.unread? %>
+            <%= button_to "Mark as read",
+                  notification_path(notification),
+                  method: :patch,
+                  form: { data: { turbo_stream: true } },
+                  class: "btn-sm" %>
+          <% end %>
+        </li>
+      <% end %>
+    </ul>
+  <% end %>
+</article>
