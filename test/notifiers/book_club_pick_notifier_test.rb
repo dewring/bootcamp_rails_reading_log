@@ -51,7 +51,7 @@ class BookClubPickNotifierTest < ActiveSupport::TestCase
     event_count = Noticed::Event.count
     notification_count = Noticed::Notification.count
 
-    Turbo::StreamsChannel.stub(:broadcast_replace_to, ->(*) {}) do
+    Turbo::StreamsChannel.stub(:broadcast_replace_to, ->(*) { }) do
       2.times { DeliveryMethods::TurboStream.new.perform(:turbo_stream, notification) }
     end
 
