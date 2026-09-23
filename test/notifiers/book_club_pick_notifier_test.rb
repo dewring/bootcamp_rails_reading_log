@@ -39,4 +39,22 @@ class BookClubPickNotifierTest < ActiveSupport::TestCase
     assert_equal "notifications/panel", broadcasts.first.last[:partial]
     assert_equal({ user: @user }, broadcasts.first.last[:locals])
   end
+
+  test "delivery retries do not create another event or notification" do
+    event = BookClubPickNotifier.with(
+      record: @book_club,
+      book_club_name: @book_club.name,
+      book_title: "The Left Hand of Darkness"
+    ).deliver(@user, enqueue_job: false)
+    notification = event.notifications.first
+    event_count = Noticed::Event.count
+    notification_count = Noticed::Notification.count
+
+    Turbo::StreamsChannel.stub(:broadcast_replace_to, ->(*) {}) do
+      2.times { DeliveryMethods::TurboStream.new.perform(:turbo_stream, notification) }
+    end
+
+    assert_equal event_count, Noticed::Event.count
+    assert_equal notification_count, Noticed::Notification.count
+  end
 end

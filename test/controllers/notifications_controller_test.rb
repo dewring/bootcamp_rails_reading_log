@@ -46,6 +46,18 @@ class NotificationsControllerTest < ActionDispatch::IntegrationTest
     assert_not notification.reload.read?
   end
 
+  test "keeps snapshot text and omits a broken club link after deletion" do
+    notification = create_notification(users(:leika))
+    @book_club.destroy!
+    sign_in users(:leika)
+
+    get notifications_path
+
+    assert_response :success
+    assert_select "li##{dom_id(notification)}", text: /Sci-Fi Society chose The Left Hand of Darkness\./
+    assert_select "li##{dom_id(notification)} a", count: 0
+  end
+
   private
 
   def create_notification(recipient)
