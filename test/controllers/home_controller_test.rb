@@ -1,9 +1,20 @@
 require "test_helper"
 
 class HomeControllerTest < ActionDispatch::IntegrationTest
+  include Devise::Test::IntegrationHelpers
+
   test "homepage loads successfully" do
     get root_path
     assert_response :success
+  end
+
+  test "signed-in homepage renders the notification sidebar" do
+    sign_in users(:leika)
+
+    get root_path
+
+    assert_response :success
+    assert_select "article#notifications_panel"
   end
 
   test "reset button appears when a genre filter is active" do
