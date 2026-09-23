@@ -79,6 +79,46 @@ class BookClubTest < ActiveSupport::TestCase
     assert_enqueued_with(job: BookClubLeaderboardJob, args: [ book_club.id ])
   end
 
+  test "changing to a different current pick notifies every current member" do
+    book_club = BookClub.create!(name: "Sci-Fi Society", current_book: books(:refactoring))
+    owner = users(:leika)
+    member = users(:jaina)
+    book_club.book_club_memberships.create!(user: owner, role: "owner")
+    book_club.book_club_memberships.create!(user: member, role: "member")
+    clear_enqueued_jobs
+
+    assert_enqueued_with(job: Noticed::EventJob) do
+      book_club.update!(current_book: books(:pragmatic))
+    end
+
+    event = Noticed::Event.order(created_at: :desc).first
+    assert_equal [ owner.id, member.id ].sort, event.notifications.pluck(:recipient_id).sort
+    assert_equal "Sci-Fi Society", event.params[:book_club_name]
+    assert_equal books(:pragmatic).title, event.params[:book_title]
+  end
+
+  test "does not notify when the pick is unchanged, cleared, or only the deadline changes" do
+    book_club = BookClub.create!(name: "Sci-Fi Society", current_book: books(:refactoring))
+    book_club.book_club_memberships.create!(user: users(:leika), role: "owner")
+    clear_enqueued_jobs
+
+    assert_no_difference("Noticed::Event.count") do
+      book_club.update!(current_book: books(:refactoring))
+      book_club.update!(reading_deadline: Date.current + 7.days)
+      book_club.update!(current_book: nil)
+    end
+  end
+
+  test "does not notify after a failed update" do
+    book_club = BookClub.create!(name: "Sci-Fi Society", current_book: books(:refactoring))
+    book_club.book_club_memberships.create!(user: users(:leika), role: "owner")
+    clear_enqueued_jobs
+
+    assert_no_difference("Noticed::Event.count") do
+      assert_not book_club.update(name: "")
+    end
+  end
+
   test "clearing the current pick refreshes both live panels after commit" do
     book_club = BookClub.create!(name: "Sci-Fi Society", current_book: books(:refactoring))
     clear_enqueued_jobs
