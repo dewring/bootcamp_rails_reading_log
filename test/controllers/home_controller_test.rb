@@ -7,7 +7,10 @@ class HomeControllerTest < ActionDispatch::IntegrationTest
     get root_path
 
     assert_response :success
-    assert_select "a.nav-account-link[aria-label='Sign in'] svg.account-icon"
+    assert_select "button.nav-account-trigger[aria-label='Account'][aria-expanded='false'] svg.account-icon"
+    assert_select "ul#account_dropdown[hidden] li a", count: 2
+    assert_select "ul#account_dropdown li a[href='#{new_user_session_path}']", text: "Sign in"
+    assert_select "ul#account_dropdown li a[href='#{new_user_registration_path}']", text: "Sign up"
   end
 
   test "signed-in homepage renders the notification sidebar" do
@@ -18,7 +21,9 @@ class HomeControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_select "li#notifications_panel"
     assert_select "button.notification-trigger[aria-expanded='false']"
-    assert_select "a.nav-account-link[aria-label='Sign out'] svg.account-icon"
+    assert_select "button.nav-account-trigger[aria-label='Account'][aria-expanded='false'] svg.account-icon"
+    assert_select "ul#account_dropdown[hidden] li a", count: 1
+    assert_select "ul#account_dropdown li a[href='#{destroy_user_session_path}']", text: "Sign out"
   end
 
   test "reset button appears when a genre filter is active" do

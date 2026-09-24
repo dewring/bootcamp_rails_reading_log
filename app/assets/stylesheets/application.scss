@@ -115,20 +115,6 @@ body {
   align-items: center;
 }
 
-.nav-account-link {
-  display: inline-flex !important;
-  align-items: center;
-  justify-content: center;
-  width: 2rem;
-  height: 2rem;
-  color: $ink !important;
-
-  &:hover,
-  &:focus-visible {
-    color: $accent !important;
-  }
-}
-
 .account-icon {
   display: block;
   width: 1.35rem;
@@ -203,6 +189,73 @@ body {
 
   .nav-menu:hover & {
     color: $accent;
+  }
+}
+
+.account-menu {
+  position: relative;
+}
+
+.nav-account-trigger {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  width: 2rem !important;
+  height: 2rem;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 50% !important;
+  background: transparent !important;
+  color: $ink !important;
+  box-shadow: none !important;
+
+  &:hover,
+  &:focus-visible,
+  &[aria-expanded="true"] {
+    background: $gray-light !important;
+    color: $accent !important;
+  }
+}
+
+.account-dropdown {
+  display: none !important;
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 50;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0 !important;
+  min-width: 140px;
+  margin: 0;
+  padding: 0.6rem 0.4rem 0.4rem;
+  border: 1px solid $gray-mid;
+  border-radius: $radius;
+  background: #fff;
+  box-shadow: 0 4px 24px rgba(26, 34, 54, 0.12);
+
+  &[hidden] {
+    display: none !important;
+  }
+
+  &:not([hidden]) {
+    display: flex !important;
+  }
+
+  li {
+    width: 100%;
+  }
+
+  a {
+    display: block;
+    padding: 0.5rem 0.75rem;
+    border-radius: 6px;
+
+    &:hover,
+    &:focus-visible {
+      background: $gray-light;
+    }
   }
 }
 
