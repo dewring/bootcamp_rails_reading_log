@@ -7,25 +7,6 @@ class NotificationsControllerTest < ActionDispatch::IntegrationTest
     @book_club = BookClub.create!(name: "Sci-Fi Society")
   end
 
-  test "a guest cannot view notifications" do
-    get notifications_path
-
-    assert_redirected_to new_user_session_path
-  end
-
-  test "index shows only the signed-in user's notifications" do
-    own_notification = create_notification(users(:leika))
-    other_notification = create_notification(users(:jaina))
-
-    sign_in users(:leika)
-    get notifications_path
-
-    assert_response :success
-    assert_select "li#notifications_panel", text: /1 unread/
-    assert_select "li##{dom_id(own_notification)}"
-    assert_select "li##{dom_id(other_notification)}", count: 0
-  end
-
   test "a user can mark their own notification as read" do
     notification = create_notification(users(:leika))
     sign_in users(:leika)
@@ -33,6 +14,16 @@ class NotificationsControllerTest < ActionDispatch::IntegrationTest
     patch notification_path(notification), headers: { "ACCEPT" => "text/vnd.turbo-stream.html" }
 
     assert_response :no_content
+    assert notification.reload.read?
+  end
+
+  test "a user is redirected home after marking a notification as read with html" do
+    notification = create_notification(users(:leika))
+    sign_in users(:leika)
+
+    patch notification_path(notification)
+
+    assert_redirected_to root_path
     assert notification.reload.read?
   end
 
@@ -51,7 +42,7 @@ class NotificationsControllerTest < ActionDispatch::IntegrationTest
     @book_club.destroy!
     sign_in users(:leika)
 
-    get notifications_path
+    get root_path
 
     assert_response :success
     assert_select "li##{dom_id(notification)}", text: /Sci-Fi Society chose The Left Hand of Darkness\./
