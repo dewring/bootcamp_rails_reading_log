@@ -1,33 +1,53 @@
-<article id="notifications_panel" class="notifications-panel">
-  <header class="notifications-header">
-    <h2>Notifications <small>(<%= unread_count %> unread)</small></h2>
-    <%= link_to "View all", notifications_path %>
-  </header>
+<li id="notifications_panel" class="notification-menu" data-controller="notification-dropdown">
+  <button type="button"
+          class="notification-trigger"
+          data-notification-dropdown-target="trigger"
+          data-action="click->notification-dropdown#toggle"
+          aria-expanded="false"
+          aria-controls="notifications_dropdown"
+          aria-label="Notifications">
+    <svg class="notification-icon" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M18 9a6 6 0 0 0-12 0c0 6.8-2.5 7.1-2.5 9h17c0-1.9-2.5-2.2-2.5-9Z" fill="none" stroke="currentColor" stroke-linejoin="round" stroke-width="1.8" />
+      <path d="M10 21h4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.8" />
+    </svg>
+    <% if unread_count.positive? %>
+      <span class="notification-count" aria-label="<%= pluralize(unread_count, "unread notification") %>"><%= unread_count %></span>
+    <% end %>
+  </button>
 
-  <% if notifications.empty? %>
-    <p>No notifications yet.</p>
-  <% else %>
-    <ul class="notification-list">
-      <% notifications.each do |notification| %>
-        <li id="<%= dom_id(notification) %>" class="<%= "notification-unread" if notification.unread? %>">
-          <div>
-            <% if notification.record.present? %>
-              <%= link_to notification.message, book_club_path(notification.record) %>
-            <% else %>
-              <span><%= notification.message %></span>
+  <div id="notifications_dropdown"
+       class="notifications-dropdown"
+       data-notification-dropdown-target="menu"
+       hidden>
+    <header class="notifications-header">
+      <h2>Notifications <small>(<%= unread_count %> unread)</small></h2>
+    </header>
+
+    <% if notifications.empty? %>
+      <p>No notifications yet.</p>
+    <% else %>
+      <ul class="notification-list">
+        <% notifications.each do |notification| %>
+          <li id="<%= dom_id(notification) %>" class="<%= "notification-unread" if notification.unread? %>">
+            <div class="notification-content">
+              <% if notification.record.present? %>
+                <%= link_to notification.message, book_club_path(notification.record) %>
+              <% else %>
+                <span><%= notification.message %></span>
+              <% end %>
+              <small><%= l(notification.created_at, format: :short) %></small>
+            </div>
+
+            <% if notification.unread? %>
+              <%= button_to "Mark as read",
+                    notification_path(notification),
+                    method: :patch,
+                    form: { data: { turbo_stream: true } },
+                    class: "btn-sm" %>
             <% end %>
-            <small><%= l(notification.created_at, format: :short) %></small>
-          </div>
-
-          <% if notification.unread? %>
-            <%= button_to "Mark as read",
-                  notification_path(notification),
-                  method: :patch,
-                  form: { data: { turbo_stream: true } },
-                  class: "btn-sm" %>
-          <% end %>
-        </li>
-      <% end %>
-    </ul>
-  <% end %>
-</article>
+          </li>
+        <% end %>
+      </ul>
+    <% end %>
+  </div>
+</li>

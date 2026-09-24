@@ -83,7 +83,7 @@ class BookClubsControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_select "article##{ActionView::RecordIdentifier.dom_id(book_club, :current_pick)}"
     assert_select "article##{ActionView::RecordIdentifier.dom_id(book_club, :leaderboard)}"
-    assert_select "article#notifications_panel"
+    assert_select "li#notifications_panel"
     assert_select "turbo-cable-stream-source"
     assert_select "form[action='#{set_current_book_book_club_path(book_club)}']"
   end

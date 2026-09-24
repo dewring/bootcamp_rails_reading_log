@@ -5,7 +5,9 @@ class HomeControllerTest < ActionDispatch::IntegrationTest
 
   test "homepage loads successfully" do
     get root_path
+
     assert_response :success
+    assert_select "a.nav-account-link[aria-label='Sign in'] svg.account-icon"
   end
 
   test "signed-in homepage renders the notification sidebar" do
@@ -14,7 +16,9 @@ class HomeControllerTest < ActionDispatch::IntegrationTest
     get root_path
 
     assert_response :success
-    assert_select "article#notifications_panel"
+    assert_select "li#notifications_panel"
+    assert_select "button.notification-trigger[aria-expanded='false']"
+    assert_select "a.nav-account-link[aria-label='Sign out'] svg.account-icon"
   end
 
   test "reset button appears when a genre filter is active" do

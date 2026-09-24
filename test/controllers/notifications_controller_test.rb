@@ -21,7 +21,7 @@ class NotificationsControllerTest < ActionDispatch::IntegrationTest
     get notifications_path
 
     assert_response :success
-    assert_select "article#notifications_panel", text: /1 unread/
+    assert_select "li#notifications_panel", text: /1 unread/
     assert_select "li##{dom_id(own_notification)}"
     assert_select "li##{dom_id(other_notification)}", count: 0
   end

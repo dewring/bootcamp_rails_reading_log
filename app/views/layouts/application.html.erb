@@ -47,9 +47,33 @@
                 <li><%= link_to "Book Clubs", book_clubs_path %></li>
               </ul>
             </li>
-            <li><%= link_to "Sign out", destroy_user_session_path, data: { turbo_method: :delete } %></li>
+            <%= render "notifications/panel", notification_panel_locals %>
+            <li>
+              <%= link_to destroy_user_session_path,
+                    class: "nav-account-link",
+                    title: "Sign out",
+                    aria: { label: "Sign out" },
+                    data: { turbo_method: :delete } do %>
+                <svg class="account-icon" viewBox="0 0 24 24" aria-hidden="true">
+                  <circle cx="12" cy="7" r="3.2" fill="none" stroke="currentColor" stroke-width="1.8" />
+                  <path d="M5.5 20c.4-3.5 2.7-5.5 6.5-5.5s6.1 2 6.5 5.5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.8" />
+                </svg>
+                <span class="sr-only">Sign out</span>
+              <% end %>
+            </li>
           <% else %>
-            <li><%= link_to "Sign in", new_user_session_path %></li>
+            <li>
+              <%= link_to new_user_session_path,
+                    class: "nav-account-link",
+                    title: "Sign in",
+                    aria: { label: "Sign in" } do %>
+                <svg class="account-icon" viewBox="0 0 24 24" aria-hidden="true">
+                  <circle cx="12" cy="7" r="3.2" fill="none" stroke="currentColor" stroke-width="1.8" />
+                  <path d="M5.5 20c.4-3.5 2.7-5.5 6.5-5.5s6.1 2 6.5 5.5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.8" />
+                </svg>
+                <span class="sr-only">Sign in</span>
+              <% end %>
+            </li>
             <li><%= link_to "Sign up", new_user_registration_path %></li>
           <% end %>
         </ul>
@@ -62,10 +86,6 @@
 
     <main class="container">
       <%= render "shared/flash_messages" %>
-
-      <% if user_signed_in? %>
-        <%= render "notifications/panel", notification_panel_locals %>
-      <% end %>
 
       <%= yield %>
     </main>
