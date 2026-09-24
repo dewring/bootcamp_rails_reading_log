@@ -7,8 +7,8 @@
           aria-controls="notifications_dropdown"
           aria-label="Notifications">
     <svg class="notification-icon" viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M18 9a6 6 0 0 0-12 0c0 6.8-2.5 7.1-2.5 9h17c0-1.9-2.5-2.2-2.5-9Z" fill="none" stroke="currentColor" stroke-linejoin="round" stroke-width="2" />
-      <path d="M10 21h4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="2" />
+      <path d="M18 9a6 6 0 0 0-12 0c0 6.8-2.5 7.1-2.5 9h17c0-1.9-2.5-2.2-2.5-9Z" fill="none" stroke="currentColor" stroke-linejoin="round" stroke-width="2.3" />
+      <path d="M10 21h4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="2.3" />
     </svg>
     <% if unread_count.positive? %>
       <span class="notification-count" aria-label="<%= pluralize(unread_count, "unread notification") %>"><%= unread_count %></span>
