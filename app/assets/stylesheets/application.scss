@@ -119,8 +119,8 @@ body {
   display: inline-flex !important;
   align-items: center;
   justify-content: center;
-  width: 2rem;
-  height: 2rem;
+  width: 2.25rem;
+  height: 2.25rem;
   color: $ink !important;
 
   &:hover,
@@ -130,8 +130,9 @@ body {
 }
 
 .account-icon {
-  width: 1.7rem;
-  height: 1.7rem;
+  display: block;
+  width: 2.25rem;
+  height: 2.25rem;
 }
 
 .sr-only {
