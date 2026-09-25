@@ -1,0 +1,3 @@
+<%= turbo_stream.replace "notifications_panel" do %>
+  <%= render "notifications/panel", NotificationsPanel.new(notification.recipient).locals %>
+<% end %>

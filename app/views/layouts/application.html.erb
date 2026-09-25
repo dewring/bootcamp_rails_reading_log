@@ -80,10 +80,6 @@
       </div>
     </nav>
 
-    <% if user_signed_in? %>
-      <%= turbo_stream_from current_user, :notifications %>
-    <% end %>
-
     <main class="container">
       <%= render "shared/flash_messages" %>
 

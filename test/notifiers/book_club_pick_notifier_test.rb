@@ -21,7 +21,7 @@ class BookClubPickNotifierTest < ActiveSupport::TestCase
     assert_equal "Sci-Fi Society chose The Left Hand of Darkness.", notification.message
   end
 
-  test "broadcasts the refreshed panel to the recipient notification stream" do
+  test "broadcasts a refreshed panel through Noticed's Action Cable method" do
     event = BookClubPickNotifier.with(
       record: @book_club,
       book_club_name: @book_club.name,
@@ -30,15 +30,17 @@ class BookClubPickNotifierTest < ActiveSupport::TestCase
     notification = event.notifications.first
     broadcasts = []
 
-    Turbo::StreamsChannel.stub(:broadcast_replace_to, ->(*args, **options) { broadcasts << [ args, options ] }) do
-      DeliveryMethods::TurboStream.new.perform(:turbo_stream, notification)
+    Noticed::NotificationChannel.stub(:broadcast_to, ->(*args) { broadcasts << args }) do
+      Noticed::DeliveryMethods::ActionCable.new.perform(:action_cable, notification)
     end
 
-    assert_equal [ @user, :notifications ], broadcasts.first.first
-    assert_equal "notifications_panel", broadcasts.first.last[:target]
-    assert_equal "notifications/panel", broadcasts.first.last[:partial]
-    assert_equal [ notification ], broadcasts.first.last[:locals][:notifications].to_a
-    assert_equal 1, broadcasts.first.last[:locals][:unread_count]
+    stream, message = broadcasts.first
+
+    assert_equal @user, stream
+    assert_includes message, 'action="replace"'
+    assert_includes message, 'target="notifications_panel"'
+    assert_includes message, "Sci-Fi Society chose The Left Hand of Darkness."
+    assert_includes message, "1 unread"
   end
 
   test "delivery retries do not create another event or notification" do
@@ -51,8 +53,8 @@ class BookClubPickNotifierTest < ActiveSupport::TestCase
     event_count = Noticed::Event.count
     notification_count = Noticed::Notification.count
 
-    Turbo::StreamsChannel.stub(:broadcast_replace_to, ->(*) { }) do
-      2.times { DeliveryMethods::TurboStream.new.perform(:turbo_stream, notification) }
+    Noticed::NotificationChannel.stub(:broadcast_to, ->(*) { }) do
+      2.times { Noticed::DeliveryMethods::ActionCable.new.perform(:action_cable, notification) }
     end
 
     assert_equal event_count, Noticed::Event.count
