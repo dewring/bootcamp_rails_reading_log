@@ -53,5 +53,9 @@ module BootcampRailsReadingLog
     # Docker's private bridge subnets already fall inside Rails' default trusted ranges, so nothing needs to be added
     # note that this is confirmed for real once Step 8 makes the client IP visible in logs.
     config.action_dispatch.trusted_proxies = ActionDispatch::RemoteIp::TRUSTED_PROXIES
+
+    config.to_prepare do
+      Noticed::Notification
+    end
   end
 end
