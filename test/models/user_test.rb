@@ -46,4 +46,18 @@ class UserTest < ActiveSupport::TestCase
     @user.password_confirmation = "short"
     assert_not @user.valid?
   end
+
+  test "provides notification panel locals for the user" do
+    book_club = BookClub.create!(name: "Sci-Fi Society")
+    notification = BookClubPickNotifier.with(
+      record: book_club,
+      book_club_name: book_club.name,
+      book_title: "The Left Hand of Darkness"
+    ).deliver(users(:leika), enqueue_job: false).notifications.first
+
+    locals = users(:leika).notification_panel_locals
+
+    assert_equal 1, locals[:unread_count]
+    assert_includes locals[:notifications], notification
+  end
 end

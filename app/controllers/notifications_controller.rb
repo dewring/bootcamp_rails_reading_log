@@ -25,7 +25,7 @@ class NotificationsController < ApplicationController
       :notifications,
       target: "notifications_panel",
       partial: "notifications/panel",
-      locals: NotificationsPanel.new(current_user).locals
+      locals: current_user.notification_panel_locals
     )
   end
 end

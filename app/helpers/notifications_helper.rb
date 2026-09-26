@@ -1,5 +1,5 @@
 module NotificationsHelper
   def notification_panel_locals
-    NotificationsPanel.new(current_user).locals
+    current_user.notification_panel_locals
   end
 end
