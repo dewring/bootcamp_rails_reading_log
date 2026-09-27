@@ -13,7 +13,8 @@ class NotificationsControllerTest < ActionDispatch::IntegrationTest
 
     patch notification_path(notification), headers: { "ACCEPT" => "text/vnd.turbo-stream.html" }
 
-    assert_response :no_content
+    assert_response :success
+    assert_includes response.body, 'target="notifications_panel"'
     assert notification.reload.read?
   end
 
