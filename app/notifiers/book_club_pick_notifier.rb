@@ -1,6 +1,6 @@
 class BookClubPickNotifier < ApplicationNotifier
   deliver_by :action_cable do |config|
-    config.message = :turbo_stream
+    config.message = :render_notification_panel
   end
 
   required_params :book_club_name, :book_title
@@ -11,7 +11,7 @@ class BookClubPickNotifier < ApplicationNotifier
     end
   end
 
-  def turbo_stream(notification)
+  def render_notification_panel(notification)
     ApplicationController.render(
       template: "notifications/update",
       formats: [ :turbo_stream ],
