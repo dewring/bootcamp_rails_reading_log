@@ -52,7 +52,7 @@ export default class extends Controller<HTMLElement> {
   }
 
   private closeOnEscape(event: KeyboardEvent) {
-    if (event.key === "Escape") {
+    if (event.key === "Escape" && this.isOpen()) {
       this.close()
       this.triggerTarget.focus()
     }
