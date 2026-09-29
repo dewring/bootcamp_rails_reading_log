@@ -28,6 +28,7 @@ gem "sentry-rails"
 gem "amazing_print"
 gem "aws-sdk-s3", "~> 1.229.0", require: false
 gem "premailer-rails"
+gem "noticed", "~> 3.0"
 
 # ~> x.y.z means ">= x.y.z and < x.(y+1).0"
 

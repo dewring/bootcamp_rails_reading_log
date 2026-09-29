@@ -1,9 +1,29 @@
 require "test_helper"
 
 class HomeControllerTest < ActionDispatch::IntegrationTest
+  include Devise::Test::IntegrationHelpers
+
   test "homepage loads successfully" do
     get root_path
+
     assert_response :success
+    assert_select "button.nav-account-trigger[aria-label='Account'][aria-expanded='false'] svg.account-icon"
+    assert_select "ul#account_dropdown[hidden] li a", count: 2
+    assert_select "ul#account_dropdown li a[href='#{new_user_session_path}']", text: "Sign in"
+    assert_select "ul#account_dropdown li a[href='#{new_user_registration_path}']", text: "Sign up"
+  end
+
+  test "signed-in homepage renders the notification sidebar" do
+    sign_in users(:leika)
+
+    get root_path
+
+    assert_response :success
+    assert_select "li#notifications_panel"
+    assert_select "button.notification-trigger[aria-expanded='false']"
+    assert_select "button.nav-account-trigger[aria-label='Account'][aria-expanded='false'] svg.account-icon"
+    assert_select "ul#account_dropdown[hidden] li a", count: 1
+    assert_select "ul#account_dropdown li a[href='#{destroy_user_session_path}']", text: "Sign out"
   end
 
   test "reset button appears when a genre filter is active" do
