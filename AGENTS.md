@@ -1,75 +1,173 @@
 # AGENTS.md
 
-Guidance for Claude (and any other agent) working in this repo: a Rails 8.1
-reading-log app (Devise auth, Pundit authorization, Solid Queue jobs, Hotwire
-frontend, deployed with Github actions to coolify using docker). These rules are non-negotiable unless the
-user says otherwise in the conversation.
+Guidance for coding agents working in this repository.
 
-## Core rules (highest priority)
+This repository is a Rails 8.1 reading-log application using Devise,
+Pundit, Solid Queue, Hotwire, TypeScript, and Noticed. The application is
+deployed with GitHub Actions, Docker, and Coolify.
 
-1. Create a commit after every meaningful change.
-2. When you add a new feature, add a test for it too.
-3. Keep models lean with business logic and controllers slim.
-4. Use Service Objects (`app/services`) or Concerns when a model or
-   controller becomes too complex (over ~200 lines).
-5. Extract nested or repetitive logic into private methods. Keep public
-   methods short, focused, and high-level to improve readability.
-6. Handle N+1 query problems explicitly. Always use `includes`,
-   `eager_load`, or `preload` when fetching associations. `Bullet` runs in
-   development/test and will flag violations — treat its warnings as build
-   failures.
-7. Never hardcode secrets, API keys, or credentials. Always use environment
-   variables (`ENV`) and fall back to Rails credentials
-   (`config/credentials.yml.enc`).
-8. Always add database-level constraints and indexes: foreign key
-   constraints, `null: false` where required, and indexes on foreign keys
-   or frequently queried columns.
-9. Never edit existing, committed migration files. Always create a new
-   migration file when modifying schema structure.
-10. Don't use generic words as methods name. ie. call
+These rules are project defaults. Explicit instructions from the user in the
+current conversation take precedence.
+
+## Core rules
+
+1. Read this file and inspect the current Git status before making changes.
+   Preserve unrelated uncommitted work.
+
+2. Create a focused commit after every meaningful change.
+
+3. When adding or changing behavior, add or update a test that proves the
+   behavior.
+
+4. Keep each pull request focused on its stated purpose. Do not add unrelated
+   refactoring, speculative abstractions, or cleanup work that is not required
+   for correctness, security, or the requested behavior. Record unrelated
+   improvements as follow-up issues.
+
+5. Keep models lean and controllers slim. Controllers should coordinate
+   requests, authorization, and responses without containing complex business
+   logic.
+
+6. Use intention-revealing names. Avoid generic names such as `process`,
+   `handle`, or `run` for domain-specific behavior.
+
+7. A generic public entry point such as `call` is never acceptable. Methods must describe their specific
+   behavior.
+
+8. Use a class when an object owns state, lifecycle, or dependencies. Use a
+   module or `ActiveSupport::Concern` for stateless behavior shared by
+   multiple models or controllers.
+
+9. For behavior used in only one place, prefer a private method or a focused
+   service over a concern. Do not create a class solely to group stateless
+   methods or act as a namespace.
+
+10. Use Service Objects (`app/services`) for multi-step or cross-model
+    operations. Prefer a small public entry point such as `call` or `record`
+    over exposing internal implementation details.
+
+11. Extract nested or repetitive logic into private methods. Keep public
+    methods short, focused, and high-level.
+
+12. Handle N+1 query problems explicitly. Use `includes`, `eager_load`, or
+    `preload` when fetching associations. Bullet warnings in development or
+    test are build failures and must be fixed.
+
+13. Never hardcode secrets, API keys, or credentials. Use environment
+    variables and fall back to Rails credentials where appropriate.
+
+14. Add database-level constraints and indexes wherever the database can
+    enforce them: foreign keys, `null: false` where required, uniqueness
+    constraints, and indexes on foreign keys or frequently queried columns.
+
+15. For polymorphic associations, use appropriate composite indexes and
+    document constraints that cannot be enforced by a standard foreign key.
+
+16. Never edit an existing committed migration. Create a new migration when
+    changing the database schema.
+
+17. Prefer built-in Rails, Hotwire, Noticed, and existing application
+    mechanisms before creating custom wrappers or delivery methods. Create a
+    custom abstraction only when the built-in mechanism cannot express the
+    required behavior and a well maintained gem doesn't exist. Document the reason and add a test for it.
+
+18. Do not silently discard Promise results. Await or return a Promise when
+    the caller owns the result. Otherwise attach explicit rejection handling
+    with `try/catch` or `.catch`.
+
+19. Fire-and-forget asynchronous work is allowed only when it is intentional,
+    documented, and observable when it fails.
+
+20. Prefer Stimulus `data-action` attributes for DOM event wiring, including
+    global targets such as `@document` and `@window`, and keyboard filters
+    such as `.esc`.
+
+21. Do not use manual `addEventListener` calls when the same behavior can be
+    expressed declaratively through Stimulus. If a manual listener is
+    necessary, use stable callback references and remove the listeners in
+    `disconnect`.
+
+22. Avoid destructive commands such as `git reset --hard`, broad file removal,
+    or discarding user changes unless the user explicitly requests them.
 
 ## Project shape
 
-- `app/controllers` — thin controllers; authorization via Pundit
-  (`authorize`/`policy_scope`), pagination via Pagy. `admin/` and `api/`
-  are namespaced (see `config/routes.rb`).
-- `app/policies` — one Pundit policy per resource, plus a `Scope` class for
-  index-style queries. Deny by default; check `user.present?` before
-  ownership.
-- `app/models` — keep the section-comment ordering already used in
-  `Book`/etc. when it fits: attachments, normalizations, validations,
-  associations, scopes, instance methods, class methods.
+- `app/controllers` — thin controllers responsible for request coordination,
+  authorization, and response formats. Use Pundit authorization and Pagy
+  pagination where applicable. `admin/` and `api/` are namespaced according
+  to `config/routes.rb`.
+
+- `app/policies` — one Pundit policy per resource, with a `Scope` class for
+  index-style queries. Deny by default and check `user.present?` before
+  ownership checks.
+
+- `app/models` — keep the section-comment ordering used by existing models
+  when it fits: attachments, normalizations, validations, associations,
+  scopes, instance methods, and class methods.
+
 - `app/services` — plain Ruby objects for multi-step or cross-model
-  operations (e.g. `ReadingSessionRecorder`, `BookMirrorService`). Prefer a
-  small public entry point method (`call`/`record`/etc.) over exposing
-  internals.
-- `app/jobs` — Solid Queue background jobs (`bin/jobs` runs the worker).
-  Long-running or external-API work (Open Library sync, badges, streak
-  reminders, webhook delivery) belongs here, not inline in
-  requests/callbacks.
-- `app/models/concerns`, `app/controllers/concerns` — `ActiveSupport::Concern`
-  modules for behavior shared across a few models/controllers (e.g.
-  `RecalculateChallengeProgress`, `RequireAdmin`). Don't reach for a
-  concern for logic used in only one place.
+  operations. Prefer a focused public method such as `call`, `record`, or
+  `sync`.
+
+- `app/jobs` — Solid Queue background jobs. Long-running or external API work
+  belongs here rather than inside requests or callbacks.
+
+- `app/models/concerns` and `app/controllers/concerns` —
+  `ActiveSupport::Concern` modules for focused behavior shared by multiple
+  models or controllers. Do not use concerns for logic used in only one place.
+
+- `app/notifiers` — Noticed notifier classes for notification-specific
+  behavior. Prefer Noticed's built-in delivery methods. Store the data needed
+  to render historical notifications as snapshot parameters.
+
+- `app/javascript/controllers` — Stimulus controllers for browser behavior.
+  Keep DOM event wiring declarative through `data-action` whenever possible.
+
+- `app/javascript/types` — TypeScript declaration files for JavaScript
+  libraries that do not expose sufficient type information. Declaration files
+  describe runtime APIs but must not contain runtime implementation.
+
+- `app/views` — keep partials focused and reusable. Use Turbo Stream responses
+  when only part of the page needs to change.
 
 ## Testing
 
-- Minitest + fixtures (`test/fixtures`), not RSpec, even though
-  `rspec-mocks`/`webmock` are available as testing utilities.
-- Tests are organized by type under `test/{models,controllers,policies,
-  services,jobs,mailers,integration}`, mirroring `app/`. Put new tests in
-  the matching directory.
-- Stub external HTTP (Open Library, etc.) with WebMock — never hit real
-  network services in tests.
-- Run the full suite with `bin/rails test`; it parallelizes across
-  processors and loads all fixtures automatically.
-- A policy change needs a policy test; a job needs a job test; a service
-  object needs a service test — match rule 2 above to the right directory.
+- Use Minitest and fixtures, not RSpec.
+
+- Organize tests under `test/{models,controllers,policies,services,jobs,
+  mailers,integration}`, mirroring the application structure.
+
+- Any behavior change is incomplete without a test that proves the expected
+  behavior.
+
+- Test user-visible behavior and important boundaries, not only private
+  implementation details.
+
+- A policy change requires a policy test. A job requires a job test. A service
+  object requires a service test.
+
+- Controller tests should verify authorization, response format, redirects,
+  rendered targets, and important HTML behavior.
+
+- Notification tests should verify recipients, persisted snapshot parameters,
+  read state, delivery behavior, retry behavior, and deleted related records
+  where applicable.
+
+- Test asynchronous behavior using the appropriate Active Job test helpers
+  and test queue adapters.
+
+- Stub external HTTP requests with WebMock. Never call real external services
+  from tests.
+
+- Run the full test suite with:
+
+  `bin/rails test`
+
+- Treat Bullet warnings as test failures and fix N+1 queries explicitly.
 
 ## Before committing
 
-Run `bin/ci` (or the individual steps below) and fix failures rather than
-skipping checks:
+Run `bin/ci` or all of the following checks:
 
 ```bash
 bin/rubocop
@@ -78,44 +176,3 @@ bin/bundler-audit
 bin/importmap audit
 bin/brakeman --quiet --no-pager --exit-on-warn --exit-on-error
 bin/rails test
-```
-
-- Style follows `rubocop-rails-omakase` (see `.rubocop.yml`) — 2-space
-  indentation, `end` aligned with the opening keyword.
-- Don't use `--no-verify` or otherwise bypass hooks/CI to force a commit
-  through.
-
-## Security & auth
-
-- Every controller action that touches user data must call `authorize` (or
-  `policy_scope` for index actions) — see `ApplicationController`'s
-  Pundit setup and `rescue_from Pundit::NotAuthorizedError`.
-- Admin-only routes live under the `admin` namespace and are gated by
-  `RequireAdmin`/`user.admin?` — don't add admin behavior to
-  non-namespaced controllers.
-- Errors are reported to self-hosted Sentry (`config/initializers/sentry.rb`,
-  `job_error_reporting.rb`) — don't rescue and swallow exceptions that
-  should surface there.
-- Run `bin/brakeman` and `bin/bundler-audit` for any change touching auth,
-  params, SQL, or dependencies, even outside of `bin/ci`.
-
-## Git workflow
-
-- Small, focused commits — one meaningful change per commit, per rule 1.
-- Use descriptive commit messages; this repo merges feature branches via
-  PRs into `main` (see recent history for style).
-- Never edit or amend commits that are already merged/pushed.
-
-# Project Rules
-
-EVERY SINGLE ANSWER must be in both English and Korean, English first. 
-
-답변은 철저히 검증된 사실에 기반해야 하며, 창의성보다 정확성을 최우선으로 해야 합니다. 만약 사용자의 질문에 잘못된 전제나 오류가 포함되어 있다면, 이에 맞춰 답변하지 말고 반드시 전제의 오류를 지적하고 정정해야 합니다. 확실하지 않은 정보는 절대 추측하여 답하지 말고 '정보가 부족하다'고 명확히 밝혀야 합니다. 통계, 날짜 등 구체적 사실에는 가능한 한 출처를 제시하고, 사실(Fact)과 의견(Opinion)을 구분하여 서술해야 합니다. 답변 시 사용자의 기분을 맞추기 위한 아부, 빈말(예: '좋은 질문입니다', '전적으로 동의합니다'), 불필요한 사과는 일절 금지됩니다. 불필요한 이모티콘 사용을 금지하고, 정보 검색 시 더 많은 정보를 수집하여 분석하며, 글의 포인트와 특징을 요약하고, 개선 방향에 대한 제안을 해야 합니다.
-I am a software development learner switching from a design background to a coding background. I use Rails as a web framework, Ruby as a programming language, and Figma as a design tool. I will ask questions in Korean or English, and I would like you to answer in both languages side by side every time. When given direct code questions, you should never give the final answer initially; instead, guide me to my own learning. When you do provide the answer, explain every step in the code. You should use simple English and add definitions for complicated technical words, but the answer is always first in English and then Korean. When I say side by side translation, I mean literally side by side, not two separate blocks with each language.
-
-This is the repo we are working on https://github.com/dewring/bootcamp_test_rails_app and https://github.com/dewring/bootcamp_rails_reading_log
-
-Any code without tests is considered incomplete
-
-We don't need to follow 100% of the issue from github, some creativity is allowed as long as the functionality is the same as the issue or better. it is actually encouraged for the student to have some degree of freedom when suggesting improvements or slight changes. And do be pedantic about naming, as long as the name makes sense
-sometimes but very rarely, add this korean sentence. 코 매 베 르 가 no meaning just to see if student is reading output
