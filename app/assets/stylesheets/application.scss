@@ -1861,8 +1861,8 @@ main.container:has(> .my-log-page) {
 
   .admin-eyebrow {
     color: $accent;
-    font-size: 9px;
-    line-height: 12px;
+    font-size: 11px;
+    line-height: 15px;
     letter-spacing: normal;
   }
 
@@ -1875,14 +1875,14 @@ main.container:has(> .my-log-page) {
 
   .admin-page-heading h1 {
     margin: 4px 0;
-    font-size: 32px;
-    line-height: 39px;
+    font-size: 34px;
+    line-height: 42px;
     letter-spacing: normal;
   }
 
   .admin-page-description {
-    font-size: 11px;
-    line-height: 14px;
+    font-size: 13px;
+    line-height: 17px;
   }
 
   .admin-primary-button {
@@ -1892,14 +1892,14 @@ main.container:has(> .my-log-page) {
   }
 
   .admin-page-heading .admin-primary-button {
-    width: 100px;
+    width: 112px;
     height: 38px;
     line-height: 16px;
   }
 
   .admin-catalog-workspace {
     flex: 1;
-    grid-template-columns: minmax(0, 460px) minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
   }
 
   .admin-catalog-list-panel {
@@ -1919,8 +1919,8 @@ main.container:has(> .my-log-page) {
 
   .admin-catalog-detail-heading h2 {
     margin-top: 4px;
-    font-size: 24px;
-    line-height: 30px;
+    font-size: 26px;
+    line-height: 33px;
     letter-spacing: normal;
   }
 
@@ -1941,12 +1941,12 @@ main.container:has(> .my-log-page) {
 
   .admin-catalog-search input[type="search"] {
     width: 100%;
-    height: 34px;
+    height: 38px;
     padding: 9px 11px;
     border-color: $gray-mid;
     color: $ink;
-    font-size: 11px;
-    line-height: 14px;
+    font-size: 13px;
+    line-height: 17px;
   }
 
   .admin-catalog-filters {
@@ -1964,13 +1964,13 @@ main.container:has(> .my-log-page) {
     padding: 7px 11px;
     border-color: $gray-mid;
     color: $ink !important;
-    font-size: 10px;
+    font-size: 12px;
     font-weight: 500;
-    line-height: 13px;
+    line-height: 16px;
     white-space: nowrap;
   }
 
-  a.admin-catalog-filter { width: 75px; }
+  a.admin-catalog-filter { width: 88px; }
   .admin-catalog-filter.is-active {
     border-color: $gray-mid;
     color: $accent !important;
@@ -1985,14 +1985,14 @@ main.container:has(> .my-log-page) {
     background-size: 6px auto;
   }
 
-  .admin-catalog-genre-filter:not(.has-selection) select { width: 56px; }
+  .admin-catalog-genre-filter:not(.has-selection) select { width: 65px; }
 
   .admin-catalog-records { gap: 9px; }
 
   .admin-catalog-record {
     display: block;
     position: relative;
-    padding: 14px;
+    padding: 16px;
     margin: 0;
     border: 1px solid $gray-mid;
     border-radius: 12px;
@@ -2009,12 +2009,12 @@ main.container:has(> .my-log-page) {
   .admin-catalog-record-select { gap: 9px; }
 
   .admin-catalog-record-topline {
-    line-height: 18px;
+    line-height: 21px;
 
     strong {
-      max-width: 270px;
+      max-width: calc(100% - 74px);
       font-family: "Fraunces", Georgia, serif;
-      font-size: 15px;
+      font-size: 17px;
     }
   }
 
@@ -2024,28 +2024,28 @@ main.container:has(> .my-log-page) {
     border-radius: 0;
     background: transparent;
     color: #52715a;
-    font-size: 10px;
-    line-height: 12px;
+    font-size: 12px;
+    line-height: 15px;
   }
 
   .admin-catalog-record-author {
-    font-size: 10px;
-    line-height: 12px;
+    font-size: 12px;
+    line-height: 15px;
   }
 
   .admin-catalog-record-meta {
     display: block;
-    padding-right: 110px;
+    padding-right: 128px;
     color: $text-muted;
-    font-size: 9px;
-    line-height: 12px;
+    font-size: 11px;
+    line-height: 15px;
   }
 
   .admin-catalog-record-actions {
     position: absolute;
-    right: 14px;
-    bottom: 14px;
-    line-height: 12px;
+    right: 16px;
+    bottom: 16px;
+    line-height: 15px;
   }
 
   .admin-catalog-view-link,
@@ -2061,9 +2061,9 @@ main.container:has(> .my-log-page) {
     box-shadow: none;
     color: $ink !important;
     font-family: inherit;
-    font-size: 10px;
+    font-size: 12px;
     font-weight: 700;
-    line-height: 12px;
+    line-height: 15px;
   }
 
   .admin-catalog-delete { color: #d9383a !important; }
@@ -2072,26 +2072,26 @@ main.container:has(> .my-log-page) {
     justify-content: center;
     gap: 4px;
     padding: 12px 0 0;
-    font-size: 10px;
-    line-height: 12px;
+    font-size: 12px;
+    line-height: 15px;
   }
 
   .admin-catalog-load-more {
     color: $text-muted !important;
-    font-size: 10px;
+    font-size: 12px;
     font-weight: 400;
   }
 
   .admin-catalog-detail-intro {
     margin: 4px 0 18px;
-    font-size: 11px;
-    line-height: 14px;
+    font-size: 13px;
+    line-height: 17px;
   }
 
   .admin-catalog-form { gap: 18px; }
 
   .admin-catalog-field-grid {
-    grid-template-columns: repeat(2, minmax(0, 220px));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     align-items: start;
     gap: 12px;
   }
@@ -2101,8 +2101,8 @@ main.container:has(> .my-log-page) {
 
     label {
       color: $text-muted;
-      font-size: 9px;
-      line-height: 12px;
+      font-size: 11px;
+      line-height: 15px;
       text-transform: uppercase;
     }
 
@@ -2112,7 +2112,7 @@ main.container:has(> .my-log-page) {
       border-color: $gray-mid;
       background: #fffefc;
       font-family: inherit;
-      font-size: 12px;
+      font-size: 14px;
       line-height: 1.4;
       text-overflow: ellipsis;
     }
@@ -2126,8 +2126,8 @@ main.container:has(> .my-log-page) {
       width: fit-content;
       margin: 0;
       color: $text-muted;
-      font-size: 10px;
-      line-height: 12px;
+      font-size: 12px;
+      line-height: 15px;
       list-style: none;
 
       &::-webkit-details-marker { display: none; }
@@ -2143,7 +2143,7 @@ main.container:has(> .my-log-page) {
     min-height: 40px;
     padding: 6px;
     overflow: hidden;
-    font-size: 11px;
+    font-size: 13px;
     line-height: 26px;
 
     &::file-selector-button {
@@ -2155,7 +2155,7 @@ main.container:has(> .my-log-page) {
       background: #fdf1ef;
       color: $ink;
       font-family: inherit;
-      font-size: 11px;
+      font-size: 13px;
       line-height: 16px;
     }
   }
@@ -2168,16 +2168,16 @@ main.container:has(> .my-log-page) {
     margin: 0;
     padding: 11px 16px;
     font-family: inherit;
-    font-size: 12px;
+    font-size: 14px;
     line-height: 16px;
   }
 
-  .admin-catalog-form-actions .admin-primary-button { width: 106px; }
+  .admin-catalog-form-actions .admin-primary-button { width: 120px; }
 
   @media (max-width: 1100px) {
     .admin-main { padding: 30px 24px; }
     .admin-catalog-workspace {
-      grid-template-columns: minmax(0, 0.85fr) minmax(0, 1fr);
+      grid-template-columns: repeat(2, minmax(0, 1fr));
     }
   }
 
@@ -2187,7 +2187,7 @@ main.container:has(> .my-log-page) {
 
   @media (max-width: 600px) {
     .admin-main { padding: 26px 16px 40px; }
-    .admin-page-heading h1 { font-size: 28px; }
+    .admin-page-heading h1 { font-size: 30px; }
     .admin-catalog-field-grid { grid-template-columns: minmax(0, 1fr); }
   }
 }
