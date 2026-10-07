@@ -1847,6 +1847,147 @@ main.container:has(> .my-log-page) {
   }
 }
 
+// Catalog workspace geometry follows the Admin / Catalog Figma frame.
+// Scope the shell adjustments so other admin screens retain their own layout.
+.admin-page--catalog {
+  background: #faf7f4;
+
+  .admin-topbar {
+    padding: 0 40px;
+    border-color: #eae3dc;
+  }
+
+  .admin-topbar-context {
+    gap: 12px;
+    margin-left: 12px;
+  }
+
+  .admin-topbar-rule {
+    height: 24px;
+  }
+
+  .admin-workspace-badge {
+    border-radius: 999px;
+    color: #c95e59;
+    font-size: 11px;
+    letter-spacing: normal;
+  }
+
+  .admin-topbar-actions {
+    gap: 8px;
+  }
+
+  .admin-icon-button,
+  .admin-topbar-actions .notification-trigger {
+    width: 44px !important;
+    height: 44px;
+  }
+
+  .admin-sidebar {
+    flex-basis: 250px;
+    padding: 24px 16px 20px;
+    border-right: 1px solid #eae3dc;
+    background: #f7f2ea;
+  }
+
+  .admin-sidebar-label {
+    padding: 0 10px 10px;
+    color: $accent;
+    letter-spacing: normal;
+  }
+
+  .admin-sidebar-nav {
+    gap: 6px;
+  }
+
+  .admin-sidebar-link.is-active {
+    background: #fdf1ef;
+    color: $accent !important;
+    box-shadow: none;
+  }
+
+  .admin-main {
+    display: flex;
+    flex-direction: column;
+    padding: 30px 38px;
+    background: #faf7f4;
+  }
+
+  .admin-eyebrow {
+    color: $accent;
+    font-size: 9px;
+    letter-spacing: normal;
+  }
+
+  .admin-page-heading {
+    flex-shrink: 0;
+    margin-bottom: 20px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid #eae3dc;
+  }
+
+  .admin-page-heading h1 {
+    margin: 4px 0;
+    font-size: 32px;
+    line-height: normal;
+    letter-spacing: normal;
+  }
+
+  .admin-page-description {
+    font-size: 11px;
+  }
+
+  .admin-primary-button {
+    min-height: 38px;
+    margin-bottom: 0;
+    border-radius: 999px;
+  }
+
+  .admin-catalog-workspace {
+    flex: 1;
+    grid-template-columns: minmax(0, 460px) minmax(0, 1fr);
+  }
+
+  .admin-catalog-list-panel {
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .admin-catalog-detail-panel {
+    align-self: stretch;
+    padding: 24px;
+    border-color: #eae3dc;
+    border-radius: 18px;
+    box-shadow: none;
+  }
+
+  .admin-catalog-detail-heading h2 {
+    margin-top: 4px;
+    font-size: 24px;
+    letter-spacing: normal;
+  }
+
+  @media (max-width: 1100px) {
+    .admin-sidebar { flex-basis: 190px; }
+    .admin-main { padding: 30px 24px; }
+    .admin-catalog-workspace {
+      grid-template-columns: minmax(0, 0.85fr) minmax(0, 1fr);
+    }
+  }
+
+  @media (max-width: 860px) {
+    .admin-topbar { padding: 0 20px; }
+    .admin-catalog-workspace { grid-template-columns: minmax(0, 1fr); }
+  }
+
+  @media (max-width: 600px) {
+    .admin-main { padding: 26px 16px 40px; }
+    .admin-page-heading h1 { font-size: 28px; }
+  }
+}
+
 // ── Book Club detail overview ─────────────────────────────
 main.container:has(> .book-club-detail-page) {
   width: 100%;
