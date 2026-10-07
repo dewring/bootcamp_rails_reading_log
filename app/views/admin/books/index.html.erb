@@ -81,7 +81,6 @@
 
           <div class="admin-catalog-filters" aria-label="Catalog filters">
             <%= link_to "All records⌄", admin_catalog_path(q: params[:q]), class: "admin-catalog-filter #{'is-active' if params[:genre].blank?}", aria: { current: ("true" if params[:genre].blank?) } %>
-            <button type="button" class="admin-catalog-filter" disabled title="Publication status is not tracked in this catalog">Status⌄</button>
             <%= form_with url: admin_catalog_path, method: :get, class: "admin-catalog-genre-filter #{'has-selection' if params[:genre].present?}", data: { controller: "submit-on-change" } do %>
               <%= hidden_field_tag :q, params[:q] if params[:q].present? %>
               <%= select_tag :genre, options_for_select([["Genre", ""]] + Genre::GENRES.map { |name| [name, name] }, params[:genre]), aria: { label: "Filter by genre" }, data: { action: "change->submit-on-change#submit" } %>
@@ -151,10 +150,6 @@
                 <div class="admin-field">
                   <%= label_tag "catalog_metadata", "Genre / language / metadata" %>
                   <%= text_field_tag "catalog_metadata", admin_catalog_metadata(@detail_book), readonly: true, id: "catalog_metadata" %>
-                </div>
-                <div class="admin-field">
-                  <%= label_tag "catalog_status", "Status" %>
-                  <%= text_field_tag "catalog_status", @detail_book.persisted? ? "Catalog" : "New record", readonly: true, id: "catalog_status" %>
                 </div>
               </div>
 

@@ -24,7 +24,7 @@ class Admin::BooksControllerTest < ActionDispatch::IntegrationTest
     assert_select "input#book_title[value='Refactoring']"
     assert_select "input#catalog_isbn[readonly][value='9780134757599']"
     assert_select "input#catalog_metadata[readonly][value='Fiction · English · 448p']"
-    assert_select "input#catalog_status[readonly][value='Catalog']"
+    assert_select "input#catalog_status", count: 0
     assert_select "details.admin-catalog-extra-metadata:not([open])"
     assert_select "input#book_total_pages[value='448']"
     assert_select "input#book_cover_image[type='file']"
@@ -40,7 +40,7 @@ class Admin::BooksControllerTest < ActionDispatch::IntegrationTest
     assert_select ".admin-catalog-search input[name='genre'][value='Fiction']"
     assert_select ".admin-catalog-genre-filter[data-controller='submit-on-change'] input[name='q'][value='Refactoring']"
     assert_select "select[name='genre'][data-action='change->submit-on-change#submit'] option[selected]", text: "Fiction"
-    assert_select "button[disabled]", text: "Status⌄"
+    assert_select ".admin-catalog-filters button", text: /Status/, count: 0
   end
 
   test "record actions and pagination preserve the catalog query" do
@@ -88,7 +88,7 @@ class Admin::BooksControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_select "input#catalog_isbn[value='Not available']"
     assert_select "input#catalog_metadata[value='Genre not set · Language not set · Pages not set']"
-    assert_select "input#catalog_status[value='Catalog']"
+    assert_select "input#catalog_status", count: 0
   end
 
   test "new record opens additional metadata and validation errors preserve editing" do
@@ -96,7 +96,7 @@ class Admin::BooksControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     assert_select "details.admin-catalog-extra-metadata[open]"
-    assert_select "input#catalog_status[value='New record']"
+    assert_select "input#catalog_status", count: 0
     assert_select "input[type='submit'][value='Add book']"
     assert_select ".admin-catalog-extra-metadata + .admin-catalog-form-actions", count: 1
 

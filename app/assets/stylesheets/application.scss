@@ -1971,13 +1971,6 @@ main.container:has(> .my-log-page) {
   }
 
   a.admin-catalog-filter { width: 75px; }
-  button.admin-catalog-filter { width: 57px; }
-
-  .admin-catalog-filter:disabled {
-    opacity: 1;
-    cursor: not-allowed;
-  }
-
   .admin-catalog-filter.is-active {
     border-color: $gray-mid;
     color: $accent !important;
