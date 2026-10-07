@@ -59,4 +59,33 @@ class ChallengesControllerTest < ActionDispatch::IntegrationTest
     assert_select "img[src*='challenges-reading-character']", count: 1
     assert_select ".challenges-tracking-note", text: /Progress updates automatically from My Log/
   end
+
+  test "admins and regular readers see participation controls without management actions" do
+    challenge = Challenge.create!(
+      title: "Read Together",
+      goal_type: :books_total,
+      goal_value: 3,
+      starts_at: 1.day.ago,
+      ends_at: 7.days.from_now,
+      active: true
+    )
+
+    [ users(:admin), users(:leika) ].each do |reader|
+      sign_in reader
+
+      get challenges_path
+
+      assert_response :success
+      assert_select "h1#challenges-title", text: "Read. Track. Celebrate."
+      assert_select ".challenge-card", text: /Read Together/
+      assert_select ".challenge-card form[action='#{user_challenges_path}']" do
+        assert_select "input[name='user_challenge[challenge_id]'][value='#{challenge.id}']"
+        assert_select "button", text: /Enroll/
+      end
+      assert_select ".challenges-page a[href^='/admin'], .challenges-page form[action^='/admin']", count: 0
+      assert_select ".challenge-admin-actions, .challenges-admin-link", count: 0
+
+      sign_out reader
+    end
+  end
 end

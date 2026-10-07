@@ -39,6 +39,10 @@ class Admin::ChallengesControllerTest < ActionDispatch::IntegrationTest
     assert_select "input[name='challenge[title]'][value='#{challenge.title}']"
     assert_select ".admin-row-actions a", count: 0
     assert_select ".admin-row-actions button", count: 1
+    assert_select ".admin-row-actions form[action='#{admin_challenge_path(challenge)}']" do
+      assert_select "input[name='_method'][value='delete']"
+      assert_select "button[aria-label='Delete #{challenge.title}']"
+    end
     assert_select "img[src*='admin-eye'], img[src*='admin-pencil']", count: 0
   end
 

@@ -99,13 +99,4 @@
     </div>
   <% end %>
 
-  <% if policy(challenge).edit? || policy(challenge).destroy? %>
-    <div class="challenge-admin-actions">
-      <% if policy(challenge).destroy? %>
-        <%= button_to "Delete", admin_challenge_path(challenge), method: :delete,
-              data: { turbo_confirm: "Remove this challenge?" },
-              class: "btn-sm btn-danger" %>
-      <% end %>
-    </div>
-  <% end %>
 </article>
