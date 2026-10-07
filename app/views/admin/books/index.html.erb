@@ -75,17 +75,17 @@
             <%= form_with url: admin_catalog_path, method: :get, class: "admin-catalog-search" do |f| %>
               <%= f.search_field :q, value: params[:q], placeholder: "Search · Search catalog", aria: { label: "Search catalog" } %>
               <%= f.hidden_field :genre, value: params[:genre] if params[:genre].present? %>
-              <%= f.submit "Search", class: "admin-catalog-sr-only" %>
+              <%= f.submit "Search", class: "admin-catalog-sr-only", tabindex: -1 %>
             <% end %>
           </div>
 
           <div class="admin-catalog-filters" aria-label="Catalog filters">
-            <%= link_to "All records", admin_catalog_path(q: params[:q]), class: "admin-catalog-filter #{'is-active' if params[:genre].blank?}", aria: { current: ("true" if params[:genre].blank?) } %>
+            <%= link_to "All records⌄", admin_catalog_path(q: params[:q]), class: "admin-catalog-filter #{'is-active' if params[:genre].blank?}", aria: { current: ("true" if params[:genre].blank?) } %>
             <button type="button" class="admin-catalog-filter" disabled title="Publication status is not tracked in this catalog">Status⌄</button>
-            <%= form_with url: admin_catalog_path, method: :get, class: "admin-catalog-genre-filter", data: { controller: "submit-on-change" } do %>
+            <%= form_with url: admin_catalog_path, method: :get, class: "admin-catalog-genre-filter #{'has-selection' if params[:genre].present?}", data: { controller: "submit-on-change" } do %>
               <%= hidden_field_tag :q, params[:q] if params[:q].present? %>
               <%= select_tag :genre, options_for_select([["Genre", ""]] + Genre::GENRES.map { |name| [name, name] }, params[:genre]), aria: { label: "Filter by genre" }, data: { action: "change->submit-on-change#submit" } %>
-              <%= submit_tag "Filter", class: "admin-catalog-sr-only" %>
+              <%= submit_tag "Filter", class: "admin-catalog-sr-only", tabindex: -1 %>
             <% end %>
           </div>
 
@@ -158,6 +158,14 @@
                 </div>
               </div>
 
+
+              <div class="admin-catalog-form-actions">
+                <% if @is_new_book %>
+                  <%= link_to "Cancel", admin_catalog_path, class: "admin-secondary-button" %>
+                <% end %>
+                <%= f.submit(@is_new_book ? "Add book" : "Save changes", class: "admin-primary-button") %>
+              </div>
+
               <details class="admin-catalog-extra-metadata" <%= "open" if @is_new_book %>>
                 <summary>More metadata</summary>
                 <div class="admin-catalog-field-grid">
@@ -186,13 +194,6 @@
                   </div>
                 <% end %>
               </details>
-
-              <div class="admin-catalog-form-actions">
-                <% if @is_new_book %>
-                  <%= link_to "Cancel", admin_catalog_path, class: "admin-secondary-button" %>
-                <% end %>
-                <%= f.submit(@is_new_book ? "Add book" : "Save changes", class: "admin-primary-button") %>
-              </div>
             <% end %>
           <% else %>
             <div class="admin-catalog-detail-empty">
