@@ -66,6 +66,20 @@ class Admin::BooksControllerTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "genre filtering retains every genre in the selected edit form" do
+    book = books(:refactoring)
+    book.genres << Genre.find_or_create_by!(name: "Mystery")
+
+    get admin_catalog_path, params: { q: "Refactoring", genre: "Fiction" }
+
+    assert_response :success
+    assert_select "input[value='Fiction'][checked]"
+    assert_select "input[value='Mystery'][checked]"
+    metadata = css_select("input#catalog_metadata").first["value"]
+    assert_includes metadata, "Fiction"
+    assert_includes metadata, "Mystery"
+  end
+
   test "books without edition metadata render truthful fallbacks" do
     book = Book.create!(title: "No Metadata", author: "An Author")
 

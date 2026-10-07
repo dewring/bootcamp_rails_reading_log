@@ -55,7 +55,7 @@ class Admin::BooksController < ApplicationController
   private
 
   def load_catalog
-    books = policy_scope(Book).includes(:genres, :book_editions)
+    books = policy_scope(Book).preload(:genres, :book_editions)
     if params[:q].present?
       query = "%#{Book.sanitize_sql_like(params[:q].to_s.strip)}%"
       books = books.where("books.title ILIKE :query OR books.author ILIKE :query", query: query)
