@@ -1,14 +1,102 @@
-<article id="<%= dom_id(book_club, :leaderboard) %>">
-  <h2>Leaderboard</h2>
+<article id="<%= dom_id(book_club, :leaderboard) %>" class="book-club-leaderboard-shell">
   <% if book_club.current_book.nil? %>
-    <p>Set a current pick to start the leaderboard.</p>
-  <% elsif book_club.leaderboard.empty? %>
-    <p>No pages logged for the current pick yet.</p>
+    <div class="book-club-leaderboard-empty">
+      <h2>Leaderboard</h2>
+      <p>Set a current pick to start the leaderboard.</p>
+    </div>
+  <% elsif leaderboard.empty? %>
+    <div class="book-club-leaderboard-empty">
+      <h2>Leaderboard</h2>
+      <p>No pages logged for the current pick yet.</p>
+    </div>
   <% else %>
-    <ol>
-      <% book_club.leaderboard.each do |user| %>
-        <li><%= user.nickname %> — page <%= user.furthest_page_read %></li>
-      <% end %>
-    </ol>
+    <% first_reader, second_reader, third_reader = leaderboard[0], leaderboard[1], leaderboard[2] %>
+    <% podium = [
+      { reader: second_reader, place: 2, class_name: "second" },
+      { reader: first_reader, place: 1, class_name: "first" },
+      { reader: third_reader, place: 3, class_name: "third" }
+    ] %>
+
+    <div class="book-club-leaderboard-layout">
+      <div>
+        <section class="book-club-podium-card" aria-label="Top readers this cycle">
+          <div class="book-club-podium-heading">
+            <span>Top readers this cycle</span>
+            <span>Keep going, everyone!</span>
+          </div>
+          <div class="book-club-podium">
+            <% podium.each do |entry| %>
+              <% reader = entry[:reader] %>
+              <div class="book-club-podium-column book-club-podium-column--<%= entry[:class_name] %>">
+                <% if reader %>
+                  <% initials = reader.nickname.to_s.first(2).upcase %>
+                  <div class="book-club-podium-avatar"><%= initials %></div>
+                  <strong><%= reader.nickname %></strong>
+                  <% if entry[:place] == 1 %>
+                    <span class="book-club-podium-label">#1 · Leading the pack</span>
+                  <% elsif reader.id == current_user.id %>
+                    <span class="book-club-podium-label">you</span>
+                  <% end %>
+                  <b><%= reader.furthest_page_read %> pages</b>
+                <% else %>
+                  <div class="book-club-podium-avatar book-club-podium-avatar--empty">—</div>
+                  <strong>No reader yet</strong>
+                  <b>—</b>
+                <% end %>
+                <div class="book-club-podium-step"><%= entry[:place] %></div>
+              </div>
+            <% end %>
+          </div>
+        </section>
+
+        <section class="book-club-ranking-card" aria-label="Community ranking">
+          <div class="book-club-ranking-heading">
+            <span>Rank</span>
+            <span>Reader</span>
+            <span>Pages</span>
+          </div>
+          <div class="book-club-ranking-rows">
+            <% leaderboard.each do |reader| %>
+              <% current_reader = reader.id == current_user.id %>
+              <div class="book-club-ranking-row <%= "book-club-ranking-row--current" if current_reader %>">
+                <span class="book-club-ranking-number">#<%= reader.rank.to_i %></span>
+                <span class="book-club-ranking-reader">
+                  <span class="book-club-ranking-avatar"><%= reader.nickname.to_s.first(2).upcase %></span>
+                  <strong><%= reader.nickname %></strong>
+                  <% if reader.rank.to_i == 1 %>
+                    <span class="book-club-ranking-badge">leading</span>
+                  <% elsif current_reader %>
+                    <span class="book-club-ranking-badge">you</span>
+                  <% end %>
+                </span>
+                <strong class="book-club-ranking-pages"><%= reader.furthest_page_read %></strong>
+              </div>
+            <% end %>
+          </div>
+          <p class="book-club-ranking-footer">Progress syncs from each member's reading log.</p>
+        </section>
+      </div>
+
+      <aside class="book-club-reading-rail">
+        <span>Currently reading</span>
+        <div class="book-club-reading-rail-book">
+          <div class="book-club-reading-rail-cover">
+            <% if book_club.current_book.cover_image.attached? %>
+              <%= image_tag book_club.current_book.cover_image.variant(resize_to_fill: [ 40, 58 ]), alt: "" %>
+            <% else %>
+              <%= image_tag "book-open.svg", alt: "", class: "book-club-reading-rail-placeholder" %>
+            <% end %>
+          </div>
+          <div>
+            <strong><%= book_club.current_book.title %></strong>
+            <span><%= book_club.current_book.author %></span>
+          </div>
+        </div>
+        <div class="book-club-reading-rail-divider"></div>
+        <span>Members</span>
+        <strong class="book-club-reading-rail-count"><%= book_club.book_club_memberships_count %></strong>
+        <span>reading</span>
+      </aside>
+    </div>
   <% end %>
 </article>

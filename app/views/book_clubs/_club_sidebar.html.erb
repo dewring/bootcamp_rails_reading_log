@@ -1,0 +1,28 @@
+<aside class="book-club-sidebar">
+  <div>
+    <div class="book-club-sidebar-identity">
+      <h2><%= @book_club.name.first(2).upcase %> <%= @book_club.name %></h2>
+      <p>Joined · <%= pluralize(@book_club.book_club_memberships_count, "member") %></p>
+    </div>
+    <nav class="book-club-sidebar-navigation" aria-label="Book club sections">
+      <%= link_to "Overview", book_club_path(book_club), class: ("is-active" unless params[:view] == "leaderboard") %>
+      <%= link_to "Leaderboard", book_club_path(book_club, view: "leaderboard"), class: ("is-active" if params[:view] == "leaderboard") %>
+    </nav>
+  </div>
+
+  <div class="book-club-sidebar-account">
+    <% if policy(book_club).manage? %>
+      <%= link_to edit_book_club_path(book_club), class: "book-club-owner-controls-link" do %>
+        <span aria-hidden="true">⚙</span>
+        <span>Owner Controls</span>
+      <% end %>
+    <% end %>
+    <div class="book-club-account-row">
+      <%= render "users/avatar", user: current_user, variant: :club_member %>
+      <div>
+        <strong><%= current_user.nickname %></strong>
+        <span><%= policy(book_club).manage? ? "Club owner" : "Club member" %></span>
+      </div>
+    </div>
+  </div>
+</aside>

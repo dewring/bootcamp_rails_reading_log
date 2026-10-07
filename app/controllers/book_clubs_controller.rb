@@ -4,13 +4,23 @@ class BookClubsController < ApplicationController
 
   def index
     @book_clubs = policy_scope(BookClub)
+      .includes(current_book: { cover_image_attachment: :blob }, book_club_memberships: :user)
+      .order(created_at: :desc)
   end
 
   def show
+    detail_associations = { book_club_memberships: { user: :avatar_attachment } }
+    detail_associations[:current_book] = { cover_image_attachment: :blob }
     @book_club = BookClub
-      .includes(:current_book)
+      .includes(detail_associations)
       .find(@book_club.id)
     authorize @book_club
+    prepare_detail_state
+
+    if params[:view] == "leaderboard"
+      @leaderboard = @book_club.leaderboard.to_a
+      return render :leaderboard
+    end
   end
 
   def new
@@ -80,5 +90,12 @@ class BookClubsController < ApplicationController
 
   def current_book_params
     params.require(:book_club).permit(:current_book_id, :reading_deadline)
+  end
+
+  def prepare_detail_state
+    @memberships = @book_club.book_club_memberships
+    @owner = @memberships.find { |membership| membership.role == "owner" }&.user
+    @current_membership = @memberships.find { |membership| membership.user_id == current_user.id }
+    @past_picks = @book_club.pick_history
   end
 end

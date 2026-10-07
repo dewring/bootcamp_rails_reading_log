@@ -1,22 +1,61 @@
-<div class="catalog-header">
-  <hgroup>
-    <h1>Book Clubs</h1>
-    <p>Find a club to join, or start your own.</p>
-  </hgroup>
-  <% if policy(BookClub).new? %>
-    <%= link_to "＋ New Book Club", new_book_club_path, class: "btn-cta" %>
+<div class="book-clubs-page">
+  <header class="book-clubs-introduction">
+    <div>
+      <h1>Book clubs</h1>
+      <p>Explore public clubs, compare current reads, and join a conversation that feels like yours.</p>
+    </div>
+    <% if policy(BookClub).new? %>
+      <%= link_to "Create Book Club", new_book_club_path, class: "book-club-action book-club-action--primary" %>
+    <% end %>
+  </header>
+
+  <div class="book-clubs-filter" aria-label="Book club filters">
+    <span>All clubs · <%= @book_clubs.size %></span>
+  </div>
+
+  <% if @book_clubs.empty? %>
+    <article class="book-clubs-empty-state">
+      <h2>No book clubs yet.</h2>
+      <p>Create the first welcoming space for a shared reading journey.</p>
+    </article>
+  <% else %>
+    <section class="book-club-directory" aria-label="Book club directory">
+      <% @book_clubs.each do |book_club| %>
+        <% owner = book_club.book_club_memberships.find { |membership| membership.role == "owner" }&.user %>
+        <% is_member = book_club.book_club_memberships.any? { |membership| membership.user_id == current_user.id } %>
+        <article class="book-club-directory-card">
+          <div class="book-club-directory-cover">
+            <% if book_club.current_book&.cover_image&.attached? %>
+              <%= image_tag book_club.current_book.cover_image.variant(resize_to_fill: [ 102, 150 ]),
+                    alt: "Cover of #{book_club.current_book.title}" %>
+            <% else %>
+              <%= image_tag "book-open.svg", alt: "", class: "book-club-directory-cover-placeholder" %>
+            <% end %>
+          </div>
+
+          <div class="book-club-directory-information">
+            <h2><%= link_to book_club.name, book_club %></h2>
+            <div class="book-club-directory-meta">
+              <p><%= book_club.description.presence || "A welcoming space for readers to share the books they love." %></p>
+              <% if book_club.current_book %>
+                <p><strong>Current pick · <%= book_club.current_book.title %></strong> — <%= book_club.current_book.author %></p>
+              <% end %>
+              <p><%= pluralize(book_club.book_club_memberships_count, "member") %> · Owner <%= owner&.nickname || "BookNook" %></p>
+            </div>
+
+            <div class="book-club-directory-actions">
+              <span class="book-club-status-badge <%= "book-club-status-badge--joined" if is_member %>">
+                <%= is_member ? "Joined club" : "Public club" %>
+              </span>
+              <% if is_member %>
+                <%= link_to "View Club", book_club, class: "book-club-action book-club-action--secondary" %>
+              <% else %>
+                <%= button_to "Join", join_book_club_path(book_club), class: "book-club-action book-club-action--primary" %>
+              <% end %>
+            </div>
+          </div>
+        </article>
+      <% end %>
+    </section>
   <% end %>
 </div>
-
-<% if @book_clubs.empty? %>
-  <article>
-    <p>No book clubs yet.</p>
-  </article>
-<% else %>
-  <% @book_clubs.each do |book_club| %>
-    <article>
-      <strong><%= link_to book_club.name, book_club %></strong>
-      <p><%= pluralize(book_club.book_club_memberships_count, "member") %></p>
-    </article>
-  <% end %>
-<% end %>
