@@ -24,8 +24,26 @@ class User < ApplicationRecord
   has_many :notifications, as: :recipient, class_name: "Noticed::Notification", dependent: :destroy
 
   has_one :reading_metric
+  has_one_attached :avatar
+
+  validate :avatar_must_be_an_image, if: -> { avatar.attached? }
+  validate :avatar_must_be_small_enough, if: -> { avatar.attached? }
 
   def admin?
     role == "admin"
+  end
+
+  private
+
+  def avatar_must_be_an_image
+    return if avatar.content_type.to_s.start_with?("image/")
+
+    errors.add(:avatar, "must be an image")
+  end
+
+  def avatar_must_be_small_enough
+    return if avatar.blob.byte_size <= 5.megabytes
+
+    errors.add(:avatar, "must be smaller than 5 MB")
   end
 end
