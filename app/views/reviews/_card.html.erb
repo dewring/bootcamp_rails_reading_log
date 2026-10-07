@@ -1,0 +1,94 @@
+<article class="reviews-card" data-controller="review-composer">
+  <div class="reviews-card-closed" data-review-composer-target="closed">
+    <%= link_to book_path(review.book), class: "reviews-card-cover-link", aria: { label: "View #{review.book.title}" } do %>
+      <% if review.book.cover_image.attached? %>
+        <%= image_tag review.book.cover_image.variant(resize_to_fill: [ 96, 140 ]),
+              class: "reviews-card-cover",
+              alt: "Cover of #{review.book.title}" %>
+      <% else %>
+        <div class="reviews-card-cover reviews-card-cover--empty" aria-hidden="true">📚</div>
+      <% end %>
+    <% end %>
+
+    <div class="reviews-card-content">
+      <div class="reviews-card-header">
+        <h3><%= review.book.title %></h3>
+        <p><%= review.book.author %></p>
+      </div>
+
+      <div class="reviews-card-rating" aria-label="<%= review.rating %> out of 5 stars">
+        <% (1..5).each do |rating| %>
+          <span class="<%= "is-filled" if rating <= review.rating.to_i %>" aria-hidden="true"><%= rating <= review.rating.to_i ? "★" : "☆" %></span>
+        <% end %>
+      </div>
+
+      <p class="reviews-card-body"><%= review.body %></p>
+
+      <div class="reviews-card-footer">
+        <time datetime="<%= review.created_at.iso8601 %>">Reviewed <%= review.created_at.strftime("%d %b %Y") %></time>
+        <div class="reviews-card-actions">
+          <%= link_to "View review", book_path(review.book), class: "reviews-card-action reviews-card-action--view" %>
+          <button type="button"
+                  class="reviews-card-action reviews-card-action--edit"
+                  data-action="click->review-composer#open">
+            Edit review
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="reviews-card-composer" data-review-composer-target="composer" hidden>
+    <div class="reviews-card-composer-heading">
+      <div>
+        <h3>Edit a review</h3>
+        <p><%= review.book.title %> · <%= review.book.author %></p>
+      </div>
+      <button type="button"
+              class="reviews-card-composer-close"
+              aria-label="Close review editor"
+              data-action="click->review-composer#close">
+        <%= image_tag "review-close.svg", alt: "", aria: { hidden: true } %>
+      </button>
+    </div>
+
+    <%= form_with model: [review.book, review], class: "reviews-card-form", data: { review_composer_target: "form" } do |f| %>
+      <%= hidden_field_tag :from, "reviews" %>
+
+      <div class="reviews-card-rating-input" role="radiogroup" aria-label="Select a rating">
+        <div class="reviews-card-stars-input">
+          <% (1..5).each do |rating| %>
+            <%= f.radio_button :rating,
+                               rating,
+                               id: "reviews_review_#{review.id}_rating_#{rating}",
+                               data: { action: "change->review-composer#updateRating" } %>
+            <label for="reviews_review_<%= review.id %>_rating_<%= rating %>"
+                   aria-label="<%= rating %> out of 5 stars"
+                   data-review-composer-target="ratingStar">★</label>
+          <% end %>
+        </div>
+        <span data-review-composer-target="ratingHint">Select a rating</span>
+      </div>
+
+      <%= f.text_area :body,
+                      maxlength: 2000,
+                      placeholder: "What stayed with you? Share your perspective with the BookNook community...",
+                      data: { review_composer_target: "body", action: "input->review-composer#updateCount" } %>
+
+      <div class="reviews-card-composer-actions">
+        <span data-review-composer-target="counter">0 / 2,000 characters</span>
+        <div>
+          <button type="button"
+                  class="reviews-card-action reviews-card-action--edit"
+                  data-action="click->review-composer#close">
+            Cancel
+          </button>
+          <button type="submit" class="reviews-card-action reviews-card-action--submit">
+            <%= image_tag "review-send.svg", alt: "", aria: { hidden: true } %>
+            Update Review
+          </button>
+        </div>
+      </div>
+    <% end %>
+  </div>
+</article>

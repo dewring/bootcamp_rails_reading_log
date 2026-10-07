@@ -1,0 +1,37 @@
+<div class="my-log-page reviews-page">
+  <div class="my-log-body">
+    <%= render "dashboard/sidebar", active_section: :reviews %>
+
+    <main class="my-log-main" aria-label="My Reviews">
+      <%= render "dashboard/library_intro",
+            reading_count: current_user.user_books.where(status: "reading").count,
+            show_season_note: false %>
+
+      <div class="reviews-view">
+        <div class="reviews-section-heading">
+          <div>
+            <h2>Reviews</h2>
+            <p>Previously written book reviews from your library</p>
+          </div>
+        </div>
+
+        <div class="reviews-divider" aria-hidden="true"></div>
+
+        <section class="reviews-page-section" aria-labelledby="written-reviews-title">
+          <p id="written-reviews-title" class="reviews-section-label">Written reviews</p>
+
+          <% if @reviews.any? %>
+            <div class="reviews-grid">
+              <% @reviews.each do |review| %>
+                <%= render "reviews/card", review: review %>
+              <% end %>
+            </div>
+            <%== @pagy.series_nav if @pagy.last > 1 %>
+          <% else %>
+            <p class="reviews-empty-state">You have not written any reviews yet. <%= link_to "Browse the catalog", books_path %> to find a book.</p>
+          <% end %>
+        </section>
+      </div>
+    </main>
+  </div>
+</div>
