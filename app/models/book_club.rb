@@ -10,6 +10,22 @@ class BookClub < ApplicationRecord
 
   validates :name, presence: true
 
+  scope :matching_admin_text, ->(text) {
+    return all if text.blank?
+
+    query = "%#{sanitize_sql_like(text.to_s.strip)}%"
+    left_joins(:current_book).where(<<~SQL.squish, query: query)
+      book_clubs.name ILIKE :query OR book_clubs.description ILIKE :query
+      OR books.title ILIKE :query OR books.author ILIKE :query
+      OR EXISTS (
+        SELECT 1 FROM book_club_memberships
+        INNER JOIN users ON users.id = book_club_memberships.user_id
+        WHERE book_club_memberships.book_club_id = book_clubs.id
+          AND book_club_memberships.role = 'owner' AND users.nickname ILIKE :query
+      )
+    SQL
+  }
+
   def leaderboard
     users
       .joins(:reading_sessions)
