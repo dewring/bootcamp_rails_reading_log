@@ -110,41 +110,7 @@
   </header>
 
   <div class="admin-body">
-    <aside class="admin-sidebar" aria-label="Admin navigation">
-      <div>
-        <p class="admin-sidebar-label">Management</p>
-        <nav class="admin-sidebar-nav">
-          <%= link_to admin_catalog_path, class: "admin-sidebar-link" do %>
-            <%= image_tag "admin-library.svg", alt: "" %>
-            <span>Catalog</span>
-          <% end %>
-          <%= link_to admin_root_path, class: "admin-sidebar-link is-active", aria: { current: "page" } do %>
-            <%= image_tag "admin-trophy.svg", alt: "" %>
-            <span>Challenges</span>
-          <% end %>
-          <span class="admin-sidebar-link admin-sidebar-link--disabled">
-            <%= image_tag "admin-users.svg", alt: "" %>
-            <span>Members</span>
-          </span>
-          <span class="admin-sidebar-link admin-sidebar-link--disabled">
-            <%= image_tag "admin-message-square-text.svg", alt: "" %>
-            <span>Reviews</span>
-          </span>
-          <span class="admin-sidebar-link admin-sidebar-link--disabled">
-            <%= image_tag "admin-settings.svg", alt: "" %>
-            <span>Settings</span>
-          </span>
-        </nav>
-      </div>
-
-      <div class="admin-sidebar-footer">
-        <span class="admin-sidebar-rule" aria-hidden="true"></span>
-        <%= link_to destroy_user_session_path, class: "admin-sidebar-link admin-sidebar-link--logout", data: { turbo_method: :delete } do %>
-          <%= image_tag "admin-log-out.svg", alt: "" %>
-          <span>Log out</span>
-        <% end %>
-      </div>
-    </aside>
+    <%= render "admin/shared/sidebar", active_section: :challenges %>
 
     <main class="admin-main" aria-labelledby="admin-page-title">
       <%= render "shared/flash_messages" %>
