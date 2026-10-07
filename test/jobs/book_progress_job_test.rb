@@ -8,11 +8,11 @@ class BookProgressJobTest < ActiveSupport::TestCase
   end
 
   test "transitions want_to_read to reading when a session is logged" do
-    user_book = users(:leika).user_books.find_or_create_by!(book: books(:refactoring))
-    user_book.update!(status: "want_to_read")
-    ReadingSession.create!(user: users(:leika), book: books(:refactoring), read_on: Date.today, pages_read: 50)
+    book = Book.create!(title: "First Session Book", author: "A Reader", total_pages: 100)
+    user_book = UserBook.create!(user: users(:leika), book: book, status: "want_to_read")
+    ReadingSession.create!(user: users(:leika), book: book, read_on: Date.today, pages_read: 50)
 
-    BookProgressJob.new.perform(users(:leika), books(:refactoring))
+    BookProgressJob.new.perform(users(:leika), book)
 
     assert_equal "reading", user_book.reload.status
   end

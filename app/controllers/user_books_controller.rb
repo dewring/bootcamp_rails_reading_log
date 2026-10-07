@@ -45,8 +45,10 @@ class UserBooksController < ApplicationController
 
   def destroy
     authorize @user_book
+    book = @user_book.book
     @user_book.destroy
-    redirect_to dashboard_path, notice: "Book removed from your log."
+    destination = params[:return_to] == "book" ? book_path(book) : dashboard_path
+    redirect_to destination, notice: "Book removed from your log."
   end
 
   private

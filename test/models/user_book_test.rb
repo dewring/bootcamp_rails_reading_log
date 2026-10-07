@@ -24,6 +24,15 @@ class UserBookTest < ActiveSupport::TestCase
     assert_not @user_book.valid?
   end
 
+  test "book with reading sessions cannot be saved as want to read" do
+    user_book = user_books(:leika_refactoring)
+
+    user_book.status = "want_to_read"
+
+    assert_not user_book.valid?
+    assert_includes user_book.errors[:status], "cannot be want to read after reading has started"
+  end
+
   test "user role must be user or admin" do
     users(:leika).role = "superuser"
     assert_not users(:leika).valid?

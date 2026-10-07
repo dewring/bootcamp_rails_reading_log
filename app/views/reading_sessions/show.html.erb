@@ -1,0 +1,53 @@
+<div class="my-log-page reading-detail-page">
+  <div class="my-log-body">
+    <%= render "dashboard/sidebar" %>
+
+    <section class="my-log-main" aria-label="Reading journal">
+      <%= render "dashboard/library_intro", reading_count: current_user.user_books.where(status: "reading").count %>
+
+      <div class="reading-detail-content">
+        <%= render "reading_sessions/detail_summary", finished: false %>
+
+        <section class="reading-detail-card" id="reading-record" aria-labelledby="reading-record-title">
+          <div class="reading-detail-card-heading">
+            <div>
+              <h3 id="reading-record-title">Reading record</h3>
+              <p>Log the pages you finished today and save it to your reading timeline.</p>
+            </div>
+            <span class="reading-detail-status">Private entry</span>
+          </div>
+
+          <% if @reading_session.errors.any? %>
+            <div class="reading-detail-errors">
+              <%= @reading_session.errors.full_messages.to_sentence %>
+            </div>
+          <% end %>
+
+          <%= form_with model: [ @book, @reading_session ], class: "reading-detail-form" do |f| %>
+            <%= hidden_field_tag :return_to, "reading_journal" %>
+            <div class="reading-detail-form-fields">
+              <div class="reading-detail-field">
+                <%= f.label :read_on, "Date read" %>
+                <%= f.date_field :read_on %>
+              </div>
+              <div class="reading-detail-field">
+                <%= f.label :pages_read, "Pages read" %>
+                <div class="reading-detail-input-with-icon">
+                  <%= f.number_field :pages_read, placeholder: "0" %>
+                  <%= image_tag "reading-book-open.svg", alt: "" %>
+                </div>
+              </div>
+            </div>
+            <div class="reading-detail-field">
+              <%= f.label :notes, "Session note" %>
+              <%= f.text_area :notes, placeholder: "Add a short note about what stood out in this reading session...", rows: 2 %>
+            </div>
+            <%= f.submit "Save Entry", class: "reading-detail-save action-button action-button--primary" %>
+          <% end %>
+        </section>
+
+        <%= render "reading_sessions/detail_history", finished: false %>
+      </div>
+    </section>
+  </div>
+</div>

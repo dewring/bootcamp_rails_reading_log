@@ -1,0 +1,16 @@
+<header class="my-log-intro">
+<% summary_text = local_assigns.fetch(:summary_text, "#{pluralize(reading_count, 'book')} in progress") %>
+<% show_season_note = local_assigns.fetch(:show_season_note, true) %>
+  <div>
+    <p class="my-log-eyebrow">Personal library · <%= Time.current.year %></p>
+    <h1>Hello, <%= current_user.nickname %></h1>
+    <p>A quiet place for the books you are living with now, and the stories waiting on your shelf.</p>
+  </div>
+  <% if show_season_note %>
+    <div class="my-log-season-note">
+      <span><%= Time.current.strftime("%B reading") %></span>
+      <strong><%= summary_text %></strong>
+      <i aria-hidden="true"></i>
+    </div>
+  <% end %>
+</header>

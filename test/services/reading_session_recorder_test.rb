@@ -17,6 +17,16 @@ class ReadingSessionRecorderTest < ActiveSupport::TestCase
     assert reading_session.persisted?
   end
 
+  test "moves a want-to-read book into reading when a session is recorded" do
+    book = books(:pragmatic)
+    user = users(:leika)
+    user_book = user.user_books.find_by!(book: book)
+
+    ReadingSessionRecorder.new(book, user, { read_on: Date.today, pages_read: 10 }).record
+
+    assert_equal "reading", user_book.reload.status
+  end
+
   test "does not record a reading session with invalid attributes" do
     book = books(:refactoring)
     user = users(:leika)
