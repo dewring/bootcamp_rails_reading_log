@@ -15,7 +15,7 @@ class Admin::BooksControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     assert_select ".admin-topbar .admin-brand-mark img[src*='admin-brand-mark']"
-    assert_select ".admin-sidebar-nav img[src*='admin-library']"
+    assert_select ".admin-sidebar-nav .admin-sidebar-icon--library"
     assert_select ".admin-sidebar-link.is-active[aria-current='page']", text: "Catalog"
     assert_select ".admin-catalog-record.is-selected a[aria-current='true']", text: /Refactoring/
     assert_select ".admin-catalog-record-meta", text: "Fiction · English · 448p"

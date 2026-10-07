@@ -744,6 +744,29 @@ main.container:has(> .my-log-page) {
   opacity: 0.72;
 }
 
+// SVG masks keep navigation icons neutral until their section is active.
+.admin-sidebar-icon {
+  display: block;
+  flex: 0 0 17px;
+  width: 17px;
+  height: 17px;
+  background-color: currentColor;
+  mask-repeat: no-repeat;
+  mask-position: center;
+  mask-size: contain;
+
+  &--library { mask-image: url("admin-library.svg"); }
+  &--message-square-text { mask-image: url("admin-message-square-text.svg"); }
+  &--trophy { mask-image: url("admin-trophy.svg"); }
+  &--book-clubs { mask-image: url("dropdown-users.svg"); }
+  &--users { mask-image: url("admin-users.svg"); }
+  &--settings { mask-image: url("admin-settings.svg"); }
+}
+
+.admin-sidebar-link.is-active .admin-sidebar-icon {
+  background-color: $accent;
+}
+
 .admin-sidebar-footer {
   display: grid;
   gap: 12px;
