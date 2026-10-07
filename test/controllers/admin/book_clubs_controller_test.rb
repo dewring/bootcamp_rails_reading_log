@@ -4,6 +4,10 @@ class Admin::BookClubsControllerTest < ActionDispatch::IntegrationTest
   include Devise::Test::IntegrationHelpers
   include ActiveJob::TestHelper
 
+  def queue_adapter_for_test
+    ActiveJob::QueueAdapters::TestAdapter.new
+  end
+
   setup do
     @club = BookClub.create!(name: "Sci-Fi Society", description: "Space and robots", current_book: books(:refactoring))
     @club.book_club_memberships.create!(user: users(:leika), role: "owner")
