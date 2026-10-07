@@ -1,7 +1,7 @@
 <!DOCTYPE html>
-<html>
+<html data-theme="light">
   <head>
-    <title><%= content_for(:title) || "The Books" %></title>
+    <title><%= content_for(:title) || "BookNook" %></title>
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="mobile-web-app-capable" content="yes">
@@ -12,67 +12,143 @@
     <link rel="icon" href="/icon.png" type="image/png">
     <link rel="icon" href="/icon.svg" type="image/svg+xml">
     <link rel="apple-touch-icon" href="/icon.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,700&family=Rethink+Sans:wght@400;500;600;700&display=swap">
 
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
     <%= stylesheet_link_tag :app, "data-turbo-track": "reload" %>
     <%= javascript_include_tag "application", "data-turbo-track": "reload", type: "module" %>
   </head>
 
-  <body>
+  <body class="<%= "auth-page" if devise_controller? %>">
     <nav class="nav-bar" data-controller="navbar">
       <div class="container nav-inner">
         <ul>
           <li>
-            <a href="<%= root_path %>" class="nav-logo" aria-label="The Books">
-              <svg width="160" height="32" viewBox="0 0 160 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <g class="nav-logo-mark">
-                  <rect x="2" y="6" width="6" height="18" rx="1" fill="currentColor"/>
-                  <rect x="11" y="3" width="6" height="21" rx="1" fill="currentColor"/>
-                  <rect x="20" y="8" width="6" height="16" rx="1" fill="currentColor"/>
-                  <path d="M0 27H28" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
-                </g>
-                <text x="36" y="21" font-family="system-ui, -apple-system, sans-serif" font-weight="700" font-size="18" fill="currentColor">The Books</text>
-              </svg>
+            <a href="<%= root_path %>" class="nav-logo" aria-label="BookNook">
+              <span class="nav-logo-icon" aria-hidden="true">
+                <%= image_tag "book-open.svg", class: "nav-logo-icon-image", alt: "" %>
+              </span>
+              <span class="nav-logo-name">BookNook</span>
             </a>
           </li>
         </ul>
-        <ul>
-          <li><%= link_to "Catalog", books_path %></li>
+        <ul class="nav-actions">
+          <li class="nav-menu"
+              data-controller="nav-menu"
+              data-action="mouseenter->nav-menu#enter mouseleave->nav-menu#leave focusin->nav-menu#focusIn focusout->nav-menu#focusOut dropdown:opened@window->nav-menu#closeIfAnother">
+            <button type="button"
+                    class="nav-action-button nav-menu-trigger"
+                    data-nav-menu-target="trigger"
+                    data-action="click->nav-menu#toggle"
+                    aria-expanded="false"
+                    aria-controls="nav_menu_dropdown"
+                    aria-label="Menu">
+              <%= image_tag "menu.svg", class: "nav-action-icon", alt: "" %>
+            </button>
+            <ul id="nav_menu_dropdown"
+                class="nav-dropdown"
+                data-nav-menu-target="menu"
+                hidden>
+              <li>
+                <%= link_to books_path, class: "nav-dropdown-item" do %>
+                  <%= image_tag "dropdown-grid.svg", class: "dropdown-item-icon", alt: "" %>
+                  <span>Catalog</span>
+                <% end %>
+              </li>
+              <% if user_signed_in? %>
+                <li>
+                  <%= link_to challenges_path, class: "nav-dropdown-item" do %>
+                    <%= image_tag "dropdown-trophy.svg", class: "dropdown-item-icon", alt: "" %>
+                    <span>Challenges</span>
+                  <% end %>
+                </li>
+                <li>
+                  <%= link_to book_clubs_path, class: "nav-dropdown-item" do %>
+                    <%= image_tag "dropdown-users.svg", class: "dropdown-item-icon", alt: "" %>
+                    <span>Book Clubs</span>
+                  <% end %>
+                </li>
+              <% end %>
+            </ul>
+          </li>
           <% if user_signed_in? %>
-            <li class="nav-menu">
-              <span class="nav-menu-button">Menu</span>
-              <ul class="nav-dropdown">
-                <li><%= link_to "My Log", dashboard_path %></li>
-                <li><%= link_to "Challenges", challenges_path %></li>
-                <li><%= link_to "Book Clubs", book_clubs_path %></li>
-              </ul>
-            </li>
             <%= render "notifications/panel", notification_panel_locals %>
           <% end %>
-          <li class="account-menu" data-controller="account-dropdown">
+          <li class="account-menu"
+              data-controller="account-dropdown"
+              data-action="mouseenter->account-dropdown#enter mouseleave->account-dropdown#leave focusin->account-dropdown#focusIn focusout->account-dropdown#focusOut dropdown:opened@window->account-dropdown#closeIfAnother">
             <button type="button"
-                    class="nav-account-trigger"
+                    class="nav-action-button nav-account-trigger"
                     data-account-dropdown-target="trigger"
                     data-action="click->account-dropdown#toggle"
                     aria-expanded="false"
                     aria-controls="account_dropdown"
                     aria-label="Account">
-              <svg class="account-icon" viewBox="0 0 24 24" aria-hidden="true">
-                <circle cx="12" cy="7.5" r="4.4" fill="none" stroke="currentColor" stroke-width="2.5" />
-                <path d="M3 21v-1.5c0-2.5 2-4.5 4.5-4.5h9c2.5 0 4.5 2 4.5 4.5V21" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" />
-              </svg>
+              <%= image_tag "user.svg", class: "nav-action-icon account-icon", alt: "" %>
             </button>
             <ul id="account_dropdown"
-                class="account-dropdown"
+                class="account-dropdown <%= "account-dropdown--signed-in" if user_signed_in? %>"
                 data-account-dropdown-target="menu"
                 hidden>
               <% if user_signed_in? %>
                 <li>
-                  <%= link_to "Sign out", destroy_user_session_path, data: { turbo_method: :delete } %>
+                  <%= link_to dashboard_path, class: "account-dropdown-item" do %>
+                    <%= image_tag "dropdown-book-open.svg", class: "dropdown-item-icon", alt: "" %>
+                    <span>My Log</span>
+                  <% end %>
+                </li>
+                <li>
+                  <%= link_to reviews_path, class: "account-dropdown-item" do %>
+                    <%= image_tag "dropdown-star.svg", class: "dropdown-item-icon", alt: "" %>
+                    <span>Reviews</span>
+                  <% end %>
+                </li>
+                <li>
+                  <%= link_to reading_sessions_path, class: "account-dropdown-item" do %>
+                    <%= image_tag "dropdown-history.svg", class: "dropdown-item-icon", alt: "" %>
+                    <span>History</span>
+                  <% end %>
+                </li>
+                <li>
+                  <%= link_to edit_user_registration_path, class: "account-dropdown-item" do %>
+                    <%= image_tag "dropdown-settings.svg", class: "dropdown-item-icon", alt: "" %>
+                    <span>Settings</span>
+                  <% end %>
+                </li>
+                <% if current_user.admin? %>
+                  <li>
+                    <%= link_to admin_root_path, class: "account-dropdown-item" do %>
+                      <%= image_tag "dropdown-grid.svg", class: "dropdown-item-icon", alt: "" %>
+                      <span>Manage</span>
+                    <% end %>
+                  </li>
+                <% end %>
+                <li class="account-dropdown-divider" aria-hidden="true">
+                  <%= image_tag "dropdown-divider.svg", alt: "" %>
+                </li>
+                <li>
+                  <%= link_to destroy_user_session_path,
+                        class: "account-dropdown-item account-dropdown-item--danger",
+                        data: { turbo_method: :delete } do %>
+                    <%= image_tag "dropdown-logout.svg", class: "dropdown-item-icon", alt: "" %>
+                    <span>Log Out</span>
+                  <% end %>
                 </li>
               <% else %>
-                <li><%= link_to "Sign in", new_user_session_path %></li>
-                <li><%= link_to "Sign up", new_user_registration_path %></li>
+                <li>
+                  <%= link_to new_user_registration_path, class: "account-dropdown-item" do %>
+                    <%= image_tag "dropdown-user.svg", class: "dropdown-item-icon", alt: "" %>
+                    <span>Sign Up</span>
+                  <% end %>
+                </li>
+                <li>
+                  <%= link_to new_user_session_path, class: "account-dropdown-item account-dropdown-item--highlight" do %>
+                    <%= image_tag "dropdown-login.svg", class: "dropdown-item-icon", alt: "" %>
+                    <span>Log In</span>
+                  <% end %>
+                </li>
               <% end %>
             </ul>
           </li>
@@ -80,7 +156,7 @@
       </div>
     </nav>
 
-    <main class="container">
+    <main class="container <%= "home-main" if controller_name == "home" %>">
       <%= render "shared/flash_messages" %>
 
       <%= yield %>

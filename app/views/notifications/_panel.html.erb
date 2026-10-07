@@ -1,15 +1,15 @@
-<li id="notifications_panel" class="notification-menu" data-controller="notification-dropdown">
+<li id="notifications_panel"
+    class="notification-menu"
+    data-controller="notification-dropdown"
+    data-action="mouseenter->notification-dropdown#enter mouseleave->notification-dropdown#leave focusin->notification-dropdown#focusIn focusout->notification-dropdown#focusOut dropdown:opened@window->notification-dropdown#closeIfAnother">
   <button type="button"
-          class="notification-trigger"
+          class="nav-action-button notification-trigger"
           data-notification-dropdown-target="trigger"
           data-action="click->notification-dropdown#toggle"
           aria-expanded="false"
           aria-controls="notifications_dropdown"
           aria-label="Notifications">
-    <svg class="notification-icon" viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M18 9a6 6 0 0 0-12 0c0 6.8-2.5 7.1-2.5 9h17c0-1.9-2.5-2.2-2.5-9Z" fill="none" stroke="currentColor" stroke-linejoin="round" stroke-width="2.3" />
-      <path d="M10 21h4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="2.3" />
-    </svg>
+    <%= image_tag "bell.svg", class: "nav-action-icon notification-icon", alt: "" %>
     <% if unread_count.positive? %>
       <span class="notification-count" aria-label="<%= pluralize(unread_count, "unread notification") %>"><%= unread_count %></span>
     <% end %>
@@ -20,7 +20,7 @@
        data-notification-dropdown-target="menu"
        hidden>
     <header class="notifications-header">
-      <h2>Notifications <small>(<%= unread_count %> unread)</small></h2>
+      <h2>Notifications</h2>
     </header>
 
     <% if notifications.empty? %>
@@ -29,6 +29,7 @@
       <ul class="notification-list">
         <% notifications.each do |notification| %>
           <li id="<%= dom_id(notification) %>" class="<%= "notification-unread" if notification.unread? %>">
+            <span class="notification-indicator" aria-hidden="true"></span>
             <div class="notification-content">
               <% if notification.record.present? %>
                 <%= link_to notification.message, book_club_path(notification.record) %>
