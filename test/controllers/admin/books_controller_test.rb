@@ -1,0 +1,116 @@
+require "test_helper"
+
+class Admin::BooksControllerTest < ActionDispatch::IntegrationTest
+  include Devise::Test::IntegrationHelpers
+
+  setup do
+    sign_in users(:admin)
+  end
+
+  test "catalog keeps the shared shell and renders selectable cards and metadata" do
+    book = books(:refactoring)
+    book.book_editions.create!(ol_edition_key: "/books/OLCATALOGM", isbn: "9780134757599", language: "English")
+
+    get admin_catalog_path, params: { book_id: book.id }
+
+    assert_response :success
+    assert_select ".admin-topbar .admin-brand-mark img[src*='admin-brand-mark']"
+    assert_select ".admin-sidebar-nav img[src*='admin-library']"
+    assert_select ".admin-sidebar-link.is-active[aria-current='page']", text: "Catalog"
+    assert_select ".admin-catalog-record.is-selected a[aria-current='true']", text: /Refactoring/
+    assert_select ".admin-catalog-record-meta", text: "Fiction · English · 448p"
+    assert_select "a[aria-label='Edit Refactoring']", count: 1
+    assert_select "button[aria-label='Delete Refactoring']", text: "Delete"
+    assert_select "input#book_title[value='Refactoring']"
+    assert_select "input#catalog_isbn[readonly][value='9780134757599']"
+    assert_select "input#catalog_metadata[readonly][value='Fiction · English · 448p']"
+    assert_select "input#catalog_status[readonly][value='Catalog']"
+    assert_select "details.admin-catalog-extra-metadata:not([open])"
+    assert_select "input#book_total_pages[value='448']"
+    assert_select "input#book_cover_image[type='file']"
+    assert_select "input[value='Fiction'][checked]"
+    assert_select "input[type='submit'][value='Save changes']"
+  end
+
+  test "genre filter submits declaratively and search preserves the genre" do
+    get admin_catalog_path, params: { genre: "Fiction", q: "Refactoring" }
+
+    assert_response :success
+    assert_select ".admin-catalog-record", count: 1
+    assert_select ".admin-catalog-search input[name='genre'][value='Fiction']"
+    assert_select ".admin-catalog-genre-filter[data-controller='submit-on-change'] input[name='q'][value='Refactoring']"
+    assert_select "select[name='genre'][data-action='change->submit-on-change#submit'] option[selected]", text: "Fiction"
+    assert_select "button[disabled]", text: "Status⌄"
+  end
+
+  test "record actions and pagination preserve the catalog query" do
+    genre = genres(:fiction)
+    6.times { |number| Book.create!(title: "Catalog #{number}", author: "Catalog Author", genres: [ genre ]) }
+
+    get admin_catalog_path, params: { q: "Catalog", genre: "Fiction", page: 1 }
+
+    assert_select ".admin-catalog-record", count: 4
+    assert_select "a[aria-label^='Edit Catalog']" do |links|
+      links.each do |link|
+        query = Rack::Utils.parse_query(URI.parse(link["href"]).query)
+        assert_equal "Catalog", query["q"]
+        assert_equal "Fiction", query["genre"]
+        assert_equal "1", query["page"]
+      end
+    end
+    assert_select "a.admin-catalog-load-more" do |links|
+      query = Rack::Utils.parse_query(URI.parse(links.first["href"]).query)
+      assert_equal "2", query["page"]
+      assert_equal "Catalog", query["q"]
+      assert_equal "Fiction", query["genre"]
+    end
+  end
+
+  test "books without edition metadata render truthful fallbacks" do
+    book = Book.create!(title: "No Metadata", author: "An Author")
+
+    get admin_catalog_path, params: { book_id: book.id }
+
+    assert_response :success
+    assert_select "input#catalog_isbn[value='Not available']"
+    assert_select "input#catalog_metadata[value='Genre not set · Language not set · Pages not set']"
+    assert_select "input#catalog_status[value='Catalog']"
+  end
+
+  test "new record opens additional metadata and validation errors preserve editing" do
+    get admin_catalog_path, params: { new_book: true }
+
+    assert_response :success
+    assert_select "details.admin-catalog-extra-metadata[open]"
+    assert_select "input#catalog_status[value='New record']"
+    assert_select "input[type='submit'][value='Add book']"
+
+    post admin_books_path, params: { book: { title: "", author: "An Author" } }
+
+    assert_response :unprocessable_entity
+    assert_select ".admin-validation-errors[role='alert']", text: /Title can't be blank/
+    assert_select "input#book_author[value='An Author']"
+    assert_select "details.admin-catalog-extra-metadata[open]"
+  end
+
+  test "updating the compact form retains selected genres" do
+    book = books(:refactoring)
+
+    patch admin_book_path(book), params: { book: { title: "Updated Title", author: book.author, total_pages: 500, genre_names: [ "Fiction" ] } }
+
+    assert_redirected_to admin_catalog_path(book_id: book.id)
+    assert_equal "Updated Title", book.reload.title
+    assert_equal 500, book.total_pages
+    assert_equal [ "Fiction" ], book.genres.pluck(:name)
+  end
+
+  test "catalog remains restricted to administrators" do
+    sign_out users(:admin)
+    get admin_catalog_path
+    assert_redirected_to new_user_session_path
+
+    sign_in users(:leika)
+    get admin_catalog_path
+    assert_redirected_to root_path
+  end
+end

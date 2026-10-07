@@ -64,30 +64,28 @@
           <p class="admin-page-description">Maintain BookNook titles, editions, metadata, and discoverability.</p>
         </div>
         <%= link_to admin_catalog_path(new_book: true), class: "admin-primary-button" do %>
-          <%= image_tag "admin-plus.svg", alt: "" %><span>Add Book</span>
+          <span>＋ Add Book</span>
         <% end %>
       </div>
 
       <div class="admin-catalog-workspace">
         <section class="admin-catalog-list-panel" aria-labelledby="admin-catalog-list-title">
           <div class="admin-catalog-list-heading">
-            <div>
-              <h2 id="admin-catalog-list-title">All records</h2>
-              <p><%= @pagy.count %> catalog records</p>
-            </div>
+            <h2 id="admin-catalog-list-title" class="admin-catalog-sr-only">All records</h2>
             <%= form_with url: admin_catalog_path, method: :get, class: "admin-catalog-search" do |f| %>
-              <%= f.search_field :q, value: params[:q], placeholder: "Search title or author", aria: { label: "Search catalog" } %>
+              <%= f.search_field :q, value: params[:q], placeholder: "Search · Search catalog", aria: { label: "Search catalog" } %>
               <%= f.hidden_field :genre, value: params[:genre] if params[:genre].present? %>
-              <%= f.submit "Search", class: "admin-secondary-button" %>
+              <%= f.submit "Search", class: "admin-catalog-sr-only" %>
             <% end %>
           </div>
 
           <div class="admin-catalog-filters" aria-label="Catalog filters">
-            <%= link_to "All records", admin_catalog_path(q: params[:q]), class: "admin-catalog-filter #{'is-active' if params[:genre].blank?}", aria: { pressed: params[:genre].blank? } %>
-            <%= form_with url: admin_catalog_path, method: :get, class: "admin-catalog-genre-filter" do %>
+            <%= link_to "All records", admin_catalog_path(q: params[:q]), class: "admin-catalog-filter #{'is-active' if params[:genre].blank?}", aria: { current: ("true" if params[:genre].blank?) } %>
+            <button type="button" class="admin-catalog-filter" disabled title="Publication status is not tracked in this catalog">Status⌄</button>
+            <%= form_with url: admin_catalog_path, method: :get, class: "admin-catalog-genre-filter", data: { controller: "submit-on-change" } do %>
               <%= hidden_field_tag :q, params[:q] if params[:q].present? %>
-              <%= select_tag :genre, options_for_select([["All genres", ""]] + Genre::GENRES.map { |name| [name, name] }, params[:genre]), aria: { label: "Filter by genre" } %>
-              <%= submit_tag "Filter", class: "admin-catalog-filter-submit" %>
+              <%= select_tag :genre, options_for_select([["Genre", ""]] + Genre::GENRES.map { |name| [name, name] }, params[:genre]), aria: { label: "Filter by genre" }, data: { action: "change->submit-on-change#submit" } %>
+              <%= submit_tag "Filter", class: "admin-catalog-sr-only" %>
             <% end %>
           </div>
 
@@ -101,19 +99,12 @@
                     <span class="admin-catalog-record-badge">Catalog</span>
                   </span>
                   <span class="admin-catalog-record-author"><%= book.author %><%= " · ISBN #{edition.isbn}" if edition&.isbn.present? %></span>
-                  <span class="admin-catalog-record-meta">
-                    <%= book.genres.map(&:name).presence&.join(" · ") || "Genre not set" %>
-                    <span aria-hidden="true">·</span>
-                    <%= edition&.language.presence || "Language not set" %>
-                    <span aria-hidden="true">·</span>
-                    <%= book.total_pages.presence || edition&.page_count.presence || "Pages not set" %> pages
-                  </span>
+                  <span class="admin-catalog-record-meta"><%= admin_catalog_metadata(book) %></span>
                 <% end %>
                 <div class="admin-catalog-record-actions">
                   <%= link_to "View", book_path(book), class: "admin-catalog-view-link" %>
-                  <%= button_to admin_book_path(book), method: :delete, class: "admin-row-action admin-row-action--danger", form: { data: { turbo_confirm: "Delete #{book.title} from the catalog?" } }, aria: { label: "Delete #{book.title}" } do %>
-                    <%= image_tag "admin-trash-2.svg", alt: "" %>
-                  <% end %>
+                  <%= link_to "Edit", admin_catalog_path(book_id: book.id, q: params[:q], genre: params[:genre], page: params[:page], anchor: "admin-catalog-detail-title"), class: "admin-catalog-view-link", aria: { label: "Edit #{book.title}" } %>
+                  <%= button_to "Delete", admin_book_path(book), method: :delete, class: "admin-catalog-delete", form: { data: { turbo_confirm: "Delete #{book.title} from the catalog?" } }, aria: { label: "Delete #{book.title}" } %>
                 </div>
               </article>
             <% end %>
@@ -123,8 +114,9 @@
           </div>
 
           <div class="admin-catalog-list-footer">
-            <span>Showing <strong><%= @books.size %></strong> of <strong><%= @pagy.count %></strong> records</span>
+            <span>Showing <%= @books.size %> of <%= @pagy.count %> records</span>
             <% if @pagy.next %>
+              <span aria-hidden="true">·</span>
               <%= link_to "Load more", admin_catalog_path(q: params[:q], genre: params[:genre], page: @pagy.next, book_id: @selected_book&.id), class: "admin-catalog-load-more" %>
             <% end %>
           </div>
@@ -140,7 +132,7 @@
               <span class="admin-catalog-record-badge">Catalog</span>
             <% end %>
           </div>
-          <p class="admin-catalog-detail-intro">Update the title record and its discoverability details. Edition information is shown from the linked edition records.</p>
+          <p class="admin-catalog-detail-intro"><%= @is_new_book ? "Create a new catalog record." : "Review and update the selected catalog record." %></p>
 
           <% if @detail_book.errors.any? %>
             <div class="admin-validation-errors" role="alert"><%= @detail_book.errors.full_messages.to_sentence %></div>
@@ -148,38 +140,57 @@
 
           <% if @is_new_book || @detail_book.persisted? %>
             <%= form_with model: [ :admin, @detail_book ], class: "admin-catalog-form", html: { multipart: true } do |f| %>
+              <% edition = @detail_book.book_editions.first %>
               <div class="admin-catalog-field-grid">
                 <div class="admin-field"><%= f.label :title %><%= f.text_field :title, placeholder: "Book title" %></div>
                 <div class="admin-field"><%= f.label :author %><%= f.text_field :author, placeholder: "Author name" %></div>
-                <div class="admin-field"><%= f.label :total_pages, "Total pages" %><%= f.number_field :total_pages, min: 1, placeholder: "Not set" %></div>
-                <div class="admin-field"><%= f.label :cover_image, "Cover image" %><%= f.file_field :cover_image, accept: "image/*" %></div>
+                <div class="admin-field">
+                  <%= label_tag "catalog_isbn", "ISBN" %>
+                  <%= text_field_tag "catalog_isbn", edition&.isbn.presence || "Not available", readonly: true, id: "catalog_isbn" %>
+                </div>
+                <div class="admin-field">
+                  <%= label_tag "catalog_metadata", "Genre / language / metadata" %>
+                  <%= text_field_tag "catalog_metadata", admin_catalog_metadata(@detail_book), readonly: true, id: "catalog_metadata" %>
+                </div>
+                <div class="admin-field">
+                  <%= label_tag "catalog_status", "Status" %>
+                  <%= text_field_tag "catalog_status", @detail_book.persisted? ? "Catalog" : "New record", readonly: true, id: "catalog_status" %>
+                </div>
               </div>
 
-              <fieldset class="admin-catalog-genre-fieldset">
-                <legend>Genres</legend>
-                <div class="admin-catalog-genre-options">
-                  <% Genre::GENRES.each do |genre| %>
-                    <% genre_id = "catalog_genre_#{genre.parameterize}" %>
-                    <%= check_box_tag "book[genre_names][]", genre, @detail_book.genres.map(&:name).include?(genre), id: genre_id %>
-                    <label for="<%= genre_id %>"><%= genre %></label>
-                  <% end %>
+              <details class="admin-catalog-extra-metadata" <%= "open" if @is_new_book %>>
+                <summary>More metadata</summary>
+                <div class="admin-catalog-field-grid">
+                  <div class="admin-field"><%= f.label :total_pages, "Total pages" %><%= f.number_field :total_pages, min: 1, placeholder: "Not set" %></div>
+                  <div class="admin-field"><%= f.label :cover_image, "Cover image" %><%= f.file_field :cover_image, accept: "image/*" %></div>
                 </div>
-              </fieldset>
-
-              <% if (edition = @detail_book.book_editions.first) %>
-                <div class="admin-catalog-edition-meta">
-                  <p class="admin-eyebrow">LINKED EDITION</p>
-                  <dl>
-                    <div><dt>ISBN</dt><dd><%= edition.isbn.presence || "Not available" %></dd></div>
-                    <div><dt>Language</dt><dd><%= edition.language.presence || "Not available" %></dd></div>
-                    <div><dt>Publisher</dt><dd><%= edition.publisher.presence || "Not available" %></dd></div>
-                    <div><dt>Publication year</dt><dd><%= edition.publish_year.presence || "Not available" %></dd></div>
-                  </dl>
-                </div>
-              <% end %>
+                <fieldset class="admin-catalog-genre-fieldset">
+                  <legend>Genres</legend>
+                  <div class="admin-catalog-genre-options">
+                    <% selected_genres = @detail_book.genres.map(&:name) %>
+                    <% Genre::GENRES.each do |genre| %>
+                      <% genre_id = "catalog_genre_#{genre.parameterize}" %>
+                      <%= check_box_tag "book[genre_names][]", genre, selected_genres.include?(genre), id: genre_id %>
+                      <label for="<%= genre_id %>"><%= genre %></label>
+                    <% end %>
+                  </div>
+                </fieldset>
+                <% if edition %>
+                  <div class="admin-catalog-edition-meta">
+                    <p class="admin-eyebrow">LINKED EDITION</p>
+                    <dl>
+                      <div><dt>Language</dt><dd><%= edition.language.presence || "Not available" %></dd></div>
+                      <div><dt>Publisher</dt><dd><%= edition.publisher.presence || "Not available" %></dd></div>
+                      <div><dt>Publication year</dt><dd><%= edition.publish_year.presence || "Not available" %></dd></div>
+                    </dl>
+                  </div>
+                <% end %>
+              </details>
 
               <div class="admin-catalog-form-actions">
-                <%= link_to "Cancel", @is_new_book ? admin_catalog_path : admin_catalog_path(book_id: @detail_book.id), class: "admin-secondary-button" %>
+                <% if @is_new_book %>
+                  <%= link_to "Cancel", admin_catalog_path, class: "admin-secondary-button" %>
+                <% end %>
                 <%= f.submit(@is_new_book ? "Add book" : "Save changes", class: "admin-primary-button") %>
               </div>
             <% end %>

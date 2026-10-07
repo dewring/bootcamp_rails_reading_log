@@ -1915,6 +1915,229 @@ main.container:has(> .my-log-page) {
     letter-spacing: normal;
   }
 
+  .admin-catalog-sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .admin-catalog-list-heading {
+    display: block;
+    padding: 0;
+    border: 0;
+  }
+
+  .admin-catalog-search input[type="search"] {
+    width: 100%;
+    height: 35px;
+    padding: 10px 12px;
+    border-color: $gray-mid;
+    color: $ink;
+    font-size: 11px;
+    line-height: 13px;
+  }
+
+  .admin-catalog-filters {
+    gap: 7px;
+    padding: 0;
+    margin: 9px 0 12px;
+    border: 0;
+    flex-wrap: wrap;
+  }
+
+  .admin-catalog-filter,
+  .admin-catalog-genre-filter select {
+    width: auto;
+    min-height: 28px;
+    padding: 7px 11px;
+    border-color: $gray-mid;
+    color: $ink !important;
+    font-size: 10px;
+    font-weight: 500;
+    line-height: 12px;
+  }
+
+  .admin-catalog-filter:disabled {
+    opacity: 1;
+    cursor: not-allowed;
+  }
+
+  .admin-catalog-filter.is-active {
+    border-color: $gray-mid;
+    color: $accent !important;
+    font-weight: 700;
+  }
+
+  .admin-catalog-genre-filter select {
+    min-width: 0;
+    max-width: 180px;
+    padding-right: 25px;
+    background-size: 10px auto;
+  }
+
+  .admin-catalog-records { gap: 9px; }
+
+  .admin-catalog-record {
+    display: block;
+    position: relative;
+    padding: 14px;
+    margin: 0;
+    border: 1px solid $gray-mid;
+    border-radius: 12px;
+    background: #fff;
+    box-shadow: none;
+
+    &.is-selected {
+      border-color: $accent;
+      background: #fdf1ef;
+      box-shadow: none;
+    }
+  }
+
+  .admin-catalog-record-select { gap: 9px; }
+
+  .admin-catalog-record-topline {
+    line-height: 18px;
+
+    strong {
+      max-width: 270px;
+      font-family: "Fraunces", Georgia, serif;
+      font-size: 15px;
+    }
+  }
+
+  .admin-catalog-record-badge {
+    min-height: 0;
+    padding: 0;
+    border-radius: 0;
+    background: transparent;
+    color: #52715a;
+    font-size: 10px;
+    line-height: 12px;
+  }
+
+  .admin-catalog-record-author {
+    font-size: 10px;
+    line-height: 12px;
+  }
+
+  .admin-catalog-record-meta {
+    display: block;
+    padding-right: 110px;
+    color: $text-muted;
+    font-size: 9px;
+    line-height: 12px;
+  }
+
+  .admin-catalog-record-actions {
+    position: absolute;
+    right: 14px;
+    bottom: 14px;
+    line-height: 12px;
+  }
+
+  .admin-catalog-view-link,
+  .admin-catalog-delete {
+    width: auto;
+    height: auto;
+    min-height: 0;
+    padding: 0;
+    margin: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    color: $ink !important;
+    font-family: inherit;
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 12px;
+  }
+
+  .admin-catalog-delete { color: #d9383a !important; }
+
+  .admin-catalog-list-footer {
+    justify-content: center;
+    gap: 4px;
+    padding: 12px 0 0;
+    font-size: 10px;
+    line-height: 12px;
+  }
+
+  .admin-catalog-load-more {
+    color: $text-muted !important;
+    font-size: 10px;
+    font-weight: 400;
+  }
+
+  .admin-catalog-detail-intro {
+    margin: 4px 0 18px;
+    font-size: 11px;
+    line-height: 13px;
+  }
+
+  .admin-catalog-form { gap: 18px; }
+
+  .admin-catalog-field-grid {
+    grid-template-columns: repeat(2, minmax(0, 220px));
+    align-items: start;
+    gap: 12px;
+  }
+
+  .admin-field {
+    gap: 6px;
+
+    label {
+      color: $text-muted;
+      font-size: 9px;
+      line-height: 11px;
+      text-transform: uppercase;
+    }
+
+    input {
+      height: 40px;
+      padding: 10px 12px;
+      border-color: $gray-mid;
+      background: #fffefc;
+      font-family: inherit;
+      font-size: 12px;
+      line-height: 1.4;
+      text-overflow: ellipsis;
+    }
+  }
+
+  .admin-catalog-extra-metadata {
+    margin: 0;
+    border: 0;
+
+    summary {
+      width: fit-content;
+      margin: 0;
+      color: $text-muted;
+      font-size: 10px;
+      line-height: 12px;
+    }
+
+    &[open] summary { margin-bottom: 12px; }
+    .admin-catalog-genre-fieldset { margin-top: 12px; }
+    .admin-catalog-edition-meta { margin-top: 12px; }
+  }
+
+  .admin-catalog-form-actions .admin-primary-button,
+  .admin-catalog-form-actions .admin-secondary-button {
+    width: auto;
+    height: 38px;
+    min-height: 38px;
+    margin: 0;
+    padding: 11px 16px;
+    font-family: inherit;
+    font-size: 12px;
+    line-height: 14px;
+  }
+
   @media (max-width: 1100px) {
     .admin-main { padding: 30px 24px; }
     .admin-catalog-workspace {
@@ -1929,6 +2152,7 @@ main.container:has(> .my-log-page) {
   @media (max-width: 600px) {
     .admin-main { padding: 26px 16px 40px; }
     .admin-page-heading h1 { font-size: 28px; }
+    .admin-catalog-field-grid { grid-template-columns: minmax(0, 1fr); }
   }
 }
 
