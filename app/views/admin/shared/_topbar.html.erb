@@ -1,0 +1,33 @@
+<header class="admin-topbar">
+  <%= link_to root_path, class: "admin-brand", aria: { label: "BookNook home" } do %>
+    <span class="admin-brand-mark"><%= image_tag "admin-brand-mark.svg", alt: "" %></span>
+    <span>BookNook</span>
+  <% end %>
+  <div class="admin-topbar-context">
+    <span class="admin-topbar-rule" aria-hidden="true"></span>
+    <span class="admin-workspace-badge">ADMIN WORKSPACE</span>
+  </div>
+  <div class="admin-topbar-actions" aria-label="Admin tools">
+    <div class="nav-menu" data-controller="nav-menu" data-action="mouseenter->nav-menu#enter mouseleave->nav-menu#leave focusin->nav-menu#focusIn focusout->nav-menu#focusOut dropdown:opened@window->nav-menu#closeIfAnother">
+      <button type="button" class="admin-icon-button" data-nav-menu-target="trigger" data-action="click->nav-menu#toggle" aria-expanded="false" aria-controls="admin_workspace_nav_menu" aria-label="Menu"><%= image_tag "admin-menu.svg", alt: "" %></button>
+      <ul id="admin_workspace_nav_menu" class="nav-dropdown" data-nav-menu-target="menu" hidden>
+        <li><%= link_to books_path, class: "nav-dropdown-item" do %><%= image_tag "dropdown-grid.svg", class: "dropdown-item-icon", alt: "" %><span>Catalog</span><% end %></li>
+        <li><%= link_to challenges_path, class: "nav-dropdown-item" do %><%= image_tag "dropdown-trophy.svg", class: "dropdown-item-icon", alt: "" %><span>Challenges</span><% end %></li>
+        <li><%= link_to book_clubs_path, class: "nav-dropdown-item" do %><%= image_tag "dropdown-users.svg", class: "dropdown-item-icon", alt: "" %><span>Book Clubs</span><% end %></li>
+      </ul>
+    </div>
+    <%= render "notifications/panel", notification_panel_locals %>
+    <div class="account-menu" data-controller="account-dropdown" data-action="mouseenter->account-dropdown#enter mouseleave->account-dropdown#leave focusin->account-dropdown#focusIn focusout->account-dropdown#focusOut dropdown:opened@window->account-dropdown#closeIfAnother">
+      <button type="button" class="admin-icon-button" data-account-dropdown-target="trigger" data-action="click->account-dropdown#toggle" aria-expanded="false" aria-controls="admin_workspace_account_menu" aria-label="Account"><%= image_tag "admin-user.svg", alt: "" %></button>
+      <ul id="admin_workspace_account_menu" class="account-dropdown account-dropdown--signed-in" data-account-dropdown-target="menu" hidden>
+        <li><%= link_to dashboard_path, class: "account-dropdown-item" do %><%= image_tag "dropdown-book-open.svg", class: "dropdown-item-icon", alt: "" %><span>My Log</span><% end %></li>
+        <li><%= link_to reviews_path, class: "account-dropdown-item" do %><%= image_tag "dropdown-star.svg", class: "dropdown-item-icon", alt: "" %><span>Reviews</span><% end %></li>
+        <li><%= link_to reading_sessions_path, class: "account-dropdown-item" do %><%= image_tag "dropdown-history.svg", class: "dropdown-item-icon", alt: "" %><span>History</span><% end %></li>
+        <li><%= link_to edit_user_registration_path, class: "account-dropdown-item" do %><%= image_tag "dropdown-settings.svg", class: "dropdown-item-icon", alt: "" %><span>Settings</span><% end %></li>
+        <li><%= link_to admin_root_path, class: "account-dropdown-item" do %><%= image_tag "dropdown-grid.svg", class: "dropdown-item-icon", alt: "" %><span>Manage</span><% end %></li>
+        <li class="account-dropdown-divider" aria-hidden="true"><%= image_tag "dropdown-divider.svg", alt: "" %></li>
+        <li><%= link_to destroy_user_session_path, class: "account-dropdown-item account-dropdown-item--danger", data: { turbo_method: :delete } do %><%= image_tag "dropdown-logout.svg", class: "dropdown-item-icon", alt: "" %><span>Log Out</span><% end %></li>
+      </ul>
+    </div>
+  </div>
+</header>

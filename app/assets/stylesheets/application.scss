@@ -2215,6 +2215,110 @@ main.container:has(> .my-log-page) {
   }
 }
 
+.admin-page--reviews {
+  .admin-main { padding: 30px 38px; background: #faf7f4; }
+  .admin-eyebrow { color: $accent; font-size: 11px; line-height: 15px; letter-spacing: normal; }
+  .admin-page-heading { margin-bottom: 20px; padding-bottom: 20px; border-bottom: 1px solid $gray-mid; }
+  .admin-page-heading h1 { margin: 4px 0; font-size: 34px; line-height: 42px; letter-spacing: normal; }
+  .admin-page-description { font-size: 13px; line-height: 17px; }
+
+  .admin-reviews-workspace { display: grid; grid-template-columns: minmax(0, 460px) minmax(0, 1fr); gap: 18px; }
+  .admin-reviews-list { min-width: 0; }
+  .admin-reviews-search {
+    display: flex;
+    gap: 8px;
+    margin: 0;
+
+    input[type="search"] { flex: 1; min-width: 0; height: 38px; margin: 0; padding: 9px 11px; border: 1px solid $gray-mid; border-radius: 8px; background: #fff; font-size: 13px; }
+    input[type="submit"] { width: auto; height: 38px; margin: 0; padding: 0 12px; border: 0; border-radius: 8px; background: $accent; font-size: 12px; }
+  }
+  .admin-reviews-filters {
+    display: flex;
+    gap: 7px;
+    margin: 9px 0 12px;
+
+    form { margin: 0; }
+    select { width: auto; min-height: 32px; margin: 0; padding: 6px 28px 6px 11px; border: 1px solid $gray-mid; border-radius: 999px; background-color: #fff; font-size: 12px; line-height: 18px; }
+  }
+  .admin-reviews-filter { display: inline-flex; align-items: center; padding: 6px 11px; border: 1px solid $gray-mid; border-radius: 999px; background: #fff; color: $ink !important; font-size: 12px; text-decoration: none; }
+  .admin-reviews-filter.is-active { background: #fdf1ef; color: $accent !important; font-weight: 700; }
+  .admin-reviews-records { display: grid; grid-template-columns: minmax(0, 1fr); gap: 9px; }
+  .admin-review-record { min-width: 0; margin: 0; padding: 16px; border: 1px solid $gray-mid; border-radius: 12px; background: #fff; box-shadow: none; }
+  .admin-review-record.is-selected { border-color: $accent; background: #fdf1ef; }
+  .admin-review-select {
+    display: grid;
+    min-width: 0;
+    gap: 7px;
+    color: $ink !important;
+    text-decoration: none;
+
+    strong { font-family: "Fraunces", Georgia, serif; font-size: 17px; line-height: 21px; overflow-wrap: anywhere; }
+  }
+  .admin-review-book { overflow: hidden; color: $text-muted; font-size: 12px; line-height: 17px; text-overflow: ellipsis; white-space: nowrap; }
+  .admin-review-excerpt { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; color: $text-muted; font-size: 12px; line-height: 17px; overflow-wrap: anywhere; }
+  .admin-review-footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-top: 12px; }
+  .admin-review-rating { color: $ink; font-size: 12px; line-height: 17px; }
+  .admin-review-rating time { color: $text-muted; font-size: 11px; }
+  .admin-review-actions {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+
+    form { margin: 0; }
+    a, button { width: auto; min-height: 28px; margin: 0; padding: 4px 0; border: 0; background: transparent; box-shadow: none; color: $ink !important; font-family: inherit; font-size: 12px; font-weight: 700; line-height: 20px; text-decoration: none; }
+    button { color: #d9383a !important; }
+  }
+  .admin-reviews-pagination { margin-top: 14px; text-align: center; }
+  .admin-reviews-pagination p { margin: 0 0 10px; color: $text-muted; font-size: 12px; }
+  .admin-review-detail { min-width: 0; min-height: 600px; padding: 24px; border: 1px solid $gray-mid; border-radius: 18px; background: #fff; }
+  .admin-review-detail h2 { margin: 4px 0; color: $ink; font-family: "Fraunces", Georgia, serif; font-size: 26px; line-height: 33px; }
+  .admin-review-detail-intro { margin: 4px 0 22px; color: $text-muted; font-size: 13px; line-height: 18px; }
+  .admin-review-field-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px 12px;
+    margin: 0;
+
+    dt { margin: 0 0 6px; color: $text-muted; font-size: 11px; font-weight: 700; line-height: 15px; text-transform: uppercase; }
+    dd { min-height: 42px; margin: 0; padding: 10px 12px; border: 1px solid $gray-mid; border-radius: 8px; background: #fffefc; color: $ink; font-size: 14px; line-height: 20px; overflow-wrap: anywhere; }
+    dd a { color: $ink !important; }
+    dd p { margin: 0 0 12px; font-size: inherit; line-height: inherit; }
+    dd p:last-child { margin-bottom: 0; }
+  }
+  .admin-review-body-field { grid-column: 1 / -1; }
+  .admin-review-body-field dd { min-height: 120px; }
+  .admin-review-detail-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 10px;
+    margin-top: 20px;
+
+    form { margin: 0; }
+    .admin-secondary-button, .admin-review-delete-button { width: auto; min-height: 38px; margin: 0; padding: 10px 16px; border: 1px solid $gray-mid; border-radius: 999px; font-family: inherit; font-size: 12px; line-height: 17px; }
+    .admin-review-delete-button { border-color: #d9383a; background: #d9383a; color: #fff; }
+  }
+  .admin-reviews-empty, .admin-review-detail-empty { padding: 20px 0; color: $text-muted; font-size: 14px; line-height: 21px; }
+  .admin-reviews-empty h2 { font-family: "Fraunces", Georgia, serif; font-size: 22px; }
+  .admin-reviews-empty p { font-size: 13px; }
+
+  @media (max-width: 1100px) {
+    .admin-main { padding: 30px 24px; }
+    .admin-reviews-workspace { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+  @media (max-width: 860px) {
+    .admin-reviews-workspace { grid-template-columns: minmax(0, 1fr); }
+    .admin-review-detail { min-height: 0; }
+  }
+  @media (max-width: 600px) {
+    .admin-main { padding: 26px 16px 40px; }
+    .admin-page-heading h1 { font-size: 30px; }
+    .admin-review-field-grid { grid-template-columns: minmax(0, 1fr); }
+    .admin-review-detail { padding: 18px; }
+  }
+}
+
 // ── Book Club detail overview ─────────────────────────────
 main.container:has(> .book-club-detail-page) {
   width: 100%;

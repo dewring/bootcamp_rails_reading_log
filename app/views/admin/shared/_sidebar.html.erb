@@ -3,7 +3,7 @@
     <p class="admin-sidebar-label">Management</p>
     <nav class="admin-sidebar-nav">
       <%= link_to admin_catalog_path, class: "admin-sidebar-link#{' is-active' if active_section == :catalog}", aria: { current: ("page" if active_section == :catalog) } do %><span class="admin-sidebar-icon admin-sidebar-icon--library" aria-hidden="true"></span><span>Catalog</span><% end %>
-      <span class="admin-sidebar-link admin-sidebar-link--disabled"><span class="admin-sidebar-icon admin-sidebar-icon--message-square-text" aria-hidden="true"></span><span>Reviews</span></span>
+      <%= link_to admin_reviews_path, class: "admin-sidebar-link#{' is-active' if active_section == :reviews}", aria: { current: ("page" if active_section == :reviews) } do %><span class="admin-sidebar-icon admin-sidebar-icon--message-square-text" aria-hidden="true"></span><span>Reviews</span><% end %>
       <%= link_to admin_root_path, class: "admin-sidebar-link#{' is-active' if active_section == :challenges}", aria: { current: ("page" if active_section == :challenges) } do %><span class="admin-sidebar-icon admin-sidebar-icon--trophy" aria-hidden="true"></span><span>Challenges</span><% end %>
       <span class="admin-sidebar-link admin-sidebar-link--disabled"><span class="admin-sidebar-icon admin-sidebar-icon--book-clubs" aria-hidden="true"></span><span>Book Clubs</span></span>
       <span class="admin-sidebar-link admin-sidebar-link--disabled"><span class="admin-sidebar-icon admin-sidebar-icon--users" aria-hidden="true"></span><span>Members</span></span>
