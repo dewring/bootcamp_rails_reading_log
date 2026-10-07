@@ -1,0 +1,24 @@
+<section class="challenge-section challenge-section--<%= state %>" aria-labelledby="challenge-section-<%= state %>">
+  <div class="challenge-section-heading">
+    <div class="challenge-section-title">
+      <h2 id="challenge-section-<%= state %>"><%= title %></h2>
+      <span class="challenge-count"><%= challenges.size %></span>
+    </div>
+    <% if note.present? %>
+      <p><%= note %></p>
+    <% end %>
+  </div>
+
+  <% if challenges.empty? %>
+    <div class="challenge-empty-state"><%= empty_message %></div>
+  <% else %>
+    <div class="challenge-card-grid">
+      <% challenges.each do |challenge| %>
+        <%= render "challenge_card",
+              challenge: challenge,
+              user_challenge: user_challenges_by_challenge_id[challenge.id],
+              state: state %>
+      <% end %>
+    </div>
+  <% end %>
+</section>

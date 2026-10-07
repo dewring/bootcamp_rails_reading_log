@@ -5,10 +5,6 @@
     <p><%= @challenge.date_range %></p>
   </hgroup>
 
-  <% if policy(@challenge).edit? %>
-    <p><%= link_to "Edit", edit_admin_challenge_path(@challenge), class: "btn-cta btn-cta-secondary" %></p>
-  <% end %>
-
   <% user_challenge = current_user.user_challenges.find_by(challenge: @challenge) %>
 
   <%= turbo_frame_tag dom_id(@challenge, :enrollment) do %>

@@ -1,51 +1,85 @@
-<div class="catalog-header">
-  <hgroup>
-    <h1>Challenges</h1>
-    <p>Browse active reading challenges and track your progress.</p>
-  </hgroup>
-  <% if policy(Challenge).new? %>
-    <%= link_to "＋ Add Challenge", new_admin_challenge_path, class: "btn-cta" %>
-  <% end %>
-</div>
+<%
+  user_challenges_by_challenge_id = current_user.user_challenges
+    .where(challenge_id: @challenges.map(&:id))
+    .index_by(&:challenge_id)
 
-<% if @challenges.empty? %>
-  <article>
-    <p>No active challenges right now.</p>
-  </article>
-<% else %>
-  <% user_challenges_by_challenge_id = current_user.user_challenges.index_by(&:challenge_id) %>
+  ongoing_challenges = @challenges.select do |challenge|
+    user_challenge = user_challenges_by_challenge_id[challenge.id]
+    user_challenge&.status.in?(%w[active in_progress])
+  end
 
-  <% @challenges.each do |challenge| %>
-    <article>
-      <strong><%= link_to challenge.title, challenge %></strong>
-      <p><%= challenge.goal_summary %></p>
-      <p><%= challenge.date_range %></p>
+  completed_challenges = @challenges.select do |challenge|
+    user_challenge = user_challenges_by_challenge_id[challenge.id]
+    user_challenge&.status.in?(%w[completed failed])
+  end
 
-      <% user_challenge = user_challenges_by_challenge_id[challenge.id] %>
-      <% if user_challenge %>
-        <span class="challenge-status">Status: <%= user_challenge.status.humanize %></span>
+  available_challenges = @challenges.select do |challenge|
+    user_challenge = user_challenges_by_challenge_id[challenge.id]
+    user_challenge.nil? || user_challenge.abandoned?
+  end
+%>
 
-        <div data-controller="progress-bar" data-progress-bar-percent-value="<%= user_challenge.progress %>">
-          <div class="progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="<%= user_challenge.progress %>">
-            <div class="progress-fill" data-progress-bar-target="bar"></div>
-          </div>
+<main class="challenges-page">
+  <section class="challenges-hero" aria-labelledby="challenges-title">
+    <div class="challenges-hero-copy">
+      <p class="challenges-eyebrow">Challenges · <%= Time.current.strftime("%B %Y") %></p>
+      <h1 id="challenges-title">Read. Track. Celebrate.</h1>
+      <p class="challenges-hero-description">A clear view of every goal, milestone, and reading win.</p>
+
+      <div class="challenge-summary-tiles" aria-label="Challenge summary">
+        <div class="challenge-summary-tile challenge-summary-tile--ongoing">
+          <strong><%= ongoing_challenges.size %></strong>
+          <span>Ongoing</span>
         </div>
-      <% else %>
-        <span>Not enrolled</span>
-      <% end %>
-
-      <% if policy(challenge).edit? || policy(challenge).destroy? %>
-        <div class="challenge-admin-actions">
-          <% if policy(challenge).edit? %>
-            <%= link_to "Edit", edit_admin_challenge_path(challenge), class: "btn-sm" %>
-          <% end %>
-          <% if policy(challenge).destroy? %>
-            <%= button_to "Delete", admin_challenge_path(challenge), method: :delete,
-                  data: { turbo_confirm: "Remove this challenge?" },
-                  class: "btn-sm btn-danger" %>
-          <% end %>
+        <div class="challenge-summary-tile challenge-summary-tile--completed">
+          <strong><%= completed_challenges.size %></strong>
+          <span>Completed</span>
         </div>
+        <div class="challenge-summary-tile challenge-summary-tile--available">
+          <strong><%= available_challenges.size %></strong>
+          <span>Available</span>
+        </div>
+      </div>
+
+      <% if policy(Challenge).new? %>
+        <%= link_to "Add Challenge", admin_root_path(new_challenge: true), class: "challenges-admin-link" %>
       <% end %>
-    </article>
-  <% end %>
-<% end %>
+    </div>
+
+    <div class="challenges-hero-companion">
+      <div class="challenges-illustration">
+        <%= image_tag "challenges-reading-character.jpeg", alt: "A cheerful book character reading across colorful book tiles" %>
+      </div>
+      <div class="challenges-tracking-note">
+        <span class="challenges-tracking-icon" aria-hidden="true">
+          <%= image_tag "challenges-sparkles.svg", alt: "" %>
+        </span>
+        <strong>Progress updates automatically from My Log</strong>
+      </div>
+    </div>
+  </section>
+
+  <%= render "challenge_section",
+        title: "Ongoing",
+        note: "Progress at a glance",
+        challenges: ongoing_challenges,
+        user_challenges_by_challenge_id: user_challenges_by_challenge_id,
+        state: "ongoing",
+        empty_message: "Join a challenge to start tracking your next reading win." %>
+
+  <%= render "challenge_section",
+        title: "Completed",
+        note: "Previous attempts",
+        challenges: completed_challenges,
+        user_challenges_by_challenge_id: user_challenges_by_challenge_id,
+        state: "completed",
+        empty_message: "Completed challenges will appear here." %>
+
+  <%= render "challenge_section",
+        title: "Available",
+        note: nil,
+        challenges: available_challenges,
+        user_challenges_by_challenge_id: user_challenges_by_challenge_id,
+        state: "available",
+        empty_message: "There are no new challenges available right now." %>
+</main>
