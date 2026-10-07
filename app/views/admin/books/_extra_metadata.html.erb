@@ -1,0 +1,28 @@
+<details class="admin-catalog-extra-metadata" <%= "open" if expanded %>>
+  <summary>More metadata</summary>
+  <div class="admin-catalog-field-grid">
+    <div class="admin-field"><%= f.label :total_pages, "Total pages" %><%= f.number_field :total_pages, min: 1, placeholder: "Not set" %></div>
+    <div class="admin-field"><%= f.label :cover_image, "Cover image" %><%= f.file_field :cover_image, accept: "image/*" %></div>
+  </div>
+  <fieldset class="admin-catalog-genre-fieldset">
+    <legend>Genres</legend>
+    <div class="admin-catalog-genre-options">
+      <% selected_genres = book.genres.map(&:name) %>
+      <% Genre::GENRES.each do |genre| %>
+        <% genre_id = "catalog_genre_#{genre.parameterize}" %>
+        <%= check_box_tag "book[genre_names][]", genre, selected_genres.include?(genre), id: genre_id %>
+        <label for="<%= genre_id %>"><%= genre %></label>
+      <% end %>
+    </div>
+  </fieldset>
+  <% if (edition = book.book_editions.first) %>
+    <div class="admin-catalog-edition-meta">
+      <p class="admin-eyebrow">LINKED EDITION</p>
+      <dl>
+        <div><dt>Language</dt><dd><%= edition.language.presence || "Not available" %></dd></div>
+        <div><dt>Publisher</dt><dd><%= edition.publisher.presence || "Not available" %></dd></div>
+        <div><dt>Publication year</dt><dd><%= edition.publish_year.presence || "Not available" %></dd></div>
+      </dl>
+    </div>
+  <% end %>
+</details>

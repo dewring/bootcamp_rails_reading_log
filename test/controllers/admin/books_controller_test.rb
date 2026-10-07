@@ -98,6 +98,7 @@ class Admin::BooksControllerTest < ActionDispatch::IntegrationTest
     assert_select "details.admin-catalog-extra-metadata[open]"
     assert_select "input#catalog_status[value='New record']"
     assert_select "input[type='submit'][value='Add book']"
+    assert_select ".admin-catalog-extra-metadata + .admin-catalog-form-actions", count: 1
 
     post admin_books_path, params: { book: { title: "", author: "An Author" } }
 
@@ -116,6 +117,35 @@ class Admin::BooksControllerTest < ActionDispatch::IntegrationTest
     assert_equal "Updated Title", book.reload.title
     assert_equal 500, book.total_pages
     assert_equal [ "Fiction" ], book.genres.pluck(:name)
+  end
+
+  test "new record submission still accepts a cover and additional metadata" do
+    assert_difference "Book.count", 1 do
+      post admin_books_path, params: {
+        book: {
+          title: "Complete Catalog Record", author: "An Author", total_pages: 250,
+          genre_names: [ "Fiction", "Mystery" ],
+          cover_image: fixture_file_upload("cover_test.jpg", "image/jpeg")
+        }
+      }
+    end
+
+    book = Book.find_by!(title: "Complete Catalog Record")
+    assert_redirected_to admin_catalog_path(book_id: book.id)
+    assert_equal 250, book.total_pages
+    assert_equal [ "Fiction", "Mystery" ], book.genres.order(:name).pluck(:name)
+    assert book.cover_image.attached?
+  end
+
+  test "delete action removes the selected record and returns to the catalog" do
+    book = Book.create!(title: "Disposable Catalog Test", author: "An Author")
+
+    assert_difference "Book.count", -1 do
+      delete admin_book_path(book)
+    end
+
+    assert_redirected_to admin_catalog_path
+    assert_not Book.exists?(book.id)
   end
 
   test "catalog remains restricted to administrators" do

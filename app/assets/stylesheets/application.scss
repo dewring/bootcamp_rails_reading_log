@@ -2145,6 +2145,28 @@ main.container:has(> .my-log-page) {
     .admin-catalog-edition-meta { margin-top: 12px; }
   }
 
+  .admin-catalog-field-grid .admin-field input[type="file"] {
+    height: 40px;
+    min-height: 40px;
+    padding: 6px;
+    overflow: hidden;
+    font-size: 11px;
+    line-height: 26px;
+
+    &::file-selector-button {
+      height: 26px;
+      margin: 0 8px 0 0;
+      padding: 4px 8px;
+      border: 1px solid $gray-mid;
+      border-radius: 5px;
+      background: #fdf1ef;
+      color: $ink;
+      font-family: inherit;
+      font-size: 11px;
+      line-height: 16px;
+    }
+  }
+
   .admin-catalog-form-actions .admin-primary-button,
   .admin-catalog-form-actions .admin-secondary-button {
     width: auto;

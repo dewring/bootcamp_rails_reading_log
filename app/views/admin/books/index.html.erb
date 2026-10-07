@@ -159,6 +159,8 @@
               </div>
 
 
+              <%= render "extra_metadata", f: f, book: @detail_book, expanded: true if @is_new_book %>
+
               <div class="admin-catalog-form-actions">
                 <% if @is_new_book %>
                   <%= link_to "Cancel", admin_catalog_path, class: "admin-secondary-button" %>
@@ -166,34 +168,7 @@
                 <%= f.submit(@is_new_book ? "Add book" : "Save changes", class: "admin-primary-button") %>
               </div>
 
-              <details class="admin-catalog-extra-metadata" <%= "open" if @is_new_book %>>
-                <summary>More metadata</summary>
-                <div class="admin-catalog-field-grid">
-                  <div class="admin-field"><%= f.label :total_pages, "Total pages" %><%= f.number_field :total_pages, min: 1, placeholder: "Not set" %></div>
-                  <div class="admin-field"><%= f.label :cover_image, "Cover image" %><%= f.file_field :cover_image, accept: "image/*" %></div>
-                </div>
-                <fieldset class="admin-catalog-genre-fieldset">
-                  <legend>Genres</legend>
-                  <div class="admin-catalog-genre-options">
-                    <% selected_genres = @detail_book.genres.map(&:name) %>
-                    <% Genre::GENRES.each do |genre| %>
-                      <% genre_id = "catalog_genre_#{genre.parameterize}" %>
-                      <%= check_box_tag "book[genre_names][]", genre, selected_genres.include?(genre), id: genre_id %>
-                      <label for="<%= genre_id %>"><%= genre %></label>
-                    <% end %>
-                  </div>
-                </fieldset>
-                <% if edition %>
-                  <div class="admin-catalog-edition-meta">
-                    <p class="admin-eyebrow">LINKED EDITION</p>
-                    <dl>
-                      <div><dt>Language</dt><dd><%= edition.language.presence || "Not available" %></dd></div>
-                      <div><dt>Publisher</dt><dd><%= edition.publisher.presence || "Not available" %></dd></div>
-                      <div><dt>Publication year</dt><dd><%= edition.publish_year.presence || "Not available" %></dd></div>
-                    </dl>
-                  </div>
-                <% end %>
-              </details>
+              <%= render "extra_metadata", f: f, book: @detail_book, expanded: false unless @is_new_book %>
             <% end %>
           <% else %>
             <div class="admin-catalog-detail-empty">
