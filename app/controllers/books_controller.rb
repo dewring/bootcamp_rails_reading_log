@@ -21,8 +21,7 @@ class BooksController < ApplicationController
       books.includes(:genres)
     end
     @books = @books.joins(:genres).where(genres: { name: params[:genre] }) if params[:genre].present?
-    sort_col = SORTABLE_COLUMNS.include?(params[:sort]) ? params[:sort] : "title"
-    @books = @books.order(sort_col)
+    @books = apply_catalog_order(@books)
     @pagy, @books = pagy(:offset, @books, limit: 10)
 
     respond_to do |format|
@@ -137,6 +136,18 @@ class BooksController < ApplicationController
 
   def set_book
     @book = Book.find(params[:id])
+  end
+
+  def apply_catalog_order(books)
+    case params[:filter]
+    when "most_read"
+      books.most_read
+    when "new_books"
+      books.order(created_at: :desc)
+    else
+      sort_col = SORTABLE_COLUMNS.include?(params[:sort]) ? params[:sort] : "title"
+      books.order(sort_col)
+    end
   end
 
   def not_found

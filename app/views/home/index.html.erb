@@ -1,33 +1,67 @@
-<%# Genre pill navigation %>
+<%= render "home/hero" %>
 
 <%# Most Read %>
 <section class="home-section">
-  <h2>Most Read</h2>
-  <div class="genre-pills">
-    <% if params[:genre].present? %>
-      <%= link_to "Reset", root_path, class: "genre-pill", style: "background-color: #f5c518; border-color: #e0b000; color: #16281d; text-decoration: none;" %>
+  <header class="home-section-header">
+    <h2>Most Read</h2>
+    <%= link_to books_path(filter: "most_read"), class: "home-view-all" do %>
+      <span>View All</span>
+      <%= image_tag "arrow-right.svg", alt: "", aria: { hidden: true } %>
     <% end %>
-    <% Genre::GENRES.each do |genre| %>
-      <%= link_to genre, root_path(genre: genre), class: "genre-pill #{'genre-pill-active' if params[:genre] == genre}" %>
-    <% end %>
-  </div>
+  </header>
+  <% if params[:genre].present? %>
+    <div class="genre-pills">
+      <%= link_to "Reset", root_path, class: "genre-pill" %>
+      <% Genre::GENRES.each do |genre| %>
+        <%= link_to genre, root_path(genre: genre), class: "genre-pill #{'genre-pill-active' if params[:genre] == genre}" %>
+      <% end %>
+    </div>
+  <% end %>
   <% if @most_read.empty? %>
     <p class="empty-state">No books found for this genre.</p>
   <% else %>
-    <div class="book-row">
-      <% @most_read.each do |book| %>
-        <%= render "home/book_card", book: book %>
-      <% end %>
+    <div class="home-carousel-track">
+      <div class="book-row">
+        <% @most_read.each do |book| %>
+          <%= render "home/book_card", book: book %>
+        <% end %>
+      </div>
     </div>
   <% end %>
 </section>
 
 <%# New Books %>
 <section class="home-section">
-  <h2>New Books</h2>
-  <div class="book-row">
-    <% @new_books.each do |book| %>
-      <%= render "home/book_card", book: book %>
+  <header class="home-section-header">
+    <h2>New Books</h2>
+    <%= link_to books_path(filter: "new_books"), class: "home-view-all" do %>
+      <span>View All</span>
+      <%= image_tag "arrow-right.svg", alt: "", aria: { hidden: true } %>
     <% end %>
+  </header>
+  <div class="home-carousel-track">
+    <div class="book-row">
+      <% @new_books.each do |book| %>
+        <%= render "home/book_card", book: book %>
+      <% end %>
+    </div>
   </div>
 </section>
+
+<footer class="home-footer">
+  <div class="home-footer-main">
+    <div class="home-footer-brand">
+      <div class="home-footer-mark">
+        <span class="home-footer-icon" aria-hidden="true">
+          <%= image_tag "book-open.svg", alt: "" %>
+        </span>
+        <span>BookNook</span>
+      </div>
+      <p>Your snug digital corner for exploring, organizing, and celebrating the magic of the written word.</p>
+    </div>
+  </div>
+  <div class="home-footer-bottom">
+    <span>© 2026 BookNook Inc. All rights reserved.</span>
+    <span>Privacy Policy • Terms of Service</span>
+  </div>
+</footer>

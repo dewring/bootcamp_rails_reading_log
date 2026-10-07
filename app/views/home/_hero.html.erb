@@ -1,0 +1,20 @@
+<section class="home-hero" aria-labelledby="home-hero-title">
+  <div class="home-hero-content">
+    <span class="home-hero-badge">SUMMER EVENT</span>
+
+    <div class="home-hero-copy">
+      <h1 id="home-hero-title">Summer Reading Challenge — Join Now</h1>
+      <p>Track your journeys, earn exclusive badges, and join virtual discussions with readers worldwide. This season's journey awaits.</p>
+    </div>
+
+    <%= link_to "Start Your Challenge", books_path, class: "home-hero-cta" %>
+  </div>
+
+  <div class="home-hero-cover">
+    <% if @featured_book&.cover_image&.attached? %>
+      <%= image_tag @featured_book.cover_image.variant(resize_to_fill: [180, 260]), alt: @featured_book.title %>
+    <% else %>
+      <div class="home-hero-no-cover" aria-label="No featured book cover">📚</div>
+    <% end %>
+  </div>
+</section>
