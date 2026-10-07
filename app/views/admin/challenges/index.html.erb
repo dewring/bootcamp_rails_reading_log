@@ -1,0 +1,311 @@
+<% content_for :title, "Challenge Management · BookNook" %>
+
+<div class="admin-page">
+  <header class="admin-topbar">
+    <%= link_to root_path, class: "admin-brand", aria: { label: "BookNook home" } do %>
+      <span class="admin-brand-mark"><%= image_tag "admin-brand-mark.svg", alt: "" %></span>
+      <span>BookNook</span>
+    <% end %>
+
+    <div class="admin-topbar-context">
+      <span class="admin-topbar-rule" aria-hidden="true"></span>
+      <span class="admin-workspace-badge">ADMIN WORKSPACE</span>
+    </div>
+
+    <div class="admin-topbar-actions" aria-label="Admin tools">
+      <div class="nav-menu"
+           data-controller="nav-menu"
+           data-action="mouseenter->nav-menu#enter mouseleave->nav-menu#leave focusin->nav-menu#focusIn focusout->nav-menu#focusOut dropdown:opened@window->nav-menu#closeIfAnother">
+        <button type="button"
+                class="admin-icon-button"
+                data-nav-menu-target="trigger"
+                data-action="click->nav-menu#toggle"
+                aria-expanded="false"
+                aria-controls="admin_nav_menu_dropdown"
+                aria-label="Menu">
+          <%= image_tag "admin-menu.svg", alt: "" %>
+        </button>
+        <ul id="admin_nav_menu_dropdown" class="nav-dropdown" data-nav-menu-target="menu" hidden>
+          <li>
+            <%= link_to admin_catalog_path, class: "nav-dropdown-item" do %>
+              <%= image_tag "dropdown-grid.svg", class: "dropdown-item-icon", alt: "" %>
+              <span>Catalog</span>
+            <% end %>
+          </li>
+          <li>
+            <%= link_to challenges_path, class: "nav-dropdown-item" do %>
+              <%= image_tag "dropdown-trophy.svg", class: "dropdown-item-icon", alt: "" %>
+              <span>Challenges</span>
+            <% end %>
+          </li>
+          <li>
+            <%= link_to book_clubs_path, class: "nav-dropdown-item" do %>
+              <%= image_tag "dropdown-users.svg", class: "dropdown-item-icon", alt: "" %>
+              <span>Book Clubs</span>
+            <% end %>
+          </li>
+        </ul>
+      </div>
+      <%= render "notifications/panel", notification_panel_locals %>
+      <div class="account-menu"
+           data-controller="account-dropdown"
+           data-action="mouseenter->account-dropdown#enter mouseleave->account-dropdown#leave focusin->account-dropdown#focusIn focusout->account-dropdown#focusOut dropdown:opened@window->account-dropdown#closeIfAnother">
+        <button type="button"
+                class="admin-icon-button"
+                data-account-dropdown-target="trigger"
+                data-action="click->account-dropdown#toggle"
+                aria-expanded="false"
+                aria-controls="admin_account_dropdown"
+                aria-label="Account">
+          <%= image_tag "admin-user.svg", alt: "" %>
+        </button>
+        <ul id="admin_account_dropdown"
+            class="account-dropdown account-dropdown--signed-in"
+            data-account-dropdown-target="menu"
+            hidden>
+          <li>
+            <%= link_to dashboard_path, class: "account-dropdown-item" do %>
+              <%= image_tag "dropdown-book-open.svg", class: "dropdown-item-icon", alt: "" %>
+              <span>My Log</span>
+            <% end %>
+          </li>
+          <li>
+            <%= link_to reviews_path, class: "account-dropdown-item" do %>
+              <%= image_tag "dropdown-star.svg", class: "dropdown-item-icon", alt: "" %>
+              <span>Reviews</span>
+            <% end %>
+          </li>
+          <li>
+            <%= link_to reading_sessions_path, class: "account-dropdown-item" do %>
+              <%= image_tag "dropdown-history.svg", class: "dropdown-item-icon", alt: "" %>
+              <span>History</span>
+            <% end %>
+          </li>
+          <li>
+            <%= link_to edit_user_registration_path, class: "account-dropdown-item" do %>
+              <%= image_tag "dropdown-settings.svg", class: "dropdown-item-icon", alt: "" %>
+              <span>Settings</span>
+            <% end %>
+          </li>
+          <li>
+            <%= link_to admin_root_path, class: "account-dropdown-item" do %>
+              <%= image_tag "dropdown-grid.svg", class: "dropdown-item-icon", alt: "" %>
+              <span>Manage</span>
+            <% end %>
+          </li>
+          <li class="account-dropdown-divider" aria-hidden="true">
+            <%= image_tag "dropdown-divider.svg", alt: "" %>
+          </li>
+          <li>
+            <%= link_to destroy_user_session_path,
+                  class: "account-dropdown-item account-dropdown-item--danger",
+                  data: { turbo_method: :delete } do %>
+              <%= image_tag "dropdown-logout.svg", class: "dropdown-item-icon", alt: "" %>
+              <span>Log Out</span>
+            <% end %>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </header>
+
+  <div class="admin-body">
+    <aside class="admin-sidebar" aria-label="Admin navigation">
+      <div>
+        <p class="admin-sidebar-label">Management</p>
+        <nav class="admin-sidebar-nav">
+          <%= link_to admin_catalog_path, class: "admin-sidebar-link" do %>
+            <%= image_tag "admin-library.svg", alt: "" %>
+            <span>Catalog</span>
+          <% end %>
+          <%= link_to admin_root_path, class: "admin-sidebar-link is-active", aria: { current: "page" } do %>
+            <%= image_tag "admin-trophy.svg", alt: "" %>
+            <span>Challenges</span>
+          <% end %>
+          <span class="admin-sidebar-link admin-sidebar-link--disabled">
+            <%= image_tag "admin-users.svg", alt: "" %>
+            <span>Members</span>
+          </span>
+          <span class="admin-sidebar-link admin-sidebar-link--disabled">
+            <%= image_tag "admin-message-square-text.svg", alt: "" %>
+            <span>Reviews</span>
+          </span>
+          <span class="admin-sidebar-link admin-sidebar-link--disabled">
+            <%= image_tag "admin-settings.svg", alt: "" %>
+            <span>Settings</span>
+          </span>
+        </nav>
+      </div>
+
+      <div class="admin-sidebar-footer">
+        <span class="admin-sidebar-rule" aria-hidden="true"></span>
+        <%= link_to destroy_user_session_path, class: "admin-sidebar-link admin-sidebar-link--logout", data: { turbo_method: :delete } do %>
+          <%= image_tag "admin-log-out.svg", alt: "" %>
+          <span>Log out</span>
+        <% end %>
+      </div>
+    </aside>
+
+    <main class="admin-main" aria-labelledby="admin-page-title">
+      <%= render "shared/flash_messages" %>
+
+      <div class="admin-page-heading">
+        <div>
+          <p class="admin-eyebrow">CONTENT OPERATIONS</p>
+          <h1 id="admin-page-title">Challenge Management</h1>
+          <p class="admin-page-description">Create, review, and maintain every BookNook reading challenge.</p>
+        </div>
+        <%= link_to admin_root_path(new_challenge: true), class: "admin-primary-button" do %>
+          <%= image_tag "admin-plus.svg", alt: "" %>
+          <span>Add New Challenge</span>
+        <% end %>
+      </div>
+
+  <% goal_type_options = Challenge.goal_types.keys.map { |value| [value.humanize, value] } %>
+  <% selected_goal_type = @detail_challenge&.goal_type || goal_type_options.first.last %>
+  <% selected_active = @detail_challenge&.active.nil? ? true : @detail_challenge.active? %>
+
+  <div class="admin-workspace <%= "admin-workspace--no-selection" unless @detail_challenge %>">
+        <section class="admin-record-panel" aria-labelledby="admin-records-title">
+          <div class="admin-record-toolbar">
+            <div>
+              <h2 id="admin-records-title">All challenges</h2>
+              <p><%= @challenges.size %> records · Updated today</p>
+            </div>
+          </div>
+
+          <div class="admin-table-wrap">
+            <table class="admin-challenge-table">
+              <thead>
+                <tr>
+                  <th scope="col">Challenge</th>
+                  <th scope="col">Dates</th>
+                  <th scope="col">Status</th>
+                  <th scope="col" class="admin-table-actions-heading" aria-label="Delete"></th>
+                </tr>
+              </thead>
+              <tbody>
+                <% @challenges.each do |challenge| %>
+                  <% status = if !challenge.active? then "Inactive" elsif challenge.ends_at < Time.current then "Expired" elsif challenge.starts_at > Time.current then "Upcoming" else "Ongoing" end %>
+                  <tr class="<%= "is-selected" if @selected_challenge == challenge %>">
+                    <td>
+                      <%= link_to admin_root_path(challenge_id: challenge.id), class: "admin-challenge-name" do %>
+                        <strong><%= challenge.title %></strong>
+                        <span><%= challenge.goal_summary %></span>
+                      <% end %>
+                    </td>
+                    <td class="admin-date-cell"><%= challenge.starts_at.strftime("%b %-d, %Y") %><br><span>to <%= challenge.ends_at.strftime("%b %-d, %Y") %></span></td>
+                    <td><span class="admin-status-badge admin-status-badge--<%= status.downcase %>"><%= status %></span></td>
+                    <td>
+                      <div class="admin-row-actions">
+                        <%= button_to admin_challenge_path(challenge), method: :delete, class: "admin-row-action admin-row-action--danger", form: { data: { turbo_confirm: "Delete #{challenge.title}?" } }, aria: { label: "Delete #{challenge.title}" } do %>
+                          <%= image_tag "admin-trash-2.svg", alt: "" %>
+                        <% end %>
+                      </div>
+                    </td>
+                  </tr>
+                <% end %>
+                <% if @challenges.empty? %>
+                  <tr>
+                    <td colspan="4" class="admin-table-empty">No challenges match your search.</td>
+                  </tr>
+                <% end %>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="admin-pagination" aria-label="Challenge pages">
+            <span>Showing <strong><%= @challenges.size %></strong> of <strong><%= @challenges.size %></strong></span>
+            <span class="admin-pagination-controls">
+              <button type="button" disabled aria-label="Previous page"><%= image_tag "admin-chevron-left.svg", alt: "" %></button>
+              <span class="is-current">1</span>
+              <button type="button" disabled aria-label="Next page"><%= image_tag "admin-chevron-right.svg", alt: "" %></button>
+            </span>
+          </div>
+        </section>
+
+        <% if @detail_challenge %>
+          <aside class="admin-detail-panel" aria-labelledby="admin-detail-title">
+            <div class="admin-detail-heading">
+              <div>
+                <p class="admin-eyebrow">CHALLENGE DETAIL</p>
+                <h2 id="admin-detail-title"><%= @is_new_challenge ? "New challenge" : "Edit challenge" %></h2>
+              </div>
+              <% unless @is_new_challenge %>
+                <% status = if !@detail_challenge.active? then "Inactive" elsif @detail_challenge.ends_at < Time.current then "Expired" elsif @detail_challenge.starts_at > Time.current then "Upcoming" else "Ongoing" end %>
+                <span class="admin-status-badge admin-status-badge--<%= status.downcase %>"><%= status %></span>
+              <% end %>
+            </div>
+
+            <% if @detail_challenge.errors.any? %>
+              <div class="admin-validation-errors" role="alert">
+                <%= @detail_challenge.errors.full_messages.to_sentence %>
+              </div>
+            <% end %>
+
+            <%= form_with model: [ :admin, @detail_challenge ], class: "admin-detail-form" do |f| %>
+              <div class="admin-field">
+                <%= f.label :title, "Title" %>
+                <%= f.text_field :title %>
+              </div>
+              <div class="admin-field">
+                <%= f.label :goal_type, "Goal type" %>
+                <div class="admin-select-dropdown" data-controller="select-dropdown" data-action="click@document->select-dropdown#closeUnlessInside keydown.esc@document->select-dropdown#close">
+                  <%= f.hidden_field :goal_type, value: selected_goal_type, data: { select_dropdown_target: "value" } %>
+                  <button type="button" class="admin-select-trigger" data-select-dropdown-target="trigger" data-action="click->select-dropdown#toggle" aria-haspopup="listbox" aria-expanded="false">
+                    <span data-select-dropdown-target="label"><%= goal_type_options.find { |_, value| value == selected_goal_type }.first %></span>
+                    <%= image_tag "catalog-chevron-down.svg", alt: "", aria: { hidden: true } %>
+                  </button>
+                  <div class="catalog-dropdown-menu admin-select-menu" data-select-dropdown-target="menu" role="listbox" hidden>
+                    <% goal_type_options.each do |label, value| %>
+                      <button type="button" class="catalog-dropdown-option <%= "is-selected" if selected_goal_type == value %>" data-select-dropdown-target="option" data-value="<%= value %>" role="option" aria-selected="<%= selected_goal_type == value %>" data-action="click->select-dropdown#select"><%= label %></button>
+                    <% end %>
+                  </div>
+                </div>
+              </div>
+              <div class="admin-field">
+                <%= f.label :goal_value, "Goal amount" %>
+                <%= f.number_field :goal_value, min: 1 %>
+              </div>
+              <div class="admin-field admin-field-grid">
+                <div>
+                  <%= f.label :starts_at, "Start date" %>
+                  <%= f.datetime_local_field :starts_at %>
+                </div>
+                <div>
+                  <%= f.label :ends_at, "End date" %>
+                  <%= f.datetime_local_field :ends_at %>
+                </div>
+              </div>
+              <div class="admin-field">
+                <%= f.label :active, "Status" %>
+                <div class="admin-select-dropdown" data-controller="select-dropdown" data-action="click@document->select-dropdown#closeUnlessInside keydown.esc@document->select-dropdown#close">
+                  <%= f.hidden_field :active, value: selected_active, data: { select_dropdown_target: "value" } %>
+                  <button type="button" class="admin-select-trigger" data-select-dropdown-target="trigger" data-action="click->select-dropdown#toggle" aria-haspopup="listbox" aria-expanded="false">
+                    <span data-select-dropdown-target="label"><%= selected_active ? "Active" : "Inactive" %></span>
+                    <%= image_tag "catalog-chevron-down.svg", alt: "", aria: { hidden: true } %>
+                  </button>
+                  <div class="catalog-dropdown-menu admin-select-menu" data-select-dropdown-target="menu" role="listbox" hidden>
+                    <% [["Active", "true"], ["Inactive", "false"]].each do |label, value| %>
+                      <button type="button" class="catalog-dropdown-option <%= "is-selected" if selected_active.to_s == value %>" data-select-dropdown-target="option" data-value="<%= value %>" role="option" aria-selected="<%= selected_active.to_s == value %>" data-action="click->select-dropdown#select"><%= label %></button>
+                    <% end %>
+                  </div>
+                </div>
+              </div>
+
+              <p class="admin-info-note">
+                <%= image_tag "admin-info.svg", alt: "" %>
+                <span>Challenges are visible to readers while active.</span>
+              </p>
+
+              <div class="admin-detail-actions">
+                <%= link_to "Cancel", @is_new_challenge ? admin_root_path : admin_root_path(challenge_id: @detail_challenge.id), class: "admin-secondary-button" %>
+                <%= f.submit(@is_new_challenge ? "Create challenge" : "Save changes", class: "admin-primary-button") %>
+              </div>
+            <% end %>
+          </aside>
+        <% end %>
+      </div>
+    </main>
+  </div>
+</div>

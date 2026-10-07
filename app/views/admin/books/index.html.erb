@@ -1,0 +1,195 @@
+<% content_for :title, "Catalog Management · BookNook" %>
+
+<div class="admin-page">
+  <header class="admin-topbar">
+    <%= link_to root_path, class: "admin-brand", aria: { label: "BookNook home" } do %>
+      <span class="admin-brand-mark"><%= image_tag "admin-brand-mark.svg", alt: "" %></span>
+      <span>BookNook</span>
+    <% end %>
+    <div class="admin-topbar-context">
+      <span class="admin-topbar-rule" aria-hidden="true"></span>
+      <span class="admin-workspace-badge">ADMIN WORKSPACE</span>
+    </div>
+    <div class="admin-topbar-actions" aria-label="Admin tools">
+      <div class="nav-menu" data-controller="nav-menu" data-action="mouseenter->nav-menu#enter mouseleave->nav-menu#leave focusin->nav-menu#focusIn focusout->nav-menu#focusOut dropdown:opened@window->nav-menu#closeIfAnother">
+        <button type="button" class="admin-icon-button" data-nav-menu-target="trigger" data-action="click->nav-menu#toggle" aria-expanded="false" aria-controls="admin_catalog_nav_menu" aria-label="Menu"><%= image_tag "admin-menu.svg", alt: "" %></button>
+        <ul id="admin_catalog_nav_menu" class="nav-dropdown" data-nav-menu-target="menu" hidden>
+          <li><%= link_to books_path, class: "nav-dropdown-item" do %><%= image_tag "dropdown-grid.svg", class: "dropdown-item-icon", alt: "" %><span>Catalog</span><% end %></li>
+          <li><%= link_to challenges_path, class: "nav-dropdown-item" do %><%= image_tag "dropdown-trophy.svg", class: "dropdown-item-icon", alt: "" %><span>Challenges</span><% end %></li>
+          <li><%= link_to book_clubs_path, class: "nav-dropdown-item" do %><%= image_tag "dropdown-users.svg", class: "dropdown-item-icon", alt: "" %><span>Book Clubs</span><% end %></li>
+        </ul>
+      </div>
+      <%= render "notifications/panel", notification_panel_locals %>
+      <div class="account-menu" data-controller="account-dropdown" data-action="mouseenter->account-dropdown#enter mouseleave->account-dropdown#leave focusin->account-dropdown#focusIn focusout->account-dropdown#focusOut dropdown:opened@window->account-dropdown#closeIfAnother">
+        <button type="button" class="admin-icon-button" data-account-dropdown-target="trigger" data-action="click->account-dropdown#toggle" aria-expanded="false" aria-controls="admin_catalog_account_menu" aria-label="Account"><%= image_tag "admin-user.svg", alt: "" %></button>
+        <ul id="admin_catalog_account_menu" class="account-dropdown account-dropdown--signed-in" data-account-dropdown-target="menu" hidden>
+          <li><%= link_to dashboard_path, class: "account-dropdown-item" do %><%= image_tag "dropdown-book-open.svg", class: "dropdown-item-icon", alt: "" %><span>My Log</span><% end %></li>
+          <li><%= link_to reviews_path, class: "account-dropdown-item" do %><%= image_tag "dropdown-star.svg", class: "dropdown-item-icon", alt: "" %><span>Reviews</span><% end %></li>
+          <li><%= link_to reading_sessions_path, class: "account-dropdown-item" do %><%= image_tag "dropdown-history.svg", class: "dropdown-item-icon", alt: "" %><span>History</span><% end %></li>
+          <li><%= link_to edit_user_registration_path, class: "account-dropdown-item" do %><%= image_tag "dropdown-settings.svg", class: "dropdown-item-icon", alt: "" %><span>Settings</span><% end %></li>
+          <li><%= link_to admin_root_path, class: "account-dropdown-item" do %><%= image_tag "dropdown-grid.svg", class: "dropdown-item-icon", alt: "" %><span>Manage</span><% end %></li>
+          <li class="account-dropdown-divider" aria-hidden="true"><%= image_tag "dropdown-divider.svg", alt: "" %></li>
+          <li><%= link_to destroy_user_session_path, class: "account-dropdown-item account-dropdown-item--danger", data: { turbo_method: :delete } do %><%= image_tag "dropdown-logout.svg", class: "dropdown-item-icon", alt: "" %><span>Log Out</span><% end %></li>
+        </ul>
+      </div>
+    </div>
+  </header>
+
+  <div class="admin-body">
+    <aside class="admin-sidebar" aria-label="Admin navigation">
+      <div>
+        <p class="admin-sidebar-label">Management</p>
+        <nav class="admin-sidebar-nav">
+          <%= link_to admin_root_path, class: "admin-sidebar-link" do %><%= image_tag "admin-trophy.svg", alt: "" %><span>Challenges</span><% end %>
+          <span class="admin-sidebar-link admin-sidebar-link--disabled"><%= image_tag "admin-message-square-text.svg", alt: "" %><span>Reviews</span></span>
+          <span class="admin-sidebar-link admin-sidebar-link--disabled"><%= image_tag "admin-users.svg", alt: "" %><span>Members</span></span>
+          <span class="admin-sidebar-link admin-sidebar-link--disabled"><%= image_tag "dropdown-users.svg", alt: "" %><span>Book Clubs</span></span>
+          <%= link_to admin_catalog_path, class: "admin-sidebar-link is-active", aria: { current: "page" } do %><%= image_tag "admin-library.svg", alt: "" %><span>Catalog</span><% end %>
+          <span class="admin-sidebar-link admin-sidebar-link--disabled"><%= image_tag "admin-settings.svg", alt: "" %><span>Settings</span></span>
+        </nav>
+      </div>
+      <div class="admin-sidebar-footer">
+        <span class="admin-sidebar-rule" aria-hidden="true"></span>
+        <%= link_to destroy_user_session_path, class: "admin-sidebar-link admin-sidebar-link--logout", data: { turbo_method: :delete } do %><%= image_tag "admin-log-out.svg", alt: "" %><span>Log out</span><% end %>
+      </div>
+    </aside>
+
+    <main class="admin-main admin-catalog-main" aria-labelledby="admin-catalog-title">
+      <%= render "shared/flash_messages" %>
+
+      <div class="admin-page-heading">
+        <div>
+          <p class="admin-eyebrow">LIBRARY OPERATIONS</p>
+          <h1 id="admin-catalog-title">Catalog Management</h1>
+          <p class="admin-page-description">Maintain BookNook titles, editions, metadata, and discoverability.</p>
+        </div>
+        <%= link_to admin_catalog_path(new_book: true), class: "admin-primary-button" do %>
+          <%= image_tag "admin-plus.svg", alt: "" %><span>Add Book</span>
+        <% end %>
+      </div>
+
+      <div class="admin-catalog-workspace">
+        <section class="admin-catalog-list-panel" aria-labelledby="admin-catalog-list-title">
+          <div class="admin-catalog-list-heading">
+            <div>
+              <h2 id="admin-catalog-list-title">All records</h2>
+              <p><%= @pagy.count %> catalog records</p>
+            </div>
+            <%= form_with url: admin_catalog_path, method: :get, class: "admin-catalog-search" do |f| %>
+              <%= f.search_field :q, value: params[:q], placeholder: "Search title or author", aria: { label: "Search catalog" } %>
+              <%= f.hidden_field :genre, value: params[:genre] if params[:genre].present? %>
+              <%= f.submit "Search", class: "admin-secondary-button" %>
+            <% end %>
+          </div>
+
+          <div class="admin-catalog-filters" aria-label="Catalog filters">
+            <%= link_to "All records", admin_catalog_path(q: params[:q]), class: "admin-catalog-filter #{'is-active' if params[:genre].blank?}", aria: { pressed: params[:genre].blank? } %>
+            <%= form_with url: admin_catalog_path, method: :get, class: "admin-catalog-genre-filter" do %>
+              <%= hidden_field_tag :q, params[:q] if params[:q].present? %>
+              <%= select_tag :genre, options_for_select([["All genres", ""]] + Genre::GENRES.map { |name| [name, name] }, params[:genre]), aria: { label: "Filter by genre" } %>
+              <%= submit_tag "Filter", class: "admin-catalog-filter-submit" %>
+            <% end %>
+          </div>
+
+          <div class="admin-catalog-records">
+            <% @books.each do |book| %>
+              <% edition = book.book_editions.first %>
+              <article class="admin-catalog-record <%= 'is-selected' if @selected_book == book && !@is_new_book %>">
+                <%= link_to admin_catalog_path(book_id: book.id, q: params[:q], genre: params[:genre], page: params[:page]), class: "admin-catalog-record-select", aria: { current: (@selected_book == book && !@is_new_book ? "true" : nil) } do %>
+                  <span class="admin-catalog-record-topline">
+                    <strong><%= book.title %></strong>
+                    <span class="admin-catalog-record-badge">Catalog</span>
+                  </span>
+                  <span class="admin-catalog-record-author"><%= book.author %><%= " · ISBN #{edition.isbn}" if edition&.isbn.present? %></span>
+                  <span class="admin-catalog-record-meta">
+                    <%= book.genres.map(&:name).presence&.join(" · ") || "Genre not set" %>
+                    <span aria-hidden="true">·</span>
+                    <%= edition&.language.presence || "Language not set" %>
+                    <span aria-hidden="true">·</span>
+                    <%= book.total_pages.presence || edition&.page_count.presence || "Pages not set" %> pages
+                  </span>
+                <% end %>
+                <div class="admin-catalog-record-actions">
+                  <%= link_to "View", book_path(book), class: "admin-catalog-view-link" %>
+                  <%= button_to admin_book_path(book), method: :delete, class: "admin-row-action admin-row-action--danger", form: { data: { turbo_confirm: "Delete #{book.title} from the catalog?" } }, aria: { label: "Delete #{book.title}" } do %>
+                    <%= image_tag "admin-trash-2.svg", alt: "" %>
+                  <% end %>
+                </div>
+              </article>
+            <% end %>
+            <% if @books.empty? %>
+              <p class="admin-catalog-empty">No books match these filters.</p>
+            <% end %>
+          </div>
+
+          <div class="admin-catalog-list-footer">
+            <span>Showing <strong><%= @books.size %></strong> of <strong><%= @pagy.count %></strong> records</span>
+            <% if @pagy.next %>
+              <%= link_to "Load more", admin_catalog_path(q: params[:q], genre: params[:genre], page: @pagy.next, book_id: @selected_book&.id), class: "admin-catalog-load-more" %>
+            <% end %>
+          </div>
+        </section>
+
+        <aside class="admin-catalog-detail-panel" aria-labelledby="admin-catalog-detail-title">
+          <div class="admin-catalog-detail-heading">
+            <div>
+              <p class="admin-eyebrow"><%= @is_new_book ? "NEW RECORD" : "SELECTED RECORD" %></p>
+              <h2 id="admin-catalog-detail-title"><%= @is_new_book ? "Add a book" : (@detail_book.persisted? ? "Book metadata" : "Catalog details") %></h2>
+            </div>
+            <% unless @is_new_book || !@detail_book.persisted? %>
+              <span class="admin-catalog-record-badge">Catalog</span>
+            <% end %>
+          </div>
+          <p class="admin-catalog-detail-intro">Update the title record and its discoverability details. Edition information is shown from the linked edition records.</p>
+
+          <% if @detail_book.errors.any? %>
+            <div class="admin-validation-errors" role="alert"><%= @detail_book.errors.full_messages.to_sentence %></div>
+          <% end %>
+
+          <% if @is_new_book || @detail_book.persisted? %>
+            <%= form_with model: [ :admin, @detail_book ], class: "admin-catalog-form", html: { multipart: true } do |f| %>
+              <div class="admin-catalog-field-grid">
+                <div class="admin-field"><%= f.label :title %><%= f.text_field :title, placeholder: "Book title" %></div>
+                <div class="admin-field"><%= f.label :author %><%= f.text_field :author, placeholder: "Author name" %></div>
+                <div class="admin-field"><%= f.label :total_pages, "Total pages" %><%= f.number_field :total_pages, min: 1, placeholder: "Not set" %></div>
+                <div class="admin-field"><%= f.label :cover_image, "Cover image" %><%= f.file_field :cover_image, accept: "image/*" %></div>
+              </div>
+
+              <fieldset class="admin-catalog-genre-fieldset">
+                <legend>Genres</legend>
+                <div class="admin-catalog-genre-options">
+                  <% Genre::GENRES.each do |genre| %>
+                    <% genre_id = "catalog_genre_#{genre.parameterize}" %>
+                    <%= check_box_tag "book[genre_names][]", genre, @detail_book.genres.map(&:name).include?(genre), id: genre_id %>
+                    <label for="<%= genre_id %>"><%= genre %></label>
+                  <% end %>
+                </div>
+              </fieldset>
+
+              <% if (edition = @detail_book.book_editions.first) %>
+                <div class="admin-catalog-edition-meta">
+                  <p class="admin-eyebrow">LINKED EDITION</p>
+                  <dl>
+                    <div><dt>ISBN</dt><dd><%= edition.isbn.presence || "Not available" %></dd></div>
+                    <div><dt>Language</dt><dd><%= edition.language.presence || "Not available" %></dd></div>
+                    <div><dt>Publisher</dt><dd><%= edition.publisher.presence || "Not available" %></dd></div>
+                    <div><dt>Publication year</dt><dd><%= edition.publish_year.presence || "Not available" %></dd></div>
+                  </dl>
+                </div>
+              <% end %>
+
+              <div class="admin-catalog-form-actions">
+                <%= link_to "Cancel", @is_new_book ? admin_catalog_path : admin_catalog_path(book_id: @detail_book.id), class: "admin-secondary-button" %>
+                <%= f.submit(@is_new_book ? "Add book" : "Save changes", class: "admin-primary-button") %>
+              </div>
+            <% end %>
+          <% else %>
+            <div class="admin-catalog-detail-empty">
+              <p>Select a book from the list to review and update its catalog record.</p>
+            </div>
+          <% end %>
+        </aside>
+      </div>
+    </main>
+  </div>
+</div>
