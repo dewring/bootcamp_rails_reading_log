@@ -92,6 +92,31 @@ class Admin::ReviewsControllerTest < ActionDispatch::IntegrationTest
     assert_select ".admin-review-record", count: 1
   end
 
+  test "the fifth review enables shared Pagy navigation with four records per page" do
+    sign_in users(:admin)
+    get admin_reviews_path
+    assert_select ".admin-reviews-pagination .pagy.series-nav", count: 0
+
+    3.times do |index|
+      book = Book.create!(title: "Pagination boundary #{index}", author: "Writer")
+      Review.create!(user: users(:leika), book: book, rating: 3, body: "Fifth review boundary")
+    end
+    assert_equal 5, Review.count
+
+    get admin_reviews_path
+    assert_select ".admin-review-record", count: 4
+    assert_select ".admin-reviews-pagination .pagy.series-nav" do
+      assert_select "a[aria-current='page']", text: "1"
+      assert_select "a[href*='page=2']", text: "2"
+    end
+    assert_select ".admin-reviews-pagination p", text: "5 reviews · Page 1 of 2"
+
+    get admin_reviews_path, params: { page: 2 }
+    assert_select ".admin-review-record", count: 1
+    assert_select ".admin-reviews-pagination .pagy.series-nav a[aria-current='page']", text: "2"
+    assert_select ".admin-reviews-pagination p", text: "5 reviews · Page 2 of 2"
+  end
+
   test "admin can delete another readers review and keep filters" do
     sign_in users(:admin)
     review = reviews(:review2)
