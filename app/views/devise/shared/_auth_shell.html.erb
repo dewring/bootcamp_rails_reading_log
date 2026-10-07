@@ -1,0 +1,43 @@
+<% sign_up = local_assigns.fetch(:mode).to_sym == :sign_up %>
+<% asset_prefix = sign_up ? "auth-signup" : "auth-login" %>
+
+<div class="auth-page-shell <%= "auth-page-shell--sign-up" if sign_up %>">
+  <section class="auth-illustration-panel" aria-label="BookNook reading inspiration">
+    <div class="auth-illustration-frame">
+      <%= image_tag "#{asset_prefix}-art.jpeg", class: "auth-illustration-image", alt: "" %>
+      <div class="auth-illustration-shade" aria-hidden="true"></div>
+      <div class="auth-quote-card">
+        <p><%= sign_up ? "“Books are a uniquely portable magic.”" : "“I have always imagined that Paradise will be a kind of library.”" %></p>
+        <span><%= sign_up ? "Stephen King" : "Jorge Luis Borges" %></span>
+      </div>
+    </div>
+  </section>
+
+  <section class="auth-form-panel">
+    <div class="auth-form-column">
+      <div class="auth-topbar">
+        <%= link_to root_path, class: "auth-brand", aria: { label: "BookNook" } do %>
+          <%= image_tag "#{asset_prefix}-eye.svg", class: "auth-brand-icon", alt: "" %>
+          <span>BookNook</span>
+        <% end %>
+
+        <div class="auth-switch">
+          <% if sign_up %>
+            <span>Already have an account?</span>
+            <%= link_to "Log In", new_session_path(:user) %>
+          <% else %>
+            <span>Don't have an account?</span>
+            <%= link_to "Sign Up", new_registration_path(:user) %>
+          <% end %>
+        </div>
+      </div>
+
+      <div class="auth-intro">
+        <h1><%= sign_up ? "Create your account" : "Welcome back" %></h1>
+        <p><%= sign_up ? "Join our worldwide circle of passionate book lovers." : "Snuggle up and continue your reading journey." %></p>
+      </div>
+
+      <%= yield %>
+    </div>
+  </section>
+</div>
