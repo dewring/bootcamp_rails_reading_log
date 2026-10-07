@@ -1852,60 +1852,6 @@ main.container:has(> .my-log-page) {
 .admin-page--catalog {
   background: #faf7f4;
 
-  .admin-topbar {
-    padding: 0 40px;
-    border-color: #eae3dc;
-  }
-
-  .admin-topbar-context {
-    gap: 12px;
-    margin-left: 12px;
-  }
-
-  .admin-topbar-rule {
-    height: 24px;
-  }
-
-  .admin-workspace-badge {
-    border-radius: 999px;
-    color: #c95e59;
-    font-size: 11px;
-    letter-spacing: normal;
-  }
-
-  .admin-topbar-actions {
-    gap: 8px;
-  }
-
-  .admin-icon-button,
-  .admin-topbar-actions .notification-trigger {
-    width: 44px !important;
-    height: 44px;
-  }
-
-  .admin-sidebar {
-    flex-basis: 250px;
-    padding: 24px 16px 20px;
-    border-right: 1px solid #eae3dc;
-    background: #f7f2ea;
-  }
-
-  .admin-sidebar-label {
-    padding: 0 10px 10px;
-    color: $accent;
-    letter-spacing: normal;
-  }
-
-  .admin-sidebar-nav {
-    gap: 6px;
-  }
-
-  .admin-sidebar-link.is-active {
-    background: #fdf1ef;
-    color: $accent !important;
-    box-shadow: none;
-  }
-
   .admin-main {
     display: flex;
     flex-direction: column;
@@ -1970,7 +1916,6 @@ main.container:has(> .my-log-page) {
   }
 
   @media (max-width: 1100px) {
-    .admin-sidebar { flex-basis: 190px; }
     .admin-main { padding: 30px 24px; }
     .admin-catalog-workspace {
       grid-template-columns: minmax(0, 0.85fr) minmax(0, 1fr);
@@ -1978,7 +1923,6 @@ main.container:has(> .my-log-page) {
   }
 
   @media (max-width: 860px) {
-    .admin-topbar { padding: 0 20px; }
     .admin-catalog-workspace { grid-template-columns: minmax(0, 1fr); }
   }
 
