@@ -20,7 +20,7 @@ class Admin::MembersControllerTest < ActionDispatch::IntegrationTest
     get admin_members_path, params: { member_id: users(:leika).id }
     assert_response :success
     assert_select "h1", text: "Member Management"
-    assert_select ".admin-page-heading a", text: /Invite Member/, count: 0
+    assert_select ".admin-page-heading a[href*='invite=true']", text: /Invite Member/, count: 1
     assert_select ".admin-sidebar-nav .is-active[aria-current='page']", text: "Members"
     assert_select ".admin-member-record", count: 3
     assert_select "input#user_email[value='leika@test.com']"
@@ -32,9 +32,53 @@ class Admin::MembersControllerTest < ActionDispatch::IntegrationTest
     end
     assert_select "input[value='Save changes']"
     assert_select "#admin-member-status-menu a" do |options|
-      assert_equal [ "All statuses", "Active", "Suspended" ], options.map(&:text)
+      assert_equal [ "All statuses", "Active", "Invited", "Suspended" ], options.map(&:text)
     end
     assert_select ".admin-member-record a", text: "Edit", count: 0
+  end
+
+  test "admin opens the invitation form through the workspace link without creating an account" do
+    sign_in users(:admin)
+    get admin_members_path, params: { q: "leika", status: "active", sort: "name", page: 1 }
+    invitation_url = nil
+    assert_select ".admin-page-heading a[href*='invite=true'][href*='q=leika'][href*='status=active'][href*='sort=name'][href*='page=1']", text: /Invite Member/, count: 1 do |links|
+      invitation_url = links.first["href"]
+    end
+
+    assert_no_difference [ "User.count", "ActionMailer::Base.deliveries.size" ] do
+      get invitation_url
+    end
+
+    assert_response :success
+    assert_select "h2#admin-member-detail-title", text: "Invite a member"
+    assert_select ".admin-member-form[action='#{admin_members_path}'] input[value='Send invitation']"
+    assert_select ".admin-member-form input[name='_method']", count: 0
+    assert_select ".admin-member-form input[name='q'][value='leika']"
+    assert_select ".admin-member-form input[name='status'][value='active']"
+    assert_select ".admin-member-form input[name='sort'][value='name']"
+    assert_select ".admin-member-record", count: 1
+  end
+
+  test "invited status filter is reachable and preserves search and sorting" do
+    users(:leika).update!(account_status: "invited")
+    users(:jaina).update!(account_status: "suspended")
+    sign_in users(:admin)
+    get admin_members_path, params: { q: "leika", sort: "name" }
+    invited_url = nil
+    assert_select "#admin-member-status-menu a[href*='status=invited'][href*='q=leika'][href*='sort=name']", text: "Invited", count: 1 do |links|
+      invited_url = links.first["href"]
+    end
+
+    get invited_url
+
+    assert_response :success
+    assert_equal [ users(:leika).id ], assigns(:members).map(&:id)
+    assert_select ".admin-member-record", count: 1
+    assert_select ".admin-member-status--invited", text: "Invited"
+    assert_select "button[aria-controls='admin-member-status-menu']", text: "Invited"
+    assert_select "#admin-member-status-menu a.is-selected[aria-current='true']", text: "Invited", count: 1
+    assert_select "input[name='q'][value='leika']"
+    assert_select "#admin-member-sort-menu a.is-selected", text: "Member name"
   end
 
   test "search and status filters preserve query and exclude unrelated selection" do
