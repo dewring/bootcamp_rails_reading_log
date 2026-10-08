@@ -80,7 +80,11 @@ class Admin::ReviewsControllerTest < ActionDispatch::IntegrationTest
       links.each_with_index do |link, index|
         query = Rack::Utils.parse_query(URI.parse(link["href"]).query)
         assert_equal "book", query["q"]
-        assert_equal (index.zero? ? nil : (index - 1).to_s), query["rating"]
+        if index.zero?
+          assert_nil query["rating"]
+        else
+          assert_equal (index - 1).to_s, query["rating"]
+        end
         assert_nil query["page"]
         assert_nil query["review_id"]
       end
