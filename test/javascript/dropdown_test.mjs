@@ -150,8 +150,15 @@ for (const [name, Controller] of [["account/navigation", AccountDropdownControll
 
   test(`${name}: another dropdown closes this menu but its own event does not`, t => {
     const menu = dropdown(t, Controller)
-    window.addEventListener("dropdown:opened", event => menu.controller.closeIfAnother(event))
+    let openedEvent
+    window.addEventListener("dropdown:opened", event => {
+      openedEvent = event
+      menu.controller.closeIfAnother(event)
+    })
     menu.controller.enter()
+    assert.equal(openedEvent.type, "dropdown:opened")
+    assert.equal(openedEvent.target, window)
+    assert.equal(openedEvent.detail.source, menu.controller.element)
     assert.equal(menu.menu.hidden, false)
     window.dispatchEvent(new CustomEvent("dropdown:opened", { detail: { source: {} } }))
     assert.equal(menu.menu.hidden, true)

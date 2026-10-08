@@ -50,7 +50,7 @@ export default class extends Controller<HTMLElement> {
 
   private open() {
     this.cancelScheduledClose()
-    window.dispatchEvent(new CustomEvent("dropdown:opened", { detail: { source: this.element } }))
+    this.dispatch("opened", { prefix: "dropdown", target: window, detail: { source: this.element } })
     this.menuTarget.hidden = false
     this.triggerTarget.setAttribute("aria-expanded", "true")
   }
