@@ -7,7 +7,6 @@ export default class extends AccountDropdownController {
   private subscriptionGeneration = 0
 
   connect() {
-    super.connect()
     this.subscribeToNotifications(++this.subscriptionGeneration).catch(error => {
       console.error("Failed to subscribe to notifications", error)
     })

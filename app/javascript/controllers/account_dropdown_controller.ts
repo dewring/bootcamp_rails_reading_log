@@ -36,7 +36,6 @@ export default class extends Controller<HTMLElement> {
 
   enter() {
     this.hovering = true
-    this.cancelScheduledClose()
     this.open()
   }
 
@@ -47,8 +46,10 @@ export default class extends Controller<HTMLElement> {
 
   focusIn() {
     this.focused = true
-    this.cancelScheduledClose()
-    if (this.restoringTriggerFocus) return
+    if (this.restoringTriggerFocus) {
+      this.cancelScheduledClose()
+      return
+    }
 
     this.open()
   }

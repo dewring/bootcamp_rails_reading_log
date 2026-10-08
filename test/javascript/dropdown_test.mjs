@@ -45,7 +45,6 @@ function dropdown(t, Controller, subscribeTo = async () => ({ unsubscribe() {} }
   let expanded = "false"
   let focusCount = 0
   const trigger = {
-    getAttribute: () => expanded,
     setAttribute: (_, value) => { expanded = value },
     focus: () => { focusCount += 1 }
   }
@@ -291,13 +290,13 @@ test("select: value state toggles visibility and outside click closes", t => {
 
 test("select: selecting updates the field and label, closes, and restores focus", t => {
   const menu = dropdown(t, SelectDropdownController)
-  const option = (value, text) => ({
-    dataset: { value }, textContent: text,
+  const option = text => ({
+    textContent: text,
     classList: { toggle: (_, selected) => {} },
     setAttribute(name, value) { this[name] = value }
   })
-  const first = option("active", "Active")
-  const second = option("invited", " Invited ")
+  const first = option("Active")
+  const second = option(" Invited ")
   const value = { value: "active" }
   const label = { textContent: "Active" }
   Object.assign(menu.controller, { valueTarget: value, labelTarget: label, optionTargets: [first, second] })
