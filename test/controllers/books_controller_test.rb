@@ -284,6 +284,35 @@ class BookControllerTest < ActionDispatch::IntegrationTest
     assert_select "#catalog-filter-menu a.catalog-dropdown-option.is-selected[href*='filter=most_read']", text: "Most Read", count: 1
   end
 
+  test "most read search preserves filters and counts sessions independently of editions" do
+    genre = genres(:fiction)
+    most_read_book = Book.create!(title: "Ranking Search Winner", author: "Author")
+    multiple_editions_book = Book.create!(title: "Multiple Editions", author: "Ranking Search Author")
+    unread_book = Book.create!(title: "Unread Book", author: "Author")
+    excluded_by_genre = Book.create!(title: "Ranking Search Other Genre", author: "Author")
+    excluded_by_search = Book.create!(title: "Unrelated Book", author: "Author")
+
+    [ most_read_book, multiple_editions_book, unread_book, excluded_by_search ].each do |book|
+      book.genres << genre
+    end
+    3.times do |index|
+      multiple_editions_book.book_editions.create!(title: "Ranking Search Edition #{index}", ol_edition_key: "/books/RANKING#{index}M")
+    end
+    unread_book.book_editions.create!(title: "Ranking Search Unread Edition", ol_edition_key: "/books/RANKINGUNREADM")
+
+    { most_read_book => 3, multiple_editions_book => 2, excluded_by_genre => 5, excluded_by_search => 5 }.each do |book, count|
+      count.times do
+        ReadingSession.create!(user: users(:leika), book: book, read_on: Date.current, pages_read: 10)
+      end
+    end
+
+    get books_path, params: { q: "Ranking Search", genre: genre.name, filter: "most_read" }
+
+    assert_response :success
+    assert_equal [ most_read_book.id, multiple_editions_book.id, unread_book.id ], assigns(:books).map(&:id)
+    assert_select ".catalog-results-header p", text: "Showing 3 books"
+  end
+
   test "new books catalog filter orders books newest first" do
     sign_in users(:leika)
 

@@ -141,7 +141,7 @@ class BooksController < ApplicationController
   def apply_catalog_order(books)
     case params[:filter]
     when "most_read"
-      books.most_read
+      Book.where(id: books.select(:id)).most_read
     when "new_books"
       books.order(created_at: :desc)
     else
