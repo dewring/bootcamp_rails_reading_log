@@ -9,7 +9,8 @@ class BookClubsController < ApplicationController
   end
 
   def show
-    detail_associations = { book_club_memberships: { user: :avatar_attachment } }
+    membership_associations = params[:view] == "leaderboard" ? :user : { user: :avatar_attachment }
+    detail_associations = { book_club_memberships: membership_associations }
     detail_associations[:current_book] = { cover_image_attachment: :blob }
     @book_club = BookClub
       .includes(detail_associations)

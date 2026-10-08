@@ -9,7 +9,9 @@
         <h1>Overview</h1>
         <p><span><%= @book_club.name.upcase %></span> · CURRENT CYCLE</p>
       </div>
-      <span class="book-club-member-status">You're a member</span>
+      <% if @current_membership %>
+        <span class="book-club-member-status"><%= @current_membership.role == "owner" ? "You're the club owner" : "You're a member" %></span>
+      <% end %>
     </header>
 
     <%= render "current_pick", book_club: @book_club %>

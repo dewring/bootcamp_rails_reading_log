@@ -208,6 +208,28 @@ class BookClubsControllerTest < ActionDispatch::IntegrationTest
     assert_equal books(:refactoring), book_club.reload.current_book
   end
 
+  test "overview and leaderboard labels reflect the current user's club membership role" do
+    club = BookClub.create!(name: "Role Labels", current_book: books(:refactoring))
+    club.book_club_memberships.create!(user: users(:leika), role: "owner")
+    club.book_club_memberships.create!(user: users(:jaina), role: "member")
+
+    [ [ users(:leika), "You're the club owner" ],
+      [ users(:jaina), "You're a member" ],
+      [ users(:admin), nil ] ].each do |viewer, label|
+      sign_in viewer
+      [ nil, "leaderboard" ].each do |view|
+        get book_club_path(club), params: { view: view }
+        assert_response :success
+        if label
+          assert_select ".book-club-member-status", text: label, count: 1
+        else
+          assert_select ".book-club-member-status", count: 0
+        end
+      end
+      sign_out viewer
+    end
+  end
+
   test "show renders the overview shell and keeps the owner form available" do
     book_club = BookClub.create!(name: "Sci-Fi Society", current_book: books(:refactoring))
     book_club.book_club_memberships.create!(user: users(:leika), role: "owner")
