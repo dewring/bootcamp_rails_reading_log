@@ -113,7 +113,7 @@
                   </button>
                   <div class="catalog-dropdown-menu admin-select-menu" data-select-dropdown-target="menu" role="listbox" hidden>
                     <% goal_type_options.each do |label, value| %>
-                      <button type="button" class="catalog-dropdown-option <%= "is-selected" if selected_goal_type == value %>" data-select-dropdown-target="option" data-value="<%= value %>" role="option" aria-selected="<%= selected_goal_type == value %>" data-action="click->select-dropdown#select"><%= label %></button>
+                      <button type="button" class="catalog-dropdown-option <%= "is-selected" if selected_goal_type == value %>" data-select-dropdown-target="option" data-select-dropdown-value-param="<%= value %>" role="option" aria-selected="<%= selected_goal_type == value %>" data-action="click->select-dropdown#select"><%= label %></button>
                     <% end %>
                   </div>
                 </div>
@@ -142,7 +142,7 @@
                   </button>
                   <div class="catalog-dropdown-menu admin-select-menu" data-select-dropdown-target="menu" role="listbox" hidden>
                     <% [["Active", "true"], ["Inactive", "false"]].each do |label, value| %>
-                      <button type="button" class="catalog-dropdown-option <%= "is-selected" if selected_active.to_s == value %>" data-select-dropdown-target="option" data-value="<%= value %>" role="option" aria-selected="<%= selected_active.to_s == value %>" data-action="click->select-dropdown#select"><%= label %></button>
+                      <button type="button" class="catalog-dropdown-option <%= "is-selected" if selected_active.to_s == value %>" data-select-dropdown-target="option" data-select-dropdown-value-param="<%= value %>" role="option" aria-selected="<%= selected_active.to_s == value %>" data-action="click->select-dropdown#select"><%= label %></button>
                     <% end %>
                   </div>
                 </div>

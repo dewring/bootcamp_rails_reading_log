@@ -73,3 +73,37 @@ test("clearing the input aborts an in-flight search and ignores its late respons
   assert.equal(state.results.hidden, true)
   assert.equal(state.status.textContent, "No current pick")
 })
+
+test("search result action parameters select the matching book and close the list", async t => {
+  const state = bookSearch(t)
+  const originalDocument = globalThis.document
+  globalThis.document = {
+    createElement: () => ({ dataset: {}, setAttribute() {} })
+  }
+  t.after(() => {
+    if (originalDocument === undefined) delete globalThis.document
+    else globalThis.document = originalDocument
+  })
+  state.results.replaceChildren = (...children) => { state.results.children = children }
+  state.search.focus = () => { state.search.focused = true }
+  state.search.value = "Book"
+  state.controller.search()
+  t.mock.timers.tick(300)
+  state.requests[0].resolve({ ok: true, json: async () => ({ books: [
+    { id: 11, title: "First Book", author: "First Author" },
+    { id: 22, title: "Second Book", author: "Second Author" }
+  ] }) })
+  await Promise.resolve()
+  await Promise.resolve()
+  await Promise.resolve()
+  assert.equal(state.results.hidden, false)
+  assert.equal(state.results.children[0].dataset.clubBookSearchIndexParam, "0")
+  assert.equal(state.results.children[1].dataset.clubBookSearchIndexParam, "1")
+  assert.equal(state.results.children[1].dataset.action, "click->club-book-search#select")
+  state.controller.select({ params: { index: 1 } })
+  assert.equal(state.value.value, "22")
+  assert.equal(state.search.value, "Second Book · Second Author")
+  assert.equal(state.search.validity, "")
+  assert.equal(state.results.hidden, true)
+  assert.equal(state.search.focused, true)
+})

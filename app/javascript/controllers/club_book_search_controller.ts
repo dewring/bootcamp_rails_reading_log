@@ -1,4 +1,4 @@
-import { Controller } from "@hotwired/stimulus"
+import { Controller, type ActionEvent } from "@hotwired/stimulus"
 
 interface BookMatch { id: number; title: string; author: string }
 
@@ -55,8 +55,8 @@ export default class extends Controller<HTMLElement> {
     event.preventDefault()
     if (!this.resultsTarget.hidden && this.activeIndex >= 0) this.selectMatch(this.activeIndex)
   }
-  select(event: Event) {
-    this.selectMatch(Number((event.currentTarget as HTMLElement).dataset.index))
+  select(event: ActionEvent) {
+    this.selectMatch(event.params.index)
   }
 
   private selectMatch(index: number) {
@@ -100,7 +100,7 @@ export default class extends Controller<HTMLElement> {
         option.id = `admin-club-book-option-${book.id}`
         option.className = "catalog-dropdown-option"
         option.textContent = `${book.title} · ${book.author}`
-        option.dataset.index = String(index)
+        option.dataset.clubBookSearchIndexParam = String(index)
         option.dataset.action = "click->club-book-search#select"
         option.setAttribute("role", "option")
         option.setAttribute("aria-selected", "false")

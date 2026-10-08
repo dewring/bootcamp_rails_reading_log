@@ -23,6 +23,24 @@ class DropdownActionsTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "admin select options provide Stimulus action parameters for submitted values" do
+    sign_in users(:admin)
+
+    get admin_root_path, params: { new_challenge: "1" }
+    assert_response :success
+    %w[books_total pages_per_day true false].each do |value|
+      assert_select "button[data-action='click->select-dropdown#select'][data-select-dropdown-value-param='#{value}']", count: 1
+    end
+    assert_select "[data-select-dropdown-target='option'][data-value]", count: 0
+
+    get admin_members_path, params: { member_id: users(:leika).id }
+    assert_response :success
+    %w[active suspended].each do |value|
+      assert_select "button[data-action='click->select-dropdown#select'][data-select-dropdown-value-param='#{value}']", count: 1
+    end
+    assert_select "[data-select-dropdown-target='option'][data-value]", count: 0
+  end
+
   private
 
   def assert_dropdown_global_actions(identifiers)

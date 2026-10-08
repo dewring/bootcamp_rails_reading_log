@@ -302,7 +302,7 @@ test("select: selecting updates the field and label, closes, and restores focus"
   const label = { textContent: "Active" }
   Object.assign(menu.controller, { valueTarget: value, labelTarget: label, optionTargets: [first, second] })
   menu.controller.toggle()
-  menu.controller.select({ currentTarget: second })
+  menu.controller.select({ currentTarget: second, params: { value: "invited" } })
   assert.equal(value.value, "invited")
   assert.equal(label.textContent, "Invited")
   assert.equal(first["aria-selected"], "false")
@@ -312,3 +312,16 @@ test("select: selecting updates the field and label, closes, and restores focus"
   assert.equal(menu.expanded(), "false")
   assert.equal(menu.focusCount(), 1)
 })
+
+
+for (const value of [false, true, 0, 42]) {
+  test(`select: typed action parameter ${value} is saved as form text`, t => {
+    const menu = dropdown(t, SelectDropdownController)
+    const option = { textContent: String(value), classList: { toggle() {} }, setAttribute() {} }
+    const field = { value: "" }
+    Object.assign(menu.controller, { valueTarget: field, labelTarget: {}, optionTargets: [option] })
+    menu.controller.select({ currentTarget: option, params: { value } })
+    assert.equal(field.value, String(value))
+    assert.equal(menu.controller.openValue, false)
+  })
+}

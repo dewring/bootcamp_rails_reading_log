@@ -1,4 +1,4 @@
-import { Controller } from "@hotwired/stimulus"
+import { Controller, type ActionEvent } from "@hotwired/stimulus"
 
 export default class extends Controller<HTMLElement> {
   static targets = ["trigger", "menu", "value", "label", "option"]
@@ -20,9 +20,9 @@ export default class extends Controller<HTMLElement> {
     this.triggerTarget.setAttribute("aria-expanded", String(this.openValue))
   }
 
-  select(event: Event) {
+  select(event: ActionEvent) {
     const option = event.currentTarget as HTMLButtonElement
-    this.valueTarget.value = option.dataset.value ?? ""
+    this.valueTarget.value = String(event.params.value ?? "")
     this.labelTarget.textContent = option.textContent?.trim() ?? ""
 
     this.optionTargets.forEach((candidate) => {
