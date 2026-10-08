@@ -26,6 +26,9 @@ class Admin::MembersControllerTest < ActionDispatch::IntegrationTest
     assert_select "input#admin_member_role[readonly][value='User']"
     assert_select ".admin-member-detail select#user_account_status"
     assert_select "input[value='Save changes']"
+    assert_select "#admin-member-status-menu a" do |options|
+      assert_equal [ "All statuses", "Active", "Suspended" ], options.map(&:text)
+    end
     assert_select ".admin-member-record a", text: "Edit", count: 0
   end
 

@@ -17,7 +17,7 @@
           <% end %>
           <div class="admin-reviews-filters">
             <%= link_to "All records", admin_members_path(q: @query.presence, sort: @sort), class: "admin-reviews-filter #{'is-active' if @status.nil?}" %>
-            <% [["Status", "status", [["All statuses", nil], ["Active", "active"], ["Invited", "invited"], ["Suspended", "suspended"]], @status], ["Updated", "sort", [["Recently updated", "updated"], ["Member name", "name"]], @sort]].each do |label, key, options, selected| %>
+            <% [["Status", "status", [["All statuses", nil], ["Active", "active"], ["Suspended", "suspended"]], @status], ["Updated", "sort", [["Recently updated", "updated"], ["Member name", "name"]], @sort]].each do |label, key, options, selected| %>
               <div class="admin-reviews-rating-filter admin-select-dropdown" data-controller="nav-menu" data-action="dropdown:opened@window->nav-menu#closeIfAnother">
                 <button type="button" class="admin-reviews-filter admin-select-trigger" data-nav-menu-target="trigger" data-action="click->nav-menu#toggle" aria-expanded="false" aria-controls="admin-member-<%= key %>-menu" aria-label="Filter members by <%= key %>"><span><%= options.find { |_, value| value == selected }&.first || label %></span><%= image_tag "catalog-chevron-down.svg", alt: "", aria: { hidden: true } %></button>
                 <nav id="admin-member-<%= key %>-menu" class="catalog-dropdown-menu admin-select-menu" data-nav-menu-target="menu" aria-label="<%= label %>" hidden>
