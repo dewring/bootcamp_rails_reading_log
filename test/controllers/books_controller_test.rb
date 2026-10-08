@@ -146,15 +146,35 @@ class BookControllerTest < ActionDispatch::IntegrationTest
     assert_select ".book-detail-button-secondary", text: /Want to Read/, count: 0
   end
 
-  test "finished books show the currently reading action and open finished history" do
+  test "finished books show finished reading and history without want-to-read actions" do
     sign_in users(:leika)
-    user_book = users(:leika).user_books.find_by!(book: books(:refactoring))
-    user_book.update!(status: "finished")
+
+    [ books(:refactoring), books(:pragmatic) ].each do |book|
+      user_book = users(:leika).user_books.find_by!(book: book)
+      user_book.update!(status: "finished")
+
+      get book_path(book)
+
+      assert_response :success
+      assert_select ".book-detail-state-reading.action-button.action-button--active[href='#{book_finished_journal_path(book)}']", text: /Finished Reading/
+      assert_select ".book-detail-actions", text: /Currently Reading/, count: 0
+      assert_select ".book-detail-button-primary", text: /Start Reading/, count: 0
+      assert_select ".book-detail-actions", text: /Want to Read/, count: 0
+      assert_select ".book-detail-actions form[action='#{user_book_path(user_book)}']", count: 0
+      assert_select ".book-detail-actions form[action='#{user_books_path}']", count: 0
+    end
+  end
+
+  test "a reader with sessions but no saved entry cannot save the book as want to read" do
+    sign_in users(:leika)
+    users(:leika).user_books.find_by!(book: books(:refactoring)).destroy!
 
     get book_path(books(:refactoring))
 
-    assert_select ".book-detail-state-reading.action-button.action-button--active[href='#{book_finished_journal_path(books(:refactoring))}']", text: /Currently Reading/
-    assert_select ".book-detail-button-primary", text: /Start Reading/, count: 0
+    assert_response :success
+    assert_select ".book-detail-state-reading", text: /Currently Reading/
+    assert_select ".book-detail-actions", text: /Want to Read/, count: 0
+    assert_select ".book-detail-actions form[action='#{user_books_path}']", count: 0
   end
 
   test "editions with a cover image are listed before editions without one" do

@@ -43,13 +43,14 @@
         <% if user_signed_in? %>
           <% user_book = current_user.user_books.find_by(book: @book) %>
           <% has_reading_session = current_user.reading_sessions.exists?(book: @book) %>
-          <% currently_reading = user_book&.status.in?([ "reading", "finished" ]) || has_reading_session %>
+          <% finished_reading = user_book&.status == "finished" %>
+          <% reading_started = user_book&.status == "reading" || finished_reading || has_reading_session %>
 
-          <% if currently_reading %>
-            <% reading_destination = user_book&.status == "finished" ? book_finished_journal_path(@book) : dashboard_path %>
+          <% if reading_started %>
+            <% reading_destination = finished_reading ? book_finished_journal_path(@book) : dashboard_path %>
             <%= link_to reading_destination, class: "book-detail-state book-detail-state-reading action-button action-button--active" do %>
               <span aria-hidden="true">✓</span>
-              <span>Currently Reading</span>
+              <span><%= finished_reading ? "Finished Reading" : "Currently Reading" %></span>
             <% end %>
           <% elsif policy(ReadingSession.new(user: current_user, book: @book)).new? %>
             <%= link_to book_reading_journal_path(@book), class: "book-detail-button book-detail-button-primary action-button action-button--primary" do %>
@@ -67,16 +68,7 @@
               <%= render "bookmark_icon" %>
               <span>Saved to Want to Read</span>
             <% end %>
-          <% elsif user_book && user_book.status != "reading" %>
-            <%= button_to user_book_path(user_book),
-                          method: :patch,
-                          params: { user_book: { status: "want_to_read" } },
-                          form: { class: "book-detail-inline-form" },
-                          class: "book-detail-button book-detail-button-secondary action-button action-button--secondary" do %>
-              <%= render "bookmark_icon" %>
-              <span>Want to Read</span>
-            <% end %>
-          <% elsif policy(UserBook.new(user: current_user, book: @book)).new? %>
+          <% elsif user_book.nil? && !has_reading_session && policy(UserBook.new(user: current_user, book: @book)).new? %>
             <%= button_to user_books_path,
                           params: { user_book: { book_id: @book.id, status: "want_to_read" } },
                           form: { class: "book-detail-inline-form" },
