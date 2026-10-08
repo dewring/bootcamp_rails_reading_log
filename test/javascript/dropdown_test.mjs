@@ -81,6 +81,36 @@ for (const [name, Controller] of [["account/navigation", AccountDropdownControll
     assert.equal(menu.expanded(), "false")
   })
 
+  test(`${name}: clicking after mouseenter and focusin closes and reopens the menu`, t => {
+    const menu = dropdown(t, Controller)
+    menu.controller.enter()
+    menu.controller.focusIn()
+    assert.equal(menu.menu.hidden, false)
+
+    menu.controller.toggle()
+    menu.controller.closeOnOutsideClick({ target: menu.inside })
+    assert.equal(menu.menu.hidden, true)
+    assert.equal(menu.expanded(), "false")
+
+    menu.controller.toggle()
+    assert.equal(menu.menu.hidden, false)
+    assert.equal(menu.expanded(), "true")
+  })
+
+  test(`${name}: keyboard activation toggles while the trigger remains focused`, t => {
+    const menu = dropdown(t, Controller)
+    menu.controller.focusIn()
+    assert.equal(menu.menu.hidden, false)
+
+    menu.controller.toggle()
+    assert.equal(menu.menu.hidden, true)
+    assert.equal(menu.expanded(), "false")
+
+    menu.controller.toggle()
+    assert.equal(menu.menu.hidden, false)
+    assert.equal(menu.expanded(), "true")
+  })
+
   test(`${name}: Escape closes and returns focus to the trigger`, t => {
     const menu = dropdown(t, Controller)
     menu.controller.toggle()
@@ -94,7 +124,6 @@ for (const [name, Controller] of [["account/navigation", AccountDropdownControll
   test(`${name}: hovering opens and reentering cancels a delayed close`, t => {
     const menu = dropdown(t, Controller)
     menu.controller.enter()
-    menu.controller.toggle()
     assert.equal(menu.menu.hidden, false)
     menu.controller.leave()
     t.mock.timers.tick(149)

@@ -15,8 +15,6 @@ export default class extends Controller<HTMLElement> {
   }
 
   toggle() {
-    if (this.hovering || this.focused) return
-
     this.isOpen() ? this.close() : this.open()
   }
 
