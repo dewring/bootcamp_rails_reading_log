@@ -25,7 +25,11 @@ class Admin::MembersControllerTest < ActionDispatch::IntegrationTest
     assert_select ".admin-member-record", count: 3
     assert_select "input#user_email[value='leika@test.com']"
     assert_select "input#admin_member_role[readonly][value='User']"
-    assert_select ".admin-member-detail select#user_account_status"
+    assert_select "input#user_account_status[type='hidden'][value='active']"
+    assert_select "button#admin_member_status_trigger[aria-expanded='false'][aria-controls='admin-member-account-status-menu']", text: "Active"
+    assert_select "#admin-member-account-status-menu[hidden] [role='option']" do |options|
+      assert_equal [ "Active", "Suspended" ], options.map(&:text)
+    end
     assert_select "input[value='Save changes']"
     assert_select "#admin-member-status-menu a" do |options|
       assert_equal [ "All statuses", "Active", "Suspended" ], options.map(&:text)

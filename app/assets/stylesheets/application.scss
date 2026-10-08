@@ -9259,6 +9259,7 @@ h2 {
   .admin-member-activity { color: $text-muted; font-size: 11px; line-height: 17px; }
   .admin-member-form { margin: 0; }
   .admin-member-field-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 12px; }
+  .admin-member-status-field .admin-select-trigger { height: 42px; font-size: 14px; background: #fffefc; }
   .admin-field label { font-size: 11px; line-height: 15px; text-transform: uppercase; }
   .admin-field input, .admin-field select { width: 100%; min-width: 0; height: 42px; margin: 0; padding: 10px 12px; border: 1px solid $gray-mid; border-radius: 8px; background-color: #fffefc; color: $ink; font-size: 14px; line-height: 20px; }
   .admin-field select { padding-right: 28px; }

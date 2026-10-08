@@ -9,8 +9,24 @@
     <% if member.persisted? %>
       <div class="admin-field"><%= label_tag :admin_member_registration, "Registration" %><%= text_field_tag :admin_member_registration, "Joined #{member.created_at.strftime('%b %-d, %Y')}", readonly: true %></div>
       <div class="admin-field"><%= label_tag :admin_member_activity, "Activity" %><%= text_field_tag :admin_member_activity, admin_member_activity(member), readonly: true %></div>
-      <div class="admin-field"><%= f.label :account_status, "Status" %>
-        <% if policy([:admin, member]).update_status? %><%= f.select :account_status, %w[active invited suspended].map { |status| [status.capitalize, status] } %><% else %><%= text_field_tag :admin_member_status, member.account_status.capitalize, readonly: true %><% end %>
+      <div class="admin-field admin-member-status-field">
+        <% if policy([:admin, member]).update_status? %>
+          <%= label_tag :admin_member_status_trigger, "Status" %>
+          <div class="admin-select-dropdown" data-controller="select-dropdown" data-action="click@document->select-dropdown#closeUnlessInside keydown.esc@document->select-dropdown#close">
+            <%= f.hidden_field :account_status, data: { select_dropdown_target: "value" } %>
+            <button type="button" id="admin_member_status_trigger" class="admin-select-trigger" data-select-dropdown-target="trigger" data-action="click->select-dropdown#toggle" aria-haspopup="listbox" aria-expanded="false" aria-controls="admin-member-account-status-menu">
+              <span data-select-dropdown-target="label"><%= member.account_status.capitalize %></span>
+              <%= image_tag "catalog-chevron-down.svg", alt: "", aria: { hidden: true } %>
+            </button>
+            <div id="admin-member-account-status-menu" class="catalog-dropdown-menu admin-select-menu" data-select-dropdown-target="menu" role="listbox" aria-label="Account status" hidden>
+              <% %w[active suspended].each do |status| %>
+                <button type="button" class="catalog-dropdown-option <%= 'is-selected' if member.account_status == status %>" data-select-dropdown-target="option" data-value="<%= status %>" role="option" aria-selected="<%= member.account_status == status %>" data-action="click->select-dropdown#select"><%= status.capitalize %></button>
+              <% end %>
+            </div>
+          </div>
+        <% else %>
+          <%= label_tag :admin_member_status, "Status" %><%= text_field_tag :admin_member_status, member.account_status.capitalize, readonly: true %>
+        <% end %>
       </div>
       <div class="admin-field"><%= label_tag :admin_member_role, "Role" %><%= text_field_tag :admin_member_role, member.role.capitalize, readonly: true %></div>
     <% end %>
