@@ -57,7 +57,7 @@ function dropdown(t, Controller, subscribeTo = async () => ({ unsubscribe() {} }
       else globalThis[key] = value
     }
   })
-  return { controller, menu, inside, expanded: () => expanded, focusCount: () => focusCount }
+  return { controller, menu, trigger, inside, expanded: () => expanded, focusCount: () => focusCount }
 }
 
 for (const [name, Controller] of [["account/navigation", AccountDropdownController], ["notifications", NotificationDropdownController]]) {
@@ -119,6 +119,39 @@ for (const [name, Controller] of [["account/navigation", AccountDropdownControll
     assert.equal(menu.focusCount(), 1)
     menu.controller.closeOnEscape()
     assert.equal(menu.focusCount(), 1)
+    menu.controller.focusIn()
+    assert.equal(menu.menu.hidden, false)
+  })
+
+  test(`${name}: Escape refocus does not reopen but later keyboard focus does`, t => {
+    const menu = dropdown(t, Controller)
+    const openedEvents = []
+    window.addEventListener("dropdown:opened", event => openedEvents.push(event))
+    const focus = menu.trigger.focus
+    t.mock.method(menu.trigger, "focus", () => {
+      focus()
+      menu.controller.focusOut()
+      menu.controller.focusIn()
+    })
+    menu.controller.focusIn()
+    assert.equal(menu.menu.hidden, false)
+    assert.equal(openedEvents.length, 1)
+
+    menu.controller.closeOnEscape()
+
+    assert.equal(menu.menu.hidden, true)
+    assert.equal(menu.expanded(), "false")
+    assert.equal(menu.focusCount(), 1)
+    assert.equal(openedEvents.length, 1)
+    t.mock.timers.tick(150)
+    assert.equal(menu.menu.hidden, true)
+
+    menu.controller.focusOut()
+    t.mock.timers.tick(150)
+    menu.controller.focusIn()
+    assert.equal(menu.menu.hidden, false)
+    assert.equal(menu.expanded(), "true")
+    assert.equal(openedEvents.length, 2)
   })
 
   test(`${name}: hovering opens and reentering cancels a delayed close`, t => {

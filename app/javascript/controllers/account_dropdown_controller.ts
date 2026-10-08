@@ -9,6 +9,7 @@ export default class extends Controller<HTMLElement> {
   private closeTimer?: number
   private hovering = false
   private focused = false
+  private restoringTriggerFocus = false
 
   disconnect() {
     this.cancelScheduledClose()
@@ -40,6 +41,8 @@ export default class extends Controller<HTMLElement> {
   focusIn() {
     this.focused = true
     this.cancelScheduledClose()
+    if (this.restoringTriggerFocus) return
+
     this.open()
   }
 
@@ -88,7 +91,12 @@ export default class extends Controller<HTMLElement> {
   closeOnEscape() {
     if (this.isOpen()) {
       this.close()
-      this.triggerTarget.focus()
+      this.restoringTriggerFocus = true
+      try {
+        this.triggerTarget.focus()
+      } finally {
+        this.restoringTriggerFocus = false
+      }
     }
   }
 }
