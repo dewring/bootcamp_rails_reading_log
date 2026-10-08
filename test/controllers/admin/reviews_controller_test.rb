@@ -73,9 +73,26 @@ class Admin::ReviewsControllerTest < ActionDispatch::IntegrationTest
     assert_select ".admin-review-record", count: 1
     assert_select "#admin_review_#{reviews(:review1).id}.is-selected"
     assert_select ".admin-reviews-search input[name='rating'][value='1']"
-    assert_select "select[name='rating'] option[selected][value='1']"
+    assert_select ".admin-reviews-rating-filter button[aria-expanded='false'][aria-controls='admin-reviews-rating-menu']", text: "1 / 5 stars"
+    assert_select "nav#admin-reviews-rating-menu[hidden] a", count: 7
+    assert_select "nav#admin-reviews-rating-menu a[aria-current='true']", text: "1 / 5 stars"
+    assert_select "nav#admin-reviews-rating-menu a" do |links|
+      links.each_with_index do |link, index|
+        query = Rack::Utils.parse_query(URI.parse(link["href"]).query)
+        assert_equal "book", query["q"]
+        assert_equal (index.zero? ? nil : (index - 1).to_s), query["rating"]
+        assert_nil query["page"]
+        assert_nil query["review_id"]
+      end
+    end
+    assert_select "a.admin-reviews-filter", text: "All records" do |links|
+      query = Rack::Utils.parse_query(URI.parse(links.first["href"]).query)
+      assert_equal "book", query["q"]
+      assert_nil query["rating"]
+    end
     get admin_reviews_path, params: { rating: "invalid" }
     assert_select ".admin-review-record", count: 2
+    assert_select "nav#admin-reviews-rating-menu a[aria-current='true']", text: "All ratings"
   end
 
   test "pagination and selected record links retain search and rating" do

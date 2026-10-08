@@ -23,11 +23,19 @@
             <%= f.submit "Search" %>
           <% end %>
           <div class="admin-reviews-filters" aria-label="Review filters">
-            <%= link_to "All records", admin_reviews_path, class: "admin-reviews-filter #{'is-active' if @query.blank? && @rating.nil?}" %>
-            <%= form_with url: admin_reviews_path, method: :get, data: { controller: "submit-on-change" } do %>
-              <%= hidden_field_tag :q, @query if @query.present? %>
-              <%= select_tag :rating, options_for_select([["All ratings", ""]] + (0..5).map { |rating| ["#{rating} / 5 stars", rating] }, @rating), aria: { label: "Filter reviews by rating" }, data: { action: "change->submit-on-change#submit" } %>
-            <% end %>
+            <%= link_to "All records", admin_reviews_path(q: @query.presence), class: "admin-reviews-filter #{'is-active' if @rating.nil?}", aria: { current: ("true" if @rating.nil?) } %>
+            <div class="admin-reviews-rating-filter admin-select-dropdown" data-controller="nav-menu" data-action="dropdown:opened@window->nav-menu#closeIfAnother">
+              <button type="button" class="admin-reviews-filter admin-select-trigger <%= 'is-active' if @rating %>" data-nav-menu-target="trigger" data-action="click->nav-menu#toggle" aria-expanded="false" aria-controls="admin-reviews-rating-menu" aria-label="Filter reviews by rating">
+                <span><%= @rating ? "#{@rating} / 5 stars" : "All ratings" %></span>
+                <%= image_tag "catalog-chevron-down.svg", alt: "", aria: { hidden: true } %>
+              </button>
+              <nav id="admin-reviews-rating-menu" class="catalog-dropdown-menu admin-select-menu" data-nav-menu-target="menu" aria-label="Ratings" hidden>
+                <%= link_to "All ratings", admin_reviews_path(q: @query.presence), class: "catalog-dropdown-option #{'is-selected' if @rating.nil?}", aria: { current: ("true" if @rating.nil?) } %>
+                <% (0..5).each do |rating| %>
+                  <%= link_to "#{rating} / 5 stars", admin_reviews_path(q: @query.presence, rating: rating), class: "catalog-dropdown-option #{'is-selected' if @rating == rating.to_s}", aria: { current: ("true" if @rating == rating.to_s) } %>
+                <% end %>
+              </nav>
+            </div>
           </div>
           <div class="admin-reviews-records">
             <% @reviews.each do |review| %>

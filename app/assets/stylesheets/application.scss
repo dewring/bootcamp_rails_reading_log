@@ -2255,6 +2255,30 @@ main.container:has(> .my-log-page) {
   }
   :is(.admin-reviews-filter, .admin-clubs-filter) { display: inline-flex; align-items: center; padding: 6px 11px; border: 1px solid $gray-mid; border-radius: 999px; background: #fff; color: $ink !important; font-size: 12px; text-decoration: none; }
   :is(.admin-reviews-filter, .admin-clubs-filter).is-active { background: #fdf1ef; color: $accent !important; font-weight: 700; }
+  .admin-reviews-rating-filter {
+    .admin-select-trigger {
+      width: auto;
+      height: 32px;
+      gap: 6px;
+      line-height: 16px;
+
+      img { width: 8px; height: 8px; }
+    }
+
+    .admin-select-menu {
+      right: auto;
+      width: 170px;
+      max-height: 280px;
+      overflow-y: auto;
+
+      .catalog-dropdown-option {
+        flex-shrink: 0;
+        padding: 7px 10px;
+        font-size: 12px;
+        line-height: 16px;
+      }
+    }
+  }
   :is(.admin-reviews-records, .admin-clubs-records) { display: grid; grid-template-columns: minmax(0, 1fr); gap: 9px; }
   :is(.admin-review-record, .admin-club-record) { min-width: 0; margin: 0; padding: 16px; border: 1px solid $gray-mid; border-radius: 12px; background: #fff; box-shadow: none; }
   :is(.admin-review-record, .admin-club-record).is-selected { border-color: $accent; background: #fdf1ef; }
