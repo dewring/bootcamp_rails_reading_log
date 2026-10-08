@@ -19,7 +19,7 @@ class BookClubsController < ApplicationController
 
     if params[:view] == "leaderboard"
       @leaderboard = @book_club.leaderboard.to_a
-      return render :leaderboard
+      render :leaderboard
     end
   end
 
