@@ -53,10 +53,11 @@ class BookClubsController < ApplicationController
 
   def update
     authorize @book_club, :manage?
-    if @book_club.update(book_club_params)
+    if @book_club.update(club_details_params)
       redirect_to @book_club, notice: "Club details updated."
     else
-      render :edit, status: :unprocessable_entity
+      prepare_detail_state
+      render :show, status: :unprocessable_entity
     end
   end
 
@@ -98,8 +99,16 @@ class BookClubsController < ApplicationController
     params.require(:book_club).permit(:current_book_id, :reading_deadline)
   end
 
+  def club_details_params
+    params.require(:book_club).permit(:name, :description, :current_book_id, :reading_deadline)
+  end
+
   def prepare_detail_state
-    @memberships = @book_club.book_club_memberships
+    @memberships = if @book_club.book_club_memberships.loaded?
+      @book_club.book_club_memberships
+    else
+      @book_club.book_club_memberships.includes(user: :avatar_attachment)
+    end
     @owner = @memberships.find { |membership| membership.role == "owner" }&.user
     @current_membership = @memberships.find { |membership| membership.user_id == current_user.id }
     @past_picks = @book_club.pick_history

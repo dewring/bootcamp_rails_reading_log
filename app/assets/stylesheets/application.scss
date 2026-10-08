@@ -2852,10 +2852,14 @@ main.container:has(> .book-club-detail-page) {
     display: grid;
     min-width: 0;
     width: 100%;
-    grid-template-columns: minmax(0, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     align-items: end;
     gap: 16px;
   }
+
+  .club-pick-field, .club-reading-deadline { grid-column: auto; }
+  .club-owner-name, .club-owner-description, .form-submit { grid-column: 1 / -1; }
+  .club-owner-errors { color: #d9383a; font-size: 13px; }
 
   .admin-field {
     display: flex;
@@ -2870,7 +2874,7 @@ main.container:has(> .book-club-detail-page) {
       text-transform: uppercase;
     }
 
-    input {
+    input, textarea {
       width: 100%;
       min-width: 0;
       min-height: 42px;
@@ -2884,18 +2888,21 @@ main.container:has(> .book-club-detail-page) {
       font-size: 14px;
       line-height: 20px;
     }
+
+    textarea { resize: vertical; }
   }
 
   .form-submit {
     margin: 4px 0 0;
     justify-self: end;
 
-    input {
+    input[type="submit"] {
       width: auto;
+      height: 38px;
       min-height: 38px;
       margin: 0;
       padding: 10px 16px !important;
-      border-radius: 999px;
+      border-radius: 999px !important;
       font-size: 12px !important;
       line-height: 18px;
     }

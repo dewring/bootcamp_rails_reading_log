@@ -11,12 +11,6 @@
   </div>
 
   <div class="book-club-sidebar-account">
-    <% if policy(book_club).manage? %>
-      <%= link_to edit_book_club_path(book_club), class: "book-club-owner-controls-link" do %>
-        <span aria-hidden="true">⚙</span>
-        <span>Owner Controls</span>
-      <% end %>
-    <% end %>
     <div class="book-club-account-row">
       <%= render "users/avatar", user: current_user, variant: :club_member %>
       <div>

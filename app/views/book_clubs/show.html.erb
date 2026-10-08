@@ -82,12 +82,17 @@
       <section id="owner-controls" class="book-club-owner-controls">
         <div>
           <h2>Owner controls</h2>
-          <p>Update the current pick and reading deadline for this cycle.</p>
+          <p>Manage your club details, current pick, and reading deadline.</p>
         </div>
-        <%= form_with model: @book_club, url: set_current_book_book_club_path(@book_club), method: :patch, html: { class: "form" } do |f| %>
+        <% if @book_club.errors.any? %>
+          <div class="club-owner-errors" role="alert"><%= @book_club.errors.full_messages.to_sentence %></div>
+        <% end %>
+        <%= form_with model: @book_club, html: { class: "form" } do |f| %>
+          <div class="admin-field club-owner-name"><%= f.label :name, "Club name" %><%= f.text_field :name, required: true %></div>
           <%= render "pick_fields", f: f, club: @book_club, search_url: search_books_book_clubs_path, search_id: "book_club_current_book_search", results_id: "club-book-results" %>
+          <div class="admin-field club-owner-description"><%= f.label :description %><%= f.text_area :description, rows: 3 %></div>
           <div class="form-submit">
-            <%= f.submit "Update Pick" %>
+            <%= f.submit "Save changes" %>
           </div>
         <% end %>
       </section>

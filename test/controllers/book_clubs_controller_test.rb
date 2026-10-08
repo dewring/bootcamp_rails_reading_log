@@ -40,13 +40,52 @@ class BookClubsControllerTest < ActionDispatch::IntegrationTest
       assert_select "#owner-controls [role='listbox'][hidden]"
       assert_select "#owner-controls .club-reading-deadline input[type='date'][value='2026-12-01']"
       assert_select "#owner-controls datalist", count: 0
+      assert_select ".book-club-sidebar a[href='#{edit_book_club_path(club)}']", count: 0
+      assert_select "#owner-controls form[action='#{book_club_path(club)}']"
+      assert_select "#owner-controls input[name='book_club[name]'][value='#{club.name}']"
+      assert_select "#owner-controls textarea[name='book_club[description]']"
 
-      patch set_current_book_book_club_path(club), params: { book_club: { current_book_id: books(:refactoring).id, reading_deadline: "2026-12-15" } }
+      patch book_club_path(club), params: { book_club: { name: "Updated club", description: "Read together", current_book_id: books(:refactoring).id, reading_deadline: "2026-12-15" } }
       assert_redirected_to book_club_path(club)
       assert_equal books(:refactoring), club.reload.current_book
       assert_equal Date.new(2026, 12, 15), club.reading_deadline
+      assert_equal "Updated club", club.name
+      assert_equal "Read together", club.description
       sign_out owner
     end
+  end
+
+  test "invalid owner changes stay on overview with errors and preserve submitted fields" do
+    club = BookClub.create!(name: "Original club", current_book: books(:pragmatic))
+    club.book_club_memberships.create!(user: users(:leika), role: "owner")
+    sign_in users(:leika)
+
+    patch book_club_path(club), params: { book_club: { name: "", description: "Draft description", current_book_id: books(:refactoring).id, reading_deadline: "2026-12-15" } }
+
+    assert_response :unprocessable_entity
+    assert_select "#owner-controls [role='alert']", text: /Name can't be blank/
+    assert_select "#owner-controls textarea[name='book_club[description]']", text: "Draft description"
+    assert_select "#owner-controls input[type='date'][value='2026-12-15']"
+    assert_select "#owner-controls input[role='combobox'][value='Refactoring · Martin Fowler']"
+    assert_equal "Original club", club.reload.name
+    assert_equal books(:pragmatic), club.current_book
+  end
+
+  test "non-owner cannot edit club details through the overview form" do
+    club = BookClub.create!(name: "Original club", description: "Original description", current_book: books(:pragmatic))
+    club.book_club_memberships.create!(user: users(:leika), role: "owner")
+    club.book_club_memberships.create!(user: users(:jaina), role: "member")
+    sign_in users(:jaina)
+    get book_club_path(club)
+    assert_select "#owner-controls", count: 0
+
+    patch book_club_path(club), params: { book_club: { name: "Changed", description: "Changed", current_book_id: books(:refactoring).id, reading_deadline: "2026-12-15" } }
+
+    assert_redirected_to root_path
+    assert_equal "Original club", club.reload.name
+    assert_equal "Original description", club.description
+    assert_equal books(:pragmatic), club.current_book
+    assert_nil club.reading_deadline
   end
 
   test "guest cannot create a book club" do
@@ -150,7 +189,7 @@ class BookClubsControllerTest < ActionDispatch::IntegrationTest
     assert_select ".book-club-stat-card", count: 3
     assert_select "li#notifications_panel"
     assert_select "turbo-cable-stream-source"
-    assert_select "form[action='#{set_current_book_book_club_path(book_club)}']"
+    assert_select "#owner-controls form[action='#{book_club_path(book_club)}']"
   end
 
   test "leaderboard view is available from the club detail shell" do
