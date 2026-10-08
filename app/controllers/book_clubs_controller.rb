@@ -3,6 +3,12 @@ class BookClubsController < ApplicationController
   before_action :set_book_club, only: [ :show, :edit, :update, :join, :leave, :set_current_book, :destroy ]
 
   def index
+    if params[:new_club].present?
+      @book_club = BookClub.new
+      authorize @book_club, :create?
+      return render :new
+    end
+
     @book_clubs = policy_scope(BookClub)
       .includes(current_book: { cover_image_attachment: :blob }, book_club_memberships: :user)
       .order(created_at: :desc)
@@ -31,18 +37,16 @@ class BookClubsController < ApplicationController
   end
 
   def new
-    @book_club = BookClub.new
-    authorize @book_club
+    authorize BookClub, :create?
+    redirect_to book_clubs_path(new_club: true)
   end
 
   def create
-    @book_club = BookClub.new(book_club_params)
+    @book_club = BookClub.new(club_details_params)
     authorize @book_club
 
-    BookClub.transaction do
-      @book_club.save!
-      @book_club.book_club_memberships.create!(user: current_user, role: "owner")
-    end
+    BookClubCreator.new(book_club: @book_club, owner: current_user)
+      .create_club(validation_context: :public_creation)
     redirect_to @book_club, notice: "Book club created."
   rescue ActiveRecord::RecordInvalid
     render :new, status: :unprocessable_entity
@@ -90,10 +94,6 @@ class BookClubsController < ApplicationController
 
   def set_book_club
     @book_club = BookClub.find(params[:id])
-  end
-
-  def book_club_params
-    params.require(:book_club).permit(:name, :description)
   end
 
   def current_book_params

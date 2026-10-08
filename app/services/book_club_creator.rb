@@ -4,9 +4,9 @@ class BookClubCreator
     @owner = owner
   end
 
-  def create_club
+  def create_club(validation_context: nil)
     BookClub.transaction do
-      @book_club.save!
+      @book_club.save!(context: validation_context)
       @book_club.book_club_memberships.create!(user: @owner, role: "owner")
     end
     @book_club

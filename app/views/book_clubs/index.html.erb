@@ -5,7 +5,7 @@
       <p>Explore public clubs, compare current reads, and join a conversation that feels like yours.</p>
     </div>
     <% if policy(BookClub).new? %>
-      <%= link_to "Create Book Club", new_book_club_path, class: "book-club-action book-club-action--primary" %>
+      <%= link_to "Create Book Club", book_clubs_path(new_club: true), class: "book-club-action book-club-action--primary" %>
     <% end %>
   </header>
 

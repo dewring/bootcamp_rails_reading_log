@@ -126,6 +126,70 @@ class BookClubsControllerTest < ActionDispatch::IntegrationTest
     assert_redirected_to new_user_session_path
   end
 
+  test "Create Book Club opens the overview creation mode without existing-club statistics" do
+    sign_in users(:leika)
+    get book_clubs_path
+    assert_response :success
+    assert_select "a[href='#{book_clubs_path(new_club: true)}']", text: "Create Book Club"
+    assert_select "a[href='#{new_book_club_path}']", count: 0
+
+    get book_clubs_path(new_club: true)
+    assert_response :success
+    assert_select ".book-club-detail-page h1", text: "Overview"
+    assert_select ".book-club-sidebar-navigation a.is-active", text: "Overview"
+    assert_select ".book-club-stat-grid, .book-club-member-status, .book-club-member-list", count: 0
+    assert_select "input[readonly]", count: 0
+    assert_select "form[action='#{book_clubs_path}']" do
+      assert_select "input[name='book_club[name]'][required]"
+      assert_select "textarea[name='book_club[description]'][required]"
+      assert_select "input[name='book_club[current_book_id]']"
+      assert_select "input[name='book_club[reading_deadline]']:not([required])"
+      assert_select "[data-controller='club-book-search']"
+    end
+
+    get new_book_club_path
+    assert_redirected_to book_clubs_path(new_club: true)
+  end
+
+  test "creation without a pick or deadline succeeds and opens the new club overview" do
+    sign_in users(:leika)
+    assert_difference("BookClub.count", 1) do
+      post book_clubs_path, params: { book_club: { name: "Optional Pick", description: "Read at your own pace.", current_book_id: "", reading_deadline: "" } }
+    end
+    club = BookClub.find_by!(name: "Optional Pick")
+    assert_nil club.current_book_id
+    assert_nil club.reading_deadline
+    assert_redirected_to book_club_path(club)
+    follow_redirect!
+    assert_select "h1", text: "Overview"
+    assert_select ".book-club-member-status", text: "You're the club owner"
+  end
+
+  test "creation saves optional pick and deadline using the existing book search fields" do
+    sign_in users(:leika)
+    deadline = 7.days.from_now.to_date
+    post book_clubs_path, params: { book_club: { name: "Chosen Pick", description: "A shared reading cycle.", current_book_id: books(:refactoring).id, reading_deadline: deadline } }
+    club = BookClub.find_by!(name: "Chosen Pick")
+    assert_equal books(:refactoring), club.current_book
+    assert_equal deadline, club.reading_deadline
+    assert_redirected_to book_club_path(club)
+  end
+
+  test "blank required creation fields render errors and preserve optional selections without creating an owner" do
+    sign_in users(:leika)
+    [ { name: "", description: "A description" }, { name: "Retained Name", description: "   " } ].each do |attributes|
+      assert_no_difference([ "BookClub.count", "BookClubMembership.count" ]) do
+        post book_clubs_path, params: { book_club: attributes.merge(current_book_id: books(:refactoring).id, reading_deadline: "2026-12-01") }
+      end
+      assert_response :unprocessable_entity
+      assert_select ".book-club-detail-page h1", text: "Overview"
+      assert_select "[role='alert']", text: /can't be blank/
+      assert_select "input[name='book_club[name]'][value='#{attributes[:name]}']"
+      assert_select "input[name='book_club[current_book_id]'][value='#{books(:refactoring).id}']"
+      assert_select "input[name='book_club[reading_deadline]'][value='2026-12-01']"
+    end
+  end
+
   test "creating a club makes the creator its owner" do
     sign_in users(:leika)
 
