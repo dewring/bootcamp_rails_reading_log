@@ -16,7 +16,7 @@ class Admin::UserPolicy < ApplicationPolicy
   end
 
   def destroy?
-    update_status? && record.book_club_memberships.none? { |membership| membership.role == "owner" }
+    update_status? && !record.book_club_memberships.exists?(role: "owner")
   end
 
   class Scope < ApplicationPolicy::Scope

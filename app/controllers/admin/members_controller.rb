@@ -23,7 +23,7 @@ class Admin::MembersController < ApplicationController
   end
 
   def update
-    @selected_member = policy_scope([ :admin, User ]).includes(:book_club_memberships).find(params[:id])
+    @selected_member = policy_scope([ :admin, User ]).find(params[:id])
     authorize [ :admin, @selected_member ]
     attributes = member_params
     if attributes[:account_status].present? && attributes[:account_status] != @selected_member.account_status
@@ -39,7 +39,7 @@ class Admin::MembersController < ApplicationController
   end
 
   def destroy
-    member = policy_scope([ :admin, User ]).includes(:book_club_memberships).find(params[:id])
+    member = policy_scope([ :admin, User ]).find(params[:id])
     authorize [ :admin, member ]
     MemberAccountDeletion.new(member: member).delete_account
     redirect_to admin_members_path(**filter_params.except(:page)), notice: "Member account deleted."
@@ -51,7 +51,7 @@ class Admin::MembersController < ApplicationController
     @query = params[:q].to_s.strip
     @status = params[:status].to_s if %w[active invited suspended].include?(params[:status])
     @sort = params[:sort] == "name" ? "name" : "updated"
-    @members_scope = policy_scope([ :admin, User ]).matching_member_text(@query).preload(:book_club_memberships)
+    @members_scope = policy_scope([ :admin, User ]).matching_member_text(@query)
     @members_scope = @members_scope.where(account_status: @status) if @status
     order = @sort == "name" ? { first_name: :asc, last_name: :asc, id: :asc } : { updated_at: :desc, id: :desc }
     @pagy, @members = pagy(:offset, @members_scope.order(order), limit: 4)
@@ -61,6 +61,7 @@ class Admin::MembersController < ApplicationController
     ids = (@members.map(&:id) + [ @selected_member&.id ]).compact.uniq
     @book_counts = UserBook.where(user_id: ids).group(:user_id).count
     @reading_dates = ReadingSession.where(user_id: ids).group(:user_id).maximum(:read_on)
+    @club_owner_ids = BookClubMembership.where(user_id: ids, role: "owner").distinct.pluck(:user_id)
   end
 
   def member_params
