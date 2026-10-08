@@ -32,14 +32,28 @@ class Admin::BooksControllerTest < ActionDispatch::IntegrationTest
     assert_select "input[type='submit'][value='Save changes']"
   end
 
-  test "genre filter submits declaratively and search preserves the genre" do
+  test "genre dropdown preserves search and all records clears only the genre" do
     get admin_catalog_path, params: { genre: "Fiction", q: "Refactoring" }
 
     assert_response :success
     assert_select ".admin-catalog-record", count: 1
     assert_select ".admin-catalog-search input[name='genre'][value='Fiction']"
-    assert_select ".admin-catalog-genre-filter[data-controller='submit-on-change'] input[name='q'][value='Refactoring']"
-    assert_select "select[name='genre'][data-action='change->submit-on-change#submit'] option[selected]", text: "Fiction"
+    assert_select ".admin-catalog-genre-filter button[aria-expanded='false'][aria-controls='admin-catalog-genre-menu']", text: "Fiction"
+    assert_select "nav#admin-catalog-genre-menu[hidden] a", count: Genre::GENRES.size
+    assert_select "nav#admin-catalog-genre-menu a[aria-current='true']", text: "Fiction"
+    assert_select "nav#admin-catalog-genre-menu a" do |links|
+      links.each do |link|
+        query = Rack::Utils.parse_query(URI.parse(link["href"]).query)
+        assert_equal "Refactoring", query["q"]
+        assert_equal link.text, query["genre"]
+        assert_nil query["page"]
+      end
+    end
+    assert_select "a.admin-catalog-filter", text: "All records" do |links|
+      query = Rack::Utils.parse_query(URI.parse(links.first["href"]).query)
+      assert_equal "Refactoring", query["q"]
+      assert_nil query["genre"]
+    end
     assert_select ".admin-catalog-filters button", text: /Status/, count: 0
   end
 

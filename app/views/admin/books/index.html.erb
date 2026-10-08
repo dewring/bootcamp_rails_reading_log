@@ -32,12 +32,18 @@
           </div>
 
           <div class="admin-catalog-filters" aria-label="Catalog filters">
-            <%= link_to "All records⌄", admin_catalog_path(q: params[:q]), class: "admin-catalog-filter #{'is-active' if params[:genre].blank?}", aria: { current: ("true" if params[:genre].blank?) } %>
-            <%= form_with url: admin_catalog_path, method: :get, class: "admin-catalog-genre-filter #{'has-selection' if params[:genre].present?}", data: { controller: "submit-on-change" } do %>
-              <%= hidden_field_tag :q, params[:q] if params[:q].present? %>
-              <%= select_tag :genre, options_for_select([["Genre", ""]] + Genre::GENRES.map { |name| [name, name] }, params[:genre]), aria: { label: "Filter by genre" }, data: { action: "change->submit-on-change#submit" } %>
-              <%= submit_tag "Filter", class: "admin-catalog-sr-only", tabindex: -1 %>
-            <% end %>
+            <%= link_to "All records", admin_catalog_path(q: params[:q]), class: "admin-catalog-filter #{'is-active' if params[:genre].blank?}", aria: { current: ("true" if params[:genre].blank?) } %>
+            <div class="admin-catalog-genre-filter admin-select-dropdown" data-controller="nav-menu" data-action="dropdown:opened@window->nav-menu#closeIfAnother">
+              <button type="button" class="admin-catalog-filter admin-select-trigger <%= 'is-active' if params[:genre].present? %>" data-nav-menu-target="trigger" data-action="click->nav-menu#toggle" aria-expanded="false" aria-controls="admin-catalog-genre-menu" aria-label="Filter by genre">
+                <span><%= params[:genre].presence || "Genre" %></span>
+                <%= image_tag "catalog-chevron-down.svg", alt: "", aria: { hidden: true } %>
+              </button>
+              <nav id="admin-catalog-genre-menu" class="catalog-dropdown-menu admin-select-menu" data-nav-menu-target="menu" aria-label="Genres" hidden>
+                <% Genre::GENRES.each do |genre| %>
+                  <%= link_to genre, admin_catalog_path(q: params[:q], genre: genre), class: "catalog-dropdown-option #{'is-selected' if params[:genre] == genre}", aria: { current: ("true" if params[:genre] == genre) } %>
+                <% end %>
+              </nav>
+            </div>
           </div>
 
           <div class="admin-catalog-records">

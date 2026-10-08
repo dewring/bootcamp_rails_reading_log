@@ -1981,7 +1981,7 @@ main.container:has(> .my-log-page) {
   }
 
   .admin-catalog-filter,
-  .admin-catalog-genre-filter select {
+  .admin-catalog-genre-filter .admin-select-trigger {
     width: auto;
     min-height: 29px;
     padding: 7px 11px;
@@ -2000,15 +2000,28 @@ main.container:has(> .my-log-page) {
     font-weight: 700;
   }
 
-  .admin-catalog-genre-filter select {
+  .admin-catalog-genre-filter .admin-select-trigger {
+    height: 32px;
     min-width: 0;
     max-width: 180px;
-    padding-right: 16px;
-    background-position: right 7px center;
-    background-size: 6px auto;
+    gap: 6px;
+
+    img { width: 8px; height: 8px; }
   }
 
-  .admin-catalog-genre-filter:not(.has-selection) select { width: 65px; }
+  .admin-catalog-genre-filter .admin-select-menu {
+    right: auto;
+    width: 170px;
+    max-height: 280px;
+    overflow-y: auto;
+
+    .catalog-dropdown-option {
+      flex-shrink: 0;
+      padding: 7px 10px;
+      font-size: 12px;
+      line-height: 16px;
+    }
+  }
 
   .admin-catalog-records { gap: 9px; }
 
