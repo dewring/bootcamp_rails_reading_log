@@ -36,9 +36,35 @@ class Admin::BookClubsControllerTest < ActionDispatch::IntegrationTest
     assert_select "input#admin_club_members[readonly][value='2 members']"
     assert_select "select#book_club_current_book_id option[selected][value='#{books(:refactoring).id}']"
     assert_select "input#book_club_name[value='Sci-Fi Society']"
-    assert_select ".admin-club-actions a", count: 2
+    assert_select ".admin-club-actions a", text: "View", count: 1
+    assert_select ".admin-club-actions a", text: "Edit", count: 0
+    assert_select ".admin-club-actions button", text: "Delete", count: 1
+    assert_select ".admin-club-select[href*='club_id=#{@club.id}']"
     assert_select ".admin-sidebar-nav .is-active[aria-current='page']", text: "Book Clubs"
     assert_select "label", text: "Status", count: 0
+  end
+
+  test "compact sort dropdown preserves search and selects the requested ordering" do
+    sign_in users(:admin)
+    get admin_book_clubs_path, params: { q: "Sci-Fi", sort: "name", club_id: @club.id }
+
+    assert_response :success
+    assert_select ".admin-clubs-sort-filter button[aria-expanded='false'][aria-controls='admin-clubs-sort-menu']", text: "Club name"
+    assert_select "nav#admin-clubs-sort-menu[hidden] a", count: 2
+    assert_select "nav#admin-clubs-sort-menu a[aria-current='true']", text: "Club name"
+    assert_select "nav#admin-clubs-sort-menu a" do |links|
+      links.each do |link|
+        query = Rack::Utils.parse_query(URI.parse(link["href"]).query)
+        assert_equal "Sci-Fi", query["q"]
+        assert_equal (link.text == "Club name" ? "name" : "updated"), query["sort"]
+        assert_nil query["page"]
+        assert_nil query["club_id"]
+      end
+    end
+    assert_select "a.admin-clubs-filter", text: "All records"
+
+    get admin_book_clubs_path
+    assert_select "nav#admin-clubs-sort-menu a[aria-current='true']", text: "Recently updated"
   end
 
   test "search matches club description owner and current book without duplicate clubs" do

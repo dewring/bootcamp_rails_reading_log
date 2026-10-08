@@ -2255,7 +2255,7 @@ main.container:has(> .my-log-page) {
   }
   :is(.admin-reviews-filter, .admin-clubs-filter) { display: inline-flex; align-items: center; padding: 6px 11px; border: 1px solid $gray-mid; border-radius: 999px; background: #fff; color: $ink !important; font-size: 12px; text-decoration: none; }
   :is(.admin-reviews-filter, .admin-clubs-filter).is-active { background: #fdf1ef; color: $accent !important; font-weight: 700; }
-  .admin-reviews-rating-filter {
+  :is(.admin-reviews-rating-filter, .admin-clubs-sort-filter) {
     .admin-select-trigger {
       width: auto;
       height: 32px;

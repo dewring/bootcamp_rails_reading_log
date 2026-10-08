@@ -24,10 +24,17 @@
           <% end %>
           <div class="admin-clubs-filters">
             <%= link_to "All records", admin_book_clubs_path, class: "admin-clubs-filter #{'is-active' if @query.blank?}" %>
-            <%= form_with url: admin_book_clubs_path, method: :get, data: { controller: "submit-on-change" } do %>
-              <%= hidden_field_tag :q, @query if @query.present? %>
-              <%= select_tag :sort, options_for_select([["Recently updated", "updated"], ["Club name", "name"]], @sort), aria: { label: "Sort book clubs" }, data: { action: "change->submit-on-change#submit" } %>
-            <% end %>
+            <div class="admin-clubs-sort-filter admin-select-dropdown" data-controller="nav-menu" data-action="dropdown:opened@window->nav-menu#closeIfAnother">
+              <button type="button" class="admin-clubs-filter admin-select-trigger" data-nav-menu-target="trigger" data-action="click->nav-menu#toggle" aria-expanded="false" aria-controls="admin-clubs-sort-menu" aria-label="Sort book clubs">
+                <span><%= @sort == "name" ? "Club name" : "Recently updated" %></span>
+                <%= image_tag "catalog-chevron-down.svg", alt: "", aria: { hidden: true } %>
+              </button>
+              <nav id="admin-clubs-sort-menu" class="catalog-dropdown-menu admin-select-menu" data-nav-menu-target="menu" aria-label="Book club sorting" hidden>
+                <% [["Recently updated", "updated"], ["Club name", "name"]].each do |label, sort| %>
+                  <%= link_to label, admin_book_clubs_path(q: @query.presence, sort: sort), class: "catalog-dropdown-option #{'is-selected' if @sort == sort}", aria: { current: ("true" if @sort == sort) } %>
+                <% end %>
+              </nav>
+            </div>
           </div>
           <div class="admin-clubs-records">
             <% @book_clubs.each do |club| %>
@@ -40,7 +47,6 @@
                   <span class="admin-club-summary"><%= pluralize(club.book_club_memberships_count, "member") %> · Updated <%= club.updated_at.strftime("%b %-d, %Y") %></span>
                   <div class="admin-club-actions">
                     <%= link_to "View", book_club_path(club), aria: { label: "View #{club.name}" } %>
-                    <%= link_to "Edit", admin_book_clubs_path(club_id: club.id, q: @query.presence, sort: @sort, page: params[:page], anchor: "admin-club-detail-title"), aria: { label: "Edit #{club.name}" } %>
                     <%= button_to "Delete", admin_book_club_path(club, q: @query.presence, sort: @sort), method: :delete, aria: { label: "Delete #{club.name}" }, data: { turbo_confirm: "Permanently delete #{club.name} and its memberships?" } %>
                   </div>
                 </div>
