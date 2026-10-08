@@ -238,7 +238,7 @@ class BookControllerTest < ActionDispatch::IntegrationTest
   test "admin can create a book" do
     sign_in users(:admin)
     post admin_books_path, params: { book: { title: "New Book", author: "Author", total_pages: 100 } }
-    assert_redirected_to book_path(Book.last)
+    assert_redirected_to admin_catalog_path(book_id: Book.last.id)
   end
   test "admin can not create a book with null title" do
     sign_in users(:admin)
@@ -422,14 +422,22 @@ class BookControllerTest < ActionDispatch::IntegrationTest
     assert_select ".catalog-active-filters-slot", count: 1
   end
 
-  test "admin catalog sidebar shows the Add Book control and admin badge" do
+  test "admin book management is available in the admin workspace only" do
     sign_in users(:admin)
 
     get books_path
 
     assert_response :success
-    assert_select "a.catalog-add-book[href='#{new_admin_book_path}']", text: /Add Book/, count: 1
-    assert_select ".catalog-admin-badge", text: /Admin Only/, count: 1
+    assert_select ".catalog-add-book, .catalog-admin-badge", count: 0
+
+    get admin_catalog_path
+    assert_response :success
+    assert_select "a.admin-primary-button[href='#{admin_catalog_path(new_book: true)}']", text: /Add Book/, count: 1
+    assert_select ".admin-workspace-badge", text: "ADMIN WORKSPACE"
+
+    get admin_catalog_path(new_book: true)
+    assert_response :success
+    assert_select "form[action='#{admin_books_path}'] input[name='book[title]']"
   end
 
   test "catalog cards do not show Add to Log actions" do
