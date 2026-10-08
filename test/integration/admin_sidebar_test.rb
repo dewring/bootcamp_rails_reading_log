@@ -20,16 +20,17 @@ class AdminSidebarTest < ActionDispatch::IntegrationTest
 
       assert_response :success
       assert_select ".admin-sidebar-nav > .admin-sidebar-link" do |items|
-        assert_equal [ "Catalog", "Reviews", "Challenges", "Book Clubs", "Members", "Settings" ], items.map { |item| item.text.strip }
+        assert_equal [ "Catalog", "Reviews", "Challenges", "Book Clubs", "Members" ], items.map { |item| item.text.strip }
       end
       assert_select ".admin-sidebar-nav a[href='#{admin_root_path}']", text: "Challenges"
       assert_select ".admin-sidebar-nav a[href='#{admin_catalog_path}']", text: "Catalog"
       assert_select ".admin-sidebar-nav a[href='#{admin_reviews_path}']", text: "Reviews"
       assert_select ".admin-sidebar-nav a[href='#{admin_book_clubs_path}']", text: "Book Clubs"
       assert_select ".admin-sidebar-nav a[href='#{admin_members_path}']", text: "Members"
-      assert_select ".admin-sidebar-nav a[href='#{edit_user_registration_path}']", text: "Settings"
+      assert_select ".admin-sidebar-nav a[href='#{edit_user_registration_path}']", count: 0
+      assert_select ".admin-topbar .account-dropdown a[href='#{edit_user_registration_path}']", text: "Settings"
       assert_select ".admin-sidebar-nav .is-active[aria-current='page']", count: 1, text: active_section
-      assert_select ".admin-sidebar-nav .admin-sidebar-icon[aria-hidden='true']", count: 6
+      assert_select ".admin-sidebar-nav .admin-sidebar-icon[aria-hidden='true']", count: 5
       assert_select ".admin-sidebar-nav img", count: 0
       assert_select ".admin-sidebar-footer a[data-turbo-method='delete']", text: "Log out"
     end
@@ -40,6 +41,9 @@ class AdminSidebarTest < ActionDispatch::IntegrationTest
       sign_in member
       get edit_user_registration_path
       assert_response :success
+      assert_select "body.auth-page", count: 0
+      assert_select "nav.nav-bar", count: 1
+      assert_select "#account_dropdown a[href='#{edit_user_registration_path}']", text: "Settings"
       assert_select "form[action='#{user_registration_path}']"
       assert_select "input[name='user[email]'][value='#{member.email}']"
       sign_out member

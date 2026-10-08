@@ -21,7 +21,7 @@
     <%= javascript_include_tag "application", "data-turbo-track": "reload", type: "module" %>
   </head>
 
-  <body class="<%= "auth-page" if devise_controller? %>">
+  <body class="<%= "auth-page" if devise_controller? && !user_signed_in? %>">
     <nav class="nav-bar" data-controller="navbar">
       <div class="container nav-inner">
         <ul>
