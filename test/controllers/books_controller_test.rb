@@ -22,6 +22,31 @@ class BookControllerTest < ActionDispatch::IntegrationTest
     assert_select "section.book-detail-reviews"
   end
 
+  test "admin book detail edit opens that book in the catalog workspace" do
+    sign_in users(:admin)
+    book = books(:pragmatic)
+
+    get book_path(book)
+
+    assert_response :success
+    assert_select "a.book-detail-button[href='#{admin_catalog_path(book_id: book.id)}']", text: "Edit"
+    assert_select "a[href='#{edit_admin_book_path(book)}']", count: 0
+
+    get admin_catalog_path(book_id: book.id)
+
+    assert_response :success
+    assert_select "form[action='#{admin_book_path(book)}'] input[name='book[title]'][value='#{book.title}']"
+  end
+
+  test "regular reader does not see the admin book edit action" do
+    sign_in users(:jaina)
+
+    get book_path(books(:pragmatic))
+
+    assert_response :success
+    assert_select ".book-detail-actions a", text: "Edit", count: 0
+  end
+
   test "show page displays a zero rating when there are no reviews" do
     book = Book.create!(title: "Unrated Book", author: "An Author")
 

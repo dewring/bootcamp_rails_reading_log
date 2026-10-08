@@ -88,7 +88,7 @@
         <% end %>
 
         <% if policy(@book).edit? %>
-          <%= link_to edit_admin_book_path(@book), class: "book-detail-button book-detail-button-secondary action-button action-button--secondary" do %>
+          <%= link_to admin_catalog_path(book_id: @book.id), class: "book-detail-button book-detail-button-secondary action-button action-button--secondary" do %>
             <%= image_tag "detail-pencil.svg", alt: "", aria: { hidden: true } %>
             <span>Edit</span>
           <% end %>
