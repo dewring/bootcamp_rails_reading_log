@@ -6743,6 +6743,11 @@ h2 {
 .book-detail-button-secondary {
   background: #fff;
   color: $ink !important;
+
+  &.action-button--secondary:hover img,
+  &.action-button--secondary:focus-visible img {
+    filter: brightness(0) invert(1);
+  }
 }
 
 .book-detail-state {
