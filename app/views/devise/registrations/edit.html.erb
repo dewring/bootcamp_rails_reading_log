@@ -22,13 +22,12 @@
                   as: resource_name,
                   url: registration_path(resource_name),
                   html: { method: :put, class: "settings-photo-form", multipart: true },
-                  data: { controller: "profile-photo" }) do |avatar_form| %>
+                  data: { controller: "submit-on-change" }) do |avatar_form| %>
               <%= avatar_form.file_field :avatar,
                     accept: "image/png,image/jpeg,image/webp",
                     class: "settings-photo-input",
                     data: {
-                      profile_photo_target: "file",
-                      action: "change->profile-photo#submit"
+                      action: "change->submit-on-change#submit"
                     } %>
               <%= avatar_form.label :avatar, class: "settings-upload-button" do %>
                 <%= image_tag "settings-upload.svg", alt: "", aria: { hidden: true } %>

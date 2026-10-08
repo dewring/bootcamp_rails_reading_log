@@ -35,7 +35,9 @@ class RegistrationsControllerTest < ActionDispatch::IntegrationTest
     assert_select "input.settings-save-button[value='Save Changes']", count: 1
     assert_select ".profile-avatar--sidebar .profile-avatar-initials", text: users(:leika).nickname.first(2).upcase
     assert_select ".profile-avatar--settings .profile-avatar-initials", text: users(:leika).nickname.first(2).upcase
-    assert_select "input[type='file'][name='user[avatar]']", count: 1
+    assert_select "form.settings-photo-form[data-controller='submit-on-change']" do
+      assert_select "input[type='file'][name='user[avatar]'][data-action='change->submit-on-change#submit']", count: 1
+    end
     assert_select "label.settings-upload-button", text: /Upload Photo/
   end
 

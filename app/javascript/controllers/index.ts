@@ -11,7 +11,6 @@ import BookPickerController from "./book_picker_controller"
 import SubmitOnChangeController from "./submit_on_change_controller"
 import ReviewComposerController from "./review_composer_controller"
 import MyLogCarouselController from "./my_log_carousel_controller"
-import ProfilePhotoController from "./profile_photo_controller"
 import SelectDropdownController from "./select_dropdown_controller"
 import ClubBookSearchController from "./club_book_search_controller"
 import FlashNotificationsController from "./flash_notifications_controller"
@@ -28,7 +27,6 @@ application.register("book-picker", BookPickerController)
 application.register("submit-on-change", SubmitOnChangeController)
 application.register("review-composer", ReviewComposerController)
 application.register("my-log-carousel", MyLogCarouselController)
-application.register("profile-photo", ProfilePhotoController)
 application.register("select-dropdown", SelectDropdownController)
 application.register("club-book-search", ClubBookSearchController)
 application.register("flash-notifications", FlashNotificationsController)
