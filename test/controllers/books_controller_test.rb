@@ -110,6 +110,7 @@ class BookControllerTest < ActionDispatch::IntegrationTest
 
     assert_select "a.book-detail-button-primary[href='#{book_reading_journal_path(books(:pragmatic))}']", text: /Start Reading/
     assert_select ".book-detail-button-secondary", text: /Want to Read/
+    assert_select ".book-detail-button-secondary svg[aria-hidden='true'] path[stroke='currentColor']", count: 1
     assert_select "form[action='#{user_books_path}'] input[name='user_book[book_id]'][value='#{books(:pragmatic).id}']"
     assert_select "form[action='#{user_books_path}'] input[name='user_book[status]'][value='want_to_read']"
   end
@@ -120,6 +121,7 @@ class BookControllerTest < ActionDispatch::IntegrationTest
     get book_path(books(:pragmatic))
 
     assert_select ".book-detail-state-want", text: /Saved to Want to Read/
+    assert_select ".book-detail-state-want svg[aria-hidden='true'] path[stroke='currentColor']", count: 1
     assert_select "a.book-detail-button-primary[href='#{book_reading_journal_path(books(:pragmatic))}']", text: /Start Reading/
   end
 

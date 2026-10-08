@@ -64,7 +64,7 @@
                           params: { return_to: "book" },
                           form: { class: "book-detail-inline-form" },
                           class: "book-detail-state book-detail-state-want action-button action-button--active" do %>
-              <%= image_tag "detail-bookmark.svg", alt: "", aria: { hidden: true } %>
+              <%= render "bookmark_icon" %>
               <span>Saved to Want to Read</span>
             <% end %>
           <% elsif user_book && user_book.status != "reading" %>
@@ -73,7 +73,7 @@
                           params: { user_book: { status: "want_to_read" } },
                           form: { class: "book-detail-inline-form" },
                           class: "book-detail-button book-detail-button-secondary action-button action-button--secondary" do %>
-              <%= image_tag "detail-bookmark.svg", alt: "", aria: { hidden: true } %>
+              <%= render "bookmark_icon" %>
               <span>Want to Read</span>
             <% end %>
           <% elsif policy(UserBook.new(user: current_user, book: @book)).new? %>
@@ -81,7 +81,7 @@
                           params: { user_book: { book_id: @book.id, status: "want_to_read" } },
                           form: { class: "book-detail-inline-form" },
                           class: "book-detail-button book-detail-button-secondary action-button action-button--secondary" do %>
-              <%= image_tag "detail-bookmark.svg", alt: "", aria: { hidden: true } %>
+              <%= render "bookmark_icon" %>
               <span>Want to Read</span>
             <% end %>
           <% end %>

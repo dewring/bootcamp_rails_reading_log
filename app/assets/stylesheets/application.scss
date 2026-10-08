@@ -6722,6 +6722,18 @@ h2 {
   }
 }
 
+.book-detail-bookmark {
+  display: block;
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+}
+
+.book-detail-state-want .book-detail-bookmark {
+  width: 17px;
+  height: 17px;
+}
+
 .book-detail-button-primary {
   border-color: $accent;
   background: $accent;
