@@ -11,11 +11,11 @@ class Admin::BookClubsController < ApplicationController
   end
 
   def search_books
-    authorize [ :admin, BookClub ]
+    authorize [ :admin, BookClub ], :index?
     query = params[:q].to_s.strip
     books = if query.present?
       policy_scope(Book).where("title ILIKE :query OR author ILIKE :query", query: "%#{Book.sanitize_sql_like(query)}%")
-        .order(:title, :author, :id).limit(10).pluck(:id, :title, :author)
+        .order(:title, :author, :id).limit(5).pluck(:id, :title, :author)
     else
       []
     end

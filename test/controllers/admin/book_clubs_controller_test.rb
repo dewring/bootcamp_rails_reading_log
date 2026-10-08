@@ -38,6 +38,9 @@ class Admin::BookClubsControllerTest < ActionDispatch::IntegrationTest
     assert_select "input#admin_club_current_book_search[role='combobox'][value='Refactoring · Martin Fowler']"
     assert_select "#admin-club-book-results[hidden][role='listbox']"
     assert_select ".admin-club-deadline input[type='date']"
+    assert_select ".admin-club-field-grid > .admin-field label" do |labels|
+      assert_equal [ "Club name", "Owner", "Current pick", "Reading deadline", "Members", "Description" ], labels.map(&:text)
+    end
     assert_select "input#book_club_name[value='Sci-Fi Society']"
     assert_select ".admin-club-actions a", text: "View", count: 1
     assert_select ".admin-club-actions a", text: "Edit", count: 0
@@ -58,11 +61,13 @@ class Admin::BookClubsControllerTest < ActionDispatch::IntegrationTest
     get search_books_admin_book_clubs_path, params: { q: "refactoring" }, as: :json
     assert_response :success
     assert_equal [ duplicate.id, books(:refactoring).id ].sort, response.parsed_body["books"].map { |book| book["id"] }.sort
+    get search_books_admin_book_clubs_path, params: { q: "ReFaCtOrInG" }, as: :json
+    assert_equal [ duplicate.id, books(:refactoring).id ].sort, response.parsed_body["books"].map { |book| book["id"] }.sort
     get search_books_admin_book_clubs_path, params: { q: "MARTIN FOWLER" }, as: :json
     assert_equal [ books(:refactoring).id ], response.parsed_body["books"].map { |book| book["id"] }
     12.times { |index| Book.create!(title: "Bounded search #{index}", author: "Writer") }
     get search_books_admin_book_clubs_path, params: { q: "Bounded search" }, as: :json
-    assert_equal 10, response.parsed_body["books"].length
+    assert_equal 5, response.parsed_body["books"].length
     [ "", "   ", "%", "_", "no matching book" ].each do |query|
       get search_books_admin_book_clubs_path, params: { q: query }, as: :json
       assert_empty response.parsed_body["books"]

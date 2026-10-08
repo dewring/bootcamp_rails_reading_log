@@ -15,8 +15,9 @@ export default class extends Controller<HTMLElement> {
   private matches: BookMatch[] = []
   private activeIndex = -1
   private selectedLabel = ""
+  private selectedId = ""
 
-  connect() { this.selectedLabel = this.searchTarget.value }
+  connect() { this.selectedLabel = this.searchTarget.value; this.selectedId = this.valueTarget.value }
   disconnect() { clearTimeout(this.timer); this.request?.abort() }
 
   search() {
@@ -25,12 +26,13 @@ export default class extends Controller<HTMLElement> {
     this.close()
     const query = this.searchTarget.value.trim()
     if (this.searchTarget.value === this.selectedLabel) {
+      this.valueTarget.value = this.selectedId
       this.searchTarget.setCustomValidity("")
       return
     }
     this.valueTarget.value = ""
     this.searchTarget.setCustomValidity(query ? "Choose a book from the search results, or clear this field for no current pick." : "")
-    if (!query) { this.selectedLabel = ""; this.statusTarget.textContent = "No current pick"; return }
+    if (!query) { this.selectedLabel = ""; this.selectedId = ""; this.statusTarget.textContent = "No current pick"; return }
     this.statusTarget.textContent = "Searching books…"
     this.timer = setTimeout(() => { void this.fetchMatches(query) }, 300)
   }
@@ -40,6 +42,8 @@ export default class extends Controller<HTMLElement> {
   }
 
   close(event?: Event) {
+    clearTimeout(this.timer)
+    this.request?.abort()
     event?.preventDefault()
     this.resultsTarget.hidden = true
     this.searchTarget.setAttribute("aria-expanded", "false")
@@ -63,6 +67,7 @@ export default class extends Controller<HTMLElement> {
     this.selectedLabel = `${book.title} · ${book.author}`
     this.searchTarget.value = this.selectedLabel
     this.valueTarget.value = String(book.id)
+    this.selectedId = String(book.id)
     this.searchTarget.setCustomValidity("")
     this.statusTarget.textContent = `Selected ${this.selectedLabel}`
     this.close()
@@ -72,7 +77,7 @@ export default class extends Controller<HTMLElement> {
   private move(event: Event, direction: number) {
     event.preventDefault()
     if (this.resultsTarget.hidden || !this.matches.length) return
-    this.activeIndex = (this.activeIndex + direction + this.matches.length) % this.matches.length
+    this.activeIndex = this.activeIndex < 0 ? (direction > 0 ? 0 : this.matches.length - 1) : (this.activeIndex + direction + this.matches.length) % this.matches.length
     Array.from(this.resultsTarget.children).forEach((option, index) => {
       option.setAttribute("aria-selected", String(index === this.activeIndex))
       option.classList.toggle("is-selected", index === this.activeIndex)
@@ -113,7 +118,15 @@ export default class extends Controller<HTMLElement> {
       this.resultsTarget.hidden = false
       this.searchTarget.setAttribute("aria-expanded", "true")
     } catch {
-      if (!request.signal.aborted) this.statusTarget.textContent = "Book search could not load. Please try again."
+      if (!request.signal.aborted) {
+        const message = document.createElement("p")
+        message.textContent = "Book search could not load. Please try again."
+        this.resultsTarget.replaceChildren(message)
+        this.matches = []
+        this.resultsTarget.hidden = false
+        this.searchTarget.setAttribute("aria-expanded", "true")
+        this.statusTarget.textContent = message.textContent
+      }
     }
   }
 }

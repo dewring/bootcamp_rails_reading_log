@@ -13,10 +13,10 @@
       <%= text_field_tag :admin_club_current_book_search, club.current_book ? "#{club.current_book.title} · #{club.current_book.author}" : nil, placeholder: "Search title or author…", autocomplete: "off", role: "combobox", aria: { expanded: "false", controls: "admin-club-book-results", autocomplete: "list" }, data: { club_book_search_target: "search", action: "input->club-book-search#search keydown.down->club-book-search#next keydown.up->club-book-search#previous keydown.enter->club-book-search#choose keydown.esc->club-book-search#close" } %>
       <%= f.hidden_field :current_book_id, data: { club_book_search_target: "value" } %>
       <div id="admin-club-book-results" class="catalog-dropdown-menu admin-select-menu" role="listbox" aria-label="Matching books" data-club-book-search-target="results" hidden></div>
-      <span class="admin-catalog-sr-only" role="status" data-club-book-search-target="status"></span>
+      <span class="admin-club-search-status" role="status" data-club-book-search-target="status"></span>
     </div>
-    <div class="admin-field"><%= label_tag "admin_club_members", "Members" %><%= text_field_tag :admin_club_members, pluralize(club.book_club_memberships_count, "member"), readonly: true %></div>
     <div class="admin-field admin-club-deadline"><%= f.label :reading_deadline, "Reading deadline" %><%= f.date_field :reading_deadline %></div>
+    <div class="admin-field admin-club-members"><%= label_tag "admin_club_members", "Members" %><%= text_field_tag :admin_club_members, pluralize(club.book_club_memberships_count, "member"), readonly: true %></div>
     <div class="admin-field admin-club-description"><%= f.label :description %><%= f.text_area :description, rows: 4 %></div>
   </div>
   <div class="admin-club-form-actions">
