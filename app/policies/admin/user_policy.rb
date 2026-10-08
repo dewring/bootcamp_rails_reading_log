@@ -11,6 +11,10 @@ class Admin::UserPolicy < ApplicationPolicy
     admin?
   end
 
+  def update_email?
+    admin? && !record.admin? && record != user
+  end
+
   def update_status?
     admin? && !record.admin? && record != user
   end

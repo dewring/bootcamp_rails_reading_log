@@ -26,6 +26,9 @@ class Admin::MembersController < ApplicationController
     @selected_member = policy_scope([ :admin, User ]).find(params[:id])
     authorize [ :admin, @selected_member ]
     attributes = member_params
+    if attributes.key?(:email) && attributes[:email] != @selected_member.email
+      authorize [ :admin, @selected_member ], :update_email?
+    end
     if attributes[:account_status].present? && attributes[:account_status] != @selected_member.account_status
       authorize [ :admin, @selected_member ], :update_status?
     end

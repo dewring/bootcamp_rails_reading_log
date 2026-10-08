@@ -133,6 +133,51 @@ class Admin::MembersControllerTest < ActionDispatch::IntegrationTest
     assert_no_difference("User.count") { delete admin_member_path(users(:admin)) }
   end
 
+  test "admins cannot change their own or another admin's email through member management" do
+    users(:jaina).update!(role: "admin")
+    sign_in users(:admin)
+
+    [ users(:admin), users(:jaina) ].each do |member|
+      get admin_members_path, params: { member_id: member.id }
+      assert_response :success
+      assert_select "input#user_email[readonly][value='#{member.email}']"
+
+      protected_attributes = -> { member.reload.attributes.slice("email", "first_name", "encrypted_password", "reset_password_token") }
+      assert_no_changes protected_attributes do
+        patch admin_member_path(member), params: { user: { email: "blocked#{member.id}@test.com", first_name: "Blocked Edit" } }
+      end
+      assert_redirected_to root_path
+    end
+  end
+
+  test "protected email submitted unchanged still permits admin profile edits" do
+    users(:jaina).update!(role: "admin")
+    sign_in users(:admin)
+
+    [ users(:admin), users(:jaina) ].each do |member|
+      original_email = member.email
+      patch admin_member_path(member), params: { user: { email: original_email, first_name: "Edited Profile" } }
+
+      assert_redirected_to admin_members_path(member_id: member.id)
+      assert_equal "Edited Profile", member.reload.first_name
+      assert_equal original_email, member.email
+    end
+  end
+
+  test "admin may change a regular reader's email without changing their password" do
+    sign_in users(:admin)
+    reader = users(:leika)
+    password = reader.encrypted_password
+    get admin_members_path, params: { member_id: reader.id }
+    assert_select "input#user_email[readonly]", count: 0
+
+    patch admin_member_path(reader), params: { user: { email: "updatedreader@test.com" } }
+
+    assert_redirected_to admin_members_path(member_id: reader.id)
+    assert_equal "updatedreader@test.com", reader.reload.email
+    assert_equal password, reader.encrypted_password
+  end
+
   test "admin invites a reader and invalid invitations create no account" do
     sign_in users(:admin)
     assert_difference("User.count", 1) do
