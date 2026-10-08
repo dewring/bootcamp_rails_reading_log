@@ -1,3 +1,4 @@
+<% turbo_refreshes_with method: :morph, scroll: :preserve %>
 <%= turbo_stream_from @book_club %>
 <div class="book-club-detail-page">
   <%= render "club_sidebar", book_club: @book_club, owner: @owner, current_membership: @current_membership %>

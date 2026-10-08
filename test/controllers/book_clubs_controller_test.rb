@@ -241,6 +241,45 @@ class BookClubsControllerTest < ActionDispatch::IntegrationTest
     assert_select ".book-club-ranking-row", count: 1
   end
 
+  test "refresh requests show the latest pick and preserve viewer-specific management controls" do
+    club = BookClub.create!(name: "Live Pick", current_book: books(:refactoring))
+    club.book_club_memberships.create!(user: users(:leika), role: "owner")
+    club.book_club_memberships.create!(user: users(:jaina), role: "member")
+    club.update!(current_book: books(:pragmatic))
+
+    [ [ users(:leika), 1 ], [ users(:jaina), 0 ] ].each do |viewer, controls|
+      sign_in viewer
+      get book_club_path(club)
+      assert_response :success
+      assert_select "meta[name='turbo-refresh-method'][content='morph']"
+      assert_select "meta[name='turbo-refresh-scroll'][content='preserve']"
+      assert_select ".book-club-current-pick-information h2", text: books(:pragmatic).title
+      assert_select ".book-club-current-pick-card a[href='#{edit_book_club_path(club)}']", text: "Change Pick", count: controls
+      sign_out viewer
+    end
+  end
+
+  test "refresh requests recalculate leaderboard data and highlight each viewer separately" do
+    club = BookClub.create!(name: "Live Ranking", current_book: books(:refactoring))
+    club.book_club_memberships.create!(user: users(:leika), role: "owner")
+    club.book_club_memberships.create!(user: users(:jaina), role: "member")
+    ReadingSession.create!(user: users(:jaina), book: books(:refactoring), read_on: Date.current, pages_read: 50)
+
+    [ users(:leika), users(:jaina) ].each do |viewer|
+      sign_in viewer
+      get book_club_path(club, view: "leaderboard")
+      assert_response :success
+      assert_select "meta[name='turbo-refresh-method'][content='morph']"
+      assert_select "meta[name='turbo-refresh-scroll'][content='preserve']"
+      assert_select ".book-club-ranking-row", count: 2
+      assert_select ".book-club-ranking-row--current", count: 1 do
+        assert_select "strong", text: viewer.nickname
+      end
+      assert_select ".book-club-ranking-row:first-child .book-club-ranking-pages", text: "50"
+      sign_out viewer
+    end
+  end
+
   test "a non-owner member cannot set the current pick" do
     book_club = BookClub.create!(name: "Sci-Fi Society")
     book_club.book_club_memberships.create!(user: users(:leika), role: "owner")
