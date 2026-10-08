@@ -265,6 +265,23 @@ class BookControllerTest < ActionDispatch::IntegrationTest
     assert_select ".catalog-results-header p", text: "Showing #{genre.books.count} books"
   end
 
+  test "catalog shows all books without a recognized ranking filter and preserves the selected sort" do
+    first_by_title = Book.create!(title: "Label Match A", author: "Z Author", created_at: 2.days.ago)
+    first_by_author = Book.create!(title: "Label Match Z", author: "A Author", created_at: 1.day.ago)
+
+    [ {}, { filter: "unknown" }, { sort: "author" } ].each do |options|
+      get books_path, params: { q: "Label Match" }.merge(options)
+
+      assert_response :success
+      expected_books = options[:sort] == "author" ? [ first_by_author, first_by_title ] : [ first_by_title, first_by_author ]
+      assert_equal expected_books.map(&:id), assigns(:books).map(&:id)
+      assert_select ".catalog-filter-dropdown .catalog-dropdown-trigger span", text: "All Books", count: 1
+      assert_select "#catalog-filter-menu a.is-selected", count: 0
+      assert_select "#catalog-filter-menu a[aria-current='page']", count: 0
+      assert_select ".catalog-sort-trigger span", text: options[:sort] == "author" ? "Author" : "Title A-Z", count: 1
+    end
+  end
+
   test "most read catalog filter orders books by reading session count" do
     sign_in users(:leika)
 

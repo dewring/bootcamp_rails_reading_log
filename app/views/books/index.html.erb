@@ -28,8 +28,8 @@
               data-action="click->nav-menu#toggle"
               aria-expanded="false"
               aria-controls="catalog-filter-menu">
-        <% selected_filter = params[:filter].presence_in(%w[new_books most_read]) || "new_books" %>
-        <span><%= selected_filter == "most_read" ? "Most Read" : "New Books" %></span>
+        <% selected_filter = params[:filter].presence_in(%w[new_books most_read]) %>
+        <span><%= { "new_books" => "New Books", "most_read" => "Most Read" }.fetch(selected_filter, "All Books") %></span>
         <%= image_tag "catalog-chevron-down.svg", class: "catalog-chevron", alt: "", aria: { hidden: true } %>
       </button>
       <div id="catalog-filter-menu"
