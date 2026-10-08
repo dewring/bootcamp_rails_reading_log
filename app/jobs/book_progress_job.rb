@@ -9,6 +9,8 @@ class BookProgressJob < ApplicationJob
       "Updating book progress",
       payload: { user_id: user.id, book_id: book.id }
     ) do
+      return unless ReadingSession.exists?(user: user, book: book)
+
       user_book = UserBook.find_or_create_by(user: user, book: book)
       pages_read = ReadingSession.where(user: user, book: book).sum(:pages_read)
 
