@@ -2894,7 +2894,27 @@ main.container:has(> .book-club-detail-page) {
 
   .form-submit {
     margin: 4px 0 0;
-    justify-self: end;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+
+    .club-owner-delete {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 38px;
+      padding: 10px 16px;
+      border-radius: 999px;
+      background: #d9383a;
+      color: #fff;
+      font-size: 12px;
+      font-weight: 700;
+      line-height: 18px;
+      text-decoration: none;
+
+      &:hover, &:focus-visible { background: #b92c2e; }
+    }
 
     input[type="submit"] {
       width: auto;

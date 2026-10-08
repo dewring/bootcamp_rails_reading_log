@@ -44,6 +44,7 @@ class BookClubsControllerTest < ActionDispatch::IntegrationTest
       assert_select "#owner-controls form[action='#{book_club_path(club)}']"
       assert_select "#owner-controls input[name='book_club[name]'][value='#{club.name}']"
       assert_select "#owner-controls textarea[name='book_club[description]']"
+      assert_select "#owner-controls .form-submit a.club-owner-delete[href='#{book_club_path(club)}'][data-turbo-method='delete'][data-turbo-confirm]", text: "Delete book club"
 
       patch book_club_path(club), params: { book_club: { name: "Updated club", description: "Read together", current_book_id: books(:refactoring).id, reading_deadline: "2026-12-15" } }
       assert_redirected_to book_club_path(club)
@@ -86,6 +87,38 @@ class BookClubsControllerTest < ActionDispatch::IntegrationTest
     assert_equal "Original description", club.description
     assert_equal books(:pragmatic), club.current_book
     assert_nil club.reading_deadline
+  end
+
+  test "regular and admin club owners can delete their club" do
+    [ users(:leika), users(:admin) ].each do |owner|
+      club = BookClub.create!(name: "Owner deletion #{owner.id}")
+      club.book_club_memberships.create!(user: owner, role: "owner")
+      sign_in owner
+
+      assert_difference "BookClub.count", -1 do
+        delete book_club_path(club)
+      end
+
+      assert_redirected_to book_clubs_path
+      assert_not BookClubMembership.exists?(book_club_id: club.id)
+      sign_out owner
+    end
+  end
+
+  test "a non-owner cannot see or use club deletion" do
+    club = BookClub.create!(name: "Protected club")
+    club.book_club_memberships.create!(user: users(:leika), role: "owner")
+    [ users(:jaina), users(:admin) ].each do |non_owner|
+      sign_in non_owner
+      get book_club_path(club)
+      assert_select "a.club-owner-delete", count: 0
+
+      assert_no_difference "BookClub.count" do
+        delete book_club_path(club)
+      end
+      assert_redirected_to root_path
+      sign_out non_owner
+    end
   end
 
   test "guest cannot create a book club" do
