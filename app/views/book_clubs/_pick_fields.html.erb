@@ -1,0 +1,8 @@
+<div class="admin-field admin-club-book-search club-pick-field" data-controller="club-book-search" data-club-book-search-url-value="<%= search_url %>" data-action="click@document->club-book-search#closeUnlessInside">
+  <%= label_tag search_id, "Current pick" %>
+  <%= text_field_tag search_id, club.current_book ? "#{club.current_book.title} · #{club.current_book.author}" : nil, placeholder: "Search title or author…", autocomplete: "off", role: "combobox", aria: { expanded: "false", controls: results_id, autocomplete: "list" }, data: { club_book_search_target: "search", action: "input->club-book-search#search keydown.down->club-book-search#next keydown.up->club-book-search#previous keydown.enter->club-book-search#choose keydown.esc->club-book-search#close" } %>
+  <%= f.hidden_field :current_book_id, data: { club_book_search_target: "value" } %>
+  <div id="<%= results_id %>" class="catalog-dropdown-menu admin-select-menu" role="listbox" aria-label="Matching books" data-club-book-search-target="results" hidden></div>
+  <span class="admin-club-search-status" role="status" data-club-book-search-target="status"></span>
+</div>
+<div class="admin-field admin-club-deadline club-reading-deadline"><%= f.label :reading_deadline, "Reading deadline" %><%= f.date_field :reading_deadline %></div>

@@ -3,6 +3,52 @@ require "test_helper"
 class BookClubsControllerTest < ActionDispatch::IntegrationTest
   include Devise::Test::IntegrationHelpers
 
+  test "club pick search requires sign in and returns five case insensitive title or author matches" do
+    get search_books_book_clubs_path, params: { q: "Refactoring" }, as: :json
+    assert_response :unauthorized
+
+    [ users(:leika), users(:admin) ].each do |member|
+      sign_in member
+      [ "rEfAcToRiNg", "MARTIN FOWLER" ].each do |query|
+        get search_books_book_clubs_path, params: { q: query }, as: :json
+        assert_response :success
+        assert_equal [ books(:refactoring).id ], response.parsed_body["books"].map { |book| book["id"] }
+      end
+      [ "", "   ", "%", "_" ].each do |query|
+        get search_books_book_clubs_path, params: { q: query }, as: :json
+        assert_empty response.parsed_body["books"]
+      end
+      sign_out member
+    end
+
+    8.times { |index| Book.create!(title: "Club search #{index}", author: "Writer") }
+    sign_in users(:leika)
+    get search_books_book_clubs_path, params: { q: "CLUB SEARCH" }, as: :json
+    assert_equal 5, response.parsed_body["books"].length
+  end
+
+  test "regular and admin owners use the shared searchable pick and calendar fields" do
+    [ users(:leika), users(:admin) ].each do |owner|
+      club = BookClub.create!(name: "Owner #{owner.id}", current_book: books(:pragmatic), reading_deadline: "2026-12-01")
+      club.book_club_memberships.create!(user: owner, role: "owner")
+      sign_in owner
+      get book_club_path(club)
+
+      assert_response :success
+      assert_select "#owner-controls [data-controller='club-book-search'][data-club-book-search-url-value='#{search_books_book_clubs_path}']"
+      assert_select "#owner-controls input[role='combobox'][value='#{club.current_book.title} · #{club.current_book.author}']"
+      assert_select "#owner-controls [role='listbox'][hidden]"
+      assert_select "#owner-controls .club-reading-deadline input[type='date'][value='2026-12-01']"
+      assert_select "#owner-controls datalist", count: 0
+
+      patch set_current_book_book_club_path(club), params: { book_club: { current_book_id: books(:refactoring).id, reading_deadline: "2026-12-15" } }
+      assert_redirected_to book_club_path(club)
+      assert_equal books(:refactoring), club.reload.current_book
+      assert_equal Date.new(2026, 12, 15), club.reading_deadline
+      sign_out owner
+    end
+  end
+
   test "guest cannot create a book club" do
     post book_clubs_path, params: { book_club: { name: "Sci-Fi Society" } }
     assert_redirected_to new_user_session_path

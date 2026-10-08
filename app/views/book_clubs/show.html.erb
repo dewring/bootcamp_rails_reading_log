@@ -85,23 +85,7 @@
           <p>Update the current pick and reading deadline for this cycle.</p>
         </div>
         <%= form_with model: @book_club, url: set_current_book_book_club_path(@book_club), method: :patch, html: { class: "form" } do |f| %>
-          <div class="field" data-controller="book-picker">
-            <%= f.label :current_book_search, "Current pick" %>
-            <input type="text" id="book_club_current_book_search" list="book_club_book_options"
-                   placeholder="Search books by title..." autocomplete="off"
-                   value="<%= @book_club.current_book&.title %>"
-                   data-book-picker-target="search" data-action="input->book-picker#input">
-            <datalist id="book_club_book_options" data-book-picker-target="options">
-              <% if @book_club.current_book %>
-                <option value="<%= @book_club.current_book.title %>" data-id="<%= @book_club.current_book.id %>"></option>
-              <% end %>
-            </datalist>
-            <%= f.hidden_field :current_book_id, data: { book_picker_target: "hidden" } %>
-          </div>
-          <div class="field">
-            <%= f.label :reading_deadline %>
-            <%= f.date_field :reading_deadline %>
-          </div>
+          <%= render "pick_fields", f: f, club: @book_club, search_url: search_books_book_clubs_path, search_id: "book_club_current_book_search", results_id: "club-book-results" %>
           <div class="form-submit">
             <%= f.submit "Update Pick" %>
           </div>

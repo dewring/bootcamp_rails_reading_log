@@ -23,6 +23,12 @@ class BookClubsController < ApplicationController
     end
   end
 
+  def search_books
+    authorize Book, :search?
+    books = policy_scope(Book).matching_club_pick(params[:q]).order(:title, :author, :id).limit(5).pluck(:id, :title, :author)
+    render json: { books: books.map { |id, title, author| { id: id, title: title, author: author } } }
+  end
+
   def new
     @book_club = BookClub.new
     authorize @book_club
