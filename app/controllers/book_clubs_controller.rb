@@ -42,7 +42,7 @@ class BookClubsController < ApplicationController
       @book_club.save!
       @book_club.book_club_memberships.create!(user: current_user, role: "owner")
     end
-    redirect_to @book_club, notice: "#{@book_club.name} created!"
+    redirect_to @book_club, notice: "Book club created."
   rescue ActiveRecord::RecordInvalid
     render :new, status: :unprocessable_entity
   end
@@ -54,7 +54,7 @@ class BookClubsController < ApplicationController
   def update
     authorize @book_club, :manage?
     if @book_club.update(club_details_params)
-      redirect_to @book_club, notice: "Club details updated."
+      redirect_to @book_club, notice: "Book club updated."
     else
       prepare_detail_state
       render :show, status: :unprocessable_entity
@@ -64,13 +64,13 @@ class BookClubsController < ApplicationController
   def join
     authorize @book_club, :join?
     @book_club.book_club_memberships.create!(user: current_user, role: "member")
-    redirect_to @book_club, notice: "Joined #{@book_club.name}."
+    redirect_to @book_club, notice: "You joined the Book Club."
   end
 
   def leave
     authorize @book_club, :leave?
     current_user.book_club_memberships.find_by!(book_club: @book_club).destroy
-    redirect_to book_clubs_path, notice: "You've left #{@book_club.name}."
+    redirect_to book_clubs_path, notice: "You left the book club."
   end
 
   def set_current_book
@@ -82,7 +82,7 @@ class BookClubsController < ApplicationController
   def destroy
     authorize @book_club, :destroy?
     @book_club.destroy!
-    redirect_to book_clubs_path, notice: "#{@book_club.name} deleted."
+    redirect_to book_clubs_path, notice: "Book club deleted."
   end
 
   private
