@@ -2,7 +2,9 @@ import { Controller } from "@hotwired/stimulus"
 
 export default class extends Controller<HTMLElement> {
   static targets = ["menu", "trigger"]
+  static values = { open: Boolean }
 
+  declare openValue: boolean
   declare readonly menuTarget: HTMLElement
   declare readonly triggerTarget: HTMLButtonElement
 
@@ -16,7 +18,12 @@ export default class extends Controller<HTMLElement> {
   }
 
   toggle() {
-    this.isOpen() ? this.close() : this.open()
+    this.openValue ? this.close() : this.open()
+  }
+
+  openValueChanged() {
+    this.menuTarget.hidden = !this.openValue
+    this.triggerTarget.setAttribute("aria-expanded", String(this.openValue))
   }
 
   closeIfAnother(event: CustomEvent<{ source: HTMLElement }>) {
@@ -54,14 +61,12 @@ export default class extends Controller<HTMLElement> {
   private open() {
     this.cancelScheduledClose()
     this.dispatch("opened", { prefix: "dropdown", target: window, detail: { source: this.element } })
-    this.menuTarget.hidden = false
-    this.triggerTarget.setAttribute("aria-expanded", "true")
+    this.openValue = true
   }
 
   private close() {
     this.cancelScheduledClose()
-    this.menuTarget.hidden = true
-    this.triggerTarget.setAttribute("aria-expanded", "false")
+    this.openValue = false
   }
 
   private scheduleClose() {
@@ -78,10 +83,6 @@ export default class extends Controller<HTMLElement> {
     this.closeTimer = undefined
   }
 
-  private isOpen(): boolean {
-    return this.triggerTarget.getAttribute("aria-expanded") === "true"
-  }
-
   closeOnOutsideClick(event: MouseEvent) {
     if (!this.element.contains(event.target as Node)) {
       this.close()
@@ -89,7 +90,7 @@ export default class extends Controller<HTMLElement> {
   }
 
   closeOnEscape() {
-    if (this.isOpen()) {
+    if (this.openValue) {
       this.close()
       this.restoringTriggerFocus = true
       try {

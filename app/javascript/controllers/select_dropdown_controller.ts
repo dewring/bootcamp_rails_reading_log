@@ -2,7 +2,9 @@ import { Controller } from "@hotwired/stimulus"
 
 export default class extends Controller<HTMLElement> {
   static targets = ["trigger", "menu", "value", "label", "option"]
+  static values = { open: Boolean }
 
+  declare openValue: boolean
   declare readonly triggerTarget: HTMLButtonElement
   declare readonly menuTarget: HTMLElement
   declare readonly valueTarget: HTMLInputElement
@@ -10,7 +12,12 @@ export default class extends Controller<HTMLElement> {
   declare readonly optionTargets: HTMLButtonElement[]
 
   toggle() {
-    this.isOpen() ? this.close() : this.open()
+    this.openValue = !this.openValue
+  }
+
+  openValueChanged() {
+    this.menuTarget.hidden = !this.openValue
+    this.triggerTarget.setAttribute("aria-expanded", String(this.openValue))
   }
 
   select(event: Event) {
@@ -33,16 +40,6 @@ export default class extends Controller<HTMLElement> {
   }
 
   close() {
-    this.menuTarget.hidden = true
-    this.triggerTarget.setAttribute("aria-expanded", "false")
-  }
-
-  private open() {
-    this.menuTarget.hidden = false
-    this.triggerTarget.setAttribute("aria-expanded", "true")
-  }
-
-  private isOpen(): boolean {
-    return this.triggerTarget.getAttribute("aria-expanded") === "true"
+    this.openValue = false
   }
 }

@@ -5,6 +5,7 @@ import { build } from "esbuild"
 const bundle = await build({
   stdin: {
     contents: `export { default as AccountDropdownController } from "./app/javascript/controllers/account_dropdown_controller";
+      export { default as SelectDropdownController } from "./app/javascript/controllers/select_dropdown_controller";
       export { default as NotificationDropdownController } from "./app/javascript/controllers/notification_dropdown_controller";`,
     resolveDir: process.cwd()
   },
@@ -24,7 +25,7 @@ const bundle = await build({
     }
   }]
 })
-const { AccountDropdownController, NotificationDropdownController } = await import(
+const { AccountDropdownController, NotificationDropdownController, SelectDropdownController } = await import(
   `data:text/javascript;base64,${Buffer.from(bundle.outputFiles[0].text).toString("base64")}`
 )
 
@@ -49,6 +50,18 @@ function dropdown(t, Controller, subscribeTo = async () => ({ unsubscribe() {} }
     focus: () => { focusCount += 1 }
   }
   Object.assign(controller, { menuTarget: menu, triggerTarget: trigger })
+  // These unit tests construct controllers without a mounted Stimulus application.
+  // Model its Boolean value accessor and deliver the value-change callback directly.
+  let open = false
+  Object.defineProperty(controller, "openValue", {
+    get: () => open,
+    set: value => {
+      if (open === value) return
+      open = value
+      controller.openValueChanged()
+    }
+  })
+  controller.openValueChanged()
   controller.connect()
   t.after(() => {
     controller.disconnect()
@@ -61,6 +74,20 @@ function dropdown(t, Controller, subscribeTo = async () => ({ unsubscribe() {} }
 }
 
 for (const [name, Controller] of [["account/navigation", AccountDropdownController], ["notifications", NotificationDropdownController]]) {
+  test(`${name}: value state controls the menu independently of rendered ARIA`, t => {
+    const menu = dropdown(t, Controller)
+    assert.equal(menu.controller.openValue, false)
+    assert.equal(menu.menu.hidden, true)
+    assert.equal(menu.expanded(), "false")
+    menu.trigger.setAttribute("aria-expanded", "true")
+    menu.controller.toggle()
+    assert.equal(menu.controller.openValue, true)
+    assert.equal(menu.menu.hidden, false)
+    menu.controller.openValue = false
+    assert.equal(menu.menu.hidden, true)
+    assert.equal(menu.expanded(), "false")
+  })
+
   test(`${name}: clicking toggles visibility and accessibility state`, t => {
     const menu = dropdown(t, Controller)
     menu.controller.toggle()
@@ -240,4 +267,48 @@ test("notifications: subscription failure is reported", async t => {
   await Promise.resolve()
   assert.equal(report.mock.callCount(), 1)
   assert.equal(report.mock.calls[0].arguments[1], error)
+})
+
+
+test("select: value state toggles visibility and outside click closes", t => {
+  const menu = dropdown(t, SelectDropdownController)
+  assert.equal(menu.menu.hidden, true)
+  assert.equal(menu.expanded(), "false")
+  menu.trigger.setAttribute("aria-expanded", "true")
+  menu.controller.toggle()
+  assert.equal(menu.controller.openValue, true)
+  assert.equal(menu.menu.hidden, false)
+  menu.controller.closeUnlessInside({ target: menu.inside })
+  assert.equal(menu.controller.openValue, true)
+  menu.controller.closeUnlessInside({ target: {} })
+  assert.equal(menu.menu.hidden, true)
+  assert.equal(menu.expanded(), "false")
+  menu.controller.toggle()
+  menu.controller.close()
+  assert.equal(menu.controller.openValue, false)
+  assert.equal(menu.menu.hidden, true)
+})
+
+test("select: selecting updates the field and label, closes, and restores focus", t => {
+  const menu = dropdown(t, SelectDropdownController)
+  const option = (value, text) => ({
+    dataset: { value }, textContent: text,
+    classList: { toggle: (_, selected) => {} },
+    setAttribute(name, value) { this[name] = value }
+  })
+  const first = option("active", "Active")
+  const second = option("invited", " Invited ")
+  const value = { value: "active" }
+  const label = { textContent: "Active" }
+  Object.assign(menu.controller, { valueTarget: value, labelTarget: label, optionTargets: [first, second] })
+  menu.controller.toggle()
+  menu.controller.select({ currentTarget: second })
+  assert.equal(value.value, "invited")
+  assert.equal(label.textContent, "Invited")
+  assert.equal(first["aria-selected"], "false")
+  assert.equal(second["aria-selected"], "true")
+  assert.equal(menu.controller.openValue, false)
+  assert.equal(menu.menu.hidden, true)
+  assert.equal(menu.expanded(), "false")
+  assert.equal(menu.focusCount(), 1)
 })
