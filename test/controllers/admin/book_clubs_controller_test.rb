@@ -34,7 +34,10 @@ class Admin::BookClubsControllerTest < ActionDispatch::IntegrationTest
     assert_select ".admin-club-record.is-selected strong", text: @club.name
     assert_select "input#admin_club_owner[readonly][value='martita']"
     assert_select "input#admin_club_members[readonly][value='2 members']"
-    assert_select "select#book_club_current_book_id option[selected][value='#{books(:refactoring).id}']"
+    assert_select "input#book_club_current_book_id[type='hidden'][value='#{books(:refactoring).id}']"
+    assert_select "input#admin_club_current_book_search[role='combobox'][value='Refactoring · Martin Fowler']"
+    assert_select "#admin-club-book-results[hidden][role='listbox']"
+    assert_select ".admin-club-deadline input[type='date']"
     assert_select "input#book_club_name[value='Sci-Fi Society']"
     assert_select ".admin-club-actions a", text: "View", count: 1
     assert_select ".admin-club-actions a", text: "Edit", count: 0
@@ -42,6 +45,28 @@ class Admin::BookClubsControllerTest < ActionDispatch::IntegrationTest
     assert_select ".admin-club-select[href*='club_id=#{@club.id}']"
     assert_select ".admin-sidebar-nav .is-active[aria-current='page']", text: "Book Clubs"
     assert_select "label", text: "Status", count: 0
+  end
+
+  test "book search requires admin and returns bounded title author matches with distinct IDs" do
+    get search_books_admin_book_clubs_path, params: { q: "Refactoring" }
+    assert_redirected_to new_user_session_path
+    sign_in users(:leika)
+    get search_books_admin_book_clubs_path, params: { q: "Refactoring" }
+    assert_redirected_to root_path
+    sign_in users(:admin)
+    duplicate = Book.create!(title: "Refactoring", author: "Another writer")
+    get search_books_admin_book_clubs_path, params: { q: "refactoring" }, as: :json
+    assert_response :success
+    assert_equal [ duplicate.id, books(:refactoring).id ].sort, response.parsed_body["books"].map { |book| book["id"] }.sort
+    get search_books_admin_book_clubs_path, params: { q: "MARTIN FOWLER" }, as: :json
+    assert_equal [ books(:refactoring).id ], response.parsed_body["books"].map { |book| book["id"] }
+    12.times { |index| Book.create!(title: "Bounded search #{index}", author: "Writer") }
+    get search_books_admin_book_clubs_path, params: { q: "Bounded search" }, as: :json
+    assert_equal 10, response.parsed_body["books"].length
+    [ "", "   ", "%", "_", "no matching book" ].each do |query|
+      get search_books_admin_book_clubs_path, params: { q: query }, as: :json
+      assert_empty response.parsed_body["books"]
+    end
   end
 
   test "compact sort dropdown preserves search and selects the requested ordering" do

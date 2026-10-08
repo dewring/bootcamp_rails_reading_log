@@ -10,6 +10,18 @@ class Admin::BookClubsController < ApplicationController
     @detail_club = @is_new_club ? BookClub.new : selected_club
   end
 
+  def search_books
+    authorize [ :admin, BookClub ]
+    query = params[:q].to_s.strip
+    books = if query.present?
+      policy_scope(Book).where("title ILIKE :query OR author ILIKE :query", query: "%#{Book.sanitize_sql_like(query)}%")
+        .order(:title, :author, :id).limit(10).pluck(:id, :title, :author)
+    else
+      []
+    end
+    render json: { books: books.map { |id, title, author| { id: id, title: title, author: author } } }
+  end
+
   def create
     @detail_club = BookClub.new(book_club_params)
     authorize [ :admin, @detail_club ]
@@ -46,7 +58,6 @@ class Admin::BookClubsController < ApplicationController
       .preload(:current_book, book_club_memberships: :user)
     order = @sort == "name" ? { name: :asc, id: :asc } : { updated_at: :desc, id: :desc }
     @pagy, @book_clubs = pagy(:offset, @club_scope.order(order), limit: 4)
-    @book_options = Book.order(:title, :id).pluck(:title, :id)
   end
 
   def selected_club

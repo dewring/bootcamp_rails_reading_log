@@ -14,6 +14,7 @@ import ReviewComposerController from "./review_composer_controller"
 import MyLogCarouselController from "./my_log_carousel_controller"
 import ProfilePhotoController from "./profile_photo_controller"
 import SelectDropdownController from "./select_dropdown_controller"
+import ClubBookSearchController from "./club_book_search_controller"
 
 application.register("search", SearchController)
 application.register("progress-bar", ProgressBarController)
@@ -29,3 +30,4 @@ application.register("review-composer", ReviewComposerController)
 application.register("my-log-carousel", MyLogCarouselController)
 application.register("profile-photo", ProfilePhotoController)
 application.register("select-dropdown", SelectDropdownController)
+application.register("club-book-search", ClubBookSearchController)

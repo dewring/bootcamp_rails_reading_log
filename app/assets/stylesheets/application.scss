@@ -2372,6 +2372,27 @@ main.container:has(> .my-log-page) {
     textarea { resize: vertical; }
   }
   .admin-club-description { grid-column: 1 / -1; }
+  .admin-club-book-search {
+    position: relative;
+
+    .admin-select-menu {
+      top: 100%;
+      max-height: 260px;
+      overflow-y: auto;
+
+      .catalog-dropdown-option { flex-shrink: 0; margin: 0; white-space: normal; overflow-wrap: anywhere; }
+      p { margin: 0; padding: 10px; color: $text-muted; font-size: 12px; }
+    }
+  }
+  .admin-club-deadline input[type="date"] {
+    padding-right: 12px;
+    background-image: url("admin-calendar.svg");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    background-size: 18px;
+
+    &::-webkit-calendar-picker-indicator { display: block; width: 18px; height: 18px; opacity: 0; cursor: pointer; }
+  }
   .admin-club-form-actions {
     display: flex;
     justify-content: flex-end;
