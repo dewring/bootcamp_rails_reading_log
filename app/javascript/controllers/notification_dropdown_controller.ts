@@ -1,114 +1,23 @@
-import { Controller } from "@hotwired/stimulus"
+import AccountDropdownController from "./account_dropdown_controller"
 import { renderStreamMessage } from "@hotwired/turbo"
 import { cable } from "@hotwired/turbo-rails"
 
-export default class extends Controller<HTMLElement> {
-  static targets = ["menu", "trigger"]
-
-  declare readonly menuTarget: HTMLElement
-  declare readonly triggerTarget: HTMLButtonElement
-
+export default class extends AccountDropdownController {
   private notificationSubscription?: { unsubscribe: () => void }
   private subscriptionGeneration = 0
-  private boundCloseOnOutsideClick = this.closeOnOutsideClick.bind(this)
-  private boundCloseOnEscape = this.closeOnEscape.bind(this)
-  private closeTimer?: number
-  private hovering = false
-  private focused = false
 
   connect() {
-    document.addEventListener("click", this.boundCloseOnOutsideClick)
-    document.addEventListener("keydown", this.boundCloseOnEscape)
-    void this.subscribeToNotifications(++this.subscriptionGeneration)
+    super.connect()
+    this.subscribeToNotifications(++this.subscriptionGeneration).catch(error => {
+      console.error("Failed to subscribe to notifications", error)
+    })
   }
 
   disconnect() {
-    document.removeEventListener("click", this.boundCloseOnOutsideClick)
-    document.removeEventListener("keydown", this.boundCloseOnEscape)
+    super.disconnect()
     this.subscriptionGeneration += 1
     this.notificationSubscription?.unsubscribe()
     this.notificationSubscription = undefined
-    this.cancelScheduledClose()
-  }
-
-  toggle() {
-    if (this.hovering || this.focused) return
-
-    this.isOpen() ? this.close() : this.open()
-  }
-
-  closeIfAnother(event: CustomEvent<{ source: HTMLElement }>) {
-    if (event.detail?.source === this.element) return
-
-    this.hovering = false
-    this.focused = false
-    this.close()
-  }
-
-  enter() {
-    this.hovering = true
-    this.cancelScheduledClose()
-    this.open()
-  }
-
-  leave() {
-    this.hovering = false
-    this.scheduleClose()
-  }
-
-  focusIn() {
-    this.focused = true
-    this.cancelScheduledClose()
-    this.open()
-  }
-
-  focusOut() {
-    this.focused = false
-    this.scheduleClose()
-  }
-
-  private open() {
-    this.cancelScheduledClose()
-    window.dispatchEvent(new CustomEvent("dropdown:opened", { detail: { source: this.element } }))
-    this.menuTarget.hidden = false
-    this.triggerTarget.setAttribute("aria-expanded", "true")
-  }
-
-  private close() {
-    this.cancelScheduledClose()
-    this.menuTarget.hidden = true
-    this.triggerTarget.setAttribute("aria-expanded", "false")
-  }
-
-  private scheduleClose() {
-    this.cancelScheduledClose()
-    this.closeTimer = window.setTimeout(() => {
-      if (!this.hovering && !this.focused) this.close()
-    }, 150)
-  }
-
-  private cancelScheduledClose() {
-    if (this.closeTimer === undefined) return
-
-    window.clearTimeout(this.closeTimer)
-    this.closeTimer = undefined
-  }
-
-  private isOpen(): boolean {
-    return this.triggerTarget.getAttribute("aria-expanded") === "true"
-  }
-
-  private closeOnOutsideClick(event: MouseEvent) {
-    if (!this.element.contains(event.target as Node)) {
-      this.close()
-    }
-  }
-
-  private closeOnEscape(event: KeyboardEvent) {
-    if (event.key === "Escape" && this.isOpen()) {
-      this.close()
-      this.triggerTarget.focus()
-    }
   }
 
   private async subscribeToNotifications(generation: number) {
