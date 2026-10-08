@@ -20,6 +20,7 @@ class Admin::MembersControllerTest < ActionDispatch::IntegrationTest
     get admin_members_path, params: { member_id: users(:leika).id }
     assert_response :success
     assert_select "h1", text: "Member Management"
+    assert_select ".admin-page-heading a", text: /Invite Member/, count: 0
     assert_select ".admin-sidebar-nav .is-active[aria-current='page']", text: "Members"
     assert_select ".admin-member-record", count: 3
     assert_select "input#user_email[value='leika@test.com']"
