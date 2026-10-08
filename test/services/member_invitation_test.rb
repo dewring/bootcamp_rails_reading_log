@@ -8,7 +8,7 @@ class MemberInvitationTest < ActiveSupport::TestCase
     assert_equal "user", member.role
     assert_equal "invited", member.account_status
     assert member.reset_password_token.present?
-    member.reset_password!("newpassword123", "newpassword123")
+    assert member.reset_password("newpassword123", "newpassword123")
     assert_equal "active", member.reload.account_status
     assert member.valid_password?("newpassword123")
   end
@@ -16,7 +16,7 @@ class MemberInvitationTest < ActiveSupport::TestCase
   test "suspension remains in force after password recovery" do
     member = users(:leika)
     member.update!(account_status: "suspended")
-    member.reset_password!("newpassword123", "newpassword123")
+    assert member.reset_password("newpassword123", "newpassword123")
     refute member.active_for_authentication?
     assert_equal :suspended, member.inactive_message
   end
