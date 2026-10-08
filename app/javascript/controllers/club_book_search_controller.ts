@@ -21,8 +21,6 @@ export default class extends Controller<HTMLElement> {
   disconnect() { clearTimeout(this.timer); this.request?.abort() }
 
   search() {
-    clearTimeout(this.timer)
-    this.request?.abort()
     this.close()
     const query = this.searchTarget.value.trim()
     if (this.searchTarget.value === this.selectedLabel) {
