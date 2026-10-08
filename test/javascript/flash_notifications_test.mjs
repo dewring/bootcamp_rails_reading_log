@@ -57,6 +57,22 @@ test("notification stays visible until five seconds, then disappears", t => {
   card.controller.disconnect()
 })
 
+test("repeated live refreshes preserve the notification without extending its five-second lifetime", t => {
+  const card = notification(t)
+  for (const elapsed of [300, 700, 3999]) {
+    t.mock.timers.tick(elapsed)
+    const event = new Event("turbo:before-morph-element", { cancelable: true })
+    card.controller.preserveDuringRefresh(event)
+    // Turbo skips changing or removing a node when this event is canceled.
+    if (!event.defaultPrevented) card.element.remove()
+    assert.equal(event.defaultPrevented, true)
+    assert.equal(card.removals(), 0)
+  }
+  t.mock.timers.tick(1)
+  assert.equal(card.removals(), 1)
+  card.controller.disconnect()
+})
+
 test("closing the notification disconnects and cancels the pending dismissal", async t => {
   const closed = notification(t)
   closed.controller.clear()

@@ -31,6 +31,10 @@ export default class extends Controller<HTMLElement> {
     if (!this.element.querySelector(".flash-notification")) this.clear()
   }
 
+  preserveDuringRefresh(event: Event) {
+    event.preventDefault()
+  }
+
   clear() {
     this.element.remove()
   }
