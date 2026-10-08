@@ -29,7 +29,7 @@
           <div class="admin-record-toolbar">
             <div>
               <h2 id="admin-records-title">All challenges</h2>
-              <p><%= @challenges.size %> records · Updated today</p>
+              <p><%= @pagy.count %> records · Updated today</p>
             </div>
           </div>
 
@@ -48,7 +48,7 @@
                   <% status = if !challenge.active? then "Inactive" elsif challenge.ends_at < Time.current then "Expired" elsif challenge.starts_at > Time.current then "Upcoming" else "Ongoing" end %>
                   <tr class="<%= "is-selected" if @selected_challenge == challenge %>">
                     <td>
-                      <%= link_to admin_root_path(challenge_id: challenge.id), class: "admin-challenge-name" do %>
+                      <%= link_to admin_root_path(challenge_id: challenge.id, page: @pagy.page), class: "admin-challenge-name" do %>
                         <strong><%= challenge.title %></strong>
                         <span><%= challenge.goal_summary %></span>
                       <% end %>
@@ -66,7 +66,7 @@
                 <% end %>
                 <% if @challenges.empty? %>
                   <tr>
-                    <td colspan="4" class="admin-table-empty">No challenges match your search.</td>
+                    <td colspan="4" class="admin-table-empty">No challenges created yet.</td>
                   </tr>
                 <% end %>
               </tbody>
@@ -74,12 +74,8 @@
           </div>
 
           <div class="admin-pagination" aria-label="Challenge pages">
-            <span>Showing <strong><%= @challenges.size %></strong> of <strong><%= @challenges.size %></strong></span>
-            <span class="admin-pagination-controls">
-              <button type="button" disabled aria-label="Previous page"><%= image_tag "admin-chevron-left.svg", alt: "" %></button>
-              <span class="is-current">1</span>
-              <button type="button" disabled aria-label="Next page"><%= image_tag "admin-chevron-right.svg", alt: "" %></button>
-            </span>
+            <span>Showing <strong><%= @challenges.size %></strong> of <strong><%= @pagy.count %></strong></span>
+            <%== @pagy.series_nav if @pagy.last > 1 %>
           </div>
         </section>
 
