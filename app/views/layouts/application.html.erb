@@ -37,7 +37,7 @@
         <ul class="nav-actions">
           <li class="nav-menu"
               data-controller="nav-menu"
-              data-action="mouseenter->nav-menu#enter mouseleave->nav-menu#leave focusin->nav-menu#focusIn focusout->nav-menu#focusOut dropdown:opened@window->nav-menu#closeIfAnother">
+              data-action="mouseenter->nav-menu#enter mouseleave->nav-menu#leave focusin->nav-menu#focusIn focusout->nav-menu#focusOut dropdown:opened@window->nav-menu#closeIfAnother click@document->nav-menu#closeOnOutsideClick keydown.esc@document->nav-menu#closeOnEscape">
             <button type="button"
                     class="nav-action-button nav-menu-trigger"
                     data-nav-menu-target="trigger"
@@ -78,7 +78,7 @@
           <% end %>
           <li class="account-menu"
               data-controller="account-dropdown"
-              data-action="mouseenter->account-dropdown#enter mouseleave->account-dropdown#leave focusin->account-dropdown#focusIn focusout->account-dropdown#focusOut dropdown:opened@window->account-dropdown#closeIfAnother">
+              data-action="mouseenter->account-dropdown#enter mouseleave->account-dropdown#leave focusin->account-dropdown#focusIn focusout->account-dropdown#focusOut dropdown:opened@window->account-dropdown#closeIfAnother click@document->account-dropdown#closeOnOutsideClick keydown.esc@document->account-dropdown#closeOnEscape">
             <button type="button"
                     class="nav-action-button nav-account-trigger"
                     data-account-dropdown-target="trigger"

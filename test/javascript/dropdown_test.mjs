@@ -60,12 +60,6 @@ function dropdown(t, Controller, subscribeTo = async () => ({ unsubscribe() {} }
   return { controller, menu, inside, expanded: () => expanded, focusCount: () => focusCount }
 }
 
-function documentEvent(type, properties) {
-  const event = new Event(type)
-  for (const [key, value] of Object.entries(properties)) Object.defineProperty(event, key, { value })
-  document.dispatchEvent(event)
-}
-
 for (const [name, Controller] of [["account/navigation", AccountDropdownController], ["notifications", NotificationDropdownController]]) {
   test(`${name}: clicking toggles visibility and accessibility state`, t => {
     const menu = dropdown(t, Controller)
@@ -80,9 +74,9 @@ for (const [name, Controller] of [["account/navigation", AccountDropdownControll
   test(`${name}: outside click closes while inside click keeps the menu open`, t => {
     const menu = dropdown(t, Controller)
     menu.controller.toggle()
-    documentEvent("click", { target: menu.inside })
+    menu.controller.closeOnOutsideClick({ target: menu.inside })
     assert.equal(menu.menu.hidden, false)
-    documentEvent("click", { target: {} })
+    menu.controller.closeOnOutsideClick({ target: {} })
     assert.equal(menu.menu.hidden, true)
     assert.equal(menu.expanded(), "false")
   })
@@ -90,8 +84,10 @@ for (const [name, Controller] of [["account/navigation", AccountDropdownControll
   test(`${name}: Escape closes and returns focus to the trigger`, t => {
     const menu = dropdown(t, Controller)
     menu.controller.toggle()
-    documentEvent("keydown", { key: "Escape" })
+    menu.controller.closeOnEscape()
     assert.equal(menu.menu.hidden, true)
+    assert.equal(menu.focusCount(), 1)
+    menu.controller.closeOnEscape()
     assert.equal(menu.focusCount(), 1)
   })
 
@@ -134,14 +130,12 @@ for (const [name, Controller] of [["account/navigation", AccountDropdownControll
     assert.equal(menu.menu.hidden, false)
   })
 
-  test(`${name}: disconnect removes document listeners and cancels delayed closing`, t => {
+  test(`${name}: disconnect cancels delayed closing`, t => {
     const menu = dropdown(t, Controller)
     menu.controller.enter()
     menu.controller.leave()
     menu.controller.disconnect()
     t.mock.timers.tick(150)
-    documentEvent("click", { target: {} })
-    documentEvent("keydown", { key: "Escape" })
     assert.equal(menu.menu.hidden, false)
     assert.equal(menu.focusCount(), 0)
   })

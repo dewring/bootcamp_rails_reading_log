@@ -1,7 +1,7 @@
 <li id="notifications_panel"
     class="notification-menu"
     data-controller="notification-dropdown"
-    data-action="mouseenter->notification-dropdown#enter mouseleave->notification-dropdown#leave focusin->notification-dropdown#focusIn focusout->notification-dropdown#focusOut dropdown:opened@window->notification-dropdown#closeIfAnother">
+    data-action="mouseenter->notification-dropdown#enter mouseleave->notification-dropdown#leave focusin->notification-dropdown#focusIn focusout->notification-dropdown#focusOut dropdown:opened@window->notification-dropdown#closeIfAnother click@document->notification-dropdown#closeOnOutsideClick keydown.esc@document->notification-dropdown#closeOnEscape">
   <button type="button"
           class="nav-action-button notification-trigger"
           data-notification-dropdown-target="trigger"

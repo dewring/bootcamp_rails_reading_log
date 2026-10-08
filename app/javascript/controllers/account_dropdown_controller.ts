@@ -6,20 +6,11 @@ export default class extends Controller<HTMLElement> {
   declare readonly menuTarget: HTMLElement
   declare readonly triggerTarget: HTMLButtonElement
 
-  private boundCloseOnOutsideClick = this.closeOnOutsideClick.bind(this)
-  private boundCloseOnEscape = this.closeOnEscape.bind(this)
   private closeTimer?: number
   private hovering = false
   private focused = false
 
-  connect() {
-    document.addEventListener("click", this.boundCloseOnOutsideClick)
-    document.addEventListener("keydown", this.boundCloseOnEscape)
-  }
-
   disconnect() {
-    document.removeEventListener("click", this.boundCloseOnOutsideClick)
-    document.removeEventListener("keydown", this.boundCloseOnEscape)
     this.cancelScheduledClose()
   }
 
@@ -90,14 +81,14 @@ export default class extends Controller<HTMLElement> {
     return this.triggerTarget.getAttribute("aria-expanded") === "true"
   }
 
-  private closeOnOutsideClick(event: MouseEvent) {
+  closeOnOutsideClick(event: MouseEvent) {
     if (!this.element.contains(event.target as Node)) {
       this.close()
     }
   }
 
-  private closeOnEscape(event: KeyboardEvent) {
-    if (event.key === "Escape" && this.isOpen()) {
+  closeOnEscape() {
+    if (this.isOpen()) {
       this.close()
       this.triggerTarget.focus()
     }
