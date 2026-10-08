@@ -89,8 +89,8 @@
         <% end %>
         <%= form_with model: @book_club, html: { class: "form" } do |f| %>
           <div class="admin-field club-owner-name"><%= f.label :name, "Club name" %><%= f.text_field :name, required: true %></div>
+          <div class="admin-field club-owner-description"><%= f.label :description %><%= f.text_area :description, rows: 1 %></div>
           <%= render "pick_fields", f: f, club: @book_club, search_url: search_books_book_clubs_path, search_id: "book_club_current_book_search", results_id: "club-book-results" %>
-          <div class="admin-field club-owner-description"><%= f.label :description %><%= f.text_area :description, rows: 3 %></div>
           <div class="form-submit">
             <%= f.submit "Save changes" %>
           </div>

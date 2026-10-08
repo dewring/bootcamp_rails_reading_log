@@ -2858,7 +2858,7 @@ main.container:has(> .book-club-detail-page) {
   }
 
   .club-pick-field, .club-reading-deadline { grid-column: auto; }
-  .club-owner-name, .club-owner-description, .form-submit { grid-column: 1 / -1; }
+  .form-submit { grid-column: 1 / -1; }
   .club-owner-errors { color: #d9383a; font-size: 13px; }
 
   .admin-field {
