@@ -29,6 +29,7 @@ Rails.application.routes.draw do
     root to: "challenges#index"
     get "catalog", to: "books#index", as: :catalog
     resources :reviews, only: [ :index, :destroy ]
+    resources :members, only: [ :index, :create, :update, :destroy ]
     resources :book_clubs, only: [ :index, :create, :update, :destroy ] do
       get :search_books, on: :collection
     end

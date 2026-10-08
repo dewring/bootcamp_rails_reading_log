@@ -9,6 +9,12 @@ class User < ApplicationRecord
   validates :last_name, presence: true
   validates :nickname, presence: true, uniqueness: true
   validates :role, inclusion: { in: %w[user admin] }
+  validates :account_status, inclusion: { in: %w[active invited suspended] }
+  before_update :activate_invited_account, if: :will_save_change_to_encrypted_password?
+
+  scope :matching_member_text, ->(query) {
+    where("concat_ws(' ', first_name, last_name, nickname, email) ILIKE ?", "%#{sanitize_sql_like(query)}%") if query.present?
+  }
 
   has_many :user_books, dependent: :destroy
   has_many :books, through: :user_books
@@ -33,7 +39,19 @@ class User < ApplicationRecord
     role == "admin"
   end
 
+  def active_for_authentication?
+    super && account_status != "suspended"
+  end
+
+  def inactive_message
+    account_status == "suspended" ? :suspended : super
+  end
+
   private
+
+  def activate_invited_account
+    self.account_status = "active" if account_status == "invited"
+  end
 
   def avatar_must_be_an_image
     return if avatar.content_type.to_s.start_with?("image/")

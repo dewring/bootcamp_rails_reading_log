@@ -11,6 +11,7 @@ class AdminSidebarTest < ActionDispatch::IntegrationTest
       [ admin_catalog_path, "Catalog" ],
       [ admin_reviews_path, "Reviews" ],
       [ admin_book_clubs_path, "Book Clubs" ],
+      [ admin_members_path, "Members" ],
       [ admin_book_clubs_path(new_club: true), "Book Clubs" ],
       [ admin_root_path(new_challenge: true), "Challenges" ],
       [ admin_catalog_path(new_book: true), "Catalog" ]
@@ -25,6 +26,7 @@ class AdminSidebarTest < ActionDispatch::IntegrationTest
       assert_select ".admin-sidebar-nav a[href='#{admin_catalog_path}']", text: "Catalog"
       assert_select ".admin-sidebar-nav a[href='#{admin_reviews_path}']", text: "Reviews"
       assert_select ".admin-sidebar-nav a[href='#{admin_book_clubs_path}']", text: "Book Clubs"
+      assert_select ".admin-sidebar-nav a[href='#{admin_members_path}']", text: "Members"
       assert_select ".admin-sidebar-nav .is-active[aria-current='page']", count: 1, text: active_section
       assert_select ".admin-sidebar-nav .admin-sidebar-icon[aria-hidden='true']", count: 6
       assert_select ".admin-sidebar-nav img", count: 0

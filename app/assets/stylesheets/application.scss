@@ -2228,7 +2228,7 @@ main.container:has(> .my-log-page) {
   }
 }
 
-:is(.admin-page--reviews, .admin-page--book-clubs) {
+:is(.admin-page--reviews, .admin-page--book-clubs, .admin-page--members) {
   .admin-main { padding: 30px 38px; background: #faf7f4; }
   .admin-eyebrow { color: $accent; font-size: 11px; line-height: 15px; letter-spacing: normal; }
   .admin-page-heading { margin-bottom: 20px; padding-bottom: 20px; border-bottom: 1px solid $gray-mid; }
@@ -9247,4 +9247,22 @@ h2 {
     align-items: flex-start;
     flex-direction: column;
   }
+}
+
+.admin-page--members {
+  .admin-page-heading .admin-primary-button { min-height: 38px; margin: 0; padding: 10px 16px; border-radius: 999px; font-size: 12px; line-height: 18px; white-space: nowrap; }
+  .admin-member-heading { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+  .admin-member-status { flex-shrink: 0; color: #52715a; font-size: 12px; font-weight: 700; line-height: 21px; }
+  .admin-member-status--invited { color: #8c693e; }
+  .admin-member-status--suspended { color: #d9383a; }
+  .admin-member-account { color: $text-muted; font-size: 12px; line-height: 17px; overflow-wrap: anywhere; }
+  .admin-member-activity { color: $text-muted; font-size: 11px; line-height: 17px; }
+  .admin-member-form { margin: 0; }
+  .admin-member-field-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 12px; }
+  .admin-field label { font-size: 11px; line-height: 15px; text-transform: uppercase; }
+  .admin-field input, .admin-field select { width: 100%; min-width: 0; height: 42px; margin: 0; padding: 10px 12px; border: 1px solid $gray-mid; border-radius: 8px; background-color: #fffefc; color: $ink; font-size: 14px; line-height: 20px; }
+  .admin-field select { padding-right: 28px; }
+  .admin-member-form-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+  .admin-member-form-actions .admin-primary-button, .admin-member-form-actions .admin-secondary-button { width: auto; height: 38px; min-height: 38px; margin: 0; padding: 10px 16px; border-radius: 999px; font-size: 12px; line-height: 18px; }
+  @media (max-width: 600px) { .admin-member-field-grid { grid-template-columns: minmax(0, 1fr); } .admin-page-heading { align-items: flex-start; flex-wrap: wrap; gap: 12px; } }
 }

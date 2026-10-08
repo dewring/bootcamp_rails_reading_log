@@ -6,7 +6,7 @@
       <%= link_to admin_reviews_path, class: "admin-sidebar-link#{' is-active' if active_section == :reviews}", aria: { current: ("page" if active_section == :reviews) } do %><span class="admin-sidebar-icon admin-sidebar-icon--message-square-text" aria-hidden="true"></span><span>Reviews</span><% end %>
       <%= link_to admin_root_path, class: "admin-sidebar-link#{' is-active' if active_section == :challenges}", aria: { current: ("page" if active_section == :challenges) } do %><span class="admin-sidebar-icon admin-sidebar-icon--trophy" aria-hidden="true"></span><span>Challenges</span><% end %>
       <%= link_to admin_book_clubs_path, class: "admin-sidebar-link#{' is-active' if active_section == :book_clubs}", aria: { current: ("page" if active_section == :book_clubs) } do %><span class="admin-sidebar-icon admin-sidebar-icon--book-clubs" aria-hidden="true"></span><span>Book Clubs</span><% end %>
-      <span class="admin-sidebar-link admin-sidebar-link--disabled"><span class="admin-sidebar-icon admin-sidebar-icon--users" aria-hidden="true"></span><span>Members</span></span>
+      <%= link_to admin_members_path, class: "admin-sidebar-link#{' is-active' if active_section == :members}", aria: { current: ("page" if active_section == :members) } do %><span class="admin-sidebar-icon admin-sidebar-icon--users" aria-hidden="true"></span><span>Members</span><% end %>
       <span class="admin-sidebar-link admin-sidebar-link--disabled"><span class="admin-sidebar-icon admin-sidebar-icon--settings" aria-hidden="true"></span><span>Settings</span></span>
     </nav>
   </div>
