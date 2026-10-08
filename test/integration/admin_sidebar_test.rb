@@ -19,6 +19,16 @@ class AdminSidebarTest < ActionDispatch::IntegrationTest
       get path
 
       assert_response :success
+      assert_select "header.admin-topbar", count: 1
+      assert_select ".admin-topbar button[data-nav-menu-target='trigger'][aria-controls='admin_workspace_nav_menu']", count: 1
+      assert_select "#admin_workspace_nav_menu[hidden]", count: 1
+      assert_select "#admin_workspace_nav_menu a[href='#{books_path}']", text: "Catalog"
+      assert_select "#admin_workspace_nav_menu a[href='#{challenges_path}']", text: "Challenges"
+      assert_select "#admin_workspace_nav_menu a[href='#{book_clubs_path}']", text: "Book Clubs"
+      assert_select ".admin-topbar #notifications_panel[data-controller='notification-dropdown']", count: 1
+      assert_select ".admin-topbar button[data-account-dropdown-target='trigger'][aria-controls='admin_workspace_account_menu']", count: 1
+      assert_select "#admin_workspace_account_menu[hidden]", count: 1
+      assert_select "#admin_workspace_account_menu a[href='#{destroy_user_session_path}'][data-turbo-method='delete']", text: "Log Out"
       assert_select ".admin-sidebar-nav > .admin-sidebar-link" do |items|
         assert_equal [ "Catalog", "Reviews", "Challenges", "Book Clubs", "Members" ], items.map { |item| item.text.strip }
       end
