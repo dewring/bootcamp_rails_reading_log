@@ -30,7 +30,12 @@ export default class extends Controller<HTMLElement> {
     }
     this.valueTarget.value = ""
     this.searchTarget.setCustomValidity(query ? "Choose a book from the search results, or clear this field for no current pick." : "")
-    if (!query) { this.selectedLabel = ""; this.selectedId = ""; this.statusTarget.textContent = "No current pick"; return }
+    if (!query) {
+      this.selectedLabel = ""
+      this.selectedId = ""
+      this.statusTarget.textContent = "No current pick"
+      return
+    }
     this.statusTarget.textContent = "Searching books…"
     this.timer = setTimeout(() => { void this.fetchMatches(query) }, 300)
   }
