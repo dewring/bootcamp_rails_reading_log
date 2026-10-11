@@ -102,6 +102,12 @@ current conversation take precedence.
     unreachable. If you find any, notify the user immediately and explain
     why it is no longer needed.
 
+26. For asynchronous resource setup, retain and handle the setup Promise
+    directly instead of tracking lifecycle generations with a counter.
+    Cleanup must capture that Promise and release its resource when it
+    resolves, even after disconnection or reconnection. Handle rejections
+    explicitly and test pending setup, reconnection, and cleanup failures.
+
 ## Project shape
 
 - `app/controllers` — thin controllers responsible for request coordination,
