@@ -7,7 +7,6 @@ import IsbnScannerController from "./isbn_scanner_controller"
 import NavbarController from "./navbar_controller"
 import NotificationDropdownController from "./notification_dropdown_controller"
 import NavDropdownController from "./nav_dropdown_controller"
-import BookPickerController from "./book_picker_controller"
 import SubmitOnChangeController from "./submit_on_change_controller"
 import ReviewComposerController from "./review_composer_controller"
 import MyLogCarouselController from "./my_log_carousel_controller"
@@ -23,7 +22,6 @@ application.register("navbar", NavbarController)
 application.register("nav-menu", NavDropdownController)
 application.register("notification-dropdown", NotificationDropdownController)
 application.register("account-dropdown", NavDropdownController)
-application.register("book-picker", BookPickerController)
 application.register("submit-on-change", SubmitOnChangeController)
 application.register("review-composer", ReviewComposerController)
 application.register("my-log-carousel", MyLogCarouselController)
