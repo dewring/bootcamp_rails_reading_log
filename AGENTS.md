@@ -90,6 +90,18 @@ current conversation take precedence.
 22. Avoid destructive commands such as `git reset --hard`, broad file removal,
     or discarding user changes unless the user explicitly requests them.
 
+23. Write each statement on a separate line. Do not combine multiple
+    statements on one line.
+
+24. Before implementing a new feature, inspect the existing code for
+    reusable behavior. Reuse or extend it when it can satisfy the
+    requirement. Add new code only when the existing implementation
+    cannot reasonably support the feature.
+
+25. After changing code, check for code that has become unused or
+    unreachable. If you find any, notify the user immediately and explain
+    why it is no longer needed.
+
 ## Project shape
 
 - `app/controllers` — thin controllers responsible for request coordination,
