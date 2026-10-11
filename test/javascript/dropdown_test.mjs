@@ -255,7 +255,53 @@ test("notifications: reconnect disposes late subscriptions and keeps the current
   subscriptions[1].callbacks.received("<turbo-stream></turbo-stream>")
   assert.deepEqual(dropdownTransport.received, ["<turbo-stream></turbo-stream>"])
   menu.controller.disconnect()
+  await Promise.resolve()
+  await Promise.resolve()
   assert.equal(currentUnsubscribed, 1)
+})
+
+test("notifications: disconnect releases a subscription that is still connecting exactly once", async t => {
+  let resolveSubscription
+  let unsubscribed = 0
+  const menu = dropdown(t, NotificationDropdownController, () => new Promise(resolve => {
+    resolveSubscription = resolve
+  }))
+  menu.controller.disconnect()
+  menu.controller.disconnect()
+  resolveSubscription({ unsubscribe: () => { unsubscribed += 1 } })
+  await Promise.resolve()
+  await Promise.resolve()
+  assert.equal(unsubscribed, 1)
+})
+
+test("notifications: a rejected setup after disconnect is reported once", async t => {
+  let rejectSubscription
+  const error = new Error("Connection failed")
+  const report = t.mock.method(console, "error", () => {})
+  const menu = dropdown(t, NotificationDropdownController, () => new Promise((resolve, reject) => {
+    rejectSubscription = reject
+  }))
+  menu.controller.disconnect()
+  rejectSubscription(error)
+  await Promise.resolve()
+  await Promise.resolve()
+  await Promise.resolve()
+  assert.equal(report.mock.callCount(), 1)
+  assert.deepEqual(report.mock.calls[0].arguments, ["Failed to subscribe to notifications", error])
+})
+
+test("notifications: cleanup failure is reported", async t => {
+  const error = new Error("Unsubscribe failed")
+  const report = t.mock.method(console, "error", () => {})
+  const menu = dropdown(t, NotificationDropdownController, async () => ({
+    unsubscribe() { throw error }
+  }))
+  menu.controller.disconnect()
+  await Promise.resolve()
+  await Promise.resolve()
+  await Promise.resolve()
+  assert.equal(report.mock.callCount(), 1)
+  assert.deepEqual(report.mock.calls[0].arguments, ["Failed to unsubscribe from notifications", error])
 })
 
 test("notifications: subscription failure is reported", async t => {

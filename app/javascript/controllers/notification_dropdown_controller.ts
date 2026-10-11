@@ -3,32 +3,25 @@ import { renderStreamMessage } from "@hotwired/turbo"
 import { cable } from "@hotwired/turbo-rails"
 
 export default class extends NavDropdownController {
-  private notificationSubscription?: { unsubscribe: () => void }
-  private subscriptionGeneration = 0
+  private notificationSubscription?: Promise<{ unsubscribe: () => void } | undefined>
 
   connect() {
-    this.subscribeToNotifications(++this.subscriptionGeneration).catch(error => {
+    this.notificationSubscription = cable.subscribeTo("Noticed::NotificationChannel", {
+      received: (message: string) => renderStreamMessage(message)
+    }).catch(error => {
       console.error("Failed to subscribe to notifications", error)
+      return undefined
     })
   }
 
   disconnect() {
     super.disconnect()
-    this.subscriptionGeneration += 1
-    this.notificationSubscription?.unsubscribe()
+    const pendingSubscription = this.notificationSubscription
     this.notificationSubscription = undefined
-  }
-
-  private async subscribeToNotifications(generation: number) {
-    const subscription = await cable.subscribeTo("Noticed::NotificationChannel", {
-      received: (message: string) => renderStreamMessage(message)
+    pendingSubscription?.then(subscription => {
+      subscription?.unsubscribe()
+    }).catch(error => {
+      console.error("Failed to unsubscribe from notifications", error)
     })
-
-    if (generation !== this.subscriptionGeneration) {
-      subscription.unsubscribe()
-      return
-    }
-
-    this.notificationSubscription = subscription
   }
 }
