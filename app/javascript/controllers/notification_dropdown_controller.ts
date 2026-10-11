@@ -1,8 +1,8 @@
-import AccountDropdownController from "./account_dropdown_controller"
+import NavDropdownController from "./nav_dropdown_controller"
 import { renderStreamMessage } from "@hotwired/turbo"
 import { cable } from "@hotwired/turbo-rails"
 
-export default class extends AccountDropdownController {
+export default class extends NavDropdownController {
   private notificationSubscription?: { unsubscribe: () => void }
   private subscriptionGeneration = 0
 

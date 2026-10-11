@@ -4,7 +4,7 @@ import { build } from "esbuild"
 
 const bundle = await build({
   stdin: {
-    contents: `export { default as AccountDropdownController } from "./app/javascript/controllers/account_dropdown_controller";
+    contents: `export { default as NavDropdownController } from "./app/javascript/controllers/nav_dropdown_controller";
       export { default as SelectDropdownController } from "./app/javascript/controllers/select_dropdown_controller";
       export { default as NotificationDropdownController } from "./app/javascript/controllers/notification_dropdown_controller";`,
     resolveDir: process.cwd()
@@ -25,7 +25,7 @@ const bundle = await build({
     }
   }]
 })
-const { AccountDropdownController, NotificationDropdownController, SelectDropdownController } = await import(
+const { NavDropdownController, NotificationDropdownController, SelectDropdownController } = await import(
   `data:text/javascript;base64,${Buffer.from(bundle.outputFiles[0].text).toString("base64")}`
 )
 
@@ -72,7 +72,7 @@ function dropdown(t, Controller, subscribeTo = async () => ({ unsubscribe() {} }
   return { controller, menu, trigger, inside, expanded: () => expanded, focusCount: () => focusCount }
 }
 
-for (const [name, Controller] of [["account/navigation", AccountDropdownController], ["notifications", NotificationDropdownController]]) {
+for (const [name, Controller] of [["account/navigation", NavDropdownController], ["notifications", NotificationDropdownController]]) {
   test(`${name}: value state controls the menu independently of rendered ARIA`, t => {
     const menu = dropdown(t, Controller)
     assert.equal(menu.controller.openValue, false)
