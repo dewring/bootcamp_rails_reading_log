@@ -3,6 +3,15 @@ require "test_helper"
 class Admin::MembersControllerTest < ActionDispatch::IntegrationTest
   include Devise::Test::IntegrationHelpers
 
+  setup do
+    @original_invitations_enabled = Rails.configuration.x.member_invitations_enabled
+    Rails.configuration.x.member_invitations_enabled = false
+  end
+
+  teardown do
+    Rails.configuration.x.member_invitations_enabled = @original_invitations_enabled
+  end
+
   test "guests and readers cannot manage member accounts" do
     get admin_members_path
     assert_redirected_to new_user_session_path
@@ -20,7 +29,7 @@ class Admin::MembersControllerTest < ActionDispatch::IntegrationTest
     get admin_members_path, params: { member_id: users(:leika).id }
     assert_response :success
     assert_select "h1", text: "Member Management"
-    assert_select ".admin-page-heading a[href*='invite=true']", text: /Invite Member/, count: 1
+    assert_select ".admin-page-heading a[href*='invite=true']", count: 0
     assert_select ".admin-sidebar-nav .is-active[aria-current='page']", text: "Members"
     assert_select ".admin-member-record", count: 3
     assert_select "input#user_email[value='leika@test.com']"
@@ -32,12 +41,13 @@ class Admin::MembersControllerTest < ActionDispatch::IntegrationTest
     end
     assert_select "input[value='Save changes']"
     assert_select "#admin-member-status-menu a" do |options|
-      assert_equal [ "All statuses", "Active", "Invited", "Suspended" ], options.map(&:text)
+      assert_equal [ "All statuses", "Active", "Suspended" ], options.map(&:text)
     end
     assert_select ".admin-member-record a", text: "Edit", count: 0
   end
 
   test "admin opens the invitation form through the workspace link without creating an account" do
+    Rails.configuration.x.member_invitations_enabled = true
     sign_in users(:admin)
     get admin_members_path, params: { q: "leika", status: "active", sort: "name", page: 1 }
     invitation_url = nil
@@ -59,7 +69,25 @@ class Admin::MembersControllerTest < ActionDispatch::IntegrationTest
     assert_select ".admin-member-record", count: 1
   end
 
+  test "disabled invitations cannot be opened or submitted through direct requests" do
+    sign_in users(:admin)
+    get admin_members_path, params: { invite: true, member_id: users(:leika).id, status: "invited" }
+
+    assert_response :success
+    assert_select "h2#admin-member-detail-title", text: "Member profile"
+    assert_select "input[value='Send invitation']", count: 0
+    assert_select "input[value='Save changes']", count: 1
+    assert_select "#admin-member-status-menu a[href*='status=invited']", count: 0
+    assert_nil assigns(:status)
+
+    assert_no_difference [ "User.count", "ActionMailer::Base.deliveries.size" ] do
+      post admin_members_path, params: { user: { first_name: "Hidden", last_name: "Invite", nickname: "hiddeninvite", email: "hiddeninvite@test.com" } }
+    end
+    assert_redirected_to root_path
+  end
+
   test "invited status filter is reachable and preserves search and sorting" do
+    Rails.configuration.x.member_invitations_enabled = true
     users(:leika).update!(account_status: "invited")
     users(:jaina).update!(account_status: "suspended")
     sign_in users(:admin)
@@ -179,6 +207,7 @@ class Admin::MembersControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "admin invites a reader and invalid invitations create no account" do
+    Rails.configuration.x.member_invitations_enabled = true
     sign_in users(:admin)
     assert_difference("User.count", 1) do
       assert_difference("ActionMailer::Base.deliveries.size", 1) do

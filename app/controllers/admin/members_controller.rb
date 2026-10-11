@@ -5,7 +5,7 @@ class Admin::MembersController < ApplicationController
   def index
     authorize [ :admin, User ]
     load_members
-    @is_invitation = params[:invite].present?
+    @is_invitation = policy([ :admin, User ]).create? && params[:invite].present?
     @selected_member = @is_invitation ? User.new : @members_scope.find_by(id: params[:member_id]) || @members.first
     load_activity
   end
@@ -52,7 +52,9 @@ class Admin::MembersController < ApplicationController
 
   def load_members
     @query = params[:q].to_s.strip
-    @status = params[:status].to_s if %w[active invited suspended].include?(params[:status])
+    statuses = %w[active suspended]
+    statuses << "invited" if policy([ :admin, User ]).create?
+    @status = params[:status].to_s if statuses.include?(params[:status])
     @sort = params[:sort] == "name" ? "name" : "updated"
     @members_scope = policy_scope([ :admin, User ]).matching_member_text(@query)
     @members_scope = @members_scope.where(account_status: @status) if @status

@@ -39,6 +39,9 @@ module BootcampRailsReadingLog
     # Don't generate system test files.
     config.generators.system_tests = nil
 
+    # Member invitations are deferred until their dedicated feature issue.
+    config.x.member_invitations_enabled = false
+
     # Mission Control Jobs is gated by our own Devise admin? check at the route
     # level (see config/routes.rb), so we disable its built-in HTTP Basic Auth
     # rather than configuring separate mission_control credentials.

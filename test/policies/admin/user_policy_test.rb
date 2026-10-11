@@ -1,7 +1,7 @@
 require "test_helper"
 
 class Admin::UserPolicyTest < ActiveSupport::TestCase
-  test "only admins may browse invite and edit accounts" do
+  test "only admins may browse and edit accounts while invitations are disabled" do
     [ nil, users(:leika) ].each do |viewer|
       policy = Admin::UserPolicy.new(viewer, users(:jaina))
       refute policy.index?
@@ -12,11 +12,19 @@ class Admin::UserPolicyTest < ActiveSupport::TestCase
     end
     policy = Admin::UserPolicy.new(users(:admin), users(:leika))
     assert policy.index?
-    assert policy.create?
+    refute policy.create?
     assert policy.update?
     assert policy.update_email?
     assert policy.update_status?
     assert_equal User.count, Admin::UserPolicy::Scope.new(users(:admin), User.all).resolve.count
+  end
+
+  test "invitations require both an enabled feature and an admin" do
+    Rails.configuration.x.stub(:member_invitations_enabled, true) do
+      assert Admin::UserPolicy.new(users(:admin), User.new).create?
+      refute Admin::UserPolicy.new(users(:leika), User.new).create?
+      refute Admin::UserPolicy.new(nil, User.new).create?
+    end
   end
 
   test "admins may edit profiles but cannot change their own or another admin's email" do

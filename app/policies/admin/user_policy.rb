@@ -4,7 +4,7 @@ class Admin::UserPolicy < ApplicationPolicy
   end
 
   def create?
-    admin?
+    admin? && Rails.configuration.x.member_invitations_enabled
   end
 
   def update?
