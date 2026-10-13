@@ -330,7 +330,7 @@ class BookControllerTest < ActionDispatch::IntegrationTest
     excluded_by_search = Book.create!(title: "Unrelated Book", author: "Author")
 
     [ most_read_book, multiple_editions_book, unread_book, excluded_by_search ].each do |book|
-      book.genres << genre
+      book.genres.push(genre)
     end
     3.times do |index|
       multiple_editions_book.book_editions.create!(title: "Ranking Search Edition #{index}", ol_edition_key: "/books/RANKING#{index}M")

@@ -30,7 +30,7 @@ class BookClubPickNotifierTest < ActiveSupport::TestCase
     notification = event.notifications.first
     broadcasts = []
 
-    Noticed::NotificationChannel.stub(:broadcast_to, ->(*args) { broadcasts << args }) do
+    Noticed::NotificationChannel.stub(:broadcast_to, ->(*args) { broadcasts.push(args) }) do
       Noticed::DeliveryMethods::ActionCable.new.perform(:action_cable, notification)
     end
 

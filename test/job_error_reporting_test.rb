@@ -8,11 +8,11 @@ class FakeLogger
   end
 
   def warn(message, payload = {})
-    @calls << [ :warn, message, payload ]
+    @calls.push([ :warn, message, payload ])
   end
 
   def error(message, payload = {})
-    @calls << [ :error, message, payload ]
+    @calls.push([ :error, message, payload ])
   end
 end
 

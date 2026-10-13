@@ -8,7 +8,7 @@ class DropdownActionsTest < ActionDispatch::IntegrationTest
       get path
 
       assert_response :success
-      assert_dropdown_global_actions(%w[nav-menu account-dropdown])
+      assert_dropdown_global_actions([ "nav-menu", "account-dropdown" ])
     end
   end
 
@@ -19,7 +19,7 @@ class DropdownActionsTest < ActionDispatch::IntegrationTest
       get path
 
       assert_response :success
-      assert_dropdown_global_actions(%w[nav-menu account-dropdown notification-dropdown])
+      assert_dropdown_global_actions([ "nav-menu", "account-dropdown", "notification-dropdown" ])
     end
   end
 
@@ -28,14 +28,14 @@ class DropdownActionsTest < ActionDispatch::IntegrationTest
 
     get admin_root_path, params: { new_challenge: "1" }
     assert_response :success
-    %w[books_total pages_per_day true false].each do |value|
+    [ "books_total", "pages_per_day", "true", "false" ].each do |value|
       assert_select "button[data-action='click->select-dropdown#select'][data-select-dropdown-value-param='#{value}']", count: 1
     end
     assert_select "[data-select-dropdown-target='option'][data-value]", count: 0
 
     get admin_members_path, params: { member_id: users(:leika).id }
     assert_response :success
-    %w[active suspended].each do |value|
+    [ "active", "suspended" ].each do |value|
       assert_select "button[data-action='click->select-dropdown#select'][data-select-dropdown-value-param='#{value}']", count: 1
     end
     assert_select "[data-select-dropdown-target='option'][data-value]", count: 0

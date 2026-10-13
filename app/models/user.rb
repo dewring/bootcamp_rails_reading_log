@@ -8,8 +8,8 @@ class User < ApplicationRecord
   validates :first_name, presence: true
   validates :last_name, presence: true
   validates :nickname, presence: true, uniqueness: true
-  validates :role, inclusion: { in: %w[user admin] }
-  validates :account_status, inclusion: { in: %w[active invited suspended] }
+  validates :role, inclusion: { in: [ "user", "admin" ] }
+  validates :account_status, inclusion: { in: [ "active", "invited", "suspended" ] }
   before_update :activate_invited_account, if: :will_save_change_to_encrypted_password?
 
   scope :matching_member_text, ->(query) {

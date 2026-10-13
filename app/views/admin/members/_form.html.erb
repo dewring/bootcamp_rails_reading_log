@@ -19,7 +19,7 @@
               <%= image_tag "catalog-chevron-down.svg", alt: "", aria: { hidden: true } %>
             </button>
             <div id="admin-member-account-status-menu" class="catalog-dropdown-menu admin-select-menu" data-select-dropdown-target="menu" role="listbox" aria-label="Account status" hidden>
-              <% %w[active suspended].each do |status| %>
+              <% [ "active", "suspended" ].each do |status| %>
                 <button type="button" class="catalog-dropdown-option <%= 'is-selected' if member.account_status == status %>" data-select-dropdown-target="option" data-select-dropdown-value-param="<%= status %>" role="option" aria-selected="<%= member.account_status == status %>" data-action="click->select-dropdown#select"><%= status.capitalize %></button>
               <% end %>
             </div>

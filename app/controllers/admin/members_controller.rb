@@ -52,8 +52,8 @@ class Admin::MembersController < ApplicationController
 
   def load_members
     @query = params[:q].to_s.strip
-    statuses = %w[active suspended]
-    statuses << "invited" if policy([ :admin, User ]).create?
+    statuses = [ "active", "suspended" ]
+    statuses.push("invited") if policy([ :admin, User ]).create?
     @status = params[:status].to_s if statuses.include?(params[:status])
     @sort = params[:sort] == "name" ? "name" : "updated"
     @members_scope = policy_scope([ :admin, User ]).matching_member_text(@query)

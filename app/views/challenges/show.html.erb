@@ -18,7 +18,7 @@
         </div>
       </div>
 
-      <% if user_challenge.status.in?(%w[active in_progress]) %>
+      <% if user_challenge.status.in?([ "active", "in_progress" ]) %>
         <%= button_to "Abandon", user_challenge_path(user_challenge), method: :delete,
               data: { turbo_confirm: "Abandon this challenge?" },
               class: "btn-md btn-danger" %>

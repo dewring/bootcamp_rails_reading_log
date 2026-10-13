@@ -82,7 +82,7 @@ class Admin::BooksControllerTest < ActionDispatch::IntegrationTest
 
   test "genre filtering retains every genre in the selected edit form" do
     book = books(:refactoring)
-    book.genres << Genre.find_or_create_by!(name: "Mystery")
+    book.genres.push(Genre.find_or_create_by!(name: "Mystery"))
 
     get admin_catalog_path, params: { q: "Refactoring", genre: "Fiction" }
 

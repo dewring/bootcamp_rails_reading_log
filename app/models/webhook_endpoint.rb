@@ -4,6 +4,6 @@ class WebhookEndpoint < ApplicationRecord
   serialize :events, coder: JSON, default: []
   encrypts :secret_digest
 
-  validates :url, presence: true, format: { with: URI::DEFAULT_PARSER.make_regexp(%w[http https]) }
+  validates :url, presence: true, format: { with: URI::DEFAULT_PARSER.make_regexp([ "http", "https" ]) }
   validates :secret_digest, presence: true
 end
