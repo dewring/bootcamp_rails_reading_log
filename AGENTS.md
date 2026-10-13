@@ -108,6 +108,15 @@ current conversation take precedence.
     resolves, even after disconnection or reconnection. Handle rejections
     explicitly and test pending setup, reconnection, and cleanup failures.
 
+27. Prefer explicit, intention-revealing methods over operator shorthand.
+    Use `push` for array appends and `concat` for string appends. For IO
+    output, prefer `write` when its behavior fits the caller. Keep `<<`
+    for bit shifts. When replacing operators, preserve behavior and account
+    for differences in return values.
+
+28. Avoid `%w` string-array shorthand. Prefer explicit arrays such as
+    `["active", "suspended"]`.
+
 ## Project shape
 
 - `app/controllers` — thin controllers responsible for request coordination,
