@@ -32,7 +32,7 @@
 
           <div class="admin-catalog-filters" aria-label="Catalog filters">
             <%= link_to "All records", admin_catalog_path(q: params[:q]), class: "admin-catalog-filter #{'is-active' if params[:genre].blank?}", aria: { current: ("true" if params[:genre].blank?) } %>
-            <div class="admin-catalog-genre-filter admin-select-dropdown" data-controller="nav-menu" data-action="dropdown:opened@window->nav-menu#closeIfAnother">
+            <div class="admin-catalog-genre-filter admin-select-dropdown" data-controller="nav-menu" data-action="dropdown:opened@window->nav-menu#closeIfAnother click@document->nav-menu#closeOnOutsideClick keydown.esc@document->nav-menu#closeOnEscape">
               <button type="button" class="admin-catalog-filter admin-select-trigger <%= 'is-active' if params[:genre].present? %>" data-nav-menu-target="trigger" data-action="click->nav-menu#toggle" aria-expanded="false" aria-controls="admin-catalog-genre-menu" aria-label="Filter by genre">
                 <span><%= params[:genre].presence || "Genre" %></span>
                 <%= image_tag "catalog-chevron-down.svg", alt: "", aria: { hidden: true } %>

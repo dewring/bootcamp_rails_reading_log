@@ -35,7 +35,9 @@ class RegistrationsControllerTest < ActionDispatch::IntegrationTest
     assert_select "input.settings-save-button[value='Save Changes']", count: 1
     assert_select ".profile-avatar--sidebar .profile-avatar-initials", text: users(:leika).nickname.first(2).upcase
     assert_select ".profile-avatar--settings .profile-avatar-initials", text: users(:leika).nickname.first(2).upcase
-    assert_select "input[type='file'][name='user[avatar]']", count: 1
+    assert_select "form.settings-photo-form[data-controller='submit-on-change']" do
+      assert_select "input[type='file'][name='user[avatar]'][data-action='change->submit-on-change#submit']", count: 1
+    end
     assert_select "label.settings-upload-button", text: /Upload Photo/
   end
 
@@ -61,22 +63,26 @@ class RegistrationsControllerTest < ActionDispatch::IntegrationTest
 
   test "signed-in user can update nickname without current password" do
     sign_in users(:leika)
+    original_email = users(:leika).email
 
     patch user_registration_path, params: {
       user: {
         first_name: users(:leika).first_name,
         last_name: users(:leika).last_name,
-        nickname: "profileonly"
+        nickname: "profileonly",
+        email: "forged@example.com"
       }
     }
 
     assert_response :redirect
     assert_redirected_to edit_user_registration_path
     assert_equal "profileonly", users(:leika).reload.nickname
+    assert_equal original_email, users(:leika).email
   end
 
   test "signed-in user cannot change email from settings" do
     sign_in users(:leika)
+    original_email = users(:leika).email
 
     patch user_registration_path, params: {
       user: {
@@ -90,8 +96,31 @@ class RegistrationsControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :redirect
     assert_redirected_to edit_user_registration_path
-    assert_equal users(:leika).email, users(:leika).reload.email
+    assert_equal original_email, users(:leika).reload.email
     assert_equal "updatedreader", users(:leika).nickname
+  end
+
+  test "password updates still require the current password and cannot change email" do
+    sign_in users(:leika)
+    original_email = users(:leika).email
+
+    patch user_registration_path, params: { user: {
+      email: "forged@example.com", password: "updatedpassword123", password_confirmation: "updatedpassword123",
+      current_password: "incorrect-password"
+    } }
+
+    assert_response :unprocessable_entity
+    assert users(:leika).reload.valid_password?("password123")
+    assert_equal original_email, users(:leika).email
+
+    patch user_registration_path, params: { user: {
+      email: "forged@example.com", password: "updatedpassword123", password_confirmation: "updatedpassword123",
+      current_password: "password123"
+    } }
+
+    assert_redirected_to edit_user_registration_path
+    assert users(:leika).reload.valid_password?("updatedpassword123")
+    assert_equal original_email, users(:leika).email
   end
 
   test "signed-in user can upload and remove a profile photo from settings" do

@@ -5,12 +5,12 @@
 
   ongoing_challenges = @challenges.select do |challenge|
     user_challenge = user_challenges_by_challenge_id[challenge.id]
-    user_challenge&.status.in?(%w[active in_progress])
+    user_challenge&.status.in?([ "active", "in_progress" ])
   end
 
   completed_challenges = @challenges.select do |challenge|
     user_challenge = user_challenges_by_challenge_id[challenge.id]
-    user_challenge&.status.in?(%w[completed failed])
+    user_challenge&.status.in?([ "completed", "failed" ])
   end
 
   available_challenges = @challenges.select do |challenge|

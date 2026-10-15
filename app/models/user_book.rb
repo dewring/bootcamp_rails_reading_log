@@ -2,7 +2,7 @@ class UserBook < ApplicationRecord
   belongs_to :user
   belongs_to :book
 
-  STATUSES = %w[want_to_read reading finished].freeze
+  STATUSES = [ "want_to_read", "reading", "finished" ].freeze
 
   include RecalculateChallengeProgress
 

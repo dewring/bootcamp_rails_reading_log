@@ -9,6 +9,7 @@ class BookClub < ApplicationRecord
   after_commit :notify_members_of_new_pick, on: :update
 
   validates :name, presence: true
+  validates :description, presence: true, on: :public_creation
 
   scope :matching_admin_text, ->(text) {
     return all if text.blank?

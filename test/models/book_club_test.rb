@@ -15,6 +15,14 @@ class BookClubTest < ActiveSupport::TestCase
     assert_not BookClub.new(name: "").valid?
   end
 
+  test "public creation requires a description but not a current book or deadline" do
+    club = BookClub.new(name: "New club", description: "   ")
+    assert_not club.valid?(:public_creation)
+    assert_includes club.errors[:description], "can't be blank"
+    club.description = "Read together."
+    assert club.valid?(:public_creation)
+  end
+
   test "leaderboard ranks members by furthest page reached, not total pages logged" do
     book_club = BookClub.create!(name: "Sci-Fi Society", current_book: books(:refactoring))
     leader = users(:leika)

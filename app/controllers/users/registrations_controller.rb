@@ -3,11 +3,11 @@ module Users
     protected
 
     def account_update_params
-      super.except(:email, "email")
+      super.except(:email)
     end
 
     def update_resource(resource, params)
-      filtered_params = params.to_h.symbolize_keys.except(:email)
+      filtered_params = params.to_h.symbolize_keys
       remove_avatar = ActiveModel::Type::Boolean.new.cast(filtered_params.delete(:remove_avatar))
 
       if filtered_params[:password].present? || filtered_params[:password_confirmation].present?

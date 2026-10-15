@@ -11,8 +11,6 @@ export default class extends Controller<HTMLElement> {
   declare readonly viewportTarget: HTMLElement
   declare readonly previousTarget: HTMLButtonElement
   declare readonly nextTarget: HTMLButtonElement
-  declare readonly hasPreviousTarget: boolean
-  declare readonly hasNextTarget: boolean
   declare readonly pageSizeValue: number
   declare readonly fitPageValue: boolean
 

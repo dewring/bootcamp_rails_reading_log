@@ -1,4 +1,4 @@
-import { Controller } from "@hotwired/stimulus"
+import { Controller, type ActionEvent } from "@hotwired/stimulus"
 
 interface BookMatch { id: number; title: string; author: string }
 
@@ -21,8 +21,6 @@ export default class extends Controller<HTMLElement> {
   disconnect() { clearTimeout(this.timer); this.request?.abort() }
 
   search() {
-    clearTimeout(this.timer)
-    this.request?.abort()
     this.close()
     const query = this.searchTarget.value.trim()
     if (this.searchTarget.value === this.selectedLabel) {
@@ -32,7 +30,12 @@ export default class extends Controller<HTMLElement> {
     }
     this.valueTarget.value = ""
     this.searchTarget.setCustomValidity(query ? "Choose a book from the search results, or clear this field for no current pick." : "")
-    if (!query) { this.selectedLabel = ""; this.selectedId = ""; this.statusTarget.textContent = "No current pick"; return }
+    if (!query) {
+      this.selectedLabel = ""
+      this.selectedId = ""
+      this.statusTarget.textContent = "No current pick"
+      return
+    }
     this.statusTarget.textContent = "Searching books…"
     this.timer = setTimeout(() => { void this.fetchMatches(query) }, 300)
   }
@@ -57,8 +60,8 @@ export default class extends Controller<HTMLElement> {
     event.preventDefault()
     if (!this.resultsTarget.hidden && this.activeIndex >= 0) this.selectMatch(this.activeIndex)
   }
-  select(event: Event) {
-    this.selectMatch(Number((event.currentTarget as HTMLElement).dataset.index))
+  select(event: ActionEvent) {
+    this.selectMatch(event.params.index)
   }
 
   private selectMatch(index: number) {
@@ -102,7 +105,7 @@ export default class extends Controller<HTMLElement> {
         option.id = `admin-club-book-option-${book.id}`
         option.className = "catalog-dropdown-option"
         option.textContent = `${book.title} · ${book.author}`
-        option.dataset.index = String(index)
+        option.dataset.clubBookSearchIndexParam = String(index)
         option.dataset.action = "click->club-book-search#select"
         option.setAttribute("role", "option")
         option.setAttribute("aria-selected", "false")

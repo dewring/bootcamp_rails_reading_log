@@ -1,6 +1,6 @@
 <div class="catalog-page">
   <aside class="catalog-sidebar" aria-label="Catalog filters">
-    <div class="catalog-sidebar-section catalog-dropdown" data-controller="nav-menu">
+    <div class="catalog-sidebar-section catalog-dropdown" data-controller="nav-menu" data-action="click@document->nav-menu#closeOnOutsideClick keydown.esc@document->nav-menu#closeOnEscape">
       <p class="catalog-sidebar-label">Find Option</p>
       <button type="button"
               class="catalog-sidebar-select catalog-dropdown-trigger"
@@ -20,7 +20,7 @@
       </div>
     </div>
 
-    <div class="catalog-sidebar-section catalog-dropdown catalog-filter-dropdown" data-controller="nav-menu">
+    <div class="catalog-sidebar-section catalog-dropdown catalog-filter-dropdown" data-controller="nav-menu" data-action="click@document->nav-menu#closeOnOutsideClick keydown.esc@document->nav-menu#closeOnEscape">
       <p class="catalog-sidebar-label">Filter Option</p>
       <button type="button"
               class="catalog-sidebar-select catalog-dropdown-trigger"
@@ -28,8 +28,8 @@
               data-action="click->nav-menu#toggle"
               aria-expanded="false"
               aria-controls="catalog-filter-menu">
-        <% selected_filter = params[:filter].presence_in(%w[new_books most_read]) || "new_books" %>
-        <span><%= selected_filter == "most_read" ? "Most Read" : "New Books" %></span>
+        <% selected_filter = params[:filter].presence_in([ "new_books", "most_read" ]) %>
+        <span><%= { "new_books" => "New Books", "most_read" => "Most Read" }.fetch(selected_filter, "All Books") %></span>
         <%= image_tag "catalog-chevron-down.svg", class: "catalog-chevron", alt: "", aria: { hidden: true } %>
       </button>
       <div id="catalog-filter-menu"
@@ -105,7 +105,7 @@
       </div>
       <% sort_options = [["Title A-Z", "title"], ["Author", "author"], ["Page count", "total_pages"]] %>
       <% selected_sort = sort_options.find { |_, value| value == params[:sort] } || sort_options.first %>
-      <div class="catalog-sort-form" data-controller="nav-menu">
+      <div class="catalog-sort-form" data-controller="nav-menu" data-action="click@document->nav-menu#closeOnOutsideClick keydown.esc@document->nav-menu#closeOnEscape">
         <span class="catalog-sort-label">Sort by:</span>
         <div class="catalog-sort-dropdown">
           <button type="button"

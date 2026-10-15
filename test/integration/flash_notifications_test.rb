@@ -10,6 +10,9 @@ class FlashNotificationsTest < ActionDispatch::IntegrationTest
     assert_notification "Book club created."
 
     club = BookClub.find_by!(name: "Toast club")
+    get book_club_path(club)
+    assert_select "#flash-notifications", count: 0
+
     patch book_club_path(club), params: { book_club: { name: "Renamed club" } }
     follow_redirect!
     assert_notification "Book club updated."
@@ -53,7 +56,11 @@ class FlashNotificationsTest < ActionDispatch::IntegrationTest
 
   def assert_notification(message)
     assert_response :success
-    assert_select ".flash-notifications", count: 1
+    assert_select "#flash-notifications[data-controller='flash-notifications']", count: 1 do |containers|
+      actions = containers.first["data-action"].split
+      assert_includes actions, "turbo:before-morph-element->flash-notifications#preserveDuringRefresh:self"
+      assert_includes actions, "turbo:before-cache@document->flash-notifications#clear"
+    end
     assert_select ".flash-notification--notice[role='status'][aria-atomic='true']", count: 1
     assert_select ".flash-notification-message p", text: message
     assert_select "img.flash-notification-icon[width='12'][height='12']", count: 1

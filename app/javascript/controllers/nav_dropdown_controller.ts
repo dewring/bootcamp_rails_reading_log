@@ -2,31 +2,28 @@ import { Controller } from "@hotwired/stimulus"
 
 export default class extends Controller<HTMLElement> {
   static targets = ["menu", "trigger"]
+  static values = { open: Boolean }
 
+  declare openValue: boolean
   declare readonly menuTarget: HTMLElement
   declare readonly triggerTarget: HTMLButtonElement
 
-  private boundCloseOnOutsideClick = this.closeOnOutsideClick.bind(this)
-  private boundCloseOnEscape = this.closeOnEscape.bind(this)
   private closeTimer?: number
   private hovering = false
   private focused = false
-
-  connect() {
-    document.addEventListener("click", this.boundCloseOnOutsideClick)
-    document.addEventListener("keydown", this.boundCloseOnEscape)
-  }
+  private restoringTriggerFocus = false
 
   disconnect() {
-    document.removeEventListener("click", this.boundCloseOnOutsideClick)
-    document.removeEventListener("keydown", this.boundCloseOnEscape)
     this.cancelScheduledClose()
   }
 
   toggle() {
-    if (this.hovering || this.focused) return
+    this.openValue ? this.close() : this.open()
+  }
 
-    this.isOpen() ? this.close() : this.open()
+  openValueChanged() {
+    this.menuTarget.hidden = !this.openValue
+    this.triggerTarget.setAttribute("aria-expanded", String(this.openValue))
   }
 
   closeIfAnother(event: CustomEvent<{ source: HTMLElement }>) {
@@ -39,7 +36,6 @@ export default class extends Controller<HTMLElement> {
 
   enter() {
     this.hovering = true
-    this.cancelScheduledClose()
     this.open()
   }
 
@@ -50,7 +46,11 @@ export default class extends Controller<HTMLElement> {
 
   focusIn() {
     this.focused = true
-    this.cancelScheduledClose()
+    if (this.restoringTriggerFocus) {
+      this.cancelScheduledClose()
+      return
+    }
+
     this.open()
   }
 
@@ -61,15 +61,13 @@ export default class extends Controller<HTMLElement> {
 
   private open() {
     this.cancelScheduledClose()
-    window.dispatchEvent(new CustomEvent("dropdown:opened", { detail: { source: this.element } }))
-    this.menuTarget.hidden = false
-    this.triggerTarget.setAttribute("aria-expanded", "true")
+    this.dispatch("opened", { prefix: "dropdown", target: window, detail: { source: this.element } })
+    this.openValue = true
   }
 
   private close() {
     this.cancelScheduledClose()
-    this.menuTarget.hidden = true
-    this.triggerTarget.setAttribute("aria-expanded", "false")
+    this.openValue = false
   }
 
   private scheduleClose() {
@@ -86,20 +84,21 @@ export default class extends Controller<HTMLElement> {
     this.closeTimer = undefined
   }
 
-  private isOpen(): boolean {
-    return this.triggerTarget.getAttribute("aria-expanded") === "true"
-  }
-
-  private closeOnOutsideClick(event: MouseEvent) {
+  closeOnOutsideClick(event: MouseEvent) {
     if (!this.element.contains(event.target as Node)) {
       this.close()
     }
   }
 
-  private closeOnEscape(event: KeyboardEvent) {
-    if (event.key === "Escape" && this.isOpen()) {
+  closeOnEscape() {
+    if (this.openValue) {
       this.close()
-      this.triggerTarget.focus()
+      this.restoringTriggerFocus = true
+      try {
+        this.triggerTarget.focus()
+      } finally {
+        this.restoringTriggerFocus = false
+      }
     }
   }
 }

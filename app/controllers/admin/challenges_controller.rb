@@ -7,7 +7,7 @@ class Admin::ChallengesController < ApplicationController
   def index
     authorize Challenge
 
-    @challenges = policy_scope(Challenge).order(starts_at: :desc, created_at: :desc)
+    load_challenges
     @selected_challenge = selected_challenge
     @is_new_challenge = params[:new_challenge].present?
     @detail_challenge = @is_new_challenge ? Challenge.new(active: true) : @selected_challenge
@@ -19,7 +19,7 @@ class Admin::ChallengesController < ApplicationController
     if @challenge.save
       redirect_to admin_root_path(challenge_id: @challenge.id), notice: "Challenge added!"
     else
-      @challenges = policy_scope(Challenge).order(starts_at: :desc, created_at: :desc)
+      load_challenges
       @selected_challenge = nil
       @is_new_challenge = true
       @detail_challenge = @challenge
@@ -42,8 +42,13 @@ class Admin::ChallengesController < ApplicationController
 
   private
 
+  def load_challenges
+    challenges = policy_scope(Challenge).order(starts_at: :desc, created_at: :desc, id: :desc)
+    @pagy, @challenges = pagy(:offset, challenges, limit: 4)
+  end
+
   def selected_challenge
-    @challenges.find_by(id: params[:challenge_id]) if params[:challenge_id].present?
+    policy_scope(Challenge).find_by(id: params[:challenge_id]) if params[:challenge_id].present?
   end
 
   def set_challenge

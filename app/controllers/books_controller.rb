@@ -1,7 +1,7 @@
 class BooksController < ApplicationController
   include LogsRecordNotFound
 
-  SORTABLE_COLUMNS = %w[title author total_pages].freeze
+  SORTABLE_COLUMNS = [ "title", "author", "total_pages" ].freeze
 
   before_action :authenticate_user!, only: [ :discover, :most_recent_session, :search, :import, :quick_add ]
   rescue_from ActiveRecord::RecordNotFound, with: :not_found
@@ -141,7 +141,7 @@ class BooksController < ApplicationController
   def apply_catalog_order(books)
     case params[:filter]
     when "most_read"
-      books.most_read
+      Book.where(id: books.select(:id)).most_read
     when "new_books"
       books.order(created_at: :desc)
     else

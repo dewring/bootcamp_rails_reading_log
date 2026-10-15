@@ -1,5 +1,5 @@
 <% if notice.present? || alert.present? %>
-  <div class="flash-notifications" data-controller="flash-notifications" data-action="scroll@window->flash-notifications#position resize@window->flash-notifications#position turbo:before-cache@document->flash-notifications#clear">
+  <div id="flash-notifications" class="flash-notifications" data-controller="flash-notifications" data-action="scroll@window->flash-notifications#position resize@window->flash-notifications#position turbo:before-cache@document->flash-notifications#clear turbo:before-morph-element->flash-notifications#preserveDuringRefresh:self">
     <% { notice: notice, alert: alert }.each do |kind, message| %>
       <% next if message.blank? %>
       <div class="flash-notification flash-notification--<%= kind %>" role="<%= kind == :alert ? "alert" : "status" %>" aria-atomic="true">

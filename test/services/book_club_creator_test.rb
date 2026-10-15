@@ -10,6 +10,16 @@ class BookClubCreatorTest < ActiveSupport::TestCase
     assert club.book_club_memberships.exists?(user: users(:admin), role: "owner")
   end
 
+  test "public creation validation prevents both club and owner persistence" do
+    club = BookClub.new(name: "Missing description")
+    assert_no_difference([ "BookClub.count", "BookClubMembership.count" ]) do
+      assert_raises(ActiveRecord::RecordInvalid) do
+        BookClubCreator.new(book_club: club, owner: users(:leika)).create_club(validation_context: :public_creation)
+      end
+    end
+    assert_includes club.errors[:description], "can't be blank"
+  end
+
   test "owner membership failure rolls back the club" do
     club = BookClub.new(name: "Rolled back club")
     assert_no_difference("BookClub.count") do

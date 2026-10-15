@@ -126,6 +126,70 @@ class BookClubsControllerTest < ActionDispatch::IntegrationTest
     assert_redirected_to new_user_session_path
   end
 
+  test "Create Book Club opens the overview creation mode without existing-club statistics" do
+    sign_in users(:leika)
+    get book_clubs_path
+    assert_response :success
+    assert_select "a[href='#{book_clubs_path(new_club: true)}']", text: "Create Book Club"
+    assert_select "a[href='#{new_book_club_path}']", count: 0
+
+    get book_clubs_path(new_club: true)
+    assert_response :success
+    assert_select ".book-club-detail-page h1", text: "Overview"
+    assert_select ".book-club-sidebar-navigation a.is-active", text: "Overview"
+    assert_select ".book-club-stat-grid, .book-club-member-status, .book-club-member-list", count: 0
+    assert_select "input[readonly]", count: 0
+    assert_select "form[action='#{book_clubs_path}']" do
+      assert_select "input[name='book_club[name]'][required]"
+      assert_select "textarea[name='book_club[description]'][required]"
+      assert_select "input[name='book_club[current_book_id]']"
+      assert_select "input[name='book_club[reading_deadline]']:not([required])"
+      assert_select "[data-controller='club-book-search']"
+    end
+
+    get new_book_club_path
+    assert_redirected_to book_clubs_path(new_club: true)
+  end
+
+  test "creation without a pick or deadline succeeds and opens the new club overview" do
+    sign_in users(:leika)
+    assert_difference("BookClub.count", 1) do
+      post book_clubs_path, params: { book_club: { name: "Optional Pick", description: "Read at your own pace.", current_book_id: "", reading_deadline: "" } }
+    end
+    club = BookClub.find_by!(name: "Optional Pick")
+    assert_nil club.current_book_id
+    assert_nil club.reading_deadline
+    assert_redirected_to book_club_path(club)
+    follow_redirect!
+    assert_select "h1", text: "Overview"
+    assert_select ".book-club-member-status", text: "You're the club owner"
+  end
+
+  test "creation saves optional pick and deadline using the existing book search fields" do
+    sign_in users(:leika)
+    deadline = 7.days.from_now.to_date
+    post book_clubs_path, params: { book_club: { name: "Chosen Pick", description: "A shared reading cycle.", current_book_id: books(:refactoring).id, reading_deadline: deadline } }
+    club = BookClub.find_by!(name: "Chosen Pick")
+    assert_equal books(:refactoring), club.current_book
+    assert_equal deadline, club.reading_deadline
+    assert_redirected_to book_club_path(club)
+  end
+
+  test "blank required creation fields render errors and preserve optional selections without creating an owner" do
+    sign_in users(:leika)
+    [ { name: "", description: "A description" }, { name: "Retained Name", description: "   " } ].each do |attributes|
+      assert_no_difference([ "BookClub.count", "BookClubMembership.count" ]) do
+        post book_clubs_path, params: { book_club: attributes.merge(current_book_id: books(:refactoring).id, reading_deadline: "2026-12-01") }
+      end
+      assert_response :unprocessable_entity
+      assert_select ".book-club-detail-page h1", text: "Overview"
+      assert_select "[role='alert']", text: /can't be blank/
+      assert_select "input[name='book_club[name]'][value='#{attributes[:name]}']"
+      assert_select "input[name='book_club[current_book_id]'][value='#{books(:refactoring).id}']"
+      assert_select "input[name='book_club[reading_deadline]'][value='2026-12-01']"
+    end
+  end
+
   test "creating a club makes the creator its owner" do
     sign_in users(:leika)
 
@@ -208,6 +272,28 @@ class BookClubsControllerTest < ActionDispatch::IntegrationTest
     assert_equal books(:refactoring), book_club.reload.current_book
   end
 
+  test "overview and leaderboard labels reflect the current user's club membership role" do
+    club = BookClub.create!(name: "Role Labels", current_book: books(:refactoring))
+    club.book_club_memberships.create!(user: users(:leika), role: "owner")
+    club.book_club_memberships.create!(user: users(:jaina), role: "member")
+
+    [ [ users(:leika), "You're the club owner" ],
+      [ users(:jaina), "You're a member" ],
+      [ users(:admin), nil ] ].each do |viewer, label|
+      sign_in viewer
+      [ nil, "leaderboard" ].each do |view|
+        get book_club_path(club), params: { view: view }
+        assert_response :success
+        if label
+          assert_select ".book-club-member-status", text: label, count: 1
+        else
+          assert_select ".book-club-member-status", count: 0
+        end
+      end
+      sign_out viewer
+    end
+  end
+
   test "show renders the overview shell and keeps the owner form available" do
     book_club = BookClub.create!(name: "Sci-Fi Society", current_book: books(:refactoring))
     book_club.book_club_memberships.create!(user: users(:leika), role: "owner")
@@ -239,6 +325,45 @@ class BookClubsControllerTest < ActionDispatch::IntegrationTest
     assert_select ".book-club-ranking-card"
     assert_select ".book-club-reading-rail"
     assert_select ".book-club-ranking-row", count: 1
+  end
+
+  test "refresh requests show the latest pick and preserve viewer-specific management controls" do
+    club = BookClub.create!(name: "Live Pick", current_book: books(:refactoring))
+    club.book_club_memberships.create!(user: users(:leika), role: "owner")
+    club.book_club_memberships.create!(user: users(:jaina), role: "member")
+    club.update!(current_book: books(:pragmatic))
+
+    [ [ users(:leika), 1 ], [ users(:jaina), 0 ] ].each do |viewer, controls|
+      sign_in viewer
+      get book_club_path(club)
+      assert_response :success
+      assert_select "meta[name='turbo-refresh-method'][content='morph']"
+      assert_select "meta[name='turbo-refresh-scroll'][content='preserve']"
+      assert_select ".book-club-current-pick-information h2", text: books(:pragmatic).title
+      assert_select ".book-club-current-pick-card a[href='#{edit_book_club_path(club)}']", text: "Change Pick", count: controls
+      sign_out viewer
+    end
+  end
+
+  test "refresh requests recalculate leaderboard data and highlight each viewer separately" do
+    club = BookClub.create!(name: "Live Ranking", current_book: books(:refactoring))
+    club.book_club_memberships.create!(user: users(:leika), role: "owner")
+    club.book_club_memberships.create!(user: users(:jaina), role: "member")
+    ReadingSession.create!(user: users(:jaina), book: books(:refactoring), read_on: Date.current, pages_read: 50)
+
+    [ users(:leika), users(:jaina) ].each do |viewer|
+      sign_in viewer
+      get book_club_path(club, view: "leaderboard")
+      assert_response :success
+      assert_select "meta[name='turbo-refresh-method'][content='morph']"
+      assert_select "meta[name='turbo-refresh-scroll'][content='preserve']"
+      assert_select ".book-club-ranking-row", count: 2
+      assert_select ".book-club-ranking-row--current", count: 1 do
+        assert_select "strong", text: viewer.nickname
+      end
+      assert_select ".book-club-ranking-row:first-child .book-club-ranking-pages", text: "50"
+      sign_out viewer
+    end
   end
 
   test "a non-owner member cannot set the current pick" do

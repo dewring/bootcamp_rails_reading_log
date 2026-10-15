@@ -4,11 +4,15 @@ class Admin::UserPolicy < ApplicationPolicy
   end
 
   def create?
-    admin?
+    admin? && Rails.configuration.x.member_invitations_enabled
   end
 
   def update?
     admin?
+  end
+
+  def update_email?
+    admin? && !record.admin? && record != user
   end
 
   def update_status?

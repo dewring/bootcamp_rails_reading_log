@@ -4,7 +4,7 @@
   <div class="admin-member-field-grid">
     <div class="admin-field"><%= f.label :first_name, "First name" %><%= f.text_field :first_name, required: true %></div>
     <div class="admin-field"><%= f.label :last_name, "Last name" %><%= f.text_field :last_name, required: true %></div>
-    <div class="admin-field"><%= f.label :email, "Email" %><%= f.email_field :email, required: true %></div>
+    <div class="admin-field"><%= f.label :email, "Email" %><%= f.email_field :email, required: true, readonly: member.persisted? && !policy([:admin, member]).update_email? %></div>
     <div class="admin-field"><%= f.label :nickname, "Nickname" %><%= f.text_field :nickname, required: true %></div>
     <% if member.persisted? %>
       <div class="admin-field"><%= label_tag :admin_member_registration, "Registration" %><%= text_field_tag :admin_member_registration, "Joined #{member.created_at.strftime('%b %-d, %Y')}", readonly: true %></div>
@@ -19,8 +19,8 @@
               <%= image_tag "catalog-chevron-down.svg", alt: "", aria: { hidden: true } %>
             </button>
             <div id="admin-member-account-status-menu" class="catalog-dropdown-menu admin-select-menu" data-select-dropdown-target="menu" role="listbox" aria-label="Account status" hidden>
-              <% %w[active suspended].each do |status| %>
-                <button type="button" class="catalog-dropdown-option <%= 'is-selected' if member.account_status == status %>" data-select-dropdown-target="option" data-value="<%= status %>" role="option" aria-selected="<%= member.account_status == status %>" data-action="click->select-dropdown#select"><%= status.capitalize %></button>
+              <% [ "active", "suspended" ].each do |status| %>
+                <button type="button" class="catalog-dropdown-option <%= 'is-selected' if member.account_status == status %>" data-select-dropdown-target="option" data-select-dropdown-value-param="<%= status %>" role="option" aria-selected="<%= member.account_status == status %>" data-action="click->select-dropdown#select"><%= status.capitalize %></button>
               <% end %>
             </div>
           </div>

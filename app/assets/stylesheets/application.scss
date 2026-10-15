@@ -3401,6 +3401,10 @@ main.container:has(> .book-club-detail-page) {
   }
 }
 
+.book-club-creation form {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 // Shared action states for Book Detail, Reading Journal, and Finished History.
 .action-button {
   border: 1px solid $gray-mid;

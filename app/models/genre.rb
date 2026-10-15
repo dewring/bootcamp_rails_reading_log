@@ -1,17 +1,17 @@
 class Genre < ApplicationRecord
-  GENRES = %w[
-  Fiction
-  Non-Fiction
-  Mystery
-  Thriller
-  Romance
-  Fantasy
-  Science-Fiction
-  Biography
-  History
-  Self-Help
-  Horror
-  Poetry
+  GENRES = [
+    "Fiction",
+    "Non-Fiction",
+    "Mystery",
+    "Thriller",
+    "Romance",
+    "Fantasy",
+    "Science-Fiction",
+    "Biography",
+    "History",
+    "Self-Help",
+    "Horror",
+    "Poetry"
   ].freeze
 
   validates :name, presence: true, inclusion: { in: GENRES }
