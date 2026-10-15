@@ -7,6 +7,14 @@ class BookClubPolicy < ApplicationPolicy
     true
   end
 
+  def discuss?
+    admin? || member?
+  end
+
+  def post_message?
+    member?
+  end
+
   def create?
     user.present?
   end

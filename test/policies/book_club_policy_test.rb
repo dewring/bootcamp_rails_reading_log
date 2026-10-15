@@ -45,4 +45,43 @@ class BookClubPolicyTest < ActiveSupport::TestCase
     outsider = users(:admin)
     refute BookClubPolicy.new(outsider, @book_club).leave?
   end
+
+  test "club owner and member can discuss" do
+    assert BookClubPolicy.new(@owner, @book_club).discuss?
+    assert BookClubPolicy.new(@member, @book_club).discuss?
+  end
+
+  test "public overview access does not grant discussion access" do
+    @book_club.book_club_memberships.find_by!(user: @member).destroy!
+    policy = BookClubPolicy.new(@member, @book_club)
+
+    assert policy.show?
+    refute policy.discuss?
+  end
+
+  test "nonmember admin can access discussion but cannot post" do
+    policy = BookClubPolicy.new(users(:admin), @book_club)
+
+    assert policy.discuss?
+    refute policy.post_message?
+  end
+
+  test "members can post messages" do
+    assert BookClubPolicy.new(@owner, @book_club).post_message?
+    assert BookClubPolicy.new(@member, @book_club).post_message?
+  end
+
+  test "guest cannot discuss" do
+    refute BookClubPolicy.new(nil, @book_club).discuss?
+    refute BookClubPolicy.new(nil, @book_club).post_message?
+  end
+
+  test "discussion access is revoked when membership is removed" do
+    policy = BookClubPolicy.new(@member, @book_club)
+    assert policy.discuss?
+
+    @book_club.book_club_memberships.find_by!(user: @member).destroy!
+
+    refute policy.discuss?
+  end
 end
