@@ -43,6 +43,7 @@ Rails.application.routes.draw do
   resources :notifications, only: :update
   resources :book_clubs, only: [ :index, :show, :new, :create, :edit, :update, :destroy ] do
     get :search_books, on: :collection
+    resources :club_messages, only: [ :index, :create ]
     member do
       post :join
       delete :leave
