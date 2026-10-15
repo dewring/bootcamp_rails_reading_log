@@ -1,73 +1,27 @@
-import { Controller } from "@hotwired/stimulus"
+import NavDropdownController from "./nav_dropdown_controller"
 import { renderStreamMessage } from "@hotwired/turbo"
 import { cable } from "@hotwired/turbo-rails"
 
-export default class extends Controller<HTMLElement> {
-  static targets = ["menu", "trigger"]
-
-  declare readonly menuTarget: HTMLElement
-  declare readonly triggerTarget: HTMLButtonElement
-
-  private notificationSubscription?: { unsubscribe: () => void }
-  private subscriptionGeneration = 0
-  private boundCloseOnOutsideClick = this.closeOnOutsideClick.bind(this)
-  private boundCloseOnEscape = this.closeOnEscape.bind(this)
+export default class extends NavDropdownController {
+  private notificationSubscription?: Promise<{ unsubscribe: () => void } | undefined>
 
   connect() {
-    document.addEventListener("click", this.boundCloseOnOutsideClick)
-    document.addEventListener("keydown", this.boundCloseOnEscape)
-    void this.subscribeToNotifications(++this.subscriptionGeneration)
+    this.notificationSubscription = cable.subscribeTo("Noticed::NotificationChannel", {
+      received: (message: string) => renderStreamMessage(message)
+    }).catch(error => {
+      console.error("Failed to subscribe to notifications", error)
+      return undefined
+    })
   }
 
   disconnect() {
-    document.removeEventListener("click", this.boundCloseOnOutsideClick)
-    document.removeEventListener("keydown", this.boundCloseOnEscape)
-    this.subscriptionGeneration += 1
-    this.notificationSubscription?.unsubscribe()
+    super.disconnect()
+    const pendingSubscription = this.notificationSubscription
     this.notificationSubscription = undefined
-  }
-
-  toggle() {
-    this.isOpen() ? this.close() : this.open()
-  }
-
-  private open() {
-    this.menuTarget.hidden = false
-    this.triggerTarget.setAttribute("aria-expanded", "true")
-  }
-
-  private close() {
-    this.menuTarget.hidden = true
-    this.triggerTarget.setAttribute("aria-expanded", "false")
-  }
-
-  private isOpen(): boolean {
-    return this.triggerTarget.getAttribute("aria-expanded") === "true"
-  }
-
-  private closeOnOutsideClick(event: MouseEvent) {
-    if (!this.element.contains(event.target as Node)) {
-      this.close()
-    }
-  }
-
-  private closeOnEscape(event: KeyboardEvent) {
-    if (event.key === "Escape" && this.isOpen()) {
-      this.close()
-      this.triggerTarget.focus()
-    }
-  }
-
-  private async subscribeToNotifications(generation: number) {
-    const subscription = await cable.subscribeTo("Noticed::NotificationChannel", {
-      received: (message: string) => renderStreamMessage(message)
+    pendingSubscription?.then(subscription => {
+      subscription?.unsubscribe()
+    }).catch(error => {
+      console.error("Failed to unsubscribe from notifications", error)
     })
-
-    if (generation !== this.subscriptionGeneration) {
-      subscription.unsubscribe()
-      return
-    }
-
-    this.notificationSubscription = subscription
   }
 }

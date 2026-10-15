@@ -1,7 +1,7 @@
 class BooksController < ApplicationController
   include LogsRecordNotFound
 
-  SORTABLE_COLUMNS = %w[title author total_pages].freeze
+  SORTABLE_COLUMNS = [ "title", "author", "total_pages" ].freeze
 
   before_action :authenticate_user!, only: [ :discover, :most_recent_session, :search, :import, :quick_add ]
   rescue_from ActiveRecord::RecordNotFound, with: :not_found
@@ -21,8 +21,7 @@ class BooksController < ApplicationController
       books.includes(:genres)
     end
     @books = @books.joins(:genres).where(genres: { name: params[:genre] }) if params[:genre].present?
-    sort_col = SORTABLE_COLUMNS.include?(params[:sort]) ? params[:sort] : "title"
-    @books = @books.order(sort_col)
+    @books = apply_catalog_order(@books)
     @pagy, @books = pagy(:offset, @books, limit: 10)
 
     respond_to do |format|
@@ -137,6 +136,18 @@ class BooksController < ApplicationController
 
   def set_book
     @book = Book.find(params[:id])
+  end
+
+  def apply_catalog_order(books)
+    case params[:filter]
+    when "most_read"
+      Book.where(id: books.select(:id)).most_read
+    when "new_books"
+      books.order(created_at: :desc)
+    else
+      sort_col = SORTABLE_COLUMNS.include?(params[:sort]) ? params[:sort] : "title"
+      books.order(sort_col)
+    end
   end
 
   def not_found

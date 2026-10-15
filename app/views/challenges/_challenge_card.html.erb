@@ -1,0 +1,102 @@
+<%
+  progress = user_challenge&.progress.to_i.clamp(0, 100)
+  status = if state == "available"
+    "Available"
+  else
+    { "active" => "Ongoing", "in_progress" => (progress >= 90 ? "Nearly complete" : "Ongoing"), "completed" => "Completed", "failed" => "Expired" }.fetch(user_challenge.status, user_challenge.status.humanize)
+  end
+  icon = if state == "available"
+    "challenges-book-open-text.svg"
+  elsif challenge.goal_type == "streak_days"
+    "challenges-flame.svg"
+  else
+    "challenges-library.svg"
+  end
+  goal_type_label = { "books_total" => "Total books", "pages_per_day" => "Pages per day", "streak_days" => "Streak days" }.fetch(challenge.goal_type, challenge.goal_type.humanize)
+  goal_value_label = case challenge.goal_type
+  when "books_total" then pluralize(challenge.goal_value, "book")
+  when "pages_per_day" then pluralize(challenge.goal_value, "page")
+  when "streak_days" then pluralize(challenge.goal_value, "day")
+  else challenge.goal_value.to_s
+  end
+  completed_value = (challenge.goal_value * progress / 100.0).round
+  progress_label = case challenge.goal_type
+  when "books_total" then "#{completed_value} / #{challenge.goal_value} books"
+  when "streak_days" then "#{completed_value} / #{challenge.goal_value} days"
+  else "#{progress}% complete"
+  end
+  progress_note = user_challenge&.failed? ? "Challenge ended" : (user_challenge&.completed? ? "Achievement badge earned" : "Automatically synced from My Log")
+%>
+
+<article class="challenge-card challenge-card--<%= state %>">
+  <header class="challenge-card-header">
+    <span class="challenge-card-status"><%= status %></span>
+    <span class="challenge-card-icon" aria-hidden="true">
+      <%= image_tag icon, alt: "" %>
+    </span>
+  </header>
+
+  <div class="challenge-card-title-block">
+    <h3><%= challenge.title %></h3>
+    <p><%= challenge.goal_summary %>.</p>
+  </div>
+
+  <dl class="challenge-facts">
+    <div>
+      <dt>Goal type</dt>
+      <dd><%= goal_type_label %></dd>
+    </div>
+    <div>
+      <dt>Goal</dt>
+      <dd><%= goal_value_label %></dd>
+    </div>
+    <div>
+      <dt>Start</dt>
+      <dd><%= challenge.starts_at.strftime("%b %-d %Y") %></dd>
+    </div>
+    <div>
+      <dt>End</dt>
+      <dd><%= challenge.ends_at.strftime("%b %-d %Y") %></dd>
+    </div>
+  </dl>
+
+  <% if user_challenge %>
+    <div class="challenge-progress-module">
+      <div class="challenge-progress-ring"
+           role="progressbar"
+           aria-label="<%= challenge.title %> progress"
+           aria-valuemin="0"
+           aria-valuemax="100"
+           aria-valuenow="<%= progress %>">
+        <svg viewBox="0 0 84 84" aria-hidden="true">
+          <circle class="challenge-progress-ring-track" cx="42" cy="42" r="34" pathLength="100"></circle>
+          <circle class="challenge-progress-ring-value" cx="42" cy="42" r="34" pathLength="100" stroke-dasharray="<%= progress %> 100"></circle>
+        </svg>
+        <strong><%= progress %>%</strong>
+      </div>
+
+      <div class="challenge-progress-copy">
+        <strong><%= progress_label %></strong>
+        <div class="challenge-segmented-progress" aria-hidden="true">
+          <% 20.times do |segment| %>
+            <span class="<%= "is-filled" if progress >= (segment + 1) * 5 %>"></span>
+          <% end %>
+        </div>
+        <span><%= progress_note %></span>
+      </div>
+    </div>
+  <% else %>
+    <div class="challenge-available-action">
+      <span>Ready to begin</span>
+      <%= button_to user_challenges_path,
+            method: :post,
+            params: { user_challenge: { challenge_id: challenge.id } },
+            form: { class: "challenge-enroll-form" },
+            class: "challenge-card-action" do %>
+        <span>Enroll</span>
+        <%= image_tag "challenges-arrow-right.svg", alt: "", aria: { hidden: true } %>
+      <% end %>
+    </div>
+  <% end %>
+
+</article>

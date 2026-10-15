@@ -1,0 +1,14 @@
+<div class="my-log-page reading-detail-page reading-detail-page--finished">
+  <div class="my-log-body">
+    <%= render "dashboard/sidebar", active_section: :history %>
+
+    <section class="my-log-main" aria-label="Finished reading history">
+      <%= render "dashboard/library_intro", reading_count: current_user.user_books.where(status: "reading").count %>
+
+      <div class="reading-detail-content">
+        <%= render "reading_sessions/detail_summary", finished: true %>
+        <%= render "reading_sessions/detail_history", finished: true, finished_on: @finished_on %>
+      </div>
+    </section>
+  </div>
+</div>

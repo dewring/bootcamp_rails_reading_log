@@ -24,6 +24,11 @@ class Book < ApplicationRecord
   has_many :book_clubs, foreign_key: :current_book_id
 
   # 5. Scopes
+  scope :matching_club_pick, ->(text) {
+    query = text.to_s.strip
+    query.present? ? where("title ILIKE :query OR author ILIKE :query", query: "%#{sanitize_sql_like(query)}%") : none
+  }
+
   scope :most_read, -> {
     left_joins(:reading_sessions)
       .group(:id)

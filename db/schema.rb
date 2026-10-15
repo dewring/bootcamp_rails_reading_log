@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_09_23_210451) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_08_034000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -254,6 +254,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_23_210451) do
   end
 
   create_table "users", force: :cascade do |t|
+    t.string "account_status", default: "active", null: false
     t.datetime "created_at", null: false
     t.string "email", default: "", null: false
     t.string "encrypted_password", default: "", null: false
@@ -265,9 +266,11 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_23_210451) do
     t.string "reset_password_token"
     t.string "role", default: "user", null: false
     t.datetime "updated_at", null: false
+    t.index ["account_status"], name: "index_users_on_account_status"
     t.index ["email"], name: "index_users_on_email", unique: true
     t.index ["nickname"], name: "index_users_on_nickname", unique: true
     t.index ["reset_password_token"], name: "index_users_on_reset_password_token", unique: true
+    t.check_constraint "account_status::text = ANY (ARRAY['active'::character varying, 'invited'::character varying, 'suspended'::character varying]::text[])", name: "users_account_status_valid"
   end
 
   create_table "webhook_endpoints", force: :cascade do |t|

@@ -1,0 +1,31 @@
+class Admin::UserPolicy < ApplicationPolicy
+  def index?
+    admin?
+  end
+
+  def create?
+    admin? && Rails.configuration.x.member_invitations_enabled
+  end
+
+  def update?
+    admin?
+  end
+
+  def update_email?
+    admin? && !record.admin? && record != user
+  end
+
+  def update_status?
+    admin? && !record.admin? && record != user
+  end
+
+  def destroy?
+    update_status? && !record.book_club_memberships.exists?(role: "owner")
+  end
+
+  class Scope < ApplicationPolicy::Scope
+    def resolve
+      user&.admin? ? scope.all : scope.none
+    end
+  end
+end

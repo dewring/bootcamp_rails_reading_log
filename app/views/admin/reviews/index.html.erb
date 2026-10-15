@@ -1,0 +1,93 @@
+<% content_for :title, "Review Management · BookNook" %>
+
+<div class="admin-page admin-page--reviews">
+  <%= render "admin/shared/topbar" %>
+  <div class="admin-body">
+    <%= render "admin/shared/sidebar", active_section: :reviews %>
+
+    <main class="admin-main" aria-labelledby="admin-reviews-title">
+      <div class="admin-page-heading">
+        <div>
+          <p class="admin-eyebrow">COMMUNITY QUALITY</p>
+          <h1 id="admin-reviews-title">Review Management</h1>
+          <p class="admin-page-description">Review reader feedback and ratings across the BookNook community.</p>
+        </div>
+      </div>
+
+      <div class="admin-reviews-workspace">
+        <section class="admin-reviews-list" aria-label="All reader reviews">
+          <%= form_with url: admin_reviews_path, method: :get, class: "admin-reviews-search" do |f| %>
+            <%= hidden_field_tag :rating, @rating if @rating %>
+            <%= f.search_field :q, value: @query, placeholder: "Search · Nickname, book, author, or review", aria: { label: "Search reviews by nickname, book title, author, or review text" } %>
+            <%= f.submit "Search" %>
+          <% end %>
+          <div class="admin-reviews-filters" aria-label="Review filters">
+            <%= link_to "All records", admin_reviews_path(q: @query.presence), class: "admin-reviews-filter #{'is-active' if @rating.nil?}", aria: { current: ("true" if @rating.nil?) } %>
+            <div class="admin-reviews-rating-filter admin-select-dropdown" data-controller="nav-menu" data-action="dropdown:opened@window->nav-menu#closeIfAnother click@document->nav-menu#closeOnOutsideClick keydown.esc@document->nav-menu#closeOnEscape">
+              <button type="button" class="admin-reviews-filter admin-select-trigger <%= 'is-active' if @rating %>" data-nav-menu-target="trigger" data-action="click->nav-menu#toggle" aria-expanded="false" aria-controls="admin-reviews-rating-menu" aria-label="Filter reviews by rating">
+                <span><%= @rating ? "#{@rating} / 5 stars" : "All ratings" %></span>
+                <%= image_tag "catalog-chevron-down.svg", alt: "", aria: { hidden: true } %>
+              </button>
+              <nav id="admin-reviews-rating-menu" class="catalog-dropdown-menu admin-select-menu" data-nav-menu-target="menu" aria-label="Ratings" hidden>
+                <%= link_to "All ratings", admin_reviews_path(q: @query.presence), class: "catalog-dropdown-option #{'is-selected' if @rating.nil?}", aria: { current: ("true" if @rating.nil?) } %>
+                <% (0..5).each do |rating| %>
+                  <%= link_to "#{rating} / 5 stars", admin_reviews_path(q: @query.presence, rating: rating), class: "catalog-dropdown-option #{'is-selected' if @rating == rating.to_s}", aria: { current: ("true" if @rating == rating.to_s) } %>
+                <% end %>
+              </nav>
+            </div>
+          </div>
+          <div class="admin-reviews-records">
+            <% @reviews.each do |review| %>
+              <article class="admin-review-record <%= 'is-selected' if @selected_review == review %>" id="<%= dom_id(review, :admin) %>">
+                <%= link_to admin_reviews_path(q: @query.presence, rating: @rating, page: params[:page], review_id: review.id), class: "admin-review-select", aria: { current: ("true" if @selected_review == review) } do %>
+                  <strong><%= review.user.nickname %></strong>
+                  <span class="admin-review-book"><%= review.book.title %> · <%= review.book.author %></span>
+                  <span class="admin-review-excerpt"><%= review.body.presence || "No written review" %></span>
+                <% end %>
+                <div class="admin-review-footer">
+                  <span class="admin-review-rating" aria-label="<%= review.rating %> out of 5 stars"><%= "★" * review.rating %><%= "☆" * (5 - review.rating) %> <time datetime="<%= review.created_at.iso8601 %>">· <%= review.created_at.strftime("%b %-d, %Y") %></time></span>
+                  <div class="admin-review-actions">
+                    <%= link_to "View", admin_reviews_path(q: @query.presence, rating: @rating, page: params[:page], review_id: review.id, anchor: "admin-review-detail-title"), aria: { label: "View review by #{review.user.nickname}" } %>
+                    <%= button_to "Delete", admin_review_path(review, q: @query.presence, rating: @rating), method: :delete, aria: { label: "Delete review by #{review.user.nickname}" }, data: { turbo_confirm: "Permanently delete this review by #{review.user.nickname}?" } %>
+                  </div>
+                </div>
+              </article>
+            <% end %>
+            <% if @reviews.empty? %>
+              <div class="admin-reviews-empty">
+                <h2><%= @query.present? || @rating ? "No matching reviews" : "No reviews yet" %></h2>
+                <p><%= @query.present? || @rating ? "Try another nickname, title, author, phrase, or rating." : "Reader reviews will appear here when they are submitted." %></p>
+              </div>
+            <% end %>
+          </div>
+          <footer class="admin-reviews-pagination">
+            <p><%= pluralize(@pagy.count, "review") %> · Page <%= @pagy.page %> of <%= @pagy.last %></p>
+            <%== @pagy.series_nav if @pagy.last > 1 %>
+          </footer>
+        </section>
+
+        <section class="admin-review-detail" aria-labelledby="admin-review-detail-title">
+          <p class="admin-eyebrow">SELECTED RECORD</p>
+          <h2 id="admin-review-detail-title">Review details</h2>
+          <p class="admin-review-detail-intro">Read the selected review and its book information.</p>
+          <% if @selected_review %>
+            <% review = @selected_review %>
+            <dl class="admin-review-field-grid">
+              <div><dt>Reader</dt><dd><%= review.user.nickname %></dd></div>
+              <div><dt>Book</dt><dd><%= link_to review.book.title, book_path(review.book) %></dd></div>
+              <div><dt>Author</dt><dd><%= review.book.author %></dd></div>
+              <div><dt>Rating / date</dt><dd><span aria-label="<%= review.rating %> out of 5 stars"><%= "★" * review.rating %><%= "☆" * (5 - review.rating) %></span> · <%= review.created_at.strftime("%b %-d, %Y") %></dd></div>
+              <div class="admin-review-body-field"><dt>Review</dt><dd><%= simple_format(h(review.body.presence || "No written review")) %></dd></div>
+            </dl>
+            <div class="admin-review-detail-actions">
+              <%= link_to "View book", book_path(review.book), class: "admin-secondary-button" %>
+              <%= button_to "Delete review", admin_review_path(review, q: @query.presence, rating: @rating), method: :delete, class: "admin-review-delete-button", data: { turbo_confirm: "Permanently delete this review by #{review.user.nickname}?" } %>
+            </div>
+          <% else %>
+            <p class="admin-review-detail-empty">Select a review from the list to see its details.</p>
+          <% end %>
+        </section>
+      </div>
+    </main>
+  </div>
+</div>

@@ -1,0 +1,74 @@
+<section class="reading-detail-card reading-detail-history" aria-labelledby="reading-history-title">
+  <% history_available = @reading_sessions.any? %>
+  <% finished_on = local_assigns[:finished_on] || @reading_sessions.first&.read_on || Date.current %>
+  <% history_entry_count = @reading_sessions.size + (finished ? 1 : 0) %>
+  <div class="reading-detail-card-heading">
+    <div>
+      <h3 id="reading-history-title">Reading history</h3>
+      <p>A chronological record of every saved reading session for this book.</p>
+    </div>
+    <span class="reading-detail-status"><%= pluralize(history_entry_count, "entry") %></span>
+  </div>
+
+  <% if history_available || finished %>
+    <div class="reading-detail-timeline">
+      <% if finished %>
+        <article class="reading-detail-timeline-item reading-detail-timeline-item--finished">
+          <%= image_tag @reading_sessions.any? ? "reading-timeline-rail.svg" : "reading-timeline-rail-finished.svg",
+                class: "reading-detail-timeline-rail",
+                alt: "" %>
+          <div class="reading-detail-entry reading-detail-entry--finished">
+            <div class="reading-detail-entry-header">
+              <strong><%= finished_on.strftime("%B %-d, %Y") %></strong>
+              <% if @reading_sessions.first %>
+                <span><%= pluralize(@reading_sessions.first.pages_read, "page") %></span>
+              <% end %>
+            </div>
+            <h4>Finished reading</h4>
+            <p>Completed your reading journey with this book.</p>
+            <span class="reading-detail-status">Earned</span>
+          </div>
+        </article>
+      <% end %>
+
+      <% @reading_sessions.each_with_index do |reading_session, index| %>
+        <article class="reading-detail-timeline-item">
+          <%= image_tag index == @reading_sessions.length - 1 ? "reading-timeline-rail-finished.svg" : "reading-timeline-rail.svg",
+                class: "reading-detail-timeline-rail",
+                alt: "" %>
+          <div class="reading-detail-entry">
+            <div class="reading-detail-entry-header">
+              <strong><%= reading_session.read_on.strftime("%B %-d, %Y") %></strong>
+              <span><%= pluralize(reading_session.pages_read, "page") %></span>
+            </div>
+            <% if reading_session.notes.present? %>
+              <p><%= reading_session.notes %></p>
+            <% end %>
+          </div>
+        </article>
+      <% end %>
+    </div>
+  <% else %>
+    <div class="reading-detail-empty-state">
+      <div class="reading-detail-empty-icon">
+        <%= image_tag "reading-book-open-empty.svg", alt: "" %>
+      </div>
+      <div>
+        <h4>No reading records yet</h4>
+        <p>Once you save a reading session, it will appear here as a record of your progress.</p>
+      </div>
+      <% unless finished %>
+        <%= link_to "#reading-record", class: "reading-detail-save action-button action-button--primary" do %>
+          Add first reading record
+        <% end %>
+      <% end %>
+    </div>
+  <% end %>
+
+  <div class="reading-detail-history-footer">
+    <div>
+      <strong>Reading history</strong>
+      <p><%= history_available ? "Your reading history is up to date. Continue reading to add the next session to this timeline." : "Your reading history is empty. Continue reading and save your first entry to start building this timeline." %></p>
+    </div>
+  </div>
+</section>

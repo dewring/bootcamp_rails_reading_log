@@ -90,6 +90,33 @@ current conversation take precedence.
 22. Avoid destructive commands such as `git reset --hard`, broad file removal,
     or discarding user changes unless the user explicitly requests them.
 
+23. Write each statement on a separate line. Do not combine multiple
+    statements on one line.
+
+24. Before implementing a new feature, inspect the existing code for
+    reusable behavior. Reuse or extend it when it can satisfy the
+    requirement. Add new code only when the existing implementation
+    cannot reasonably support the feature.
+
+25. After changing code, check for code that has become unused or
+    unreachable. If you find any, notify the user immediately and explain
+    why it is no longer needed.
+
+26. For asynchronous resource setup, retain and handle the setup Promise
+    directly instead of tracking lifecycle generations with a counter.
+    Cleanup must capture that Promise and release its resource when it
+    resolves, even after disconnection or reconnection. Handle rejections
+    explicitly and test pending setup, reconnection, and cleanup failures.
+
+27. Prefer explicit, intention-revealing methods over operator shorthand.
+    Use `push` for array appends and `concat` for string appends. For IO
+    output, prefer `write` when its behavior fits the caller. Keep `<<`
+    for bit shifts. When replacing operators, preserve behavior and account
+    for differences in return values.
+
+28. Avoid `%w` string-array shorthand. Prefer explicit arrays such as
+    `["active", "suspended"]`.
+
 ## Project shape
 
 - `app/controllers` — thin controllers responsible for request coordination,

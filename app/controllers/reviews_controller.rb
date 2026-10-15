@@ -1,7 +1,15 @@
 class ReviewsController < ApplicationController
   before_action :authenticate_user!
-  before_action :set_book
+  before_action :set_book, only: [ :new, :create, :edit, :update ]
   before_action :set_review, only: [ :edit, :update ]
+
+  def index
+    authorize Review
+    reviews = current_user.reviews
+      .includes(book: { cover_image_attachment: :blob })
+      .order(created_at: :desc)
+    @pagy, @reviews = pagy(:offset, reviews, limit: 6)
+  end
 
   def new
     @review = @book.reviews.build(user: current_user)
@@ -38,7 +46,7 @@ class ReviewsController < ApplicationController
   def update
     authorize @review
     if @review.update(review_params)
-      redirect_to book_path(@book), notice: "Review updated!"
+      redirect_to params[:from] == "reviews" ? reviews_path : book_path(@book), notice: "Review updated!"
     else
       render :edit, status: :unprocessable_entity
     end

@@ -1,0 +1,35 @@
+<% if member.errors.any? %><p class="admin-validation-errors" role="alert"><%= member.errors.full_messages.to_sentence %></p><% end %>
+<%= form_with model: member, url: member.persisted? ? admin_member_path(member) : admin_members_path, class: "admin-member-form" do |f| %>
+  <% [:q, :status, :sort, :page].each do |key| %><%= hidden_field_tag key, params[key] if params[key].present? %><% end %>
+  <div class="admin-member-field-grid">
+    <div class="admin-field"><%= f.label :first_name, "First name" %><%= f.text_field :first_name, required: true %></div>
+    <div class="admin-field"><%= f.label :last_name, "Last name" %><%= f.text_field :last_name, required: true %></div>
+    <div class="admin-field"><%= f.label :email, "Email" %><%= f.email_field :email, required: true, readonly: member.persisted? && !policy([:admin, member]).update_email? %></div>
+    <div class="admin-field"><%= f.label :nickname, "Nickname" %><%= f.text_field :nickname, required: true %></div>
+    <% if member.persisted? %>
+      <div class="admin-field"><%= label_tag :admin_member_registration, "Registration" %><%= text_field_tag :admin_member_registration, "Joined #{member.created_at.strftime('%b %-d, %Y')}", readonly: true %></div>
+      <div class="admin-field"><%= label_tag :admin_member_activity, "Activity" %><%= text_field_tag :admin_member_activity, admin_member_activity(member), readonly: true %></div>
+      <div class="admin-field admin-member-status-field">
+        <% if policy([:admin, member]).update_status? %>
+          <%= label_tag :admin_member_status_trigger, "Status" %>
+          <div class="admin-select-dropdown" data-controller="select-dropdown" data-action="click@document->select-dropdown#closeUnlessInside keydown.esc@document->select-dropdown#close">
+            <%= f.hidden_field :account_status, data: { select_dropdown_target: "value" } %>
+            <button type="button" id="admin_member_status_trigger" class="admin-select-trigger" data-select-dropdown-target="trigger" data-action="click->select-dropdown#toggle" aria-haspopup="listbox" aria-expanded="false" aria-controls="admin-member-account-status-menu">
+              <span data-select-dropdown-target="label"><%= member.account_status.capitalize %></span>
+              <%= image_tag "catalog-chevron-down.svg", alt: "", aria: { hidden: true } %>
+            </button>
+            <div id="admin-member-account-status-menu" class="catalog-dropdown-menu admin-select-menu" data-select-dropdown-target="menu" role="listbox" aria-label="Account status" hidden>
+              <% [ "active", "suspended" ].each do |status| %>
+                <button type="button" class="catalog-dropdown-option <%= 'is-selected' if member.account_status == status %>" data-select-dropdown-target="option" data-select-dropdown-value-param="<%= status %>" role="option" aria-selected="<%= member.account_status == status %>" data-action="click->select-dropdown#select"><%= status.capitalize %></button>
+              <% end %>
+            </div>
+          </div>
+        <% else %>
+          <%= label_tag :admin_member_status, "Status" %><%= text_field_tag :admin_member_status, member.account_status.capitalize, readonly: true %>
+        <% end %>
+      </div>
+      <div class="admin-field"><%= label_tag :admin_member_role, "Role" %><%= text_field_tag :admin_member_role, member.role.capitalize, readonly: true %></div>
+    <% end %>
+  </div>
+  <div class="admin-member-form-actions"><%= link_to "Cancel", admin_members_path, class: "admin-secondary-button" if @is_invitation %><%= f.submit member.persisted? ? "Save changes" : "Send invitation", class: "admin-primary-button" %></div>
+<% end %>

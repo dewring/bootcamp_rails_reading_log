@@ -1,0 +1,19 @@
+<% if club.errors.any? %>
+  <div class="admin-club-errors" role="alert"><p><%= club.errors.full_messages.to_sentence %></p></div>
+<% end %>
+<%= form_with model: [:admin, club], class: "admin-club-form" do |f| %>
+  <%= hidden_field_tag :q, @query if @query.present? %>
+  <%= hidden_field_tag :sort, @sort %>
+  <%= hidden_field_tag :page, params[:page] if params[:page].present? %>
+  <div class="admin-club-field-grid">
+    <div class="admin-field"><%= f.label :name, "Club name" %><%= f.text_field :name, required: true %></div>
+    <div class="admin-field"><%= label_tag "admin_club_owner", "Owner" %><%= text_field_tag :admin_club_owner, club.persisted? ? admin_club_owner(club) : current_user.nickname, readonly: true %></div>
+    <%= render "book_clubs/pick_fields", f: f, club: club, search_url: search_books_admin_book_clubs_path, search_id: "admin_club_current_book_search", results_id: "admin-club-book-results" %>
+    <div class="admin-field admin-club-members"><%= label_tag "admin_club_members", "Members" %><%= text_field_tag :admin_club_members, pluralize(club.book_club_memberships_count, "member"), readonly: true %></div>
+    <div class="admin-field admin-club-description"><%= f.label :description %><%= f.text_area :description, rows: 4 %></div>
+  </div>
+  <div class="admin-club-form-actions">
+    <%= link_to "Cancel", admin_book_clubs_path(club_id: (club.id if club.persisted?), q: @query.presence, sort: @sort, page: params[:page]), class: "admin-secondary-button" if @is_new_club %>
+    <%= f.submit club.persisted? ? "Save changes" : "Create Club", class: "admin-primary-button" %>
+  </div>
+<% end %>

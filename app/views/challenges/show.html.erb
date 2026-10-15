@@ -5,10 +5,6 @@
     <p><%= @challenge.date_range %></p>
   </hgroup>
 
-  <% if policy(@challenge).edit? %>
-    <p><%= link_to "Edit", edit_admin_challenge_path(@challenge), class: "btn-cta btn-cta-secondary" %></p>
-  <% end %>
-
   <% user_challenge = current_user.user_challenges.find_by(challenge: @challenge) %>
 
   <%= turbo_frame_tag dom_id(@challenge, :enrollment) do %>
@@ -22,7 +18,7 @@
         </div>
       </div>
 
-      <% if user_challenge.status.in?(%w[active in_progress]) %>
+      <% if user_challenge.status.in?([ "active", "in_progress" ]) %>
         <%= button_to "Abandon", user_challenge_path(user_challenge), method: :delete,
               data: { turbo_confirm: "Abandon this challenge?" },
               class: "btn-md btn-danger" %>

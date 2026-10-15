@@ -1,0 +1,56 @@
+<section class="my-log-section <%= shelf_class %>">
+  <div class="my-log-section-heading">
+    <div>
+      <h2><%= title %></h2>
+      <p><%= subtitle %></p>
+    </div>
+  </div>
+
+  <div class="my-log-divider" aria-hidden="true"></div>
+
+  <% if user_books.any? %>
+    <div class="my-log-carousel" data-controller="my-log-carousel" data-my-log-carousel-page-size-value="5">
+      <button type="button"
+              class="my-log-carousel-arrow my-log-carousel-arrow--previous"
+              data-action="my-log-carousel#previous"
+              data-my-log-carousel-target="previous"
+              aria-label="Previous books">
+        <%= image_tag "my-log-chevron-left.svg", alt: "" %>
+      </button>
+      <div class="my-log-carousel-viewport" data-my-log-carousel-target="viewport">
+        <div class="my-log-carousel-track" data-my-log-carousel-target="track">
+          <% user_books.each do |user_book| %>
+            <% destination = if shelf_class == "my-log-section--finished"
+              book_finished_journal_path(user_book.book)
+            elsif shelf_class == "my-log-section--reading"
+              book_reading_journal_path(user_book.book)
+            else
+              book_path(user_book.book)
+            end %>
+            <%= link_to destination, class: "my-log-book-card" do %>
+              <% if user_book.book.cover_image.attached? %>
+                <%= image_tag user_book.book.cover_image.variant(resize_to_fill: [ 134, 197 ]),
+                      class: "my-log-book-cover",
+                      alt: "Cover of #{user_book.book.title}" %>
+              <% else %>
+                <div class="my-log-book-cover my-log-book-cover--empty" aria-hidden="true">📚</div>
+              <% end %>
+              <strong><%= user_book.book.title %></strong>
+              <span><%= user_book.book.author %></span>
+            <% end %>
+          <% end %>
+        </div>
+      </div>
+      <button type="button"
+              class="my-log-carousel-arrow my-log-carousel-arrow--next"
+              data-action="my-log-carousel#next"
+              data-my-log-carousel-target="next"
+              aria-label="Next books">
+        <%= image_tag "my-log-chevron-right.svg", alt: "" %>
+      </button>
+    </div>
+  <% else %>
+    <% empty_message = shelf_class == "my-log-section--reading" ? "No books in progress yet." : "No books saved for later yet." %>
+    <p class="my-log-empty-shelf"><%= empty_message %></p>
+  <% end %>
+</section>

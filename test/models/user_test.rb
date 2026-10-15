@@ -47,6 +47,17 @@ class UserTest < ActiveSupport::TestCase
     assert_not @user.valid?
   end
 
+  test "avatar must be an image" do
+    @user.avatar.attach(
+      io: StringIO.new("not an image"),
+      filename: "avatar.txt",
+      content_type: "text/plain"
+    )
+
+    assert_not @user.valid?
+    assert_includes @user.errors[:avatar], "must be an image"
+  end
+
   test "provides notification panel locals for the user" do
     book_club = BookClub.create!(name: "Sci-Fi Society")
     notification = BookClubPickNotifier.with(

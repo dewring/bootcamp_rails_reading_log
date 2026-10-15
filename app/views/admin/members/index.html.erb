@@ -1,0 +1,58 @@
+<% content_for :title, "Member Management · BookNook" %>
+<div class="admin-page admin-page--members">
+  <%= render "admin/shared/topbar" %>
+  <div class="admin-body">
+    <%= render "admin/shared/sidebar", active_section: :members %>
+    <main class="admin-main" aria-labelledby="admin-members-title">
+      <div class="admin-page-heading">
+        <div><p class="admin-eyebrow">COMMUNITY OPERATIONS</p><h1 id="admin-members-title">Member Management</h1><p class="admin-page-description">Manage profiles, access, status, and reader activity.</p></div>
+        <% if policy([:admin, User]).create? %>
+          <%= link_to admin_members_path(invite: true, q: @query.presence, status: @status, sort: @sort, page: params[:page]), class: "admin-primary-button" do %>
+            <%= image_tag "admin-plus.svg", alt: "" %>
+            <span>Invite Member</span>
+          <% end %>
+        <% end %>
+      </div>
+      <div class="admin-reviews-workspace admin-members-workspace">
+        <section class="admin-reviews-list" aria-label="Members">
+          <%= form_with url: admin_members_path, method: :get, class: "admin-reviews-search" do |f| %>
+            <%= f.hidden_field :status, value: @status if @status %><%= f.hidden_field :sort, value: @sort %>
+            <%= f.search_field :q, value: @query, placeholder: "Search · Search members", aria: { label: "Search members by name, nickname, or email" } %><%= f.submit "Search" %>
+          <% end %>
+          <div class="admin-reviews-filters">
+            <%= link_to "All records", admin_members_path(q: @query.presence, sort: @sort), class: "admin-reviews-filter #{'is-active' if @status.nil?}" %>
+            <% [["Status", "status", [["All statuses", nil], ["Active", "active"], ["Invited", "invited"], ["Suspended", "suspended"]], @status], ["Updated", "sort", [["Recently updated", "updated"], ["Member name", "name"]], @sort]].each do |label, key, options, selected| %>
+              <div class="admin-reviews-rating-filter admin-select-dropdown" data-controller="nav-menu" data-action="dropdown:opened@window->nav-menu#closeIfAnother click@document->nav-menu#closeOnOutsideClick keydown.esc@document->nav-menu#closeOnEscape">
+                <button type="button" class="admin-reviews-filter admin-select-trigger" data-nav-menu-target="trigger" data-action="click->nav-menu#toggle" aria-expanded="false" aria-controls="admin-member-<%= key %>-menu" aria-label="Filter members by <%= key %>"><span><%= options.find { |_, value| value == selected }&.first || label %></span><%= image_tag "catalog-chevron-down.svg", alt: "", aria: { hidden: true } %></button>
+                <nav id="admin-member-<%= key %>-menu" class="catalog-dropdown-menu admin-select-menu" data-nav-menu-target="menu" aria-label="<%= label %>" hidden>
+                  <% options.each do |text, value| %>
+                    <% next if value == "invited" && !policy([:admin, User]).create? %>
+                    <%= link_to text, admin_members_path({ q: @query.presence, status: @status, sort: @sort }.merge(key.to_sym => value)), class: "catalog-dropdown-option #{'is-selected' if value == selected}", aria: { current: ("true" if value == selected) } %>
+                  <% end %>
+                </nav>
+              </div>
+            <% end %>
+          </div>
+          <div class="admin-reviews-records">
+            <% @members.each do |member| %>
+              <article class="admin-review-record admin-member-record <%= 'is-selected' if member == @selected_member %>">
+                <%= link_to admin_members_path(member_id: member.id, q: @query.presence, status: @status, sort: @sort, page: params[:page]), class: "admin-review-select", aria: { current: ("true" if member == @selected_member) } do %>
+                  <span class="admin-member-heading"><strong><%= member.first_name %> <%= member.last_name %></strong><span class="admin-member-status admin-member-status--<%= member.account_status %>"><%= member.account_status.capitalize %></span></span>
+                  <span class="admin-member-account"><%= member.email %> · @<%= member.nickname %> · Joined <%= member.created_at.strftime("%b %-d, %Y") %></span>
+                <% end %>
+                <div class="admin-review-footer"><span class="admin-member-activity"><%= admin_member_activity(member) %></span><div class="admin-review-actions"><%= link_to "View", admin_members_path(member_id: member.id, q: @query.presence, status: @status, sort: @sort, page: params[:page], anchor: "admin-member-detail-title"), aria: { label: "View #{member.nickname}" } %><% if admin_member_deletable?(member) %><%= button_to "Delete", admin_member_path(member, q: @query.presence, status: @status, sort: @sort), method: :delete, aria: { label: "Delete #{member.nickname}" }, data: { turbo_confirm: "Permanently delete #{member.nickname} and their account data?" } %><% end %></div></div>
+              </article>
+            <% end %>
+            <% if @members.empty? %><div class="admin-reviews-empty"><h2>No matching members</h2><p>Try another name, nickname, email, or status.</p></div><% end %>
+          </div>
+          <footer class="admin-reviews-pagination"><p><%= pluralize(@pagy.count, "member") %> · Page <%= @pagy.page %> of <%= @pagy.last %></p><%== @pagy.series_nav if @pagy.last > 1 %></footer>
+        </section>
+        <section class="admin-review-detail admin-member-detail" aria-labelledby="admin-member-detail-title">
+          <div class="admin-member-heading"><div><p class="admin-eyebrow"><%= @is_invitation ? "NEW MEMBER" : "SELECTED RECORD" %></p><h2 id="admin-member-detail-title"><%= @is_invitation ? "Invite a member" : "Member profile" %></h2></div><% if @selected_member&.persisted? %><span class="admin-member-status admin-member-status--<%= @selected_member.account_status %>"><%= @selected_member.account_status.capitalize %></span><% end %></div>
+          <p class="admin-review-detail-intro"><%= @is_invitation ? "Send a password setup link to a new member." : "Review and update the selected member’s record." %></p>
+          <% if @selected_member %><%= render "form", member: @selected_member %><% else %><p class="admin-review-detail-empty">Select a member to manage their account.</p><% end %>
+        </section>
+      </div>
+    </main>
+  </div>
+</div>

@@ -1,0 +1,122 @@
+<div class="my-log-page history-page">
+  <div class="my-log-body">
+    <%= render "dashboard/sidebar", active_section: :history %>
+
+    <main class="my-log-main" aria-label="Reading history">
+      <%= render "dashboard/library_intro",
+            reading_count: current_user.user_books.where(status: "reading").count,
+            summary_text: pluralize(@finished_books.length, "finished book") %>
+
+      <div class="history-view">
+        <section class="history-section" aria-labelledby="history-badges-title">
+          <div class="history-section-heading">
+            <div>
+              <h2 id="history-badges-title">Badges</h2>
+              <p>Earned and locked reading-achievement badges</p>
+            </div>
+          </div>
+
+          <div class="history-divider" aria-hidden="true"></div>
+          <p class="history-section-label">Reading achievements</p>
+
+          <% if @badges.any? %>
+            <div class="history-badge-carousel"
+                 data-controller="my-log-carousel"
+                 data-my-log-carousel-page-size-value="4"
+                 data-my-log-carousel-fit-page-value="true">
+              <button type="button"
+                      class="my-log-carousel-arrow my-log-carousel-arrow--previous"
+                      data-action="my-log-carousel#previous"
+                      data-my-log-carousel-target="previous"
+                      aria-label="Previous badges">
+                <%= image_tag "my-log-chevron-left.svg", alt: "" %>
+              </button>
+              <div class="history-badge-viewport" data-my-log-carousel-target="viewport">
+                <div class="history-badge-track" data-my-log-carousel-target="track">
+                  <% @badges.each do |badge| %>
+                    <% earned = @earned_badge_ids.include?(badge.id) %>
+                    <% icon = if earned
+                      { "first_session" => "reading-book-open.svg", "week_streak" => "reading-check-circle.svg", "bookworm" => "history-award.svg", "challenge_complete" => "history-award.svg", "page_turner" => "reading-check-circle.svg" }.fetch(badge.badge_type, "history-award.svg")
+                    else
+                      "history-lock.svg"
+                    end %>
+                    <article class="history-badge-card <%= "history-badge-card--locked" unless earned %>">
+                      <div class="history-badge-header">
+                        <div class="history-badge-icon">
+                          <%= image_tag icon, alt: "" %>
+                        </div>
+                        <span class="history-badge-status"><%= earned ? "Earned" : "Locked" %></span>
+                      </div>
+                      <div class="history-badge-copy">
+                        <h3><%= badge.name %></h3>
+                        <p><%= badge.description %></p>
+                      </div>
+                    </article>
+                  <% end %>
+                </div>
+              </div>
+              <button type="button"
+                      class="my-log-carousel-arrow my-log-carousel-arrow--next"
+                      data-action="my-log-carousel#next"
+                      data-my-log-carousel-target="next"
+                      aria-label="Next badges">
+                <%= image_tag "my-log-chevron-right.svg", alt: "" %>
+              </button>
+            </div>
+          <% else %>
+            <p class="my-log-empty-shelf">No badges available yet.</p>
+          <% end %>
+        </section>
+
+        <section class="history-section" aria-labelledby="history-finished-title">
+          <div class="history-section-heading">
+            <div>
+              <h2 id="history-finished-title">Finished books</h2>
+              <p>Books you have finished from your reading history</p>
+            </div>
+          </div>
+
+          <div class="history-divider" aria-hidden="true"></div>
+
+          <% if @finished_books.any? %>
+            <div class="my-log-carousel history-finished-carousel" data-controller="my-log-carousel" data-my-log-carousel-page-size-value="5">
+              <button type="button"
+                      class="my-log-carousel-arrow my-log-carousel-arrow--previous"
+                      data-action="my-log-carousel#previous"
+                      data-my-log-carousel-target="previous"
+                      aria-label="Previous finished books">
+                <%= image_tag "my-log-chevron-left.svg", alt: "" %>
+              </button>
+              <div class="my-log-carousel-viewport" data-my-log-carousel-target="viewport">
+                <div class="my-log-carousel-track" data-my-log-carousel-target="track">
+                  <% @finished_books.each do |user_book| %>
+                    <%= link_to book_finished_journal_path(user_book.book), class: "my-log-book-card" do %>
+                      <% if user_book.book.cover_image.attached? %>
+                        <%= image_tag user_book.book.cover_image.variant(resize_to_fill: [ 134, 197 ]),
+                              class: "my-log-book-cover",
+                              alt: "Cover of #{user_book.book.title}" %>
+                      <% else %>
+                        <div class="my-log-book-cover my-log-book-cover--empty" aria-hidden="true">📚</div>
+                      <% end %>
+                      <strong><%= user_book.book.title %></strong>
+                      <span><%= user_book.book.author %></span>
+                    <% end %>
+                  <% end %>
+                </div>
+              </div>
+              <button type="button"
+                      class="my-log-carousel-arrow my-log-carousel-arrow--next"
+                      data-action="my-log-carousel#next"
+                      data-my-log-carousel-target="next"
+                      aria-label="Next finished books">
+                <%= image_tag "my-log-chevron-right.svg", alt: "" %>
+              </button>
+            </div>
+          <% else %>
+            <p class="my-log-empty-shelf">No finished books yet.</p>
+          <% end %>
+        </section>
+      </div>
+    </main>
+  </div>
+</div>

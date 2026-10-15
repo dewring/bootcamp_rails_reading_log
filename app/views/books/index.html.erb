@@ -1,80 +1,169 @@
-<div class="catalog-header">
-  <h1>Book Catalog</h1>
-  <div class="catalog-header-actions">
-    <% if policy(Book).new? %>
-      <%= link_to "＋ Add Book", new_admin_book_path, class: "btn-cta" %>
-    <% elsif policy(Book).discover? %>
-      <%= link_to "🔍 Discover", discover_books_path, class: "btn-cta" %>
-    <% end %>
-  </div>
-</div>
-
-<%= form_with url: books_path, method: :get, class: "search-form" do |f| %>
-  <%= f.text_field :q, placeholder: "Search by title or author...", value: params[:q] %>
-  <%= f.select :genre,
-      Genre::GENRES,
-      { include_blank: "All Genres", selected: params[:genre] } %>
-  <%= f.submit "Search" %>
-  <div class="search-dropdown">
-    <span class="btn-cta btn-cta-secondary search-dropdown-trigger">More Search Options ▾</span>
-    <div class="search-dropdown-menu">
-      <div class="search-dropdown-menu-panel">
-        <%= link_to "Search Open Library", search_books_path, class: "search-dropdown-item" %>
-        <%= link_to "Search ISBN", quick_add_books_path, class: "search-dropdown-item" %>
+<div class="catalog-page">
+  <aside class="catalog-sidebar" aria-label="Catalog filters">
+    <div class="catalog-sidebar-section catalog-dropdown" data-controller="nav-menu" data-action="click@document->nav-menu#closeOnOutsideClick keydown.esc@document->nav-menu#closeOnEscape">
+      <p class="catalog-sidebar-label">Find Option</p>
+      <button type="button"
+              class="catalog-sidebar-select catalog-dropdown-trigger"
+              data-nav-menu-target="trigger"
+              data-action="click->nav-menu#toggle"
+              aria-expanded="false"
+              aria-controls="catalog-find-menu">
+        <span>Open Library</span>
+        <%= image_tag "catalog-chevron-down.svg", class: "catalog-chevron", alt: "", aria: { hidden: true } %>
+      </button>
+      <div id="catalog-find-menu"
+           class="catalog-dropdown-menu"
+           data-nav-menu-target="menu"
+           hidden>
+        <%= link_to "Open Library", search_books_path, class: "catalog-dropdown-option" %>
+        <%= link_to "Search ISBN", quick_add_books_path, class: "catalog-dropdown-option" %>
       </div>
     </div>
-  </div>
-<% end %>
 
-<% if @books.empty? %>
-  <p>No books in the catalog yet.</p>
-<% else %>
-  <div class="book-list">
-    <% @books.each do |book| %>
-      <div class="book-list-item">
-
-        <div class="book-list-cover">
-          <%= link_to book do %>
-            <% if book.cover_image.attached? %>
-              <%= image_tag book.cover_image, class: "book-list-image" %>
-            <% else %>
-              <div class="book-list-no-cover">📚</div>
-            <% end %>
-          <% end %>
-        </div>
-
-        <div class="book-list-info">
-          <% if book.genres.any? %>
-            <p class="book-list-genre">
-              <% book.genres.each do |genre| %>
-                <span><%= genre.name %></span>
-              <% end %>
-            </p>
-          <% end %>
-          <h3 class="book-list-title"><%= link_to book.title, book %></h3>
-          <p class="book-list-author">by <%= book.author %></p>
-        </div>
-
-        <div class="book-list-actions">
-          <% if policy(book).edit? %>
-            <%= link_to "Edit", edit_admin_book_path(book), class: "btn-cta btn-cta-secondary" %>
-          <% end %>
-          <% if policy(book).destroy? %>
-            <%= button_to "Delete", admin_book_path(book), method: :delete,
-                data: { turbo_confirm: "Remove this book?" },
-                class: "btn-cta btn-cta-danger" %>
-          <% elsif user_signed_in? && policy(UserBook.new(user: current_user, book: book)).new? %>
-            <%= link_to "＋ Add to Log", new_user_book_path(book_id: book.id), class: "btn-cta" %>
-          <% elsif !user_signed_in? %>
-            <a href="#" class="btn-cta"
-               onclick="alert('Sign in or sign up to continue.'); window.location='<%= new_user_session_path %>'; return false;">
-              ＋ Add to Log
-            </a>
-          <% end %>
-        </div>
-
+    <div class="catalog-sidebar-section catalog-dropdown catalog-filter-dropdown" data-controller="nav-menu" data-action="click@document->nav-menu#closeOnOutsideClick keydown.esc@document->nav-menu#closeOnEscape">
+      <p class="catalog-sidebar-label">Filter Option</p>
+      <button type="button"
+              class="catalog-sidebar-select catalog-dropdown-trigger"
+              data-nav-menu-target="trigger"
+              data-action="click->nav-menu#toggle"
+              aria-expanded="false"
+              aria-controls="catalog-filter-menu">
+        <% selected_filter = params[:filter].presence_in([ "new_books", "most_read" ]) %>
+        <span><%= { "new_books" => "New Books", "most_read" => "Most Read" }.fetch(selected_filter, "All Books") %></span>
+        <%= image_tag "catalog-chevron-down.svg", class: "catalog-chevron", alt: "", aria: { hidden: true } %>
+      </button>
+      <div id="catalog-filter-menu"
+           class="catalog-dropdown-menu"
+           data-nav-menu-target="menu"
+           hidden>
+        <%= link_to "New Books", books_path(q: params[:q], genre: params[:genre], filter: "new_books"),
+              class: "catalog-dropdown-option #{'is-selected' if selected_filter == 'new_books'}",
+              aria: { current: ("page" if selected_filter == "new_books") } %>
+        <div class="catalog-dropdown-divider" aria-hidden="true"></div>
+        <%= link_to "Most Read", books_path(q: params[:q], genre: params[:genre], filter: "most_read"),
+              class: "catalog-dropdown-option #{'is-selected' if selected_filter == 'most_read'}",
+              aria: { current: ("page" if selected_filter == "most_read") } %>
+        <div class="catalog-dropdown-divider" aria-hidden="true"></div>
+        <% if policy(Book).discover? %>
+          <%= link_to "Discover", discover_books_path, class: "catalog-dropdown-option" %>
+        <% else %>
+          <div class="catalog-dropdown-option catalog-dropdown-option--disabled" aria-disabled="true">
+            Discover
+          </div>
+        <% end %>
       </div>
+    </div>
+
+    <div class="catalog-sidebar-section catalog-genres">
+      <p class="catalog-sidebar-label">By Genres</p>
+      <div class="catalog-genre-list">
+        <% Genre::GENRES.each do |genre| %>
+          <% genre_active = params[:genre] == genre %>
+          <% genre_path = if genre_active
+                            books_path(q: params[:q], sort: params[:sort], filter: params[:filter])
+                          else
+                            books_path(q: params[:q], sort: params[:sort], genre: genre, filter: params[:filter])
+                          end %>
+          <%= link_to genre_path,
+                class: "catalog-genre-option #{'is-active' if genre_active}",
+                aria: { current: ("page" if genre_active), pressed: genre_active } do %>
+            <span class="catalog-checkbox" aria-hidden="true">
+              <%= image_tag "catalog-check.svg", class: "catalog-checkbox-icon", alt: "" if genre_active %>
+            </span>
+            <span><%= genre %></span>
+          <% end %>
+        <% end %>
+      </div>
+    </div>
+
+  </aside>
+
+  <section class="catalog-content" aria-labelledby="catalog-title">
+    <div class="catalog-search-row">
+      <%= form_with url: books_path, method: :get, class: "catalog-search-form" do |f| %>
+        <div class="catalog-search-input">
+          <%= image_tag "catalog-search.svg", class: "catalog-search-icon", alt: "" %>
+          <%= f.search_field :q, placeholder: "Search books by title, author, or keyword...", value: params[:q] %>
+        </div>
+        <%= hidden_field_tag :genre, params[:genre] if params[:genre].present? %>
+        <%= hidden_field_tag :sort, params[:sort] if params[:sort].present? %>
+        <%= hidden_field_tag :filter, params[:filter] if params[:filter].present? %>
+        <%= f.submit "Search", class: "catalog-search-submit" %>
+      <% end %>
+      <div class="catalog-active-filters-slot">
+        <% active_filters = [ params[:q], params[:genre] ].count(&:present?) %>
+        <% if active_filters.positive? %>
+          <span class="catalog-active-filters"><%= active_filters %> filters active</span>
+        <% end %>
+      </div>
+    </div>
+
+    <div class="catalog-results-header">
+      <div>
+        <h1 id="catalog-title">Books</h1>
+        <p>Showing <%= @pagy.count %> books</p>
+      </div>
+      <% sort_options = [["Title A-Z", "title"], ["Author", "author"], ["Page count", "total_pages"]] %>
+      <% selected_sort = sort_options.find { |_, value| value == params[:sort] } || sort_options.first %>
+      <div class="catalog-sort-form" data-controller="nav-menu" data-action="click@document->nav-menu#closeOnOutsideClick keydown.esc@document->nav-menu#closeOnEscape">
+        <span class="catalog-sort-label">Sort by:</span>
+        <div class="catalog-sort-dropdown">
+          <button type="button"
+                  class="catalog-sort-trigger"
+                  data-nav-menu-target="trigger"
+                  data-action="click->nav-menu#toggle"
+                  aria-expanded="false"
+                  aria-controls="catalog-sort-menu">
+            <span><%= selected_sort.first %></span>
+            <%= image_tag "catalog-chevron-down.svg", class: "catalog-chevron catalog-sort-chevron", alt: "", aria: { hidden: true } %>
+          </button>
+          <div id="catalog-sort-menu"
+               class="catalog-sort-menu"
+               data-nav-menu-target="menu"
+               hidden>
+            <% sort_options.each do |label, value| %>
+              <%= link_to label,
+                    books_path(q: params[:q], genre: params[:genre], sort: value),
+                    class: "catalog-sort-option #{'is-selected' if selected_sort.last == value}",
+                    aria: { current: ("page" if selected_sort.last == value) } %>
+            <% end %>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <% if @books.empty? %>
+      <p class="catalog-empty-state">No books in the catalog yet.</p>
+    <% else %>
+      <div class="book-list">
+        <% @books.each do |book| %>
+          <div class="book-list-item">
+            <div class="book-list-cover">
+              <%= link_to book do %>
+                <% if book.cover_image.attached? %>
+                  <%= image_tag book.cover_image, class: "book-list-image", alt: book.title %>
+                <% else %>
+                  <div class="book-list-no-cover">📚</div>
+                <% end %>
+              <% end %>
+            </div>
+
+            <div class="book-list-info">
+              <% if book.genres.any? %>
+                <p class="book-list-genre">
+                  <% book.genres.each do |genre| %>
+                    <span><%= genre.name %></span>
+                  <% end %>
+                </p>
+              <% end %>
+              <h3 class="book-list-title"><%= link_to book.title, book %></h3>
+              <p class="book-list-author">by <%= book.author %></p>
+            </div>
+
+          </div>
+        <% end %>
+      </div>
+      <%== @pagy.series_nav %>
     <% end %>
-  </div>
-  <%== @pagy.series_nav %>
-<% end %>
+  </section>
+</div>

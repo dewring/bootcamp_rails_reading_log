@@ -1,0 +1,10 @@
+<% variant = local_assigns.fetch(:variant, :default) %>
+<% user = local_assigns.fetch(:user) %>
+
+<div class="profile-avatar profile-avatar--<%= variant %>" role="img" aria-label="<%= user.nickname %> profile photo">
+  <% if user.avatar.attached? %>
+    <%= image_tag user.avatar, alt: "", class: "profile-avatar-image", aria: { hidden: true } %>
+  <% else %>
+    <span class="profile-avatar-initials" aria-hidden="true"><%= user.nickname.to_s.first(2).upcase %></span>
+  <% end %>
+</div>

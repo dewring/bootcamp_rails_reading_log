@@ -1,12 +1,15 @@
 require "test_helper"
 
 class BookClubCurrentPickJobTest < ActiveJob::TestCase
-  test "broadcasts the persisted current-pick panel" do
+  test "broadcasts a refresh without rendering viewer-specific HTML" do
     book_club = BookClub.create!(name: "Sci-Fi Society", current_book: books(:refactoring))
 
-    assert_turbo_stream_broadcasts(book_club) do
+    streams = capture_turbo_stream_broadcasts(book_club) do
       BookClubCurrentPickJob.perform_now(book_club.id)
     end
+    assert_equal 1, streams.size
+    assert_equal "refresh", streams.first["action"]
+    assert_nil streams.first.at_css("template")
   end
 
   test "skips a club deleted before the job runs" do

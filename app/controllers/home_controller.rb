@@ -7,6 +7,7 @@ class HomeController < ApplicationController
     else
       book_most_read.limit(8)  # genre 없을 때
     end
-    @new_books = books.includes([ :cover_image_attachment ]).order(created_at: :desc).limit(8)
+    @new_books = books.includes([ :cover_image_attachment ]).order(created_at: :desc).limit(8).to_a
+    @featured_book = @new_books.first || @most_read.first
   end
 end

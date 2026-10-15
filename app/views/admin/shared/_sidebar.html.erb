@@ -1,0 +1,16 @@
+<aside class="admin-sidebar" aria-label="Admin navigation">
+  <div>
+    <p class="admin-sidebar-label">Management</p>
+    <nav class="admin-sidebar-nav">
+      <%= link_to admin_catalog_path, class: "admin-sidebar-link#{' is-active' if active_section == :catalog}", aria: { current: ("page" if active_section == :catalog) } do %><span class="admin-sidebar-icon admin-sidebar-icon--library" aria-hidden="true"></span><span>Catalog</span><% end %>
+      <%= link_to admin_reviews_path, class: "admin-sidebar-link#{' is-active' if active_section == :reviews}", aria: { current: ("page" if active_section == :reviews) } do %><span class="admin-sidebar-icon admin-sidebar-icon--message-square-text" aria-hidden="true"></span><span>Reviews</span><% end %>
+      <%= link_to admin_root_path, class: "admin-sidebar-link#{' is-active' if active_section == :challenges}", aria: { current: ("page" if active_section == :challenges) } do %><span class="admin-sidebar-icon admin-sidebar-icon--trophy" aria-hidden="true"></span><span>Challenges</span><% end %>
+      <%= link_to admin_book_clubs_path, class: "admin-sidebar-link#{' is-active' if active_section == :book_clubs}", aria: { current: ("page" if active_section == :book_clubs) } do %><span class="admin-sidebar-icon admin-sidebar-icon--book-clubs" aria-hidden="true"></span><span>Book Clubs</span><% end %>
+      <%= link_to admin_members_path, class: "admin-sidebar-link#{' is-active' if active_section == :members}", aria: { current: ("page" if active_section == :members) } do %><span class="admin-sidebar-icon admin-sidebar-icon--users" aria-hidden="true"></span><span>Members</span><% end %>
+    </nav>
+  </div>
+  <div class="admin-sidebar-footer">
+    <span class="admin-sidebar-rule" aria-hidden="true"></span>
+    <%= link_to destroy_user_session_path, class: "admin-sidebar-link admin-sidebar-link--logout", data: { turbo_method: :delete } do %><%= image_tag "admin-log-out.svg", alt: "" %><span>Log out</span><% end %>
+  </div>
+</aside>

@@ -13,9 +13,9 @@ class UserChallengesController < ApplicationController
     authorize @user_challenge
 
     if @user_challenge.save
-      redirect_to @challenge, notice: "Enrolled!"
+      redirect_to challenges_path, notice: "You joined the challenge."
     else
-      redirect_to @challenge, alert: @user_challenge.errors.full_messages.to_sentence
+      redirect_to challenges_path, alert: @user_challenge.errors.full_messages.to_sentence
     end
   end
 

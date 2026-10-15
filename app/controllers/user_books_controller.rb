@@ -24,7 +24,7 @@ class UserBooksController < ApplicationController
     authorize @user_book
 
     if @user_book.save
-      redirect_to dashboard_path, notice: "#{@book.title} added to your reading log."
+      redirect_to dashboard_path, notice: @user_book.status == "want_to_read" ? "Book saved to Want to Read." : "Book saved to My Log."
     else
       render :new, status: :unprocessable_entity
     end
@@ -34,9 +34,9 @@ class UserBooksController < ApplicationController
     authorize @user_book
     if @user_book.update(user_book_params)
       if @user_book.status == "reading"
-        redirect_to new_book_reading_session_path(@user_book.book), notice: "Status updated. Log your progress!"
+        redirect_to new_book_reading_session_path(@user_book.book), notice: "Started reading. Log your progress!"
       else
-        redirect_to dashboard_path, notice: "Status updated."
+        redirect_to dashboard_path, notice: @user_book.status == "want_to_read" ? "Book saved to Want to Read." : "Reading status updated."
       end
     else
       redirect_to dashboard_path, alert: "Could not update status."
@@ -45,8 +45,10 @@ class UserBooksController < ApplicationController
 
   def destroy
     authorize @user_book
+    book = @user_book.book
     @user_book.destroy
-    redirect_to dashboard_path, notice: "Book removed from your log."
+    destination = params[:return_to] == "book" ? book_path(book) : dashboard_path
+    redirect_to destination, notice: "Book removed from your log."
   end
 
   private

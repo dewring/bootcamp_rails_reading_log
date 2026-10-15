@@ -17,6 +17,17 @@ class UserBooksControllerTest < ActionDispatch::IntegrationTest
     post user_books_path, params: { user_book: { book_id: books(:refactoring).id, status: "reading" } }
     assert_redirected_to dashboard_path
   end
+
+  test "user can save a book directly as want to read" do
+    sign_in users(:jaina)
+
+    assert_difference "UserBook.count", 1 do
+      post user_books_path, params: { user_book: { book_id: books(:pragmatic).id, status: "want_to_read" } }
+    end
+
+    assert_redirected_to dashboard_path
+    assert_equal "want_to_read", UserBook.find_by(user: users(:jaina), book: books(:pragmatic)).status
+  end
   test "user update book log" do
     sign_in users(:leika)
     patch user_book_path(user_books(:leika_refactoring)), params: { user_book: { status: "completed" } }
@@ -45,6 +56,16 @@ class UserBooksControllerTest < ActionDispatch::IntegrationTest
     sign_in users(:leika)
     delete user_book_path(user_books(:leika_refactoring))
     assert_redirected_to dashboard_path
+  end
+
+  test "removing a want-to-read book from its detail page returns to that book" do
+    sign_in users(:leika)
+    user_book = user_books(:leika_pragmatic)
+
+    delete user_book_path(user_book), params: { return_to: "book" }
+
+    assert_redirected_to book_path(user_book.book)
+    assert_not UserBook.exists?(user_book.id)
   end
 
   test "user cannot destroy another user's book log" do

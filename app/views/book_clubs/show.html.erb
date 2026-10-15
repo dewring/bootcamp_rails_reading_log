@@ -1,75 +1,105 @@
+<% turbo_refreshes_with method: :morph, scroll: :preserve %>
 <%= turbo_stream_from @book_club %>
-<article>
-  <hgroup>
-    <h1><%= @book_club.name %></h1>
-    <p><%= @book_club.description %></p>
-  </hgroup>
+<div class="book-club-detail-page">
+  <%= render "club_sidebar", book_club: @book_club, owner: @owner, current_membership: @current_membership %>
 
-  <p><%= pluralize(@book_club.book_club_memberships_count, "member") %></p>
-
-  <% if policy(@book_club).join? %>
-    <%= button_to "Join", join_book_club_path(@book_club), class: "btn-cta" %>
-  <% elsif policy(@book_club).leave? %>
-    <%= button_to "Leave", leave_book_club_path(@book_club), method: :delete,
-          data: { turbo_confirm: "Leave this club?" }, class: "btn-md btn-danger" %>
-  <% end %>
-
-  <% if policy(@book_club).edit? %>
-    <%= link_to "Edit Club", edit_book_club_path(@book_club), class: "btn-md" %>
-  <% end %>
-
-  <% if policy(@book_club).destroy? %>
-    <%= button_to "Delete Club", @book_club, method: :delete,
-          data: { turbo_confirm: "Delete this club? This cannot be undone." }, class: "btn-md btn-danger" %>
-  <% end %>
-
-  <ul>
-    <% @book_club.book_club_memberships.includes(:user).each do |membership| %>
-      <li><%= membership.user.nickname %> — <%= membership.role.humanize %></li>
-    <% end %>
-  </ul>
-</article>
-
-<%= render "current_pick", book_club: @book_club %>
-
-<% if policy(@book_club).manage? %>
-  <%= form_with model: @book_club, url: set_current_book_book_club_path(@book_club), method: :patch, html: { class: "form" } do |f| %>
-    <div class="field" data-controller="book-picker">
-      <%= f.label :current_book_search, "Current Pick" %>
-      <input type="text" id="book_club_current_book_search" list="book_club_book_options"
-             placeholder="Search books by title..." autocomplete="off"
-             value="<%= @book_club.current_book&.title %>"
-             data-book-picker-target="search" data-action="input->book-picker#input">
-      <datalist id="book_club_book_options" data-book-picker-target="options">
-        <% if @book_club.current_book %>
-          <option value="<%= @book_club.current_book.title %>" data-id="<%= @book_club.current_book.id %>"></option>
-        <% end %>
-      </datalist>
-      <%= f.hidden_field :current_book_id, data: { book_picker_target: "hidden" } %>
-    </div>
-
-    <div class="field">
-      <%= f.label :reading_deadline %>
-      <%= f.date_field :reading_deadline %>
-    </div>
-
-    <div class="form-submit">
-      <%= f.submit "Update Pick" %>
-    </div>
-  <% end %>
-<% end %>
-
-<%= render "leaderboard", book_club: @book_club %>
-
-<article>
-  <h2>Past Picks</h2>
-  <% if @book_club.pick_history.empty? %>
-    <p>No past picks yet.</p>
-  <% else %>
-    <ul>
-      <% @book_club.pick_history.each do |entry| %>
-        <li><%= entry[:book]&.title || "Unknown book" %> — picked on <%= entry[:changed_at].to_date.to_fs(:long) %></li>
+  <div class="book-club-overview-content">
+    <header class="book-club-detail-header">
+      <div>
+        <h1>Overview</h1>
+        <p><span><%= @book_club.name.upcase %></span> · CURRENT CYCLE</p>
+      </div>
+      <% if @current_membership %>
+        <span class="book-club-member-status"><%= @current_membership.role == "owner" ? "You're the club owner" : "You're a member" %></span>
       <% end %>
-    </ul>
-  <% end %>
-</article>
+    </header>
+
+    <%= render "current_pick", book_club: @book_club %>
+
+    <section class="book-club-stat-grid" aria-label="Club summary">
+      <div class="book-club-stat-card">
+        <span>Owner</span>
+        <strong><%= @owner&.nickname || "BookNook" %></strong>
+      </div>
+      <div class="book-club-stat-card">
+        <span>Joined members</span>
+        <strong><%= @book_club.book_club_memberships_count %></strong>
+      </div>
+      <div class="book-club-stat-card">
+        <span>Past picks</span>
+        <strong><%= @past_picks.size %></strong>
+      </div>
+    </section>
+
+    <div class="book-club-overview-grid">
+      <div class="book-club-overview-main-column">
+        <section class="book-club-overview-card">
+          <h2>About our circle</h2>
+          <p><%= @book_club.description.presence || "A welcoming space for readers to share the books they love." %></p>
+        </section>
+
+        <section class="book-club-overview-card book-club-past-picks-card">
+          <h2>Past picks</h2>
+          <% if @past_picks.empty? %>
+            <p class="book-club-muted-copy">No past picks yet.</p>
+          <% else %>
+            <div class="book-club-past-picks-list">
+              <% @past_picks.each do |entry| %>
+                <div class="book-club-past-pick">
+                  <div class="book-club-past-pick-cover">
+                    <% if entry[:book]&.cover_image&.attached? %>
+                      <%= image_tag entry[:book].cover_image.variant(resize_to_fill: [ 36, 52 ]), alt: "" %>
+                    <% else %>
+                      <%= image_tag "book-open.svg", alt: "", class: "book-club-past-pick-placeholder" %>
+                    <% end %>
+                  </div>
+                  <strong><%= entry[:book]&.title || "Unknown book" %></strong>
+                  <span><%= entry[:changed_at].to_date.to_fs(:short) %></span>
+                </div>
+              <% end %>
+            </div>
+          <% end %>
+        </section>
+      </div>
+
+      <section class="book-club-overview-card book-club-members-card">
+        <h2>Members · <%= @book_club.book_club_memberships_count %> joined</h2>
+        <div class="book-club-member-list">
+          <% @memberships.first(3).each do |membership| %>
+            <div class="book-club-member-row">
+              <%= render "users/avatar", user: membership.user, variant: :club_member %>
+              <div>
+                <strong><%= membership.user.nickname %></strong>
+                <span><%= membership.role == "owner" ? "Club owner" : "Member" %></span>
+              </div>
+            </div>
+          <% end %>
+          <% if @memberships.size > 3 %>
+            <span class="book-club-more-members">+<%= @memberships.size - 3 %> more readers</span>
+          <% end %>
+        </div>
+      </section>
+    </div>
+
+    <% if policy(@book_club).manage? %>
+      <section id="owner-controls" class="book-club-owner-controls">
+        <div>
+          <h2>Owner controls</h2>
+          <p>Manage your club details, current pick, and reading deadline.</p>
+        </div>
+        <% if @book_club.errors.any? %>
+          <div class="club-owner-errors" role="alert"><%= @book_club.errors.full_messages.to_sentence %></div>
+        <% end %>
+        <%= form_with model: @book_club, html: { class: "form" } do |f| %>
+          <div class="admin-field club-owner-name"><%= f.label :name, "Club name" %><%= f.text_field :name, required: true %></div>
+          <div class="admin-field club-owner-description"><%= f.label :description %><%= f.text_area :description, rows: 1 %></div>
+          <%= render "pick_fields", f: f, club: @book_club, search_url: search_books_book_clubs_path, search_id: "book_club_current_book_search", results_id: "club-book-results" %>
+          <div class="form-submit">
+            <%= link_to "Delete book club", book_club_path(@book_club), class: "club-owner-delete", data: { turbo_method: :delete, turbo_confirm: "Delete #{@book_club.name}? This cannot be undone." } if policy(@book_club).destroy? %>
+            <%= f.submit "Save changes" %>
+          </div>
+        <% end %>
+      </section>
+    <% end %>
+  </div>
+</div>

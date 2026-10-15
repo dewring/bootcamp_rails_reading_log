@@ -8,11 +8,11 @@ class BookProgressJobTest < ActiveSupport::TestCase
   end
 
   test "transitions want_to_read to reading when a session is logged" do
-    user_book = users(:leika).user_books.find_or_create_by!(book: books(:refactoring))
-    user_book.update!(status: "want_to_read")
-    ReadingSession.create!(user: users(:leika), book: books(:refactoring), read_on: Date.today, pages_read: 50)
+    book = Book.create!(title: "First Session Book", author: "A Reader", total_pages: 100)
+    user_book = UserBook.create!(user: users(:leika), book: book, status: "want_to_read")
+    ReadingSession.create!(user: users(:leika), book: book, read_on: Date.today, pages_read: 50)
 
-    BookProgressJob.new.perform(users(:leika), books(:refactoring))
+    BookProgressJob.new.perform(users(:leika), book)
 
     assert_equal "reading", user_book.reload.status
   end
@@ -46,6 +46,25 @@ class BookProgressJobTest < ActiveSupport::TestCase
 
     assert UserBook.exists?(user: users(:leika), book: book)
   end
+  test "does not recreate a removed book when no sessions remain" do
+    book = Book.create!(title: "Reset Book", author: "Someone")
+
+    assert_no_difference "UserBook.count" do
+      BookProgressJob.perform_now(users(:leika), book)
+    end
+
+    assert_not UserBook.exists?(user: users(:leika), book: book)
+  end
+
+  test "does not change a saved book with no sessions" do
+    book = Book.create!(title: "Unread Book", author: "Someone")
+    user_book = UserBook.create!(user: users(:leika), book: book, status: "want_to_read")
+
+    BookProgressJob.perform_now(users(:leika), book)
+
+    assert_equal "want_to_read", user_book.reload.status
+  end
+
   test "discards job when book no longer exists" do
     book = Book.create!(title: "Temp", author: "Temp")
     book.destroy

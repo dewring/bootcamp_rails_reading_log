@@ -1,6 +1,18 @@
-<% if notice %>
-    <article><%= notice %></article>
-<% end %>
-<% if alert %>
-    <article><%= alert %></article>
+<% if notice.present? || alert.present? %>
+  <div id="flash-notifications" class="flash-notifications" data-controller="flash-notifications" data-action="scroll@window->flash-notifications#position resize@window->flash-notifications#position turbo:before-cache@document->flash-notifications#clear turbo:before-morph-element->flash-notifications#preserveDuringRefresh:self">
+    <% { notice: notice, alert: alert }.each do |kind, message| %>
+      <% next if message.blank? %>
+      <div class="flash-notification flash-notification--<%= kind %>" role="<%= kind == :alert ? "alert" : "status" %>" aria-atomic="true">
+        <div class="flash-notification-message">
+          <% if kind == :notice %>
+            <%= image_tag "flash-success-check.svg", class: "flash-notification-icon", width: 12, height: 12, alt: "", aria: { hidden: true } %>
+          <% else %>
+            <span class="flash-notification-error-icon" aria-hidden="true">!</span>
+          <% end %>
+          <p><%= message %></p>
+        </div>
+        <button type="button" class="flash-notification-dismiss" aria-label="Dismiss notification" data-action="flash-notifications#dismiss"><%= image_tag "flash-dismiss.svg", width: 14, height: 14, alt: "", aria: { hidden: true } %></button>
+      </div>
+    <% end %>
+  </div>
 <% end %>

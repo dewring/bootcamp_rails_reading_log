@@ -9,6 +9,13 @@ class BookTest < ActiveSupport::TestCase
     assert @book.valid?
   end
 
+  test "club pick search matches title and author literally regardless of case" do
+    book = books(:refactoring)
+    assert_includes Book.matching_club_pick("rEfAcToRiNg"), book
+    assert_includes Book.matching_club_pick("MARTIN FOWLER"), book
+    [ "", " ", "%", "_" ].each { |query| assert_empty Book.matching_club_pick(query) }
+  end
+
   test "title is required" do
     @book.title = ""
     assert_not @book.valid?

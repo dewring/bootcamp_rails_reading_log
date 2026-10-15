@@ -1,0 +1,51 @@
+<section class="reading-detail-summary" aria-labelledby="reading-detail-title">
+  <div class="reading-detail-cover-composition">
+    <% if @book.cover_image.attached? %>
+      <%= image_tag @book.cover_image.variant(resize_to_fill: [ 220, 324 ]),
+            class: "reading-detail-cover",
+            alt: "Cover of #{@book.title}" %>
+    <% else %>
+      <div class="reading-detail-cover reading-detail-cover--empty" aria-label="No cover available">📚</div>
+    <% end %>
+  </div>
+
+  <div class="reading-detail-introduction">
+    <div class="reading-detail-identity">
+      <p class="reading-detail-eyebrow">Reading journal</p>
+      <h2 id="reading-detail-title"><%= @book.title %></h2>
+      <p class="reading-detail-author">by <%= @book.author %></p>
+    </div>
+    <div class="reading-detail-actions">
+      <% user_book = current_user.user_books.find_by(book: @book) %>
+      <% if finished %>
+        <span class="reading-detail-action reading-detail-action--finished action-button action-button--active action-button--static" aria-label="Finished">
+          <%= image_tag "reading-check-circle.svg", alt: "" %>
+          <span>Finished</span>
+        </span>
+        <% if user_book %>
+          <%= button_to book_finished_journal_path(@book),
+                method: :delete,
+                form: { class: "reading-detail-inline-form" },
+                class: "reading-detail-action reading-detail-action--delete action-button action-button--secondary action-button--compact" do %>
+            <span>Delete</span>
+          <% end %>
+        <% end %>
+      <% else %>
+        <%= link_to "#reading-record", class: "reading-detail-action reading-detail-action--primary action-button action-button--primary" do %>
+          <%= image_tag "reading-book-open.svg", alt: "" %>
+          <span>Continue Reading</span>
+        <% end %>
+        <% if user_book %>
+          <%= button_to user_book_path(user_book),
+                method: :patch,
+                params: { user_book: { status: "finished" } },
+                form: { class: "reading-detail-inline-form" },
+                class: "reading-detail-action reading-detail-action--finished action-button action-button--active action-button--compact" do %>
+            <%= image_tag "reading-check-circle.svg", alt: "" %>
+            <span>Finished</span>
+          <% end %>
+        <% end %>
+      <% end %>
+    </div>
+  </div>
+</section>

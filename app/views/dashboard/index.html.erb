@@ -1,91 +1,21 @@
-<hgroup>
-  <h1>Welcome, <%= current_user.nickname %>!</h1>
-  <p>Here's your reading log.</p>
-</hgroup>
+<div class="my-log-page">
+  <div class="my-log-body">
+    <%= render "sidebar" %>
 
-<% if @badges.any? %>
-  <h2>Badges</h2>
-  <div class="badge-row">
-    <% @badges.each do |badge| %>
-      <div class="badge-card">
-        <svg class="badge-icon" viewBox="0 0 48 48" width="40" height="40" aria-hidden="true">
-          <circle cx="24" cy="24" r="20" fill="<%= badge.color %>" />
-          <path d="M24 14l2.7 6.9 7.4.6-5.7 4.8 1.8 7.2-6.2-4-6.2 4 1.8-7.2-5.7-4.8 7.4-.6z" fill="#fff" />
-        </svg>
-        <p class="badge-title"><%= badge.name %></p>
-        <p class="badge-desc"><%= badge.description %></p>
-      </div>
-    <% end %>
+    <section class="my-log-main" aria-label="Editorial library">
+      <%= render "library_intro", reading_count: @reading_books.size %>
+
+      <%= render "book_shelf",
+            title: "Reading",
+            subtitle: "Four books currently open",
+            user_books: @reading_books,
+            shelf_class: "my-log-section--reading" %>
+
+      <%= render "book_shelf",
+            title: "Want to Read",
+            subtitle: "Saved for a future quiet hour",
+            user_books: @want_to_read_books,
+            shelf_class: "my-log-section--want-to-read" %>
+    </section>
   </div>
-<% end %>
-
-<% if @user_books_by_status.empty? %>
-  <article>
-    <p>No books yet. <%= link_to "Browse the catalog", books_path %> to add some.</p>
-  </article>
-<% else %>
-  <% UserBook::STATUSES.each do |status| %>
-    <% books_for_status = @user_books_by_status[status] || [] %>
-    <% next if books_for_status.empty? %>
-
-    <h2><%= status.humanize %></h2>
-
-    <% books_for_status.each do |user_book| %>
-      <article>
-        <div class="dashboard-book">
-          <div>
-            <strong><%= link_to user_book.book.title, user_book.book %></strong>
-            <small> by <%= user_book.book.author %></small>
-          </div>
-
-          <div class="dashboard-actions">
-            <% if policy(user_book).edit? %>
-              <%= form_with model: user_book, url: user_book_path(user_book), method: :patch do |f| %>
-                <%= f.select :status,
-                      UserBook::STATUSES.map { |s| [s.humanize, s] },
-                      { selected: user_book.status },
-                      { class: "status-select", data: { controller: "submit-on-change", action: "change->submit-on-change#submit" } } %>
-              <% end %>
-            <% end %>
-
-            <% if user_book.status == "reading" && policy(ReadingSession.new(user: current_user, book: user_book.book)).new? %>
-              <%= link_to "＋ Log Pages", new_book_reading_session_path(user_book.book), class: "btn-md" %>
-            <% end %>
-
-            <% if policy(user_book).destroy? %>
-              <%= button_to "Remove", user_book_path(user_book),
-                    method: :delete,
-                    data: { turbo_confirm: "Remove from log?" },
-                    class: "btn-md" %>
-            <% end %>
-          </div>
-        </div>
-
-        <% sessions = policy_scope(user_book.book.reading_sessions).order(read_on: :desc) %>
-        <% if sessions.any? %>
-          <hr>
-          <% sessions.each do |session| %>
-            <div class="session-row">
-              <div class="session-meta">
-                <span class="session-meta-line"><%= session.read_on.strftime("%b %d, %Y") %> — <%= session.pages_read %> pages</span>
-                <% if session.notes.present? %>
-                  <span class="session-note">“<%= session.notes %>”</span>
-                <% end %>
-              </div>
-              <div class="session-actions">
-                <% if policy(session).edit? %>
-                  <%= link_to "Edit", edit_reading_session_path(session), class: "btn-sm" %>
-                <% end %>
-                <% if policy(session).destroy? %>
-                  <%= button_to "Delete", reading_session_path(session), method: :delete,
-                        data: { turbo_confirm: "Delete this session?" },
-                        class: "btn-sm btn-danger" %>
-                <% end %>
-              </div>
-            </div>
-          <% end %>
-        <% end %>
-      </article>
-    <% end %>
-  <% end %>
-<% end %>
+</div>

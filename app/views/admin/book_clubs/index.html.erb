@@ -1,0 +1,77 @@
+<% content_for :title, "Book Club Management · BookNook" %>
+
+<div class="admin-page admin-page--book-clubs">
+  <%= render "admin/shared/topbar" %>
+  <div class="admin-body">
+    <%= render "admin/shared/sidebar", active_section: :book_clubs %>
+    <main class="admin-main" aria-labelledby="admin-clubs-title">
+      <div class="admin-page-heading">
+        <div>
+          <p class="admin-eyebrow">COMMUNITY SPACES</p>
+          <h1 id="admin-clubs-title">Book Club Management</h1>
+          <p class="admin-page-description">Maintain clubs, owners, members, and current reading picks.</p>
+        </div>
+        <%= link_to "＋ Create Club", admin_book_clubs_path(new_club: true, q: @query.presence, sort: @sort), class: "admin-primary-button" %>
+      </div>
+
+      <div class="admin-clubs-workspace">
+        <section class="admin-clubs-list" aria-label="All book clubs">
+          <%= form_with url: admin_book_clubs_path, method: :get, class: "admin-clubs-search" do |f| %>
+            <%= hidden_field_tag :sort, @sort %>
+            <%= f.search_field :q, value: @query, placeholder: "Search · Search book clubs", aria: { label: "Search book clubs by name, owner, description, or current book" } %>
+            <%= f.submit "Search" %>
+          <% end %>
+          <div class="admin-clubs-filters">
+            <%= link_to "All records", admin_book_clubs_path, class: "admin-clubs-filter #{'is-active' if @query.blank?}" %>
+            <div class="admin-clubs-sort-filter admin-select-dropdown" data-controller="nav-menu" data-action="dropdown:opened@window->nav-menu#closeIfAnother click@document->nav-menu#closeOnOutsideClick keydown.esc@document->nav-menu#closeOnEscape">
+              <button type="button" class="admin-clubs-filter admin-select-trigger" data-nav-menu-target="trigger" data-action="click->nav-menu#toggle" aria-expanded="false" aria-controls="admin-clubs-sort-menu" aria-label="Sort book clubs">
+                <span><%= @sort == "name" ? "Club name" : "Recently updated" %></span>
+                <%= image_tag "catalog-chevron-down.svg", alt: "", aria: { hidden: true } %>
+              </button>
+              <nav id="admin-clubs-sort-menu" class="catalog-dropdown-menu admin-select-menu" data-nav-menu-target="menu" aria-label="Book club sorting" hidden>
+                <% [["Recently updated", "updated"], ["Club name", "name"]].each do |label, sort| %>
+                  <%= link_to label, admin_book_clubs_path(q: @query.presence, sort: sort), class: "catalog-dropdown-option #{'is-selected' if @sort == sort}", aria: { current: ("true" if @sort == sort) } %>
+                <% end %>
+              </nav>
+            </div>
+          </div>
+          <div class="admin-clubs-records">
+            <% @book_clubs.each do |club| %>
+              <article class="admin-club-record <%= 'is-selected' if @detail_club == club %>" id="<%= dom_id(club, :admin) %>">
+                <%= link_to admin_book_clubs_path(club_id: club.id, q: @query.presence, sort: @sort, page: params[:page]), class: "admin-club-select", aria: { current: ("true" if @detail_club == club) } do %>
+                  <strong><%= club.name %></strong>
+                  <span class="admin-club-book">Owner · <%= admin_club_owner(club) %> · <%= club.current_book&.title || "No current pick" %></span>
+                <% end %>
+                <div class="admin-club-footer">
+                  <span class="admin-club-summary"><%= pluralize(club.book_club_memberships_count, "member") %> · Updated <%= club.updated_at.strftime("%b %-d, %Y") %></span>
+                  <div class="admin-club-actions">
+                    <%= link_to "View", book_club_path(club), aria: { label: "View #{club.name}" } %>
+                    <%= button_to "Delete", admin_book_club_path(club, q: @query.presence, sort: @sort), method: :delete, aria: { label: "Delete #{club.name}" }, data: { turbo_confirm: "Permanently delete #{club.name} and its memberships?" } %>
+                  </div>
+                </div>
+              </article>
+            <% end %>
+            <% if @book_clubs.empty? %>
+              <div class="admin-clubs-empty"><h2><%= @query.present? ? "No matching clubs" : "No book clubs yet" %></h2><p><%= @query.present? ? "Try another club name, owner, or book." : "Create a club to start a reading community." %></p></div>
+            <% end %>
+          </div>
+          <footer class="admin-clubs-pagination">
+            <p><%= pluralize(@pagy.count, "club") %> · Page <%= @pagy.page %> of <%= @pagy.last %></p>
+            <%== @pagy.series_nav if @pagy.last > 1 %>
+          </footer>
+        </section>
+
+        <section class="admin-club-detail" aria-labelledby="admin-club-detail-title">
+          <p class="admin-eyebrow"><%= @is_new_club ? "NEW RECORD" : "SELECTED RECORD" %></p>
+          <h2 id="admin-club-detail-title"><%= @is_new_club ? "Create a club" : "Club information" %></h2>
+          <p class="admin-club-detail-intro"><%= @is_new_club ? "Create a new reading community. You will be its owner." : "Review and update the selected club record." %></p>
+          <% if @detail_club %>
+            <%= render "form", club: @detail_club %>
+          <% else %>
+            <p class="admin-club-detail-empty">Select a club or create a new one to manage its details.</p>
+          <% end %>
+        </section>
+      </div>
+    </main>
+  </div>
+</div>

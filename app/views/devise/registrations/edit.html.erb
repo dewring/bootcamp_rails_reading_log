@@ -1,42 +1,129 @@
-<h2>Edit <%= resource_name.to_s.humanize %></h2>
+<div class="my-log-page settings-page">
+  <div class="my-log-body">
+    <%= render "dashboard/sidebar", active_section: :settings %>
 
-<%= form_for(resource, as: resource_name, url: registration_path(resource_name), html: { method: :put }) do |f| %>
-  <%= render "devise/shared/error_messages", resource: resource %>
+    <main class="my-log-main" aria-label="Settings">
+      <div class="settings-intro">
+        <div>
+          <p class="my-log-eyebrow">Personal library · 2026</p>
+          <h1>Settings</h1>
+          <p>Manage your account information and preferences.</p>
+        </div>
+      </div>
 
-  <div class="field">
-    <p><%= f.label :email %></p>
-    <p><%= f.email_field :email, autofocus: true, autocomplete: "email" %></p>
+      <div class="settings-divider" aria-hidden="true"></div>
+
+      <div class="settings-split-layout">
+        <section class="settings-profile-card" aria-labelledby="settings-profile-photo-title">
+          <h2 id="settings-profile-photo-title">Profile Photo</h2>
+          <div class="settings-profile-card-body">
+            <%= render "users/avatar", user: resource, variant: :settings %>
+            <%= form_for(resource,
+                  as: resource_name,
+                  url: registration_path(resource_name),
+                  html: { method: :put, class: "settings-photo-form", multipart: true },
+                  data: { controller: "submit-on-change" }) do |avatar_form| %>
+              <%= avatar_form.file_field :avatar,
+                    accept: "image/png,image/jpeg,image/webp",
+                    class: "settings-photo-input",
+                    data: {
+                      action: "change->submit-on-change#submit"
+                    } %>
+              <%= avatar_form.label :avatar, class: "settings-upload-button" do %>
+                <%= image_tag "settings-upload.svg", alt: "", aria: { hidden: true } %>
+                <span><%= resource.avatar.attached? ? "Change Photo" : "Upload Photo" %></span>
+              <% end %>
+              <% if resource.avatar.attached? %>
+                <%= avatar_form.button "Remove",
+                      type: :submit,
+                      name: "user[remove_avatar]",
+                      value: "1",
+                      class: "settings-remove-photo-button" %>
+              <% end %>
+            <% end %>
+          </div>
+        </section>
+
+        <section class="settings-account-card" aria-labelledby="settings-account-title">
+          <div class="settings-card-header">
+            <h2 id="settings-account-title">Account Information</h2>
+          </div>
+
+          <%= form_for(resource, as: resource_name, url: registration_path(resource_name), html: { method: :put, class: "settings-form" }) do |f| %>
+            <%= render "devise/shared/error_messages", resource: resource %>
+
+            <div class="settings-name-grid">
+              <div class="settings-field">
+                <%= f.label :first_name, "First name" %>
+                <div class="settings-input">
+                  <%= f.text_field :first_name, autocomplete: "given-name" %>
+                </div>
+              </div>
+              <div class="settings-field">
+                <%= f.label :last_name, "Last name" %>
+                <div class="settings-input">
+                  <%= f.text_field :last_name, autocomplete: "family-name" %>
+                </div>
+              </div>
+            </div>
+
+            <div class="settings-field">
+              <%= f.label :nickname %>
+              <div class="settings-input">
+                <%= f.text_field :nickname, autocomplete: "nickname" %>
+              </div>
+              <small>Shown on reviews and your public profile.</small>
+            </div>
+
+            <div class="settings-field">
+              <%= f.label :email, "Email address" %>
+              <div class="settings-email-row">
+                <%= f.email_field :email, autocomplete: "email", disabled: true %>
+                <span class="settings-status-badge">Active</span>
+              </div>
+              <small>Email address cannot be changed.</small>
+            </div>
+
+            <div class="settings-form-divider" aria-hidden="true"></div>
+
+            <div class="settings-field">
+              <%= f.label :password %>
+              <div class="settings-password-grid">
+                <div class="settings-password-field">
+                  <%= f.label :current_password, "Current password" %>
+                  <div class="settings-input">
+                    <%= f.password_field :current_password, autocomplete: "current-password" %>
+                  </div>
+                </div>
+                <div class="settings-password-field">
+                  <%= f.label :password, "New password" %>
+                  <div class="settings-input">
+                    <%= f.password_field :password, autocomplete: "new-password" %>
+                  </div>
+                </div>
+                <div class="settings-password-field">
+                  <%= f.label :password_confirmation, "Confirm new password" %>
+                  <%= f.password_field :password_confirmation, autocomplete: "new-password" %>
+                </div>
+              </div>
+              <small>At least 8 characters. Leave password fields blank to keep your current password.</small>
+            </div>
+
+            <div class="settings-form-actions">
+              <%= f.submit "Save Changes", class: "settings-save-button" %>
+              <%= link_to "Cancel", dashboard_path, class: "settings-cancel-button" %>
+            </div>
+          <% end %>
+        </section>
+      </div>
+
+      <%= button_to registration_path(resource_name),
+            method: :delete,
+            class: "settings-delete-button",
+            data: { turbo_confirm: "Are you sure you want to delete your account?" } do %>
+        <%= image_tag "settings-trash.svg", alt: "", aria: { hidden: true } %>
+        <span>Delete Account</span>
+      <% end %>
+    </main>
   </div>
-
-  <% if devise_mapping.confirmable? && resource.pending_reconfirmation? %>
-    <div>Currently waiting confirmation for: <%= resource.unconfirmed_email %></div>
-  <% end %>
-
-  <div class="field">
-    <p><%= f.label :password %> <i>(leave blank if you don't want to change it)</i></p>
-    <p><%= f.password_field :password, autocomplete: "new-password" %></p>
-    <% if @minimum_password_length %>
-      <p><em><%= @minimum_password_length %> characters minimum</em></p>
-    <% end %>
-  </div>
-
-  <div class="field">
-    <p><%= f.label :password_confirmation %></p>
-    <p><%= f.password_field :password_confirmation, autocomplete: "new-password" %></p>
-  </div>
-
-  <div class="field">
-    <p><%= f.label :current_password %> <i>(we need your current password to confirm your changes)</i></p>
-    <p><%= f.password_field :current_password, autocomplete: "current-password" %></p>
-  </div>
-
-  <div class="actions">
-    <%= f.submit "Update" %>
-  </div>
-<% end %>
-
-<h3>Cancel my account</h3>
-
-<div>Unhappy? <%= button_to "Cancel my account", registration_path(resource_name), data: { confirm: "Are you sure?", turbo_confirm: "Are you sure?" }, method: :delete %></div>
-
-<%= link_to "Back", :back %>
+</div>
