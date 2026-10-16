@@ -44,6 +44,7 @@ Rails.application.routes.draw do
   resources :book_clubs, only: [ :index, :show, :new, :create, :edit, :update, :destroy ] do
     get :search_books, on: :collection
     resources :club_messages, only: [ :index, :create ]
+    resource :leaderboard, only: [ :show ], controller: "book_club_leaderboards"
     member do
       post :join
       delete :leave

@@ -2890,6 +2890,56 @@ main.container:has(> .book-club-detail-page) {
   }
 }
 
+.club-discussion-history {
+  padding: 0;
+  overflow: hidden;
+
+  > h2 {
+    margin: 0;
+    padding: 14px 20px;
+    border-bottom: 1px solid $gray-mid;
+    font-size: 15px;
+  }
+}
+
+.club-discussion-message {
+  padding: 18px 20px;
+  border-bottom: 1px solid $gray-mid;
+
+  &:last-child { border-bottom: 0; }
+}
+
+.club-discussion-message-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 7px;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+
+  time {
+    color: $text-muted;
+    font-size: 11px;
+  }
+}
+
+.club-discussion-history .club-discussion-message-body {
+  margin: 8px 0 0;
+  color: $ink;
+  font-size: 13px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.club-discussion-empty { padding: 22px 20px; }
+
+.club-discussion-pagination p {
+  margin: 0;
+  color: $text-muted;
+  font-size: 12px;
+}
+
 .book-club-owner-controls {
   display: grid;
   gap: 24px;

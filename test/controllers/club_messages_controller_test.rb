@@ -168,4 +168,102 @@ class ClubMessagesControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :not_found
   end
+
+  test "html history redirects guests to sign in without exposing messages" do
+    get book_club_club_messages_path(@book_club)
+
+    assert_redirected_to new_user_session_path
+    assert_not_includes response.body, @message.body
+  end
+
+  test "html history denies former members without exposing messages" do
+    @book_club.book_club_memberships.find_by!(user: @member).destroy!
+    sign_in @member
+
+    get book_club_club_messages_path(@book_club)
+
+    assert_redirected_to root_path
+    assert_not_includes response.body, @message.body
+  end
+
+  test "html history paginates 20 posts newest first and links to older posts" do
+    messages = [ @message ]
+    21.times do |number|
+      message = @book_club.club_messages.create!(user: @member, body: "Thought #{number}")
+      messages.push(message)
+    end
+    sign_in @member
+
+    get book_club_club_messages_path(@book_club)
+
+    assert_response :success
+    assert_equal "text/html", response.media_type
+    assert_equal "no-store", response.headers["Cache-Control"]
+    expected_ids = messages.last(20).reverse.map { |message| "club_message_#{message.id}" }
+    actual_ids = css_select(".club-discussion-message").map { |element| element["id"] }
+    assert_equal expected_ids, actual_ids
+    assert_select ".club-discussion-pagination a[href*='page=2']"
+    assert_select ".book-club-sidebar-navigation a.is-active[aria-current='page']", text: "Discussion"
+    assert_select ".book-club-sidebar-navigation a.is-active", count: 1
+
+    get book_club_club_messages_path(@book_club), params: { page: 2 }
+
+    assert_response :success
+    expected_ids = messages.first(2).reverse.map { |message| "club_message_#{message.id}" }
+    actual_ids = css_select(".club-discussion-message").map { |element| element["id"] }
+    assert_equal expected_ids, actual_ids
+  end
+
+  test "html history is readable by nonmember admins and scoped to the requested club" do
+    other_club = BookClub.create!(name: "Another circle")
+    other_message = other_club.club_messages.create!(user: @owner, body: "Another club's thought")
+    sign_in @admin
+
+    get book_club_club_messages_path(@book_club)
+
+    assert_response :success
+    assert_select "#club_message_#{@message.id}"
+    assert_select "#club_message_#{other_message.id}", count: 0
+    assert_select ".book-club-member-status", text: "Administrator view"
+  end
+
+  test "html history escapes message bodies and author nicknames" do
+    @owner.update!(nickname: "<script>author</script>")
+    @message.update!(body: "<script>alert('message')</script>")
+    sign_in @member
+
+    get book_club_club_messages_path(@book_club)
+
+    assert_response :success
+    assert_select ".club-discussion-message script", count: 0
+    assert_select ".club-discussion-message-meta strong", text: @owner.nickname
+    assert_select ".club-discussion-message-body", text: @message.body
+    assert_includes response.body, "&lt;script&gt;"
+  end
+
+  test "html history has an empty state when the club has no messages" do
+    @message.destroy!
+    sign_in @member
+
+    get book_club_club_messages_path(@book_club)
+
+    assert_response :success
+    assert_select ".club-discussion-empty", text: "No discussion posts yet."
+    assert_select ".club-discussion-message", count: 0
+  end
+
+  test "discussion navigation is available to members and admins but hidden from ordinary nonmembers" do
+    sign_in @member
+    get book_club_path(@book_club)
+    assert_select ".book-club-sidebar-navigation a[href='#{book_club_club_messages_path(@book_club)}']", text: "Discussion"
+
+    @book_club.book_club_memberships.find_by!(user: @member).destroy!
+    get book_club_path(@book_club)
+    assert_select ".book-club-sidebar-navigation a[href='#{book_club_club_messages_path(@book_club)}']", count: 0
+
+    sign_out @member
+    sign_in @admin
+    get book_club_path(@book_club)
+    assert_select ".book-club-sidebar-navigation a[href='#{book_club_club_messages_path(@book_club)}']", text: "Discussion"
+  end
 end

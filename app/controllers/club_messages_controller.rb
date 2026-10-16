@@ -7,9 +7,17 @@ class ClubMessagesController < ApplicationController
     messages = policy_scope(@book_club.club_messages)
       .includes(:user)
       .order(id: :desc)
-      .limit(20)
 
-    render json: { messages: messages.map(&:discussion_payload) }
+    response.headers["Cache-Control"] = "no-store"
+
+    respond_to do |format|
+      format.json do
+        render json: { messages: messages.limit(20).map(&:discussion_payload) }
+      end
+      format.html do
+        @pagy, @messages = pagy(:offset, messages, limit: 20)
+      end
+    end
   end
 
   def create

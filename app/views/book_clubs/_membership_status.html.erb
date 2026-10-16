@@ -1,0 +1,9 @@
+<% viewer_role = policy(book_club).viewer_role %>
+
+<% if viewer_role == "owner" %>
+  <span class="book-club-member-status">You're the club owner</span>
+<% elsif viewer_role == "member" %>
+  <span class="book-club-member-status">You're a member</span>
+<% elsif viewer_role == "admin" %>
+  <span class="book-club-member-status">Administrator view</span>
+<% end %>

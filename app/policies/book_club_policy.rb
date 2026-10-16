@@ -7,8 +7,24 @@ class BookClubPolicy < ApplicationPolicy
     true
   end
 
+  def viewer_role
+    if club_owner?
+      "owner"
+    elsif member?
+      "member"
+    elsif admin?
+      "admin"
+    else
+      nil
+    end
+  end
+
   def discuss?
-    admin? || member?
+    admin_or_member?
+  end
+
+  def leaderboard?
+    admin_or_member?
   end
 
   def post_message?
@@ -36,9 +52,7 @@ class BookClubPolicy < ApplicationPolicy
   end
 
   def manage?
-    return false unless user
-
-    record.book_club_memberships.exists?(user_id: user.id, role: "owner")
+    club_owner?
   end
 
   def destroy?
@@ -52,6 +66,16 @@ class BookClubPolicy < ApplicationPolicy
   end
 
   private
+
+  def admin_or_member?
+    admin? || member?
+  end
+
+  def club_owner?
+    return false unless user
+
+    record.book_club_memberships.exists?(user_id: user.id, role: "owner")
+  end
 
   def member?
     user.present? && record.book_club_memberships.exists?(user_id: user.id)

@@ -1,16 +1,14 @@
 <% turbo_refreshes_with method: :morph, scroll: :preserve %>
 <%= turbo_stream_from @book_club %>
 <div class="book-club-detail-page">
-  <%= render "club_sidebar", book_club: @book_club, owner: @owner, current_membership: @current_membership %>
+  <%= render "book_clubs/club_sidebar", book_club: @book_club %>
   <div class="book-club-overview-content">
     <header class="book-club-detail-header">
       <div>
         <h1>Leaderboard</h1>
         <p><span><%= @book_club.name.upcase %></span> · CURRENT CYCLE</p>
       </div>
-      <% if @current_membership %>
-        <span class="book-club-member-status"><%= @current_membership.role == "owner" ? "You're the club owner" : "You're a member" %></span>
-      <% end %>
+      <%= render "book_clubs/membership_status", book_club: @book_club %>
     </header>
     <%= render "leaderboard", book_club: @book_club, leaderboard: @leaderboard %>
   </div>
