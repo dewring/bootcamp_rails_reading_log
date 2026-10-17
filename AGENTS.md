@@ -196,6 +196,17 @@ current conversation take precedence.
 
 - Use Minitest and fixtures, not RSpec.
 
+- Write tests for TypeScript application code in TypeScript (`.ts`),
+  not JavaScript (`.js` or `.mjs`). Configure the test runner to support
+  TypeScript when necessary. Existing JavaScript tests are not a reason
+  to write new tests in JavaScript.
+
+- Write test names in plain English that clearly state the behavior being
+  verified and the expected result. Include the relevant condition when it
+  matters. Describe only what the assertions actually prove; do not imply
+  broader behavior. Prefer concrete wording over vague phrases such as
+  "works correctly" or "is ready."
+
 - Organize tests under `test/{models,controllers,policies,services,jobs,
   mailers,integration}`, mirroring the application structure.
 
