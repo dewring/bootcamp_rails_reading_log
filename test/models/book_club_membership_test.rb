@@ -2,6 +2,7 @@ require "test_helper"
 
 class BookClubMembershipTest < ActiveSupport::TestCase
   include ActiveJob::TestHelper
+  include ActionCable::TestHelper
 
   def queue_adapter_for_test
     ActiveJob::QueueAdapters::TestAdapter.new
@@ -34,5 +35,29 @@ class BookClubMembershipTest < ActiveSupport::TestCase
     assert_enqueued_with(job: BookClubLeaderboardJob, args: [ @book_club.id ]) do
       @book_club.book_club_memberships.create!(user: users(:leika), role: "member")
     end
+  end
+
+  test "membership deletion broadcasts a discussion access check" do
+    membership = @book_club.book_club_memberships.create!(user: users(:jaina), role: "member")
+    stream = ClubDiscussionChannel.broadcasting_for(@book_club)
+
+    assert_broadcast_on stream, { type: "access.recheck" } do
+      membership.destroy!
+    end
+  end
+
+  test "membership deletion does not broadcast before commit or after rollback" do
+    membership = @book_club.book_club_memberships.create!(user: users(:jaina), role: "member")
+    stream = ClubDiscussionChannel.broadcasting_for(@book_club)
+
+    assert_no_broadcasts stream do
+      BookClubMembership.transaction(requires_new: true) do
+        membership.destroy!
+        assert_no_broadcasts stream
+        raise ActiveRecord::Rollback
+      end
+    end
+
+    assert BookClubMembership.exists?(membership.id)
   end
 end

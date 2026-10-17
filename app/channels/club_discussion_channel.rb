@@ -24,6 +24,8 @@ class ClubDiscussionChannel < ApplicationCable::Channel
     return if @access_revoked
 
     if discussion_allowed?
+      return if event["type"] == "access.recheck"
+
       transmit event
     else
       @access_revoked = true
