@@ -1,36 +1,42 @@
-<div class="book-club-detail-page">
-  <%= render "book_clubs/club_sidebar", book_club: @book_club %>
+<% turbo_exempts_page_from_cache %>
+<div data-controller="club-discussion"
+     data-club-discussion-book-club-id-value="<%= @book_club.id %>"
+     data-action="turbo:before-cache@document->club-discussion#beforeCache">
+  <div class="book-club-detail-page" data-club-discussion-target="content">
+    <%= render "book_clubs/club_sidebar", book_club: @book_club %>
 
-  <main class="book-club-overview-content" aria-label="Club discussion">
-    <header class="book-club-detail-header">
-      <div>
-        <h1>Discussion</h1>
-        <p><span><%= @book_club.name %></span> · CURRENT CYCLE</p>
-      </div>
-      <%= render "book_clubs/membership_status", book_club: @book_club %>
-    </header>
+    <section class="book-club-overview-content" aria-labelledby="discussion-title">
+      <header class="book-club-detail-header">
+        <div>
+          <h1 id="discussion-title">Discussion</h1>
+          <p><span><%= @book_club.name %></span> · CURRENT CYCLE</p>
+        </div>
+        <%= render "book_clubs/membership_status", book_club: @book_club %>
+      </header>
 
-    <section class="book-club-overview-card club-discussion-history" aria-labelledby="club-discussion-history-title">
-      <h2 id="club-discussion-history-title">All Threads</h2>
+      <section class="book-club-overview-card club-discussion-history" aria-labelledby="club-discussion-history-title">
+        <h2 id="club-discussion-history-title">All Threads</h2>
 
-      <% if @messages.empty? %>
-        <p class="club-discussion-empty">No discussion posts yet.</p>
-      <% else %>
-        <% @messages.each do |message| %>
-          <article id="<%= dom_id(message) %>" class="club-discussion-message">
-            <header class="club-discussion-message-meta">
-              <strong><%= message.user.nickname %></strong>
-              <time datetime="<%= message.created_at.iso8601(6) %>"><%= message.created_at.strftime("%b %-d, %Y · %H:%M") %></time>
-            </header>
-            <p class="club-discussion-message-body"><%= message.body %></p>
-          </article>
+        <% if @messages.empty? %>
+          <p class="club-discussion-empty">No discussion posts yet.</p>
+        <% else %>
+          <% @messages.each do |message| %>
+            <article id="<%= dom_id(message) %>" class="club-discussion-message">
+              <header class="club-discussion-message-meta">
+                <strong><%= message.user.nickname %></strong>
+                <time datetime="<%= message.created_at.iso8601(6) %>"><%= message.created_at.strftime("%b %-d, %Y · %H:%M") %></time>
+              </header>
+              <p class="club-discussion-message-body"><%= message.body %></p>
+            </article>
+          <% end %>
         <% end %>
-      <% end %>
-    </section>
+      </section>
 
-    <footer class="club-discussion-pagination">
-      <p><%= pluralize(@pagy.count, "post") %> · Page <%= @pagy.page %> of <%= @pagy.last %></p>
-      <%== @pagy.series_nav if @pagy.last > 1 %>
-    </footer>
-  </main>
+      <footer class="club-discussion-pagination">
+        <p><%= pluralize(@pagy.count, "post") %> · Page <%= @pagy.page %> of <%= @pagy.last %></p>
+        <%== @pagy.series_nav if @pagy.last > 1 %>
+      </footer>
+    </section>
+  </div>
+  <p role="status" data-club-discussion-target="status" hidden></p>
 </div>

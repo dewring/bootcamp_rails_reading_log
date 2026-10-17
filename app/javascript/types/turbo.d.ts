@@ -8,9 +8,13 @@ declare module "@hotwired/turbo-rails" {
   }
 
   interface Cable {
-    subscribeTo(
-      channel: string,
-      callbacks: { received(message: string): void }
+    subscribeTo<Message>(
+      channel: string | { channel: string; book_club_id: number },
+      callbacks: {
+        received(message: Message): void
+        rejected?(): void
+        disconnected?(details: { willAttemptReconnect: boolean }): void
+      }
     ): Promise<CableSubscription>
   }
 

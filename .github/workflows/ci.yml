@@ -62,6 +62,9 @@ jobs:
       - name: Type check TypeScript
         run: yarn typecheck
 
+      - name: Run JavaScript and TypeScript tests
+        run: yarn test
+
   lint:
     runs-on: ubuntu-latest
     env:

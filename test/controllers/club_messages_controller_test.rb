@@ -252,6 +252,32 @@ class ClubMessagesControllerTest < ActionDispatch::IntegrationTest
     assert_select ".club-discussion-message", count: 0
   end
 
+  test "discussion page has one main region and a discussion section labelled by its heading" do
+    sign_in @member
+
+    get book_club_club_messages_path(@book_club)
+
+    assert_response :success
+    assert_select "main", count: 1
+    assert_select "main section.book-club-overview-content[aria-labelledby='discussion-title']", count: 1 do
+      assert_select "h1#discussion-title", text: "Discussion", count: 1
+    end
+  end
+
+  test "discussion page includes the required Stimulus settings" do
+    sign_in @member
+
+    get book_club_club_messages_path(@book_club)
+
+    assert_response :success
+    assert_select "meta[name='turbo-cache-control'][content='no-cache']"
+    assert_select "[data-controller='club-discussion'][data-club-discussion-book-club-id-value='#{@book_club.id}']" do
+      assert_select "[data-action='turbo:before-cache@document->club-discussion#beforeCache']"
+      assert_select "[data-club-discussion-target='content'] #club_message_#{@message.id}"
+      assert_select "p[role='status'][data-club-discussion-target='status'][hidden]"
+    end
+  end
+
   test "discussion navigation is available to members and admins but hidden from ordinary nonmembers" do
     sign_in @member
     get book_club_path(@book_club)
