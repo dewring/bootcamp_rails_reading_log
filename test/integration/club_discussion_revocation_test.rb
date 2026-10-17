@@ -38,7 +38,7 @@ class ClubDiscussionRevocationTest < ActiveSupport::TestCase
     admin_membership.destroy!
     message = @book_club.club_messages.create!(user: @member, body: "Still visible to admins")
 
-    expected = { "type" => "message.created", "message" => message.discussion_payload.as_json }
+    expected = { "type" => "message.created", "message" => message.discussion_payload.as_json, "total_posts" => 1 }
     assert_equal expected, @connection.next_message_data.fetch("message")
   end
 
@@ -49,7 +49,7 @@ class ClubDiscussionRevocationTest < ActiveSupport::TestCase
     other_membership.destroy!
     message = @book_club.club_messages.create!(user: @member, body: "Still a member")
 
-    expected = { "type" => "message.created", "message" => message.discussion_payload.as_json }
+    expected = { "type" => "message.created", "message" => message.discussion_payload.as_json, "total_posts" => 1 }
     assert_equal expected, @connection.next_message_data.fetch("message")
   end
 

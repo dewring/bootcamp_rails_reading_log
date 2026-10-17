@@ -1,6 +1,8 @@
 <% turbo_exempts_page_from_cache %>
 <div data-controller="club-discussion"
      data-club-discussion-book-club-id-value="<%= @book_club.id %>"
+     data-club-discussion-page-value="<%= @pagy.page %>"
+     data-club-discussion-total-posts-value="<%= @pagy.count %>"
      data-action="turbo:before-cache@document->club-discussion#beforeCache">
   <div class="book-club-detail-page" data-club-discussion-target="content">
     <%= render "book_clubs/club_sidebar", book_club: @book_club %>
@@ -17,11 +19,10 @@
       <section class="book-club-overview-card club-discussion-history" aria-labelledby="club-discussion-history-title">
         <h2 id="club-discussion-history-title">All Threads</h2>
 
-        <% if @messages.empty? %>
-          <p class="club-discussion-empty">No discussion posts yet.</p>
-        <% else %>
+        <p class="club-discussion-empty" data-club-discussion-target="emptyState" <%= "hidden" unless @messages.empty? %>>No discussion posts yet.</p>
+        <div data-club-discussion-target="messages">
           <% @messages.each do |message| %>
-            <article id="<%= dom_id(message) %>" class="club-discussion-message">
+            <article id="<%= dom_id(message) %>" class="club-discussion-message" data-message-id="<%= message.id %>">
               <header class="club-discussion-message-meta">
                 <strong><%= message.user.nickname %></strong>
                 <time datetime="<%= message.created_at.iso8601(6) %>"><%= message.created_at.strftime("%b %-d, %Y · %H:%M") %></time>
@@ -29,12 +30,13 @@
               <p class="club-discussion-message-body"><%= message.body %></p>
             </article>
           <% end %>
-        <% end %>
+        </div>
       </section>
 
       <footer class="club-discussion-pagination">
-        <p><%= pluralize(@pagy.count, "post") %> · Page <%= @pagy.page %> of <%= @pagy.last %></p>
-        <%== @pagy.series_nav if @pagy.last > 1 %>
+        <p data-club-discussion-target="paginationSummary"><%= pluralize(@pagy.count, "post") %> · Page <%= @pagy.page %> of <%= @pagy.last %></p>
+        <div data-club-discussion-target="pagination"><%== @pagy.series_nav if @pagy.last > 1 %></div>
+        <%= link_to "Older posts", book_club_club_messages_path(@book_club, page: 2), data: { club_discussion_target: "olderPosts" }, hidden: true %>
       </footer>
     </section>
   </div>

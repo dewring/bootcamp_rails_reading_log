@@ -27,7 +27,7 @@ class ClubMessageTest < ActiveSupport::TestCase
       message.save!
     end
 
-    assert_broadcast_on stream, { type: "message.created", message: message.discussion_payload }
+    assert_broadcast_on stream, { type: "message.created", message: message.discussion_payload, total_posts: 1 }
   end
 
   test "creation waits until the transaction commits before broadcasting" do

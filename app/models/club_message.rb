@@ -21,7 +21,7 @@ class ClubMessage < ApplicationRecord
   def broadcast_created_message
     ClubDiscussionChannel.broadcast_to(
       book_club,
-      { type: "message.created", message: discussion_payload }
+      { type: "message.created", message: discussion_payload, total_posts: book_club.club_messages.count }
     )
   end
 end

@@ -272,8 +272,11 @@ class ClubMessagesControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_select "meta[name='turbo-cache-control'][content='no-cache']"
     assert_select "[data-controller='club-discussion'][data-club-discussion-book-club-id-value='#{@book_club.id}']" do
+      assert_select "[data-club-discussion-page-value='1'][data-club-discussion-total-posts-value='1']"
       assert_select "[data-action='turbo:before-cache@document->club-discussion#beforeCache']"
       assert_select "[data-club-discussion-target='content'] #club_message_#{@message.id}"
+      assert_select "[data-club-discussion-target='messages'] article[data-message-id='#{@message.id}']"
+      assert_select "[data-club-discussion-target='emptyState'][hidden]"
       assert_select "p[role='status'][data-club-discussion-target='status'][hidden]"
     end
   end
