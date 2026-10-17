@@ -117,6 +117,22 @@ class BookClubMembershipStatusTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "sidebar displays the club name without added initials on every club page" do
+    club = BookClub.create!(name: "harry potter")
+    paths = [
+      book_club_path(club),
+      book_club_club_messages_path(club),
+      book_club_leaderboard_path(club)
+    ]
+
+    paths.each do |path|
+      get path
+
+      assert_response :success
+      assert_select ".book-club-sidebar-identity h2", text: "harry potter", count: 1
+    end
+  end
+
   private
 
   def assert_status_on_club_pages(club, expected_status, expected_sidebar_label)

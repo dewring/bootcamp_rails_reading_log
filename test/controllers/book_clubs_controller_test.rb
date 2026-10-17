@@ -136,6 +136,7 @@ class BookClubsControllerTest < ActionDispatch::IntegrationTest
     get book_clubs_path(new_club: true)
     assert_response :success
     assert_select ".book-club-detail-page h1", text: "Overview"
+    assert_select ".book-club-sidebar-identity h2", text: "New book club", count: 1
     assert_select ".book-club-sidebar-navigation a.is-active", text: "Overview"
     assert_select ".book-club-stat-grid, .book-club-member-status, .book-club-member-list", count: 0
     assert_select "input[readonly]", count: 0

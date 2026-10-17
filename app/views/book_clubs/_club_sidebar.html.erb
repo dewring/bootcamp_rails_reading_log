@@ -1,7 +1,7 @@
 <aside class="book-club-sidebar">
   <div>
     <div class="book-club-sidebar-identity">
-      <h2><%= book_club.name.present? ? "#{book_club.name.first(2).upcase} #{book_club.name}" : "New book club" %></h2>
+      <h2><%= book_club.name.presence || "New book club" %></h2>
       <% if book_club.persisted? %>
         <p>Joined · <%= pluralize(book_club.book_club_memberships_count, "member") %></p>
       <% end %>
