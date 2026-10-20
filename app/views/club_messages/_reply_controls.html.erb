@@ -1,0 +1,16 @@
+<div class="club-discussion-replies"
+     data-controller="club-replies"
+     data-club-replies-post-id-value="<%= message_id %>"
+     data-club-replies-url-value="<%= book_club_club_message_replies_path(book_club, message_id) if message_id %>"
+     data-action="turbo:before-cache@document->club-replies#beforeCache club-replies:access-revoked->club-discussion#endAccess">
+  <button type="button" class="club-discussion-replies-toggle" aria-expanded="false"
+          data-club-replies-target="toggle" data-action="club-replies#toggle">
+    <%= image_tag "discussion-replies.svg", alt: "", width: 11, height: 11 %>
+    Replies
+  </button>
+  <div data-club-replies-target="panel" hidden>
+    <div class="club-discussion-reply-list" data-club-replies-target="list"></div>
+    <p role="status" data-club-replies-target="status"></p>
+    <button type="button" class="club-discussion-replies-toggle" data-club-replies-target="more" data-action="club-replies#loadMore" hidden>Load more replies</button>
+  </div>
+</div>

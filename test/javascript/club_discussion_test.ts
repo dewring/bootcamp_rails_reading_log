@@ -102,6 +102,35 @@ function savedPostResult(requestId: string) {
   return { ...createdMessageEvent(2), type: "post.saved", request_id: requestId }
 }
 
+test("live posts receive reply controls for their own reply history", async () => {
+  const template = document.createElement("template")
+  template.dataset.clubDiscussionTarget = "replyControls"
+  template.innerHTML = `<div data-controller="club-replies"></div>`
+  content.append(template)
+  completeSetup(requests[0])
+  await Promise.resolve()
+
+  requests[0].callbacks.received(createdMessageEvent(2))
+
+  const controls = messages.querySelector<HTMLElement>("#club_message_2 [data-controller='club-replies']")!
+  expect(controls.dataset.clubRepliesPostIdValue).toBe("2")
+  expect(controls.dataset.clubRepliesUrlValue).toBe("/book_clubs/17/club_messages/2/replies")
+})
+
+test("a reply access revocation event clears the enclosing private discussion", async () => {
+  const controls = document.createElement("div")
+  controls.dataset.action = "club-replies:access-revoked->club-discussion#endAccess"
+  content.append(controls)
+  completeSetup(requests[0])
+  await Promise.resolve()
+  await Promise.resolve()
+
+  controls.dispatchEvent(new CustomEvent("club-replies:access-revoked", { bubbles: true }))
+
+  expect(content.childElementCount).toBe(0)
+  expect(status.textContent).toContain("Discussion access has ended")
+})
+
 test("posting performs a Cable action and displays the saved result without an HTTP request", async () => {
   const composer = await mountComposer()
   const httpRequest = vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("HTTP posting must not be used"))

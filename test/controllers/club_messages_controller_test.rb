@@ -13,6 +13,19 @@ class ClubMessagesControllerTest < ActionDispatch::IntegrationTest
     @message = @book_club.club_messages.create!(user: @owner, body: "First thought")
   end
 
+  test "each post has collapsed reply controls pointing to its own reply history" do
+    sign_in @member
+
+    get book_club_club_messages_path(@book_club)
+
+    assert_response :success
+    assert_select "#club_message_#{@message.id} [data-controller='club-replies'][data-club-replies-url-value='#{book_club_club_message_replies_path(@book_club, @message)}']" do
+      assert_select "button[aria-expanded='false'][data-action='club-replies#toggle']"
+      assert_select "[data-club-replies-target='panel'][hidden]"
+    end
+    assert_select "template[data-club-discussion-target='replyControls']"
+  end
+
   test "members see a labelled discussion form with a 1000 character limit" do
     sign_in @member
 

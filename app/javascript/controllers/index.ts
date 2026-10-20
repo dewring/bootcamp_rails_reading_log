@@ -13,6 +13,7 @@ import MyLogCarouselController from "./my_log_carousel_controller"
 import SelectDropdownController from "./select_dropdown_controller"
 import ClubBookSearchController from "./club_book_search_controller"
 import FlashNotificationsController from "./flash_notifications_controller"
+import ClubRepliesController from "./club_replies_controller"
 import ClubDiscussionController from "./club_discussion_controller"
 
 application.register("search", SearchController)
@@ -30,3 +31,5 @@ application.register("select-dropdown", SelectDropdownController)
 application.register("club-book-search", ClubBookSearchController)
 application.register("flash-notifications", FlashNotificationsController)
 application.register("club-discussion", ClubDiscussionController)
+
+application.register("club-replies", ClubRepliesController)

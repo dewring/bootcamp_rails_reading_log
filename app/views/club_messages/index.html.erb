@@ -5,6 +5,9 @@
      data-club-discussion-total-posts-value="<%= @pagy.count %>"
      data-action="turbo:before-cache@document->club-discussion#beforeCache">
   <div class="book-club-detail-page" data-club-discussion-target="content">
+    <template data-club-discussion-target="replyControls">
+      <%= render "reply_controls", book_club: @book_club, message_id: nil %>
+    </template>
     <%= render "book_clubs/club_sidebar", book_club: @book_club %>
 
     <section class="book-club-overview-content" aria-labelledby="discussion-title">
@@ -31,6 +34,7 @@
                   <time datetime="<%= message.created_at.iso8601(6) %>"><%= message.created_at.strftime("%b %-d, %Y · %H:%M") %></time>
                 </header>
                 <p class="club-discussion-message-body"><%= message.body %></p>
+                <%= render "reply_controls", book_club: @book_club, message_id: message.id %>
               </article>
             <% end %>
           </div>

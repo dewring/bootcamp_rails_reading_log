@@ -25,7 +25,7 @@ type DiscussionSubscription = {
 }
 
 export default class extends Controller {
-  static targets = ["content", "status", "messages", "emptyState", "paginationSummary", "pagination", "olderPosts", "body", "submit", "composerStatus"]
+  static targets = ["content", "status", "messages", "emptyState", "paginationSummary", "pagination", "olderPosts", "body", "submit", "composerStatus", "replyControls"]
   static values = { bookClubId: Number, page: Number, totalPosts: Number }
 
   declare readonly contentTarget: HTMLElement
@@ -44,6 +44,9 @@ export default class extends Controller {
   declare readonly bodyTarget: HTMLTextAreaElement
   declare readonly submitTarget: HTMLButtonElement
   declare readonly composerStatusTarget: HTMLElement
+
+  declare readonly replyControlsTarget: HTMLTemplateElement
+  declare readonly hasReplyControlsTarget: boolean
 
   private discussionSubscription?: Promise<DiscussionSubscription | undefined>
   private receivedMessageIds = new Set<number>()
@@ -188,7 +191,7 @@ export default class extends Controller {
     if (this.hasBodyTarget) this.bodyTarget.readOnly = posting
   }
 
-  private endAccess() {
+  endAccess() {
     this.cableConnected = false
     this.finishPosting()
     this.contentTarget.replaceChildren()
@@ -252,6 +255,12 @@ export default class extends Controller {
     body.className = "club-discussion-message-body"
     body.textContent = message.body
     article.append(header, body)
+    if (this.hasReplyControlsTarget) {
+      const controls = this.replyControlsTarget.content.firstElementChild!.cloneNode(true) as HTMLElement
+      controls.dataset.clubRepliesPostIdValue = String(message.id)
+      controls.dataset.clubRepliesUrlValue = `/book_clubs/${this.bookClubIdValue}/club_messages/${message.id}/replies`
+      article.append(controls)
+    }
     return article
   }
 
