@@ -15,6 +15,89 @@ class ClubDiscussionChannelTest < ActionCable::Channel::TestCase
     Rack::Attack.reset!
   end
 
+  test "reply submission derives author club and parent from the subscribed club" do
+    parent = @book_club.club_messages.create!(user: @owner, body: "A question")
+    stub_connection current_user: @member
+    subscribe book_club_id: @book_club.id
+
+    assert_difference "ClubMessage.count", 1 do
+      perform :post_reply, request_id: "reply-1", parent_id: parent.id, body: "An answer", user_id: @admin.id, book_club_id: -1
+    end
+
+    reply = parent.replies.last
+    assert_equal @member, reply.user
+    assert_equal @book_club, reply.book_club
+    assert_equal "reply.saved", transmissions.last.fetch("type")
+    assert_equal reply.discussion_payload.as_json, transmissions.last.fetch("message")
+    assert_equal 1, transmissions.last.fetch("total_posts")
+  end
+
+  test "replies cannot target another club a reply or an invalid parent id" do
+    parent = @book_club.club_messages.create!(user: @owner, body: "A question")
+    reply = parent.replies.create!(book_club: @book_club, user: @owner, body: "An answer")
+    other_club = BookClub.create!(name: "Another circle")
+    other_post = other_club.club_messages.create!(user: @owner, body: "Private question")
+    stub_connection current_user: @member
+    subscribe book_club_id: @book_club.id
+
+    [ other_post.id, reply.id, nil, "invalid", -1 ].each do |parent_id|
+      assert_no_difference "ClubMessage.count" do
+        assert_no_broadcasts @book_club do
+          perform :post_reply, request_id: "invalid-parent", parent_id: parent_id, body: "An answer"
+        end
+      end
+      assert_equal "reply.rejected", transmissions.last.fetch("type")
+      assert_equal "not_found", transmissions.last.fetch("error")
+    end
+  end
+
+  test "nonmember admins cannot reply and removed members lose reply access" do
+    parent = @book_club.club_messages.create!(user: @owner, body: "A question")
+    stub_connection current_user: @admin
+    subscribe book_club_id: @book_club.id
+    assert_no_difference "ClubMessage.count" do
+      perform :post_reply, request_id: "admin-reply", parent_id: parent.id, body: "An answer"
+    end
+    assert_equal "forbidden", transmissions.last.fetch("error")
+
+    stub_connection current_user: @member
+    subscribe book_club_id: @book_club.id
+    @book_club.book_club_memberships.find_by!(user: @member).destroy!
+    assert_no_difference "ClubMessage.count" do
+      perform :post_reply, request_id: "former-member", parent_id: parent.id, body: "An answer"
+    end
+    assert_equal "access.revoked", transmissions.last.fetch("type")
+  end
+
+  test "invalid reply bodies return errors without saving or broadcasting" do
+    parent = @book_club.club_messages.create!(user: @owner, body: "A question")
+    stub_connection current_user: @member
+    subscribe book_club_id: @book_club.id
+    assert_no_difference "ClubMessage.count" do
+      assert_no_broadcasts @book_club do
+        perform :post_reply, request_id: "blank-reply", parent_id: parent.id, body: " "
+      end
+    end
+    assert_equal "reply.rejected", transmissions.last.fetch("type")
+    assert_includes transmissions.last.fetch("errors").fetch("body"), "can't be blank"
+  end
+
+  test "posts and replies share the same 20 attempt limit" do
+    freeze_time do
+      parent = @book_club.club_messages.create!(user: @owner, body: "A question")
+      stub_connection current_user: @member
+      subscribe book_club_id: @book_club.id
+      10.times do |number|
+        perform :post_message, request_id: "post-#{number}", body: "A thought"
+        perform :post_reply, request_id: "reply-#{number}", parent_id: parent.id, body: "An answer"
+      end
+      assert_no_difference "ClubMessage.count" do
+        perform :post_reply, request_id: "over-limit", parent_id: parent.id, body: "Another answer"
+      end
+      assert_equal "rate_limited", transmissions.last.fetch("error")
+    end
+  end
+
   test "club owner can subscribe to the club discussion" do
     stub_connection current_user: @owner
 

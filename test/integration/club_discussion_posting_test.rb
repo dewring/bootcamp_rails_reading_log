@@ -51,6 +51,28 @@ class ClubDiscussionPostingTest < ActiveSupport::TestCase
     assert_equal @member, message.user
   end
 
+  test "reply submission acknowledges the sender and broadcasts the committed reply to both members" do
+    parent = @book_club.club_messages.create!(user: @owner, body: "A question")
+    sender = subscribe_to_discussion(@member)
+    reader = subscribe_to_discussion(@owner)
+
+    assert_difference "ClubMessage.count", 1 do
+      sender.subscriptions.perform_action(
+        "identifier" => @identifier,
+        "data" => { action: "post_reply", request_id: "reply-1", parent_id: parent.id, body: "An answer" }.to_json
+      )
+    end
+
+    events = [ sender.next_message_data.fetch("message"), sender.next_message_data.fetch("message") ]
+    saved = events.find { |event| event.fetch("type") == "reply.saved" }
+    created = events.find { |event| event.fetch("type") == "reply.created" }
+    assert_equal "reply-1", saved.fetch("request_id")
+    assert_equal parent.replies.last.discussion_payload.as_json, saved.fetch("message")
+    assert_equal saved.fetch("message"), created.fetch("message")
+    assert_equal 1, created.fetch("total_posts")
+    assert_equal created, reader.next_message_data.fetch("message")
+  end
+
   test "validation errors are sent only to the submitting member" do
     sender = subscribe_to_discussion(@member)
     reader = subscribe_to_discussion(@owner)
