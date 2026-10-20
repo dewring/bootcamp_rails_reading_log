@@ -60,6 +60,116 @@ class ClubMessageTest < ActiveSupport::TestCase
     end
   end
 
+  test "a reply belongs to a post in the same club and appears in its replies" do
+    post = create_message(body: "A discussion question")
+    reply = create_message(parent: post, user: users(:jaina), body: "My answer")
+
+    assert_equal post, reply.reload.parent
+    assert_includes post.replies, reply
+    assert_equal post.id, reply.discussion_payload.fetch(:parent_id)
+    assert_nil post.discussion_payload.fetch(:parent_id)
+  end
+
+  test "replies to another club's posts are rejected without saving or broadcasting" do
+    other_club = BookClub.create!(name: "Another circle")
+    post = create_message(book_club: other_club, body: "Another club's question")
+    reply = build_message(parent: post, user: @user, body: "Not allowed")
+
+    assert_no_broadcasts discussion_stream do
+      assert_no_difference "ClubMessage.count" do
+        assert_not reply.save
+      end
+    end
+    assert_includes reply.errors[:parent], "must belong to the same book club"
+  end
+
+  test "replies cannot have another level of replies" do
+    post = create_message(body: "A discussion question")
+    reply = create_message(parent: post, user: @user, body: "An answer")
+    nested_reply = build_message(parent: reply, user: @user, body: "Too deeply nested")
+
+    assert_no_difference "ClubMessage.count" do
+      assert_not nested_reply.save
+    end
+    assert_includes nested_reply.errors[:parent], "would create nested replies"
+  end
+
+  test "a post that already has replies cannot become a reply" do
+    post = create_message(body: "A discussion question")
+    create_message(parent: post, user: @user, body: "An answer")
+    another_post = create_message(body: "Another question")
+
+    assert_not post.update(parent: another_post)
+
+    assert_includes post.errors[:parent], "would create nested replies"
+    assert_nil post.reload.parent_id
+  end
+
+  test "a message cannot be its own parent" do
+    post = create_message(body: "A discussion question")
+
+    assert_not post.update(parent: post)
+
+    assert_includes post.errors[:parent], "cannot be the message itself"
+    assert_nil post.reload.parent_id
+  end
+
+  test "a missing parent is rejected" do
+    reply = build_message(body: "An answer")
+    reply.parent_id = 0
+
+    assert_not reply.valid?
+
+    assert_includes reply.errors[:parent], "must exist"
+  end
+
+  test "the database rejects self references when validations are bypassed" do
+    post = create_message(body: "A discussion question")
+
+    assert_raises ActiveRecord::StatementInvalid do
+      ClubMessage.transaction(requires_new: true) do
+        post.update_columns(parent_id: post.id)
+      end
+    end
+    assert_nil post.reload.parent_id
+  end
+
+  test "the database rejects missing parents when validations are bypassed" do
+    post = create_message(body: "A discussion question")
+
+    assert_raises ActiveRecord::InvalidForeignKey do
+      ClubMessage.transaction(requires_new: true) do
+        post.update_columns(parent_id: 0)
+      end
+    end
+    assert_nil post.reload.parent_id
+  end
+
+  test "reply creation has its own event type and does not increase the post total" do
+    post = create_message(body: "A discussion question")
+    reply = build_message(parent: post, user: @user, body: "An answer")
+
+    assert_broadcasts discussion_stream, 1 do
+      reply.save!
+    end
+
+    assert_broadcast_on discussion_stream, { type: "reply.created", message: reply.discussion_payload, total_posts: 1 }
+    assert_equal [ post.id ], @book_club.club_messages.top_level.pluck(:id)
+  end
+
+  test "rolled back replies are neither saved nor broadcast" do
+    post = create_message(body: "A discussion question")
+
+    assert_no_broadcasts discussion_stream do
+      assert_no_difference "ClubMessage.count" do
+        ClubMessage.transaction(requires_new: true) do
+          create_message(parent: post, user: @user, body: "Rolled back answer")
+          raise ActiveRecord::Rollback
+        end
+      end
+    end
+  end
+
   test "requires a club and author" do
     message = ClubMessage.new(body: "A thought about the book")
 
@@ -118,15 +228,17 @@ class ClubMessageTest < ActiveSupport::TestCase
     end
   end
 
-  test "destroying a club removes its messages and preserves other clubs messages" do
+  test "destroying a club removes its posts and replies and preserves other clubs messages" do
     other_club = BookClub.create!(name: "Another circle")
     message = create_message(body: "This club's message")
+    reply = create_message(parent: message, user: users(:jaina), body: "A reply in this club")
     other_message = create_message(book_club: other_club, body: "Another club's message")
 
-    assert_difference "ClubMessage.count", -1 do
+    assert_difference "ClubMessage.count", -2 do
       @book_club.destroy!
     end
     assert_not ClubMessage.exists?(message.id)
+    assert_not ClubMessage.exists?(reply.id)
     assert ClubMessage.exists?(other_message.id)
   end
 
@@ -144,12 +256,12 @@ class ClubMessageTest < ActiveSupport::TestCase
 
   private
 
-  def build_message(body:, user: @user, book_club: @book_club)
-    book_club.club_messages.build(user: user, body: body)
+  def build_message(body:, user: @user, book_club: @book_club, parent: nil)
+    book_club.club_messages.build(user: user, body: body, parent: parent)
   end
 
-  def create_message(body:, user: @user, book_club: @book_club)
-    message = build_message(body: body, user: user, book_club: book_club)
+  def create_message(body:, user: @user, book_club: @book_club, parent: nil)
+    message = build_message(body: body, user: user, book_club: book_club, parent: parent)
     message.save!
     message
   end

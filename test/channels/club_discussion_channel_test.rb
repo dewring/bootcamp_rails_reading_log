@@ -92,15 +92,19 @@ class ClubDiscussionChannelTest < ActionCable::Channel::TestCase
 
   test "posting ignores spoofed author club id and timestamps" do
     other_club = BookClub.create!(name: "Another circle")
+    post = @book_club.club_messages.create!(user: @owner, body: "A discussion question")
+    @book_club.club_messages.create!(parent: post, user: @owner, body: "A separate answer")
     stub_connection current_user: @member
     subscribe book_club_id: @book_club.id
 
     perform :post_message, request_id: "post-1", body: "My thought", user_id: @admin.id,
-      book_club_id: other_club.id, id: 1, created_at: "2000-01-01T00:00:00Z"
+      book_club_id: other_club.id, id: 1, parent_id: post.id, created_at: "2000-01-01T00:00:00Z"
 
     message = ClubMessage.find(transmissions.last.fetch("message").fetch("id"))
     assert_equal @member, message.user
     assert_equal @book_club, message.book_club
+    assert_nil message.parent_id
+    assert_equal 2, transmissions.last.fetch("total_posts")
     assert_not_equal 2000, message.created_at.year
     assert_empty other_club.club_messages
   end

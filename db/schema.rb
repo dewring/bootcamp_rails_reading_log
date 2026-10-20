@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_15_010000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_20_010000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -152,11 +152,14 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_15_010000) do
     t.text "body", null: false
     t.bigint "book_club_id", null: false
     t.datetime "created_at", null: false
+    t.bigint "parent_id"
     t.datetime "updated_at", null: false
     t.bigint "user_id", null: false
     t.index ["book_club_id", "id"], name: "index_club_messages_on_book_club_id_and_id"
+    t.index ["parent_id", "id"], name: "index_club_messages_on_parent_id_and_id"
     t.index ["user_id"], name: "index_club_messages_on_user_id"
     t.check_constraint "char_length(body) <= 1000", name: "club_messages_body_length"
+    t.check_constraint "parent_id IS NULL OR parent_id <> id", name: "club_messages_parent_not_self"
   end
 
   create_table "genres", force: :cascade do |t|
@@ -305,6 +308,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_15_010000) do
   add_foreign_key "book_genres", "books"
   add_foreign_key "book_genres", "genres"
   add_foreign_key "club_messages", "book_clubs"
+  add_foreign_key "club_messages", "club_messages", column: "parent_id"
   add_foreign_key "club_messages", "users"
   add_foreign_key "reading_metrics", "users"
   add_foreign_key "reading_sessions", "book_editions"

@@ -3,6 +3,7 @@ import { cable } from "@hotwired/turbo-rails"
 
 export interface DiscussionMessage {
   id: number
+  parent_id: number | null
   body: string
   author: { id: number; nickname: string }
   created_at: string

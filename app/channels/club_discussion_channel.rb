@@ -36,7 +36,7 @@ class ClubDiscussionChannel < ApplicationCable::Channel
     end
 
     if message.save
-      transmit({ type: "post.saved", request_id: request_id, message: message.discussion_payload, total_posts: @book_club.club_messages.count })
+      transmit({ type: "post.saved", request_id: request_id, message: message.discussion_payload, total_posts: @book_club.club_messages.top_level.count })
     else
       transmit({ type: "post.rejected", request_id: request_id, errors: message.errors.to_hash })
     end

@@ -459,6 +459,16 @@ test("the first live post hides the empty state", () => {
   expect(emptyState.hidden).toBe(true)
 })
 
+test("reply creation events do not insert replies into the top-level feed", () => {
+  const event = createdMessageEvent(2)
+  event.type = "reply.created"
+  event.message.parent_id = 1
+
+  requests[0].callbacks.received(event)
+
+  expect(postIds()).toEqual(["1"])
+})
+
 test("older pages keep their history and display a notice for new posts", () => {
   element.setAttribute("data-club-discussion-page-value", "2")
 
@@ -469,12 +479,13 @@ test("older pages keep their history and display a notice for new posts", () => 
   expect(status.textContent).toBe("New posts are available on the first page.")
 })
 
-function createdMessageEvent(id: number) {
+function createdMessageEvent(id: number): { type: string; total_posts: number; message: DiscussionMessage } {
   return {
     type: "message.created",
     total_posts: id,
     message: {
       id,
+      parent_id: null,
       body: `Thought ${id}`,
       author: { id: 7, nickname: "Reader" },
       created_at: "2026-10-17T09:45:12.123456Z",

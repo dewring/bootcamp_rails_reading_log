@@ -5,6 +5,7 @@ class ClubMessagesController < ApplicationController
   def index
     authorize @book_club, :discuss?
     messages = policy_scope(@book_club.club_messages)
+      .top_level
       .includes(:user)
       .order(id: :desc)
 

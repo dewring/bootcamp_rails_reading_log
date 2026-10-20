@@ -92,11 +92,29 @@ class ClubMessagesControllerTest < ActionDispatch::IntegrationTest
     assert_equal "application/json", response.media_type
     assert_equal [ {
       "id" => @message.id,
+      "parent_id" => nil,
       "body" => "First thought",
       "author" => { "id" => @owner.id, "nickname" => @owner.nickname },
       "created_at" => @message.created_at.iso8601(6),
       "updated_at" => @message.updated_at.iso8601(6)
     } ], response.parsed_body.fetch("messages")
+  end
+
+  test "history and pagination exclude replies from top-level posts" do
+    reply = @book_club.club_messages.create!(parent: @message, user: @member, body: "A separate answer")
+    sign_in @member
+
+    get book_club_club_messages_path(@book_club), as: :json
+
+    assert_response :success
+    assert_equal [ @message.id ], response.parsed_body.fetch("messages").map { |message| message.fetch("id") }
+
+    get book_club_club_messages_path(@book_club)
+
+    assert_response :success
+    assert_select "#club_message_#{@message.id}"
+    assert_select "#club_message_#{reply.id}", count: 0
+    assert_select "[data-club-discussion-target='paginationSummary']", text: "1 post · Page 1 of 1"
   end
 
   test "history returns only the latest 20 messages in descending id order" do
