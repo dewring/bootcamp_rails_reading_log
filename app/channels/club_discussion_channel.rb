@@ -11,6 +11,29 @@ class ClubDiscussionChannel < ApplicationCable::Channel
     end
   end
 
+  def post_message(data)
+    return if @access_revoked
+    return revoke_discussion_access unless discussion_allowed?
+
+    request_id = data["request_id"]
+    return unless request_id.is_a?(String) && request_id.length.between?(1, 64)
+
+    user = User.find_by(id: current_user.id)
+    body = data["body"] if data["body"].is_a?(String)
+    message = @book_club.club_messages.build(user: user, body: body)
+
+    unless ClubMessagePolicy.new(user, message).create?
+      transmit({ type: "post.rejected", request_id: request_id, error: "forbidden" })
+      return
+    end
+
+    if message.save
+      transmit({ type: "post.saved", request_id: request_id, message: message.discussion_payload, total_posts: @book_club.club_messages.count })
+    else
+      transmit({ type: "post.rejected", request_id: request_id, errors: message.errors.to_hash })
+    end
+  end
+
   private
 
   def discussion_allowed?
@@ -28,9 +51,13 @@ class ClubDiscussionChannel < ApplicationCable::Channel
 
       transmit event
     else
-      @access_revoked = true
-      stop_all_streams
-      transmit({ type: "access.revoked" })
+      revoke_discussion_access
     end
+  end
+
+  def revoke_discussion_access
+    @access_revoked = true
+    stop_all_streams
+    transmit({ type: "access.revoked" })
   end
 end

@@ -13,16 +13,44 @@ class ClubMessagesControllerTest < ActionDispatch::IntegrationTest
     @message = @book_club.club_messages.create!(user: @owner, body: "First thought")
   end
 
-  test "history and posting require sign in" do
+  test "members see a labelled discussion form with a 1000 character limit" do
+    sign_in @member
+
+    get book_club_club_messages_path(@book_club)
+
+    assert_response :success
+    assert_select "section[aria-labelledby='club-discussion-composer-title']" do
+      assert_select "form[data-action='submit->club-discussion#postMessage']:not([action])" do
+        assert_select "label[for='club_message_body']", text: "Your discussion post"
+        assert_select "textarea#club_message_body[required][maxlength='1000']"
+        assert_select "button[type='submit'][disabled]", text: "Post"
+        assert_select "p[role='status'][data-club-discussion-target='composerStatus']"
+      end
+    end
+    assert_select "p", text: "Posting as #{@member.nickname}"
+  end
+
+  test "nonmember admins can read discussion but do not see a posting form" do
+    sign_in @admin
+
+    get book_club_club_messages_path(@book_club)
+
+    assert_response :success
+    assert_select ".club-discussion-message", count: 1
+    assert_select ".club-discussion-composer", count: 0
+  end
+
+  test "history requires sign in" do
     get book_club_club_messages_path(@book_club), as: :json
 
     assert_response :unauthorized
     assert_not_includes response.body, @message.body
+  end
 
-    assert_no_difference "ClubMessage.count" do
-      post book_club_club_messages_path(@book_club), params: { club_message: { body: "Guest thought" } }, as: :json
+  test "discussion has no HTTP posting route" do
+    assert_raises ActionController::RoutingError do
+      Rails.application.routes.recognize_path(book_club_club_messages_path(@book_club), method: :post)
     end
-    assert_response :unauthorized
   end
 
   test "member receives message history with only the public discussion fields" do
@@ -65,7 +93,7 @@ class ClubMessagesControllerTest < ActionDispatch::IntegrationTest
     assert_equal [ @message.id ], response.parsed_body.fetch("messages").map { |message| message.fetch("id") }
   end
 
-  test "nonmember cannot read history or post even when they can view the club" do
+  test "nonmember cannot read history even when they can view the club" do
     @book_club.book_club_memberships.find_by!(user: @member).destroy!
     sign_in @member
 
@@ -74,91 +102,6 @@ class ClubMessagesControllerTest < ActionDispatch::IntegrationTest
     assert_response :forbidden
     assert_equal({ "error" => "Forbidden" }, response.parsed_body)
     assert_not_includes response.body, @message.body
-
-    assert_no_difference "ClubMessage.count" do
-      post book_club_club_messages_path(@book_club), params: { club_message: { body: "Former member thought" } }, as: :json
-    end
-    assert_response :forbidden
-  end
-
-  test "member can persist a message and receives the same payload in history" do
-    sign_in @member
-
-    assert_difference "ClubMessage.count", 1 do
-      post book_club_club_messages_path(@book_club), params: { club_message: { body: "A new thought" } }, as: :json
-    end
-
-    assert_response :created
-    payload = response.parsed_body.fetch("message")
-    message = ClubMessage.find(payload.fetch("id"))
-    assert_equal @book_club, message.book_club
-    assert_equal @member, message.user
-    assert_equal "A new thought", message.body
-    assert_equal message.discussion_payload.as_json, payload
-
-    get book_club_club_messages_path(@book_club), as: :json
-
-    assert_response :success
-    assert_includes response.parsed_body.fetch("messages"), payload
-  end
-
-  test "posting ignores spoofed author club id and timestamps" do
-    other_club = BookClub.create!(name: "Another circle")
-    sign_in @member
-
-    assert_difference "ClubMessage.count", 1 do
-      post book_club_club_messages_path(@book_club), params: {
-        club_message: {
-          body: "My thought",
-          user_id: @admin.id,
-          book_club_id: other_club.id,
-          id: @message.id,
-          created_at: "2000-01-01T00:00:00Z"
-        }
-      }, as: :json
-    end
-
-    assert_response :created
-    message = ClubMessage.find(response.parsed_body.fetch("message").fetch("id"))
-    assert_equal @member, message.user
-    assert_equal @book_club, message.book_club
-    assert_not_equal @message.id, message.id
-    assert_not_equal 2000, message.created_at.year
-    assert_equal "First thought", @message.reload.body
-  end
-
-  test "invalid bodies return validation errors without persisting" do
-    sign_in @member
-    bodies = [ "", " \n\t ", "a" * 1_001 ]
-
-    bodies.each do |body|
-      assert_no_difference "ClubMessage.count" do
-        post book_club_club_messages_path(@book_club), params: { club_message: { body: body } }, as: :json
-      end
-
-      assert_response :unprocessable_entity
-      assert response.parsed_body.fetch("errors").fetch("body").any?
-    end
-  end
-
-  test "nonmember admin cannot post" do
-    sign_in @admin
-
-    assert_no_difference "ClubMessage.count" do
-      post book_club_club_messages_path(@book_club), params: { club_message: { body: "Admin thought" } }, as: :json
-    end
-
-    assert_response :forbidden
-  end
-
-  test "missing message parameters return bad request without persisting" do
-    sign_in @member
-
-    assert_no_difference "ClubMessage.count" do
-      post book_club_club_messages_path(@book_club), params: {}, as: :json
-    end
-
-    assert_response :bad_request
   end
 
   test "missing club returns not found" do

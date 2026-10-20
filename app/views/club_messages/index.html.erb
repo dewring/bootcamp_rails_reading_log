@@ -16,22 +16,45 @@
         <%= render "book_clubs/membership_status", book_club: @book_club %>
       </header>
 
-      <section class="book-club-overview-card club-discussion-history" aria-labelledby="club-discussion-history-title">
-        <h2 id="club-discussion-history-title">All Threads</h2>
+      <div class="club-discussion-body">
+        <section class="book-club-overview-card club-discussion-history" aria-labelledby="club-discussion-history-title">
+          <h2 id="club-discussion-history-title">All Threads</h2>
 
-        <p class="club-discussion-empty" data-club-discussion-target="emptyState" <%= "hidden" unless @messages.empty? %>>No discussion posts yet.</p>
-        <div data-club-discussion-target="messages">
-          <% @messages.each do |message| %>
-            <article id="<%= dom_id(message) %>" class="club-discussion-message" data-message-id="<%= message.id %>">
-              <header class="club-discussion-message-meta">
-                <strong><%= message.user.nickname %></strong>
-                <time datetime="<%= message.created_at.iso8601(6) %>"><%= message.created_at.strftime("%b %-d, %Y · %H:%M") %></time>
-              </header>
-              <p class="club-discussion-message-body"><%= message.body %></p>
-            </article>
-          <% end %>
-        </div>
-      </section>
+          <p class="club-discussion-empty" data-club-discussion-target="emptyState" <%= "hidden" unless @messages.empty? %>>No discussion posts yet.</p>
+          <div data-club-discussion-target="messages">
+            <% @messages.each do |message| %>
+              <article id="<%= dom_id(message) %>" class="club-discussion-message" data-message-id="<%= message.id %>">
+                <header class="club-discussion-message-meta">
+                  <strong><%= message.user.nickname %></strong>
+                  <time datetime="<%= message.created_at.iso8601(6) %>"><%= message.created_at.strftime("%b %-d, %Y · %H:%M") %></time>
+                </header>
+                <p class="club-discussion-message-body"><%= message.body %></p>
+              </article>
+            <% end %>
+          </div>
+        </section>
+
+        <% if policy(@book_club).post_message? %>
+          <section class="club-discussion-composer" aria-labelledby="club-discussion-composer-title">
+            <header>
+              <%= render "users/avatar", user: current_user, variant: :club_member %>
+              <div>
+                <h2 id="club-discussion-composer-title">Add a discussion post</h2>
+                <p>Posting as <%= current_user.nickname %></p>
+              </div>
+            </header>
+            <form data-action="submit->club-discussion#postMessage" data-turbo="false">
+              <%= label_tag :club_message_body, "Your discussion post", class: "club-discussion-body-label" %>
+              <%= text_area_tag :club_message_body, nil, required: true, maxlength: 1_000, rows: 6, placeholder: "Share a thought, question, or favorite line…", aria: { describedby: "club-discussion-composer-hint" }, data: { club_discussion_target: "body" } %>
+              <footer>
+                <p id="club-discussion-composer-hint">Mark spoilers kindly</p>
+                <%= button_tag "Post", type: :submit, disabled: true, data: { club_discussion_target: "submit" } %>
+              </footer>
+              <p role="status" data-club-discussion-target="composerStatus"></p>
+            </form>
+          </section>
+        <% end %>
+      </div>
 
       <footer class="club-discussion-pagination">
         <p data-club-discussion-target="paginationSummary"><%= pluralize(@pagy.count, "post") %> · Page <%= @pagy.page %> of <%= @pagy.last %></p>

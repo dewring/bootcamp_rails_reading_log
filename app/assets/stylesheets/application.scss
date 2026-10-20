@@ -2890,6 +2890,54 @@ main.container:has(> .book-club-detail-page) {
   }
 }
 
+.club-discussion-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 280px;
+  align-items: start;
+  gap: 16px;
+
+  &:not(:has(.club-discussion-composer)) { grid-template-columns: minmax(0, 1fr); }
+}
+
+.club-discussion-composer {
+  padding: 16px;
+  border: 1px solid $gray-mid;
+  border-radius: 12px;
+  background: #fff;
+
+  > header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+  .profile-avatar { width: 34px; height: 34px; flex-shrink: 0; }
+  h2 { margin: 0; font-family: inherit; font-size: 12px; }
+  p { margin: 0; color: $text-muted; font-size: 10px; }
+  form { margin: 0; }
+  textarea {
+    min-height: 140px;
+    margin: 0 0 12px;
+    padding: 12px;
+    border: 1px solid $gray-mid;
+    border-radius: $radius;
+    background: $gray-light;
+    font-size: 12px;
+    resize: vertical;
+  }
+  footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  button { width: auto; margin: 0; padding: 8px 16px; border-radius: 100px; font-size: 12px; }
+  [role="status"]:not(:empty) { margin-top: 12px; }
+}
+
+.club-discussion-body-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+@media (max-width: 900px) {
+  .club-discussion-body { grid-template-columns: minmax(0, 1fr); }
+  .club-discussion-composer { grid-row: 1; }
+}
+
 .club-discussion-history {
   padding: 0;
   overflow: hidden;

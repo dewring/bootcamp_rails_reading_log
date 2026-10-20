@@ -13,12 +13,18 @@ interface DiscussionEvent {
   type: string
   message?: DiscussionMessage
   total_posts?: number
+  request_id?: string
+  errors?: { body?: string[] }
+  error?: string
 }
 
-type DiscussionSubscription = { unsubscribe(): void }
+type DiscussionSubscription = {
+  unsubscribe(): void
+  perform(action: string, data: { request_id: string; body: string }): boolean
+}
 
 export default class extends Controller {
-  static targets = ["content", "status", "messages", "emptyState", "paginationSummary", "pagination", "olderPosts"]
+  static targets = ["content", "status", "messages", "emptyState", "paginationSummary", "pagination", "olderPosts", "body", "submit", "composerStatus"]
   static values = { bookClubId: Number, page: Number, totalPosts: Number }
 
   declare readonly contentTarget: HTMLElement
@@ -31,9 +37,19 @@ export default class extends Controller {
   declare readonly paginationSummaryTarget: HTMLElement
   declare readonly paginationTarget: HTMLElement
   declare readonly olderPostsTarget: HTMLAnchorElement
+  declare readonly hasBodyTarget: boolean
+  declare readonly hasSubmitTarget: boolean
+  declare readonly hasComposerStatusTarget: boolean
+  declare readonly bodyTarget: HTMLTextAreaElement
+  declare readonly submitTarget: HTMLButtonElement
+  declare readonly composerStatusTarget: HTMLElement
 
   private discussionSubscription?: Promise<DiscussionSubscription | undefined>
   private receivedMessageIds = new Set<number>()
+  private posting = false
+  private cableConnected = false
+  private pendingPostId?: string
+  private postTimeout?: ReturnType<typeof setTimeout>
 
   connect() {
     this.receivedMessageIds = new Set(
@@ -42,6 +58,12 @@ export default class extends Controller {
     const pendingSubscription: Promise<DiscussionSubscription | undefined> = cable.subscribeTo<DiscussionEvent>(
       { channel: "ClubDiscussionChannel", book_club_id: this.bookClubIdValue },
       {
+        connected: () => {
+          if (this.discussionSubscription !== pendingSubscription) return
+
+          this.cableConnected = true
+          if (this.hasSubmitTarget) this.submitTarget.disabled = this.posting
+        },
         received: event => {
           if (this.discussionSubscription !== pendingSubscription) return
 
@@ -49,6 +71,8 @@ export default class extends Controller {
             this.endAccess()
           } else if (event.type === "message.created" && event.message) {
             this.displayCreatedMessage(event.message, event.total_posts)
+          } else if (event.type === "post.saved" || event.type === "post.rejected") {
+            this.receivePostResult(event)
           }
         },
         rejected: () => {
@@ -57,6 +81,8 @@ export default class extends Controller {
         disconnected: ({ willAttemptReconnect }) => {
           if (this.discussionSubscription !== pendingSubscription) return
 
+          this.cableConnected = false
+          this.interruptPosting()
           if (!willAttemptReconnect) this.endAccess()
         }
       }
@@ -72,16 +98,96 @@ export default class extends Controller {
   }
 
   disconnect() {
+    this.cableConnected = false
+    this.interruptPosting()
     this.unsubscribeFromDiscussion()
   }
 
   beforeCache() {
+    this.cableConnected = false
+    this.finishPosting()
     this.contentTarget.replaceChildren()
     this.receivedMessageIds.clear()
     this.unsubscribeFromDiscussion()
   }
 
+  async postMessage(event: SubmitEvent) {
+    event.preventDefault()
+    if (this.posting) return
+    if (!this.cableConnected) {
+      this.composerStatusTarget.textContent = "Live connection is not ready. Your draft is still here."
+      return
+    }
+
+    const pendingSubscription = this.discussionSubscription
+    const requestId = crypto.randomUUID()
+    this.pendingPostId = requestId
+    this.setPosting(true)
+    this.composerStatusTarget.textContent = "Posting…"
+
+    try {
+      const subscription = await pendingSubscription
+      if (this.discussionSubscription !== pendingSubscription || this.pendingPostId !== requestId) return
+
+      const sent = subscription?.perform("post_message", { request_id: requestId, body: this.bodyTarget.value })
+      if (!sent) {
+        this.interruptPosting()
+        return
+      }
+
+      // No automatic retry: a missing acknowledgement does not prove the save failed.
+      this.postTimeout = setTimeout(() => this.interruptPosting(), 20_000)
+    } catch (error) {
+      console.error("Failed to send discussion post", error)
+      if (this.pendingPostId === requestId) this.interruptPosting()
+    }
+  }
+
+  private receivePostResult(event: DiscussionEvent) {
+    if (!this.pendingPostId || event.request_id !== this.pendingPostId) return
+
+    if (event.type === "post.saved" && event.message) {
+      this.displayCreatedMessage(event.message, event.total_posts)
+      this.bodyTarget.value = ""
+      this.composerStatusTarget.textContent = "Post published."
+    } else if (event.type === "post.rejected") {
+      if (event.error === "forbidden") {
+        this.composerStatusTarget.textContent = "You do not have permission to post. Your draft is still here."
+      } else {
+        const errors = event.errors?.body?.join(", ")
+        this.composerStatusTarget.textContent = errors
+          ? `Post could not be saved: ${errors}. Your draft is still here.`
+          : "Post could not be saved. Your draft is still here."
+      }
+    } else {
+      return
+    }
+    this.finishPosting()
+  }
+
+  private interruptPosting() {
+    if (this.posting && this.hasComposerStatusTarget) {
+      this.composerStatusTarget.textContent = "Post could not be confirmed. Your draft is still here. Check the discussion before posting again."
+    }
+    this.finishPosting()
+  }
+
+  private finishPosting() {
+    clearTimeout(this.postTimeout)
+    this.postTimeout = undefined
+    this.pendingPostId = undefined
+    this.setPosting(false)
+  }
+
+  private setPosting(posting: boolean) {
+    this.posting = posting
+    if (this.hasSubmitTarget) this.submitTarget.disabled = posting || !this.cableConnected
+    if (this.hasBodyTarget) this.bodyTarget.readOnly = posting
+  }
+
   private endAccess() {
+    this.cableConnected = false
+    this.finishPosting()
     this.contentTarget.replaceChildren()
     this.receivedMessageIds.clear()
     this.showStatus("Discussion access has ended. Sign in or reopen the club to continue.")
