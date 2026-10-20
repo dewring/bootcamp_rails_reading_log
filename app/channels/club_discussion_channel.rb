@@ -1,4 +1,7 @@
 class ClubDiscussionChannel < ApplicationCable::Channel
+  MESSAGE_LIMIT = 20
+  MESSAGE_PERIOD = 1.minute
+
   def subscribed
     @book_club = BookClub.find_by(id: params[:book_club_id])
 
@@ -27,6 +30,11 @@ class ClubDiscussionChannel < ApplicationCable::Channel
       return
     end
 
+    if message_rate_limited?(user)
+      transmit({ type: "post.rejected", request_id: request_id, error: "rate_limited" })
+      return
+    end
+
     if message.save
       transmit({ type: "post.saved", request_id: request_id, message: message.discussion_payload, total_posts: @book_club.club_messages.count })
     else
@@ -35,6 +43,12 @@ class ClubDiscussionChannel < ApplicationCable::Channel
   end
 
   private
+
+  def message_rate_limited?(user)
+    # HTTP middleware cannot count Cable actions, so reuse Rack::Attack's cache counter here.
+    count = Rack::Attack.cache.count("club-discussion/messages/user/#{user.id}", MESSAGE_PERIOD)
+    count > MESSAGE_LIMIT
+  end
 
   def discussion_allowed?
     return false unless @book_club && current_user

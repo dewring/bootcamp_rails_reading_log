@@ -153,6 +153,8 @@ export default class extends Controller {
     } else if (event.type === "post.rejected") {
       if (event.error === "forbidden") {
         this.composerStatusTarget.textContent = "You do not have permission to post. Your draft is still here."
+      } else if (event.error === "rate_limited") {
+        this.composerStatusTarget.textContent = "Too many posts. Wait a minute before trying again. Your draft is still here."
       } else {
         const errors = event.errors?.body?.join(", ")
         this.composerStatusTarget.textContent = errors

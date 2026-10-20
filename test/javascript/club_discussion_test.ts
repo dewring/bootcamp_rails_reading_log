@@ -265,6 +265,23 @@ test("forbidden posting preserves the draft and existing readable history", asyn
   expect(composer.notice.textContent).toContain("permission")
 })
 
+test("rate limiting preserves the draft, unlocks the form, and does not retry", async () => {
+  const composer = await mountComposer()
+  composer.body.value = "Save this for later"
+  submitComposer(composer.form)
+  await vi.waitFor(() => expect(requests[0].perform).toHaveBeenCalledOnce())
+  const data = requests[0].perform.mock.calls[0][1]
+
+  requests[0].callbacks.received({ type: "post.rejected", request_id: data.request_id, error: "rate_limited" })
+
+  expect(composer.body.value).toBe("Save this for later")
+  expect(composer.body.readOnly).toBe(false)
+  expect(composer.submit.disabled).toBe(false)
+  expect(composer.notice.textContent).toContain("Wait a minute")
+  expect(requests[0].perform).toHaveBeenCalledOnce()
+  expect(messages.textContent).toBe("Private discussion")
+})
+
 test("late posting results cannot restore private content after access is revoked", async () => {
   const composer = await mountComposer()
   submitComposer(composer.form)

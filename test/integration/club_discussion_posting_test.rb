@@ -5,6 +5,7 @@ class ClubDiscussionPostingTest < ActiveSupport::TestCase
   self.use_transactional_tests = false
 
   setup do
+    Rack::Attack.reset!
     @book_club = BookClub.create!(name: "Cable posting circle")
     @owner = users(:leika)
     @member = users(:jaina)
@@ -22,6 +23,7 @@ class ClubDiscussionPostingTest < ActiveSupport::TestCase
     assert executor.wait_for_termination(5)
     @server.restart
     @book_club.destroy!
+    Rack::Attack.reset!
   end
 
   test "posting through Cable acknowledges the sender and broadcasts the committed post to both members" do
