@@ -16,6 +16,8 @@
         <%= render "book_clubs/membership_status", book_club: @book_club %>
       </header>
 
+      <%= render "book_clubs/current_pick", book_club: @book_club, variant: :discussion %>
+
       <div class="club-discussion-body">
         <section class="book-club-overview-card club-discussion-history" aria-labelledby="club-discussion-history-title">
           <h2 id="club-discussion-history-title">All Threads</h2>

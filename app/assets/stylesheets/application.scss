@@ -2890,6 +2890,42 @@ main.container:has(> .book-club-detail-page) {
   }
 }
 
+.book-club-current-pick-card.book-club-current-pick-card--discussion {
+  flex-direction: row;
+  align-items: center;
+  min-height: 92px;
+  gap: 16px;
+  padding: 14px 20px 14px 16px;
+  box-shadow: 0 4px 8px rgba(44, 38, 35, 0.06);
+
+  .book-club-current-pick-cover {
+    flex-basis: 44px;
+    width: 44px;
+    height: 64px;
+    border-radius: 6px;
+    box-shadow: 0 4px 10px rgba(44, 38, 35, 0.19);
+  }
+  .book-club-current-pick-information {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    overflow-wrap: anywhere;
+  }
+  h2 { margin: 0; font-size: 17px; }
+  .book-club-current-pick-information p { line-height: normal; }
+  .book-club-current-pick-label {
+    align-self: flex-start;
+    padding: 3px 7px;
+    border-radius: 100px;
+    background: #fdf1ef;
+    color: $accent;
+    font-size: 9px;
+    line-height: normal;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+}
+
 .club-discussion-body {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 280px;

@@ -30,6 +30,36 @@ class ClubMessagesControllerTest < ActionDispatch::IntegrationTest
     assert_select "p", text: "Posting as #{@member.nickname}"
   end
 
+  test "discussion shows the current book title author pages and compact banner" do
+    book = books(:refactoring)
+    book.cover_image.attach(io: file_fixture("cover_test.jpg").open, filename: "cover_test.jpg", content_type: "image/jpeg")
+    @book_club.update!(current_book: book)
+    sign_in @owner
+
+    get book_club_club_messages_path(@book_club)
+
+    assert_response :success
+    assert_select "article.book-club-current-pick-card--discussion" do
+      assert_select ".book-club-current-pick-label", text: "Current Pick"
+      assert_select "h2 a[href='#{book_path(book)}']", text: book.title
+      assert_select "p", text: "Martin Fowler · 448 pages"
+      assert_select ".book-club-current-pick-cover img[alt='Cover of Refactoring']"
+      assert_select "a", text: "Change Pick", count: 0
+    end
+  end
+
+  test "discussion shows an empty current pick banner when no book is selected" do
+    sign_in @member
+
+    get book_club_club_messages_path(@book_club)
+
+    assert_response :success
+    assert_select ".book-club-current-pick-card--discussion .book-club-current-pick-empty" do
+      assert_select "h2", text: "Current pick"
+      assert_select "p", text: "No current pick yet."
+    end
+  end
+
   test "nonmember admins can read discussion but do not see a posting form" do
     sign_in @admin
 

@@ -15,6 +15,7 @@ class ClubMessagesController < ApplicationController
         render json: { messages: messages.limit(20).map(&:discussion_payload) }
       end
       format.html do
+        @book_club.preload_covers
         @pagy, @messages = pagy(:offset, messages, limit: 20)
       end
     end

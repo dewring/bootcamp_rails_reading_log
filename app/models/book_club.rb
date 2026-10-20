@@ -28,6 +28,13 @@ class BookClub < ApplicationRecord
     SQL
   }
 
+  def preload_covers
+    ActiveRecord::Associations::Preloader.new(
+      records: [ self ],
+      associations: { current_book: { cover_image_attachment: :blob } }
+    ).call
+  end
+
   def leaderboard
     users
       .joins(:reading_sessions)

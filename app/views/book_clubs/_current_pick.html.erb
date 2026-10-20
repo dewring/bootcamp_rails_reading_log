@@ -1,4 +1,5 @@
-<article id="<%= dom_id(book_club, :current_pick) %>" class="book-club-current-pick-card">
+<% variant = local_assigns.fetch(:variant, :overview) %>
+<article id="<%= dom_id(book_club, :current_pick) %>" class="<%= class_names("book-club-current-pick-card", "book-club-current-pick-card--discussion" => variant == :discussion) %>">
   <% if book_club.current_book %>
     <div class="book-club-current-pick-cover">
       <% if book_club.current_book.cover_image.attached? %>
@@ -9,10 +10,13 @@
       <% end %>
     </div>
     <div class="book-club-current-pick-information">
+      <% if variant == :discussion %>
+        <span class="book-club-current-pick-label">Current Pick</span>
+      <% end %>
       <h2><%= link_to book_club.current_book.title, book_club.current_book %></h2>
-      <p><%= book_club.current_book.author %></p>
+      <p><%= book_club.current_book.author %><% if variant == :discussion && book_club.current_book.total_pages.present? %> · <%= pluralize(book_club.current_book.total_pages, "page") %><% end %></p>
     </div>
-    <% if policy(book_club).manage? %>
+    <% if variant == :overview && policy(book_club).manage? %>
       <%= link_to "Change Pick", edit_book_club_path(book_club), class: "book-club-action book-club-action--secondary" %>
     <% end %>
   <% else %>
