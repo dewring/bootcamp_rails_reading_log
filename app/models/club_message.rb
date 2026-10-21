@@ -10,6 +10,14 @@ class ClubMessage < ApplicationRecord
   validate :reply_parent_is_valid
 
   scope :top_level, -> { where(parent_id: nil) }
+  scope :visible_posts, -> {
+    top_level.where(deleted_at: nil).or(
+      top_level.where(id: ClubMessage.where.not(parent_id: nil).select(:parent_id))
+    )
+  }
+  scope :with_reply_counts, -> {
+    select("club_messages.*", "(SELECT COUNT(*) FROM club_messages replies WHERE replies.parent_id = club_messages.id) AS discussion_reply_count")
+  }
 
   after_create_commit :broadcast_created_message
   after_update_commit :broadcast_updated_message, if: -> { saved_change_to_body? || saved_change_to_deleted_at? }
@@ -35,10 +43,17 @@ class ClubMessage < ApplicationRecord
       parent_id: parent_id,
       body: body,
       deleted: deleted?,
+      replies_count: replies_count,
       author: { id: user_id, nickname: user.nickname },
       created_at: created_at.iso8601(6),
       updated_at: updated_at.iso8601(6)
     }
+  end
+
+  def replies_count
+    return 0 if parent_id.present?
+
+    self[:discussion_reply_count] || replies.count
   end
 
   private
@@ -53,13 +68,28 @@ class ClubMessage < ApplicationRecord
   def remove_reply_from_discussion!
     club = book_club
     payload = discussion_payload.merge(body: "", deleted: true, updated_at: Time.current.iso8601(6))
+    parent_post = parent
     destroy!
+    parent_post.touch if parent_post.deleted? && !parent_post.replies.exists?
     ActiveRecord.after_all_transactions_commit do
       ClubDiscussionChannel.broadcast_to(club, {
-        type: "reply.deleted", message: payload, total_posts: club.club_messages.top_level.count
+        type: "reply.deleted", message: payload, total_posts: club.club_messages.visible_posts.count
       })
+      broadcast_empty_deleted_post(club, parent_post.id)
     end
     payload
+  end
+
+  def broadcast_empty_deleted_post(club, parent_id)
+    post = club.club_messages.find_by(id: parent_id)
+    return unless post&.deleted?
+
+    payload = post.discussion_payload
+    return unless payload.fetch(:replies_count).zero?
+
+    ClubDiscussionChannel.broadcast_to(club, {
+      type: "message.deleted", message: payload, total_posts: club.club_messages.visible_posts.count
+    })
   end
 
   def reply_parent_is_valid
@@ -98,7 +128,7 @@ class ClubMessage < ApplicationRecord
 
     ClubDiscussionChannel.broadcast_to(
       book_club,
-      { type: "#{event_prefix}.#{change}", message: discussion_payload, total_posts: book_club.club_messages.top_level.count }
+      { type: "#{event_prefix}.#{change}", message: discussion_payload, total_posts: book_club.club_messages.visible_posts.count }
     )
   end
 end

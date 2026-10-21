@@ -3,7 +3,7 @@ import type ClubDiscussionController from "./club_discussion_controller"
 import { discussionVersion, type DiscussionEvent, type DiscussionMessage } from "./club_discussion_controller"
 
 export default class extends Controller {
-  static targets = ["body", "form", "editButton", "input", "label", "save", "cancel", "status"]
+  static targets = ["body", "form", "editButton", "input", "label", "save", "cancel", "status", "deleteButton"]
   static values = { messageId: Number, updatedAt: String }
   static outlets = ["club-discussion"]
 
@@ -12,6 +12,9 @@ export default class extends Controller {
   declare readonly bodyTarget: HTMLElement
   declare readonly hasFormTarget: boolean
   declare readonly formTarget: HTMLFormElement
+  declare readonly hasEditButtonTarget: boolean
+  declare readonly hasDeleteButtonTarget: boolean
+  declare readonly deleteButtonTarget: HTMLButtonElement
   declare readonly editButtonTarget: HTMLButtonElement
   declare readonly inputTarget: HTMLTextAreaElement
   declare readonly labelTarget: HTMLLabelElement
@@ -21,6 +24,8 @@ export default class extends Controller {
   declare readonly hasClubDiscussionOutlet: boolean
   declare readonly clubDiscussionOutlet: ClubDiscussionController
 
+  private pendingDeleteId?: string
+  private deleteTimeout?: ReturnType<typeof setTimeout>
   private pendingEditId?: string
   private editTimeout?: ReturnType<typeof setTimeout>
 
@@ -35,9 +40,11 @@ export default class extends Controller {
 
   disconnect() {
     this.interruptSaving()
+    this.interruptDeleting()
   }
 
   beforeCache() {
+    this.finishDeleting()
     this.finishSaving()
     this.bodyTarget.textContent = ""
     this.statusTarget.textContent = ""
@@ -45,7 +52,7 @@ export default class extends Controller {
   }
 
   edit() {
-    if (!this.hasFormTarget || this.pendingEditId) return
+    if (!this.hasFormTarget || this.pendingEditId || this.pendingDeleteId || this.isDeleted()) return
 
     this.inputTarget.value = this.bodyTarget.textContent ?? ""
     this.formTarget.hidden = false
@@ -56,7 +63,7 @@ export default class extends Controller {
   }
 
   cancel() {
-    if (this.pendingEditId) return
+    if (this.pendingEditId || this.pendingDeleteId || this.isDeleted()) return
 
     this.inputTarget.value = ""
     this.closeEditor()
@@ -66,7 +73,7 @@ export default class extends Controller {
 
   async save(event: SubmitEvent) {
     event.preventDefault()
-    if (this.pendingEditId) return
+    if (this.pendingEditId || this.pendingDeleteId || this.isDeleted()) return
     if (!this.hasClubDiscussionOutlet) {
       this.statusTarget.textContent = "Live connection is not ready. Your draft is still here."
       return
@@ -88,6 +95,52 @@ export default class extends Controller {
       console.error("Failed to send discussion edit", error)
       if (this.pendingEditId === requestId) this.interruptSaving()
     }
+  }
+
+  async deleteMessage() {
+    if (this.pendingDeleteId || this.pendingEditId || this.isDeleted()) return
+    if (!window.confirm("Delete this message? This cannot be undone.")) return
+    if (!this.hasClubDiscussionOutlet) {
+      this.statusTarget.textContent = "Live connection is not ready. The message has not been deleted."
+      return
+    }
+
+    const requestId = crypto.randomUUID()
+    this.pendingDeleteId = requestId
+    this.deleteButtonTarget.disabled = true
+    if (this.hasEditButtonTarget) this.editButtonTarget.disabled = true
+    this.setSaving(true)
+    this.statusTarget.textContent = "Deleting…"
+    try {
+      const sent = await this.clubDiscussionOutlet.sendDelete(requestId, this.messageIdValue, this.element)
+      if (this.pendingDeleteId !== requestId || !this.element.isConnected) return
+      if (!sent) {
+        this.interruptDeleting()
+        return
+      }
+      // A lost acknowledgement does not prove deletion failed; never retry automatically.
+      this.deleteTimeout = setTimeout(() => this.interruptDeleting(), 5_000)
+    } catch (error) {
+      console.error("Failed to send discussion deletion", error)
+      if (this.pendingDeleteId === requestId) this.interruptDeleting()
+    }
+  }
+
+  receiveDelete(event: CustomEvent<DiscussionEvent>) {
+    if (event.target !== this.element.closest("[data-controller~='club-discussion']")) return
+    const result = event.detail
+    if (!this.pendingDeleteId || result.request_id !== this.pendingDeleteId) return
+
+    if (result.type === "delete.saved" && result.message?.id === this.messageIdValue) {
+      this.displayUpdate(result.message)
+    } else if (result.type === "delete.rejected") {
+      this.statusTarget.textContent = result.error === "forbidden"
+        ? "You do not have permission to delete this message."
+        : "This message is no longer available. Refresh to check the discussion."
+    } else {
+      return
+    }
+    this.finishDeleting()
   }
 
   receiveEdit(event: CustomEvent<DiscussionEvent>) {
@@ -123,20 +176,69 @@ export default class extends Controller {
   }
 
   connectionEnded(event: Event) {
-    if (event.target === this.element.closest("[data-controller~='club-discussion']")) this.interruptSaving()
+    if (event.target !== this.element.closest("[data-controller~='club-discussion']")) return
+
+    this.interruptSaving()
+    this.interruptDeleting()
   }
 
   private displayUpdate(message: DiscussionMessage) {
     if (message.id !== this.messageIdValue || !Number.isFinite(Date.parse(message.updated_at))) return
-    if (discussionVersion(message.updated_at) <= discussionVersion(this.updatedAtValue)) return
+    if (this.isDeleted()) return
+    if (discussionVersion(message.updated_at) < discussionVersion(this.updatedAtValue)) return
+    if (discussionVersion(message.updated_at) === discussionVersion(this.updatedAtValue) && !message.deleted) return
 
     this.updatedAtValue = message.updated_at
     const element = this.element as HTMLElement
     element.dataset.updatedAt = message.updated_at
+    if (message.deleted) {
+      this.displayDeletion(message)
+      return
+    }
     this.bodyTarget.textContent = message.body
     if (this.hasFormTarget && !this.formTarget.hidden && !this.pendingEditId) {
       this.statusTarget.textContent = "This message changed elsewhere. Your draft is still here."
     }
+  }
+
+  private isDeleted() {
+    return (this.element as HTMLElement).dataset.deleted === "true"
+  }
+
+  private displayDeletion(message: DiscussionMessage) {
+    this.finishDeleting()
+    this.finishSaving()
+    if (this.hasFormTarget) {
+      this.inputTarget.value = ""
+      this.formTarget.remove()
+    }
+    if (this.hasEditButtonTarget) this.editButtonTarget.remove()
+    if (this.hasDeleteButtonTarget) this.deleteButtonTarget.remove()
+    const article = this.element as HTMLElement
+    article.dataset.deleted = "true"
+    this.statusTarget.textContent = ""
+    if (message.parent_id !== null || message.replies_count === 0) {
+      this.element.remove()
+    } else {
+      this.bodyTarget.hidden = false
+      this.bodyTarget.textContent = "Deleted post"
+    }
+  }
+
+  private interruptDeleting() {
+    if (this.pendingDeleteId) {
+      this.statusTarget.textContent = "Deletion could not be confirmed. Check the discussion before trying again."
+    }
+    this.finishDeleting()
+  }
+
+  private finishDeleting() {
+    clearTimeout(this.deleteTimeout)
+    this.deleteTimeout = undefined
+    this.pendingDeleteId = undefined
+    if (this.hasDeleteButtonTarget) this.deleteButtonTarget.disabled = false
+    if (this.hasEditButtonTarget) this.editButtonTarget.disabled = false
+    this.setSaving(false)
   }
 
   private closeEditor() {

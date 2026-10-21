@@ -3161,9 +3161,10 @@ main.container:has(> .book-club-detail-page) {
 }
 
 [data-controller~="club-message"] { position: relative; }
-.club-message-editable > header { padding-right: 48px; }
+.club-message-moderatable > header { padding-right: 120px; }
 
-.club-message-edit-button {
+.club-message-edit-button,
+.club-message-delete-button {
   position: absolute;
   top: 12px;
   right: 12px;
@@ -3181,6 +3182,9 @@ main.container:has(> .book-club-detail-page) {
 
   &[hidden] { display: none; }
 }
+
+.club-message-moderatable .club-message-edit-button { right: 70px; }
+.club-message-delete-button { color: $accent; }
 
 .club-message-edit-form {
   display: grid;

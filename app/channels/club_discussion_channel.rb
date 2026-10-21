@@ -63,7 +63,7 @@ class ClubDiscussionChannel < ApplicationCable::Channel
     end
 
     payload = message.remove_from_discussion!
-    transmit({ type: "delete.saved", request_id: request_id, message: payload, total_posts: @book_club.club_messages.top_level.count })
+    transmit({ type: "delete.saved", request_id: request_id, message: payload, total_posts: @book_club.club_messages.visible_posts.count })
   rescue ActiveRecord::RecordNotFound
     transmit({ type: "delete.rejected", request_id: request_id, error: "not_found" })
   end
@@ -121,7 +121,7 @@ class ClubDiscussionChannel < ApplicationCable::Channel
     end
 
     if persist_discussion_message(message)
-      transmit({ type: "#{event_prefix}.saved", request_id: request_id, message: message.discussion_payload, total_posts: @book_club.club_messages.top_level.count })
+      transmit({ type: "#{event_prefix}.saved", request_id: request_id, message: message.discussion_payload, total_posts: @book_club.club_messages.visible_posts.count })
     else
       transmit({ type: "#{event_prefix}.rejected", request_id: request_id, errors: message.errors.to_hash })
     end

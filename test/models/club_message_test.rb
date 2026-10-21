@@ -401,6 +401,53 @@ class ClubMessageTest < ActiveSupport::TestCase
     assert_equal "An answer", reply.reload.body
   end
 
+  test "a deleted post with no replies is retained but excluded from visible posts" do
+    post = create_message(body: "A thought")
+    post.remove_from_discussion!
+
+    assert ClubMessage.exists?(post.id)
+    assert_empty @book_club.club_messages.visible_posts
+    assert_equal 0, post.discussion_payload.fetch(:replies_count)
+    assert_broadcast_on discussion_stream, { type: "message.deleted", message: post.discussion_payload, total_posts: 0 }
+  end
+
+  test "only deleting the last reply hides a deleted parent and broadcasts its empty reply count after commit" do
+    post = create_message(body: "A question")
+    first_reply = create_message(parent: post, body: "First answer")
+    last_reply = create_message(parent: post, body: "Last answer")
+    post.remove_from_discussion!
+    first_reply.remove_from_discussion!
+    assert_includes @book_club.club_messages.visible_posts, post
+
+    assert_broadcasts discussion_stream, 2 do
+      ClubMessage.transaction(requires_new: true) do
+        last_reply.remove_from_discussion!
+        assert_no_broadcasts discussion_stream
+      end
+    end
+
+    assert ClubMessage.exists?(post.id)
+    assert_empty @book_club.club_messages.visible_posts
+    assert_equal 0, post.reload.discussion_payload.fetch(:replies_count)
+    assert_broadcast_on discussion_stream, { type: "message.deleted", message: post.discussion_payload, total_posts: 0 }
+  end
+
+  test "rolling back the final reply deletion keeps the deleted post visible and emits no hiding event" do
+    post = create_message(body: "A question")
+    reply = create_message(parent: post, body: "Last answer")
+    post.remove_from_discussion!
+
+    assert_no_broadcasts discussion_stream do
+      ClubMessage.transaction(requires_new: true) do
+        reply.remove_from_discussion!
+        raise ActiveRecord::Rollback
+      end
+    end
+
+    assert ClubMessage.exists?(reply.id)
+    assert_includes @book_club.club_messages.visible_posts, post
+  end
+
   private
 
   def build_message(body:, user: @user, book_club: @book_club, parent: nil)

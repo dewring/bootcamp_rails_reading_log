@@ -40,16 +40,26 @@ class ClubDiscussionPostingTest < ActiveSupport::TestCase
         "data" => { action: "delete_message", request_id: "delete-#{message.id}", message_id: message.id }.to_json
       )
 
-      events = [ sender.next_message_data.fetch("message"), sender.next_message_data.fetch("message") ]
+      event_count = message == reply ? 3 : 2
+      events = Array.new(event_count) { sender.next_message_data.fetch("message") }
       saved = events.find { |event| event.fetch("type") == "delete.saved" }
       deleted = events.find { |event| event.fetch("type") == target.fetch(:type) }
       assert_equal "delete-#{message.id}", saved.fetch("request_id")
       assert_equal "", saved.fetch("message").fetch("body")
       assert_equal true, saved.fetch("message").fetch("deleted")
       assert_equal saved.fetch("message"), deleted.fetch("message")
-      assert_equal deleted, reader.next_message_data.fetch("message")
-      assert_equal 1, deleted.fetch("total_posts")
-      assert ClubMessage.exists?(reply.id) if message == post
+      reader_event_count = message == reply ? 2 : 1
+      reader_events = Array.new(reader_event_count) { reader.next_message_data.fetch("message") }
+      assert_includes reader_events, deleted
+      assert_equal message == post ? 1 : 0, deleted.fetch("total_posts")
+      if message == post
+        assert ClubMessage.exists?(reply.id)
+      else
+        hidden = reader_events.find { |event| event.fetch("type") == "message.deleted" }
+        assert_equal "message.deleted", hidden.fetch("type")
+        assert_equal post.id, hidden.fetch("message").fetch("id")
+        assert_equal 0, hidden.fetch("message").fetch("replies_count")
+      end
     end
 
     assert post.reload.deleted?

@@ -13,6 +13,100 @@ class ClubMessagesControllerTest < ActionDispatch::IntegrationTest
     @message = @book_club.club_messages.create!(user: @owner, body: "First thought")
   end
 
+  test "history fills the page with visible posts before applying its twenty post limit" do
+    visible_posts = [ @message ]
+    20.times do |number|
+      visible_posts.push(@book_club.club_messages.create!(user: @member, body: "Visible thought #{number}"))
+    end
+    20.times do |number|
+      hidden_post = @book_club.club_messages.create!(user: @member, body: "Hidden thought #{number}")
+      hidden_post.remove_from_discussion!
+    end
+    sign_in @member
+
+    get book_club_club_messages_path(@book_club), as: :json
+
+    assert_response :success
+    expected_ids = visible_posts.last(20).reverse.map(&:id)
+    assert_equal expected_ids, response.parsed_body.fetch("messages").map { |message| message.fetch("id") }
+
+    get book_club_club_messages_path(@book_club)
+
+    assert_response :success
+    assert_select "[data-club-discussion-target='paginationSummary']", text: "21 posts · Page 1 of 2"
+  end
+
+  test "deleted posts without replies are excluded from HTML JSON and pagination while remaining in the database" do
+    @message.remove_from_discussion!
+    sign_in @member
+
+    get book_club_club_messages_path(@book_club), as: :json
+    assert_response :success
+    assert_empty response.parsed_body.fetch("messages")
+
+    get book_club_club_messages_path(@book_club)
+    assert_response :success
+    assert_select "#club_message_#{@message.id}", count: 0
+    assert_select "[data-club-discussion-target='paginationSummary']", text: "0 posts · Page 1 of 1"
+    assert ClubMessage.exists?(@message.id)
+  end
+
+  test "deleting the last reply hides its deleted parent on the next request" do
+    reply = @book_club.club_messages.create!(parent: @message, user: @member, body: "Last answer")
+    @message.remove_from_discussion!
+    reply.remove_from_discussion!
+    sign_in @member
+
+    get book_club_club_messages_path(@book_club), as: :json
+
+    assert_response :success
+    assert_empty response.parsed_body.fetch("messages")
+    assert ClubMessage.exists?(@message.id)
+    assert_not ClubMessage.exists?(reply.id)
+  end
+
+  test "owners and nonmember admins see delete controls for other authors without edit controls" do
+    post = @book_club.club_messages.create!(user: @member, body: "Member's thought")
+    viewers = [ @owner, @admin ]
+
+    viewers.each do |viewer|
+      sign_in viewer
+      get book_club_club_messages_path(@book_club)
+
+      assert_response :success
+      assert_select "[data-club-discussion-can-moderate-value='true']"
+      assert_select "#club_message_#{post.id} button[data-action='club-message#deleteMessage']", count: 1
+      assert_select "#club_message_#{post.id} button[data-action='club-message#edit']", count: 0
+      sign_out viewer
+    end
+  end
+
+  test "ordinary members see delete controls only on their own posts" do
+    post = @book_club.club_messages.create!(user: @member, body: "My thought")
+    sign_in @member
+
+    get book_club_club_messages_path(@book_club)
+
+    assert_response :success
+    assert_select "#club_message_#{post.id} button[data-action='club-message#deleteMessage']", count: 1
+    assert_select "#club_message_#{@message.id} button[data-action='club-message#deleteMessage']", count: 0
+  end
+
+  test "deleted posts with replies show a deletion label and reply history controls without edit delete or reply forms" do
+    @book_club.club_messages.create!(parent: @message, user: @member, body: "Retained answer")
+    @message.remove_from_discussion!
+    sign_in @owner
+
+    get book_club_club_messages_path(@book_club)
+
+    assert_response :success
+    assert_select "#club_message_#{@message.id}[data-deleted='true']" do
+      assert_select ".club-discussion-message-body", text: "Deleted post"
+      assert_select "button[data-action='club-replies#toggle']", count: 1
+      assert_select "button[data-action='club-message#edit'], button[data-action='club-message#deleteMessage'], form", count: 0
+    end
+  end
+
   test "history preserves a deleted post and its separately loaded replies without returning the deleted body" do
     reply = @book_club.club_messages.create!(parent: @message, user: @member, body: "Retained answer")
     @message.remove_from_discussion!
@@ -171,6 +265,7 @@ class ClubMessagesControllerTest < ActionDispatch::IntegrationTest
       "parent_id" => nil,
       "body" => "First thought",
       "deleted" => false,
+      "replies_count" => 0,
       "author" => { "id" => @owner.id, "nickname" => @owner.nickname },
       "created_at" => @message.created_at.iso8601(6),
       "updated_at" => @message.updated_at.iso8601(6)

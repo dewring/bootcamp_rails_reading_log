@@ -5,6 +5,8 @@ export interface DiscussionMessage {
   id: number
   parent_id: number | null
   body: string
+  replies_count?: number
+  deleted?: boolean
   author: { id: number; nickname: string }
   created_at: string
   updated_at: string
@@ -26,12 +28,12 @@ export function discussionVersion(timestamp: string): string {
 
 type DiscussionSubscription = {
   unsubscribe(): void
-  perform(action: string, data: { request_id: string; body: string; parent_id?: number; message_id?: number }): boolean
+  perform(action: string, data: { request_id: string; body?: string; parent_id?: number; message_id?: number }): boolean
 }
 
 export default class extends Controller {
-  static targets = ["content", "status", "messages", "emptyState", "paginationSummary", "pagination", "olderPosts", "body", "submit", "composerStatus", "replyControls", "editor"]
-  static values = { bookClubId: Number, page: Number, totalPosts: Number, currentUserId: Number, canPost: Boolean }
+  static targets = ["content", "status", "messages", "emptyState", "paginationSummary", "pagination", "olderPosts", "body", "submit", "composerStatus", "replyControls", "editor", "deleteButton"]
+  static values = { bookClubId: Number, page: Number, totalPosts: Number, currentUserId: Number, canPost: Boolean, canModerate: Boolean }
 
   declare readonly contentTarget: HTMLElement
   declare readonly statusTarget: HTMLElement
@@ -55,9 +57,13 @@ export default class extends Controller {
 
   declare readonly editorTarget: HTMLTemplateElement
   declare readonly hasEditorTarget: boolean
+  declare readonly deleteButtonTarget: HTMLTemplateElement
+  declare readonly hasDeleteButtonTarget: boolean
+  declare readonly canModerateValue: boolean
   declare readonly currentUserIdValue: number
   declare readonly canPostValue: boolean
 
+  private paginationVersion = ""
   private messageUpdates = new Map<number, DiscussionMessage>()
   private discussionSubscription?: Promise<DiscussionSubscription | undefined>
   private receivedMessageIds = new Set<number>()
@@ -72,7 +78,8 @@ export default class extends Controller {
       this.prepareMessageElement(article, {
         id: Number(article.dataset.messageId),
         author: { id: Number(article.dataset.authorId) },
-        updated_at: article.dataset.updatedAt ?? ""
+        updated_at: article.dataset.updatedAt ?? "",
+        deleted: article.dataset.deleted === "true"
       })
     }
     this.receivedMessageIds = new Set(
@@ -92,10 +99,15 @@ export default class extends Controller {
 
           if (event.type === "access.revoked") {
             this.endAccess()
+          } else if ((event.type === "message.deleted" || event.type === "reply.deleted") && event.message) {
+            this.rememberMessageUpdate(event.message, event.total_posts)
+          } else if (event.type === "delete.saved" || event.type === "delete.rejected") {
+            if (event.message) this.rememberMessageUpdate(event.message, event.total_posts)
+            this.dispatch("delete", { detail: event })
           } else if ((event.type === "message.updated" || event.type === "reply.updated") && event.message) {
-            this.rememberMessageUpdate(event.message)
+            this.rememberMessageUpdate(event.message, event.total_posts)
           } else if (event.type === "edit.saved" || event.type === "edit.rejected") {
-            if (event.message) this.rememberMessageUpdate(event.message)
+            if (event.message) this.rememberMessageUpdate(event.message, event.total_posts)
             this.dispatch("edit", { detail: event })
           } else if (event.type === "message.created" && event.message) {
             this.displayCreatedMessage(event.message, event.total_posts)
@@ -185,23 +197,32 @@ export default class extends Controller {
     return this.performDiscussionAction("update_message", { request_id: requestId, message_id: messageId, body }, editor)
   }
 
+  sendDelete(requestId: string, messageId: number, source: Element): Promise<boolean> {
+    return this.performDiscussionAction("delete_message", { request_id: requestId, message_id: messageId }, source)
+  }
+
   latestMessageUpdate(messageId: number) {
     return this.messageUpdates.get(messageId)
   }
 
-  prepareMessageElement(article: HTMLElement, message: Pick<DiscussionMessage, "id" | "updated_at"> & { author: { id: number } }) {
+  prepareMessageElement(article: HTMLElement, message: Pick<DiscussionMessage, "id" | "updated_at" | "deleted"> & { author: { id: number } }) {
     const body = article.querySelector<HTMLElement>(".club-discussion-message-body, .club-discussion-reply-body")
     if (!body) return
 
+    article.dataset.deleted = String(message.deleted ?? false)
     article.dataset.controller = "club-message"
     article.dataset.clubMessageMessageIdValue = String(message.id)
     article.dataset.clubMessageUpdatedAtValue = message.updated_at
     article.dataset.clubMessageClubDiscussionOutlet = `#${this.element.id}`
-    article.dataset.action = "club-discussion:edit@document->club-message#receiveEdit club-discussion:connection-ended@document->club-message#connectionEnded turbo:before-cache@document->club-message#beforeCache"
+    article.dataset.action = "club-discussion:edit@document->club-message#receiveEdit club-discussion:delete@document->club-message#receiveDelete club-discussion:connection-ended@document->club-message#connectionEnded turbo:before-cache@document->club-message#beforeCache"
     body.dataset.clubMessageTarget = "body"
-    if (this.canPostValue && message.author.id === this.currentUserIdValue && this.hasEditorTarget) {
-      article.classList.add("club-message-editable")
+    if (!message.deleted && this.canPostValue && message.author.id === this.currentUserIdValue && this.hasEditorTarget) {
       if (!article.querySelector("[data-club-message-target='form']")) article.append(this.editorTarget.content.cloneNode(true))
+    }
+    const canDelete = this.canModerateValue || (this.canPostValue && message.author.id === this.currentUserIdValue)
+    if (!message.deleted && canDelete && this.hasDeleteButtonTarget) {
+      article.classList.add("club-message-moderatable")
+      if (!article.querySelector("[data-club-message-target='deleteButton']")) article.append(this.deleteButtonTarget.content.cloneNode(true))
     }
     if (!article.querySelector("[data-club-message-target='status']")) {
       const status = document.createElement("p")
@@ -214,7 +235,7 @@ export default class extends Controller {
     }
   }
 
-  private async performDiscussionAction(action: string, data: { request_id: string; body: string; parent_id?: number; message_id?: number }, source: Element): Promise<boolean> {
+  private async performDiscussionAction(action: string, data: { request_id: string; body?: string; parent_id?: number; message_id?: number }, source: Element): Promise<boolean> {
     if (!this.cableConnected) return false
 
     const pendingSubscription = this.discussionSubscription
@@ -225,14 +246,24 @@ export default class extends Controller {
     return subscription?.perform(action, data) ?? false
   }
 
-  private rememberMessageUpdate(message: DiscussionMessage) {
+  private rememberMessageUpdate(message: DiscussionMessage, totalPosts?: number) {
     if (!Number.isSafeInteger(message.id) || !Number.isFinite(Date.parse(message.updated_at))) return
 
     const previous = this.messageUpdates.get(message.id)
-    if (previous && discussionVersion(message.updated_at) <= discussionVersion(previous.updated_at)) return
+    const hidesDeletedPost = message.deleted && message.parent_id === null && message.replies_count === 0
+    if (previous?.deleted && (!hidesDeletedPost || previous.replies_count === 0)) return
+    if (previous && discussionVersion(message.updated_at) < discussionVersion(previous.updated_at)) return
+    if (previous && discussionVersion(message.updated_at) === discussionVersion(previous.updated_at) && !message.deleted) return
 
     this.messageUpdates.set(message.id, message)
+    if (totalPosts !== undefined) this.updatePaginationSummary(totalPosts, message.updated_at, message.deleted === true)
+    if (hidesDeletedPost) this.receivedMessageIds.add(message.id)
+    if (message.deleted) this.dispatch("delete", { detail: { type: "message.deleted", message } })
     this.dispatch("edit", { detail: { type: "message.updated", message } })
+    if (hidesDeletedPost) {
+      this.messagesTarget.querySelector(`#club_message_${message.id}`)?.remove()
+      this.emptyStateTarget.hidden = this.messagesTarget.childElementCount > 0
+    }
   }
 
   private receivePostResult(event: DiscussionEvent) {
@@ -299,14 +330,15 @@ export default class extends Controller {
     if (this.receivedMessageIds.has(message.id)) return
 
     this.receivedMessageIds.add(message.id)
-    if (totalPosts !== undefined) this.updatePaginationSummary(totalPosts)
+    if (totalPosts !== undefined) this.updatePaginationSummary(totalPosts, message.updated_at)
 
     if (this.pageValue !== 1) {
       this.showStatus("New posts are available on the first page.")
       return
     }
 
-    const article = this.buildMessageElement(message)
+    const latest = this.latestMessageUpdate(message.id)
+    const article = this.buildMessageElement(latest ?? message)
     const nextOlderPost = Array.from(this.messagesTarget.children).find(post => {
       return Number((post as HTMLElement).dataset.messageId) < message.id
     })
@@ -342,22 +374,29 @@ export default class extends Controller {
 
     const body = document.createElement("p")
     body.className = "club-discussion-message-body"
-    body.textContent = message.body
+    body.textContent = message.deleted ? "Deleted post" : message.body
     article.append(header, body)
     this.prepareMessageElement(article, message)
     if (this.hasReplyControlsTarget) {
       const controls = this.replyControlsTarget.content.firstElementChild!.cloneNode(true) as HTMLElement
       controls.dataset.clubRepliesPostIdValue = String(message.id)
       controls.dataset.clubRepliesUrlValue = `/book_clubs/${this.bookClubIdValue}/club_messages/${message.id}/replies`
+      controls.dataset.clubRepliesDeletedValue = String(message.deleted ?? false)
       article.append(controls)
     }
     return article
   }
 
-  private updatePaginationSummary(totalPosts: number) {
+  private updatePaginationSummary(totalPosts: number, updatedAt: string, allowDecrease = false) {
     if (!Number.isSafeInteger(totalPosts) || totalPosts < 0) return
 
-    this.totalPostsValue = Math.max(this.totalPostsValue, totalPosts)
+    const version = discussionVersion(updatedAt)
+    if (version < this.paginationVersion) return
+
+    this.totalPostsValue = version === this.paginationVersion && !allowDecrease
+      ? Math.max(this.totalPostsValue, totalPosts)
+      : totalPosts
+    this.paginationVersion = version
     const pageCount = Math.max(1, Math.ceil(this.totalPostsValue / 20))
     const postLabel = this.totalPostsValue === 1 ? "post" : "posts"
     this.paginationSummaryTarget.textContent = `${this.totalPostsValue} ${postLabel} · Page ${this.pageValue} of ${pageCount}`

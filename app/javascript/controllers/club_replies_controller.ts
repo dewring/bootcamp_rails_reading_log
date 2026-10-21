@@ -8,10 +8,13 @@ interface ReplyHistory {
 }
 
 export default class extends Controller {
-  static targets = ["toggle", "panel", "list", "status", "more", "body", "label", "submit", "cancel", "composerStatus"]
+  static targets = ["toggle", "panel", "list", "status", "more", "body", "label", "submit", "cancel", "composerStatus", "form"]
   static outlets = ["club-discussion"]
-  static values = { url: String, postId: Number }
+  static values = { url: String, postId: Number, deleted: Boolean }
 
+  declare deletedValue: boolean
+  declare readonly hasFormTarget: boolean
+  declare readonly formTarget: HTMLFormElement
   declare readonly urlValue: string
   declare readonly postIdValue: number
   declare readonly toggleTarget: HTMLButtonElement
@@ -43,6 +46,8 @@ export default class extends Controller {
       this.bodyTarget.id = `club_reply_body_${this.postIdValue}`
       this.labelTarget.htmlFor = this.bodyTarget.id
     }
+    const latest = this.hasClubDiscussionOutlet ? this.clubDiscussionOutlet.latestMessageUpdate(this.postIdValue) : undefined
+    if (this.deletedValue || latest?.deleted) this.disableReplies()
   }
 
   disconnect() {
@@ -119,7 +124,7 @@ export default class extends Controller {
 
   async postReply(event: SubmitEvent) {
     event.preventDefault()
-    if (this.pendingReplyId) return
+    if (this.pendingReplyId || this.deletedValue) return
     if (!this.hasClubDiscussionOutlet) {
       this.composerStatusTarget.textContent = "Live connection is not ready. Your draft is still here."
       return
@@ -178,12 +183,31 @@ export default class extends Controller {
     this.finishPosting()
   }
 
+  receiveDelete(event: CustomEvent<DiscussionEvent>) {
+    if (!this.belongsToDiscussion(event)) return
+    const message = event.detail.message
+    if (!message?.deleted) return
+
+    if (message.id === this.postIdValue) this.disableReplies()
+    if (message.parent_id === this.postIdValue) {
+      this.listTarget.querySelector(`#club_message_${message.id}`)?.remove()
+      this.displayedIds.delete(message.id)
+    }
+  }
+
+  private disableReplies() {
+    this.deletedValue = true
+    this.finishPosting()
+    if (this.hasBodyTarget) this.bodyTarget.value = ""
+    if (this.hasFormTarget) this.formTarget.remove()
+  }
+
   connectionEnded(event: Event) {
     if (this.belongsToDiscussion(event)) this.interruptPosting()
   }
 
   cancelReply() {
-    if (this.pendingReplyId) return
+    if (this.pendingReplyId || this.deletedValue) return
 
     this.bodyTarget.value = ""
     this.composerStatusTarget.textContent = ""
@@ -220,6 +244,10 @@ export default class extends Controller {
   private displayReply(reply: DiscussionMessage) {
     if (reply.parent_id !== this.postIdValue || !Number.isSafeInteger(reply.id) || reply.id <= 0) return
     if (this.displayedIds.has(reply.id)) return
+
+    const latest = this.hasClubDiscussionOutlet ? this.clubDiscussionOutlet.latestMessageUpdate(reply.id) : undefined
+    if (reply.deleted || latest?.deleted) return
+    if (latest) reply = latest
 
     this.displayedIds.add(reply.id)
     const article = document.createElement("article")

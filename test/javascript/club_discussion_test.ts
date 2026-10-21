@@ -7,7 +7,7 @@ import type { DiscussionMessage } from "../../app/javascript/controllers/club_di
 
 interface Subscription {
   unsubscribe(): void
-  perform(action: string, data: { request_id: string; body: string; parent_id?: number; message_id?: number }): boolean
+  perform(action: string, data: { request_id: string; body?: string; parent_id?: number; message_id?: number }): boolean
 }
 
 interface SubscriptionCallbacks {
@@ -142,6 +142,190 @@ async function mountEditablePost() {
 function editedMessage(id: number, body: string, version = "2026-10-21T12:00:00.000001Z") {
   return { ...createdMessageEvent(id).message, body, updated_at: version }
 }
+
+function enableMessageDeletion() {
+  const template = document.createElement("template")
+  template.dataset.clubDiscussionTarget = "deleteButton"
+  template.innerHTML = `<button type="button" data-club-message-target="deleteButton" data-action="club-message#deleteMessage">Delete</button>`
+  content.append(template)
+}
+
+function deletionEvent(id: number, parentId: number | null = null) {
+  return {
+    type: parentId === null ? "message.deleted" : "reply.deleted",
+    message: { ...editedMessage(id, ""), parent_id: parentId, deleted: true, replies_count: parentId === null ? 1 : 0 }
+  }
+}
+
+async function mountDeletablePost() {
+  enableMessageDeletion()
+  const editor = await mountEditablePost()
+  const button = editor.article.querySelector<HTMLButtonElement>("[data-club-message-target='deleteButton']")!
+  vi.spyOn(window, "confirm").mockReturnValue(true)
+  return { ...editor, button }
+}
+
+test("confirmed deletion uses the shared Cable subscription once and keeps a deleted post in the feed", async () => {
+  const editor = await mountDeletablePost()
+  editor.button.click()
+  editor.button.click()
+  await vi.waitFor(() => expect(requests[0].perform).toHaveBeenCalledOnce())
+  const [action, data] = requests[0].perform.mock.calls[0]
+  expect(action).toBe("delete_message")
+  expect(data).toEqual({ request_id: expect.any(String), message_id: 2 })
+  expect(window.confirm).toHaveBeenCalledOnce()
+  const deleted = deletionEvent(2)
+  requests[0].callbacks.received(deleted)
+  requests[0].callbacks.received({ ...deleted, type: "delete.saved", request_id: data.request_id })
+  expect(editor.article.isConnected).toBe(true)
+  expect(editor.body.textContent).toBe("Deleted post")
+  expect(editor.article.querySelector("form, button")).toBeNull()
+  expect(postIds()).toEqual(["2", "1"])
+  expect(subscribeTo).toHaveBeenCalledOnce()
+})
+
+test("cancelling deletion sends no Cable write and preserves the open edit draft", async () => {
+  const editor = await mountDeletablePost()
+  vi.mocked(window.confirm).mockReturnValue(false)
+  editor.edit.click()
+  editor.input.value = "Keep my draft"
+  editor.button.click()
+  expect(requests[0].perform).not.toHaveBeenCalled()
+  expect(editor.input.value).toBe("Keep my draft")
+  expect(editor.body.textContent).toBe("Thought 2")
+})
+
+test("a rejected deletion unlocks controls without clearing the edit draft", async () => {
+  const editor = await mountDeletablePost()
+  editor.edit.click()
+  editor.input.value = "Keep my draft"
+  editor.button.click()
+  await vi.waitFor(() => expect(requests[0].perform).toHaveBeenCalledOnce())
+  const data = requests[0].perform.mock.calls[0][1]
+  requests[0].callbacks.received({ type: "delete.rejected", request_id: data.request_id, error: "forbidden" })
+  expect(editor.notice.textContent).toContain("permission to delete")
+  expect(editor.input.value).toBe("Keep my draft")
+  expect(editor.input.readOnly).toBe(false)
+  expect(editor.button.disabled).toBe(false)
+})
+
+test("an unconfirmed deletion unlocks after five seconds without retrying", async () => {
+  const editor = await mountDeletablePost()
+  vi.useFakeTimers()
+  editor.button.click()
+  await Promise.resolve()
+  await Promise.resolve()
+  await vi.advanceTimersByTimeAsync(5_000)
+  expect(editor.notice.textContent).toContain("could not be confirmed")
+  expect(editor.button.disabled).toBe(false)
+  expect(editor.body.textContent).toBe("Thought 2")
+  expect(requests[0].perform).toHaveBeenCalledOnce()
+})
+
+test("a deletion received during editing clears the draft and ignores later stale updates", async () => {
+  const editor = await mountDeletablePost()
+  editor.edit.click()
+  editor.input.value = "Private draft"
+  requests[0].callbacks.received(deletionEvent(2))
+  expect(editor.input.value).toBe("")
+  expect(editor.body.hidden).toBe(false)
+  requests[0].callbacks.received({ type: "message.updated", message: editedMessage(2, "Stale body", "2026-10-21T12:01:00Z") })
+  requests[0].callbacks.received(createdMessageEvent(2))
+  requests[0].callbacks.received(deletionEvent(2))
+  expect(editor.body.textContent).toBe("Deleted post")
+  expect(editor.article.querySelector("form, button")).toBeNull()
+})
+
+test("owners and nonmember admins can see delete controls on others' live posts without an edit button", async () => {
+  enableMessageEditing()
+  enableMessageDeletion()
+  element.dataset.clubDiscussionCanModerateValue = "true"
+  element.dataset.clubDiscussionCanPostValue = "false"
+  completeSetup(requests[0])
+  await requests[0].promise
+  requests[0].callbacks.received(createdMessageEvent(2))
+  const article = messages.querySelector<HTMLElement>("#club_message_2")!
+  expect(article.querySelector("[data-club-message-target='deleteButton']")).not.toBeNull()
+  expect(article.querySelector("[data-club-message-target='editButton']")).toBeNull()
+})
+
+test("ordinary members cannot see delete controls for another author's live post", async () => {
+  enableMessageEditing()
+  enableMessageDeletion()
+  completeSetup(requests[0])
+  await requests[0].promise
+  const created = createdMessageEvent(2)
+  created.message.author.id = 99
+  requests[0].callbacks.received(created)
+  expect(messages.querySelector("#club_message_2 [data-club-message-target='deleteButton']")).toBeNull()
+})
+
+test("a deletion received before its create event renders only the deleted post", async () => {
+  enableMessageEditing()
+  enableMessageDeletion()
+  completeSetup(requests[0])
+  await requests[0].promise
+  requests[0].callbacks.received(deletionEvent(2))
+  requests[0].callbacks.received(createdMessageEvent(2))
+  const article = messages.querySelector<HTMLElement>("#club_message_2")!
+  expect(article.querySelector("p")!.textContent).toBe("Deleted post")
+  expect(article.querySelector("button, form")).toBeNull()
+})
+
+test("a disconnected deletion unlocks controls and never retries after reconnection", async () => {
+  const editor = await mountDeletablePost()
+  editor.button.click()
+  await vi.waitFor(() => expect(requests[0].perform).toHaveBeenCalledOnce())
+  requests[0].callbacks.disconnected({ willAttemptReconnect: true })
+  expect(editor.notice.textContent).toContain("could not be confirmed")
+  expect(editor.button.disabled).toBe(false)
+  requests[0].callbacks.connected()
+  expect(requests[0].perform).toHaveBeenCalledOnce()
+})
+
+test("a failed deletion send preserves the message and reports an unconfirmed result", async () => {
+  const editor = await mountDeletablePost()
+  requests[0].perform.mockReturnValue(false)
+  editor.button.click()
+  await vi.waitFor(() => expect(editor.notice.textContent).toContain("could not be confirmed"))
+  expect(editor.button.disabled).toBe(false)
+  expect(editor.body.textContent).toBe("Thought 2")
+  expect(requests[0].perform).toHaveBeenCalledOnce()
+})
+
+test("a deleted post without replies disappears and updates the visible post total", async () => {
+  const editor = await mountDeletablePost()
+  const deleted = deletionEvent(2)
+  deleted.message.replies_count = 0
+  requests[0].callbacks.received({ ...deleted, total_posts: 1 })
+  expect(editor.article.isConnected).toBe(false)
+  expect(postIds()).toEqual(["1"])
+  expect(element.querySelector("[data-club-discussion-target='paginationSummary']")!.textContent).toBe("1 post · Page 1 of 1")
+  requests[0].callbacks.received(createdMessageEvent(2))
+  expect(postIds()).toEqual(["1"])
+})
+
+test("a deleted post disappears after the final reply is deleted while earlier deletion events cannot restore it", async () => {
+  const editor = await mountDeletablePost()
+  const retained = deletionEvent(2)
+  requests[0].callbacks.received({ ...retained, total_posts: 2 })
+  expect(editor.article.isConnected).toBe(true)
+  const empty = { ...retained.message, replies_count: 0, updated_at: "2026-10-21T12:01:00Z" }
+  requests[0].callbacks.received({ type: "message.deleted", message: empty, total_posts: 1 })
+  expect(editor.article.isConnected).toBe(false)
+  requests[0].callbacks.received(retained)
+  expect(postIds()).toEqual(["1"])
+})
+
+test("removing the last visible post displays the empty state", async () => {
+  const editor = await mountDeletablePost()
+  messages.querySelector("#club_message_1")!.remove()
+  const deleted = deletionEvent(2)
+  deleted.message.replies_count = 0
+  requests[0].callbacks.received({ ...deleted, total_posts: 0 })
+  expect(messages.childElementCount).toBe(0)
+  expect(element.querySelector<HTMLElement>("[data-club-discussion-target='emptyState']")!.hidden).toBe(false)
+})
 
 test("the author can save an inline edit through the existing Cable connection", async () => {
   const editor = await mountEditablePost()
@@ -306,8 +490,8 @@ async function mountReplyForm(ready = true) {
   controls.dataset.controller = "club-replies"
   controls.dataset.clubRepliesPostIdValue = "1"
   controls.dataset.clubRepliesClubDiscussionOutlet = "#club_discussion_17"
-  controls.dataset.action = "club-discussion:reply@document->club-replies#receiveReply club-discussion:connection-ended@document->club-replies#connectionEnded turbo:before-cache@document->club-replies#beforeCache"
-  controls.innerHTML = `<button data-club-replies-target="toggle" aria-expanded="true" data-action="club-replies#toggle">Replies</button><div data-club-replies-target="panel"><div data-club-replies-target="list"></div><p data-club-replies-target="status"></p><button data-club-replies-target="more" hidden></button><form data-action="submit->club-replies#postReply"><label data-club-replies-target="label">Your reply</label><textarea data-club-replies-target="body"></textarea><button type="submit" data-club-replies-target="submit">Reply</button><button type="button" data-club-replies-target="cancel" data-action="club-replies#cancelReply">Cancel</button><p data-club-replies-target="composerStatus"></p></form></div>`
+  controls.dataset.action = "club-discussion:reply@document->club-replies#receiveReply club-discussion:delete@document->club-replies#receiveDelete club-discussion:connection-ended@document->club-replies#connectionEnded turbo:before-cache@document->club-replies#beforeCache"
+  controls.innerHTML = `<button data-club-replies-target="toggle" aria-expanded="true" data-action="club-replies#toggle">Replies</button><div data-club-replies-target="panel"><div data-club-replies-target="list"></div><p data-club-replies-target="status"></p><button data-club-replies-target="more" hidden></button><form data-club-replies-target="form" data-action="submit->club-replies#postReply"><label data-club-replies-target="label">Your reply</label><textarea data-club-replies-target="body"></textarea><button type="submit" data-club-replies-target="submit">Reply</button><button type="button" data-club-replies-target="cancel" data-action="club-replies#cancelReply">Cancel</button><p data-club-replies-target="composerStatus"></p></form></div>`
   messages.firstElementChild!.append(controls)
   await vi.waitFor(() => expect(controls.querySelector("label")!.htmlFor).toBe("club_reply_body_1"))
   if (ready) {
@@ -324,6 +508,58 @@ async function mountReplyForm(ready = true) {
     notice: controls.querySelector<HTMLElement>("[data-club-replies-target='composerStatus']")!
   }
 }
+
+test("deleting a post removes the reply composer but preserves existing replies and their edit controls", async () => {
+  enableMessageEditing()
+  enableMessageDeletion()
+  const composer = await mountReplyForm()
+  requests[0].callbacks.received(replyEvent(8))
+  await vi.waitFor(() => expect(composer.controls.querySelector("#club_message_8 button")).not.toBeNull())
+  composer.body.value = "Private reply draft"
+  requests[0].callbacks.received(deletionEvent(1))
+  expect(composer.form.isConnected).toBe(false)
+  expect(composer.body.value).toBe("")
+  expect(composer.controls.querySelector("#club_message_8")).not.toBeNull()
+  expect(composer.controls.querySelector("#club_message_8 [data-club-message-target='editButton']")).not.toBeNull()
+})
+
+test("a deleted reply is removed and cannot be restored by delayed history or creation events", async () => {
+  enableMessageEditing()
+  enableMessageDeletion()
+  const composer = await mountReplyForm()
+  requests[0].callbacks.received(replyEvent(8))
+  await vi.waitFor(() => expect(composer.controls.querySelector("#club_message_8 button")).not.toBeNull())
+  const pending = Promise.withResolvers<Response>()
+  vi.spyOn(globalThis, "fetch").mockReturnValue(pending.promise)
+  const controller = application.getControllerForElementAndIdentifier(composer.controls, "club-replies") as ClubRepliesController
+  const loading = controller.loadMore()
+  requests[0].callbacks.received(deletionEvent(8, 1))
+  expect(composer.controls.querySelector("#club_message_8")).toBeNull()
+  pending.resolve(new Response(JSON.stringify({ replies: [ replyEvent(8).message ], pagination: { next_page: null } })))
+  await loading
+  requests[0].callbacks.received(replyEvent(8))
+  expect(composer.controls.querySelector("#club_message_8")).toBeNull()
+})
+
+test("the reply author deletes through Cable and a saved acknowledgement removes the reply before its broadcast", async () => {
+  enableMessageEditing()
+  enableMessageDeletion()
+  const composer = await mountReplyForm()
+  requests[0].callbacks.received(replyEvent(8))
+  const article = composer.controls.querySelector<HTMLElement>("#club_message_8")!
+  await vi.waitFor(() => expect(article.querySelector("label")!.htmlFor).toBe("club_message_edit_8"))
+  vi.spyOn(window, "confirm").mockReturnValue(true)
+  article.querySelector<HTMLButtonElement>("[data-club-message-target='deleteButton']")!.click()
+  await vi.waitFor(() => expect(requests[0].perform).toHaveBeenCalledOnce())
+  const [action, data] = requests[0].perform.mock.calls[0]
+  expect(action).toBe("delete_message")
+  expect(data.message_id).toBe(8)
+  const deleted = deletionEvent(8, 1)
+  requests[0].callbacks.received({ ...deleted, type: "delete.saved", request_id: data.request_id })
+  requests[0].callbacks.received(deleted)
+  expect(composer.controls.querySelector("#club_message_8")).toBeNull()
+  expect(messages.querySelector("#club_message_1")).not.toBeNull()
+})
 
 function replyEvent(id: number, type = "reply.created", requestId?: string) {
   const event = createdMessageEvent(id)
