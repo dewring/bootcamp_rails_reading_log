@@ -2453,7 +2453,8 @@ main.container:has(> .my-log-page) {
 }
 
 // ── Book Club detail overview ─────────────────────────────
-main.container:has(> .book-club-detail-page) {
+main.container:has(> .book-club-detail-page),
+main.container:has(> [data-controller~="club-discussion"] > .book-club-detail-page) {
   width: 100%;
   max-width: none;
   margin: 0;
