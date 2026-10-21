@@ -125,7 +125,7 @@ GEM
       bigdecimal
       rexml
     crass (1.0.7)
-    css_parser (3.0.0)
+    css_parser (>= 3.3.0)
       addressable
       ssrf_filter (~> 1.5)
     dartsass-rails (0.5.1)
