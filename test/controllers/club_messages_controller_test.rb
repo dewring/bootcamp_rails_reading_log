@@ -13,6 +13,26 @@ class ClubMessagesControllerTest < ActionDispatch::IntegrationTest
     @message = @book_club.club_messages.create!(user: @owner, body: "First thought")
   end
 
+  test "history preserves a deleted post and its separately loaded replies without returning the deleted body" do
+    reply = @book_club.club_messages.create!(parent: @message, user: @member, body: "Retained answer")
+    @message.remove_from_discussion!
+    sign_in @member
+
+    get book_club_club_messages_path(@book_club), as: :json
+
+    assert_response :success
+    payload = response.parsed_body.fetch("messages").first
+    assert_equal @message.id, payload.fetch("id")
+    assert_equal true, payload.fetch("deleted")
+    assert_equal "", payload.fetch("body")
+    assert_not_includes response.body, "First thought"
+
+    get book_club_club_message_replies_path(@book_club, @message), as: :json
+
+    assert_response :success
+    assert_equal [ reply.discussion_payload.as_json ], response.parsed_body.fetch("replies")
+  end
+
   test "inline edit controls are rendered only for the current member's own posts" do
     own_message = @book_club.club_messages.create!(user: @member, body: "My thought")
     @book_club.club_messages.create!(user: @admin, body: "An admin thought before leaving")
@@ -150,6 +170,7 @@ class ClubMessagesControllerTest < ActionDispatch::IntegrationTest
       "id" => @message.id,
       "parent_id" => nil,
       "body" => "First thought",
+      "deleted" => false,
       "author" => { "id" => @owner.id, "nickname" => @owner.nickname },
       "created_at" => @message.created_at.iso8601(6),
       "updated_at" => @message.updated_at.iso8601(6)

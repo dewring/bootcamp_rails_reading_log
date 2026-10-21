@@ -29,28 +29,63 @@ class ClubDiscussionChannel < ApplicationCable::Channel
     request_id = request_id_from(data)
     return unless request_id
 
-    message_id = data["message_id"]
-    message = @book_club.club_messages.find_by(id: message_id) if message_id.is_a?(Integer) && message_id.positive?
+    message = discussion_message_from(data)
     unless message
       transmit({ type: "edit.rejected", request_id: request_id, error: "not_found" })
       return
     end
 
     user = User.find_by(id: current_user.id)
-    unless ClubMessagePolicy.new(user, message).update?
-      transmit({ type: "edit.rejected", request_id: request_id, error: "forbidden" })
+    body = data["body"] if data["body"].is_a?(String)
+    response = message.with_lock { edit_message_response(message, user, body, request_id) }
+    transmit response
+  rescue ActiveRecord::RecordNotFound
+    transmit({ type: "edit.rejected", request_id: request_id, error: "not_found" })
+  end
+
+  def delete_message(data)
+    return if @access_revoked
+    return revoke_discussion_access unless discussion_allowed?
+
+    request_id = request_id_from(data)
+    return unless request_id
+
+    message = discussion_message_from(data)
+    unless message
+      transmit({ type: "delete.rejected", request_id: request_id, error: "not_found" })
       return
     end
 
-    body = data["body"] if data["body"].is_a?(String)
-    if message.update(body: body)
-      transmit({ type: "edit.saved", request_id: request_id, message: message.discussion_payload })
-    else
-      transmit({ type: "edit.rejected", request_id: request_id, errors: message.errors.to_hash })
+    user = User.find_by(id: current_user.id)
+    unless ClubMessagePolicy.new(user, message).destroy?
+      transmit({ type: "delete.rejected", request_id: request_id, error: "forbidden" })
+      return
     end
+
+    payload = message.remove_from_discussion!
+    transmit({ type: "delete.saved", request_id: request_id, message: payload, total_posts: @book_club.club_messages.top_level.count })
+  rescue ActiveRecord::RecordNotFound
+    transmit({ type: "delete.rejected", request_id: request_id, error: "not_found" })
   end
 
   private
+
+  def discussion_message_from(data)
+    message_id = data["message_id"]
+    @book_club.club_messages.find_by(id: message_id) if message_id.is_a?(Integer) && message_id.positive?
+  end
+
+  def edit_message_response(message, user, body, request_id)
+    unless ClubMessagePolicy.new(user, message).update?
+      return { type: "edit.rejected", request_id: request_id, error: "forbidden" }
+    end
+
+    if message.update(body: body)
+      { type: "edit.saved", request_id: request_id, message: message.discussion_payload }
+    else
+      { type: "edit.rejected", request_id: request_id, errors: message.errors.to_hash }
+    end
+  end
 
   def request_id_from(data)
     request_id = data["request_id"]
@@ -85,17 +120,25 @@ class ClubDiscussionChannel < ApplicationCable::Channel
       return
     end
 
-    if message.save
+    if persist_discussion_message(message)
       transmit({ type: "#{event_prefix}.saved", request_id: request_id, message: message.discussion_payload, total_posts: @book_club.club_messages.top_level.count })
     else
       transmit({ type: "#{event_prefix}.rejected", request_id: request_id, errors: message.errors.to_hash })
     end
   end
 
+  def persist_discussion_message(message)
+    if message.parent
+      message.parent.with_lock { message.save }
+    else
+      message.save
+    end
+  end
+
   def reply_parent(parent_id)
     return unless parent_id.is_a?(Integer) && parent_id.positive?
 
-    @book_club.club_messages.top_level.find_by(id: parent_id)
+    @book_club.club_messages.top_level.find_by(id: parent_id, deleted_at: nil)
   end
 
   def message_rate_limited?(user)

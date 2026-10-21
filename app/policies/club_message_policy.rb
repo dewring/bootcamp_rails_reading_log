@@ -8,11 +8,14 @@ class ClubMessagePolicy < ApplicationPolicy
   end
 
   def create?
+    return false if record.deleted?
+    return false if record.parent && record.parent.deleted?
+
     club_policy.post_message?
   end
 
   def update?
-    club_policy.post_message? && owner?
+    !record.deleted? && club_policy.post_message? && owner?
   end
 
   def destroy?

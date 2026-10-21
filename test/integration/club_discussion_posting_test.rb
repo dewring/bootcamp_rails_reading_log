@@ -26,6 +26,36 @@ class ClubDiscussionPostingTest < ActiveSupport::TestCase
     Rack::Attack.reset!
   end
 
+  test "deleting posts and replies acknowledges the author and broadcasts empty deleted payloads" do
+    post = @book_club.club_messages.create!(user: @member, body: "Private original thought")
+    reply = @book_club.club_messages.create!(parent: post, user: @member, body: "Private original answer")
+    sender = subscribe_to_discussion(@member)
+    reader = subscribe_to_discussion(@owner)
+    targets = [ { message: post, type: "message.deleted" }, { message: reply, type: "reply.deleted" } ]
+
+    targets.each do |target|
+      message = target.fetch(:message)
+      sender.subscriptions.perform_action(
+        "identifier" => @identifier,
+        "data" => { action: "delete_message", request_id: "delete-#{message.id}", message_id: message.id }.to_json
+      )
+
+      events = [ sender.next_message_data.fetch("message"), sender.next_message_data.fetch("message") ]
+      saved = events.find { |event| event.fetch("type") == "delete.saved" }
+      deleted = events.find { |event| event.fetch("type") == target.fetch(:type) }
+      assert_equal "delete-#{message.id}", saved.fetch("request_id")
+      assert_equal "", saved.fetch("message").fetch("body")
+      assert_equal true, saved.fetch("message").fetch("deleted")
+      assert_equal saved.fetch("message"), deleted.fetch("message")
+      assert_equal deleted, reader.next_message_data.fetch("message")
+      assert_equal 1, deleted.fetch("total_posts")
+      assert ClubMessage.exists?(reply.id) if message == post
+    end
+
+    assert post.reload.deleted?
+    assert_not ClubMessage.exists?(reply.id)
+  end
+
   test "editing a post or reply acknowledges its author and broadcasts the committed update to both members" do
     message = @book_club.club_messages.create!(user: @member, body: "Original thought")
     reply = @book_club.club_messages.create!(parent: message, user: @member, body: "Original answer")

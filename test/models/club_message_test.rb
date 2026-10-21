@@ -302,6 +302,105 @@ class ClubMessageTest < ActiveSupport::TestCase
     assert ClubMessage.exists?(other_message.id)
   end
 
+  test "removing a post clears its body and keeps its replies and post total" do
+    post = create_message(body: "Original thought")
+    reply = create_message(parent: post, body: "Retained answer")
+
+    assert_no_difference "ClubMessage.count" do
+      assert_broadcasts discussion_stream, 1 do
+        payload = post.remove_from_discussion!
+        assert_equal true, payload.fetch(:deleted)
+        assert_equal "", payload.fetch(:body)
+      end
+    end
+
+    assert post.reload.deleted?
+    assert_equal "", post.body
+    assert_equal post, reply.reload.parent
+    assert_equal "Retained answer", reply.body
+    assert_broadcast_on discussion_stream, { type: "message.deleted", message: post.discussion_payload, total_posts: 1 }
+
+    deleted_at = post.deleted_at
+    assert_no_broadcasts discussion_stream do
+      post.remove_from_discussion!
+    end
+    assert_equal deleted_at, post.reload.deleted_at
+  end
+
+  test "removing a reply destroys only that reply and broadcasts an empty deleted payload" do
+    post = create_message(body: "A question")
+    reply = create_message(parent: post, body: "An answer")
+    payload = nil
+
+    assert_difference "ClubMessage.count", -1 do
+      assert_broadcasts discussion_stream, 1 do
+        payload = reply.remove_from_discussion!
+      end
+    end
+
+    assert ClubMessage.exists?(post.id)
+    assert_not ClubMessage.exists?(reply.id)
+    assert_equal "", payload.fetch(:body)
+    assert_equal true, payload.fetch(:deleted)
+    assert_broadcast_on discussion_stream, { type: "reply.deleted", message: payload, total_posts: 1 }
+  end
+
+  test "rolled back post and reply removals preserve content and emit no deletion events" do
+    post = create_message(body: "Original thought")
+    reply = create_message(parent: post, body: "Original answer")
+
+    assert_no_broadcasts discussion_stream do
+      ClubMessage.transaction(requires_new: true) do
+        reply.remove_from_discussion!
+        post.remove_from_discussion!
+        assert_no_broadcasts discussion_stream
+        raise ActiveRecord::Rollback
+      end
+    end
+
+    assert_equal "Original thought", post.reload.body
+    assert_not post.deleted?
+    assert_equal "Original answer", reply.reload.body
+  end
+
+  test "deleted posts reject new replies but existing replies remain editable" do
+    post = create_message(body: "A question")
+    reply = create_message(parent: post, body: "An answer")
+    post.remove_from_discussion!
+    new_reply = build_message(parent: post, body: "A late answer")
+
+    assert_no_difference "ClubMessage.count" do
+      assert_not new_reply.save
+    end
+    assert_includes new_reply.errors[:parent], "cannot be a deleted post"
+    assert reply.update(body: "Revised answer")
+    assert_equal "Revised answer", reply.reload.body
+  end
+
+  test "validation and database constraints reject invalid deleted post states" do
+    post = create_message(body: "A question")
+    reply = create_message(parent: post, body: "An answer")
+    targets = [ post, reply ]
+
+    targets.each do |message|
+      assert_not message.update(deleted_at: Time.current)
+      message.reload
+      assert_raises ActiveRecord::StatementInvalid do
+        ClubMessage.transaction(requires_new: true) do
+          message.update_columns(deleted_at: Time.current)
+        end
+      end
+      assert_not message.reload.deleted?
+    end
+
+    assert_raises ActiveRecord::StatementInvalid do
+      ClubMessage.transaction(requires_new: true) do
+        reply.update_columns(body: "", deleted_at: Time.current)
+      end
+    end
+    assert_equal "An answer", reply.reload.body
+  end
+
   private
 
   def build_message(body:, user: @user, book_club: @book_club, parent: nil)

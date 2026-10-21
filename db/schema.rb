@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_20_010000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_21_020000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -152,6 +152,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_20_010000) do
     t.text "body", null: false
     t.bigint "book_club_id", null: false
     t.datetime "created_at", null: false
+    t.datetime "deleted_at"
     t.bigint "parent_id"
     t.datetime "updated_at", null: false
     t.bigint "user_id", null: false
@@ -159,6 +160,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_20_010000) do
     t.index ["parent_id", "id"], name: "index_club_messages_on_parent_id_and_id"
     t.index ["user_id"], name: "index_club_messages_on_user_id"
     t.check_constraint "char_length(body) <= 1000", name: "club_messages_body_length"
+    t.check_constraint "deleted_at IS NULL OR parent_id IS NULL AND body = ''::text", name: "club_messages_deleted_post_state"
     t.check_constraint "parent_id IS NULL OR parent_id <> id", name: "club_messages_parent_not_self"
   end
 

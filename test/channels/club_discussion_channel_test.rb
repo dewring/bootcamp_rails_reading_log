@@ -15,6 +15,106 @@ class ClubDiscussionChannelTest < ActionCable::Channel::TestCase
     Rack::Attack.reset!
   end
 
+  test "authors owners and nonmember admins can delete posts and replies" do
+    actors = [ @member, @owner, @admin ]
+
+    actors.each do |actor|
+      post = @book_club.club_messages.create!(user: @member, body: "A question")
+      reply = @book_club.club_messages.create!(parent: post, user: @member, body: "An answer")
+      stub_connection current_user: actor
+      subscribe book_club_id: @book_club.id
+
+      assert_no_difference "ClubMessage.count" do
+        perform :delete_message, request_id: "delete-post", message_id: post.id
+      end
+      assert post.reload.deleted?
+      assert_equal "", post.body
+      assert_equal post, reply.reload.parent
+      assert_equal "delete.saved", transmissions.last.fetch("type")
+      assert_equal post.discussion_payload.as_json, transmissions.last.fetch("message")
+
+      assert_difference "ClubMessage.count", -1 do
+        perform :delete_message, request_id: "delete-reply", message_id: reply.id
+      end
+      assert_equal "delete.saved", transmissions.last.fetch("type")
+      assert_equal true, transmissions.last.fetch("message").fetch("deleted")
+      assert_equal "", transmissions.last.fetch("message").fetch("body")
+      assert_not ClubMessage.exists?(reply.id)
+    end
+  end
+
+  test "ordinary members cannot delete another author's content" do
+    post = @book_club.club_messages.create!(user: @owner, body: "Owner's thought")
+    stub_connection current_user: @member
+    subscribe book_club_id: @book_club.id
+
+    assert_no_broadcasts @book_club do
+      perform :delete_message, request_id: "forbidden-delete", message_id: post.id
+    end
+    assert_equal "delete.rejected", transmissions.last.fetch("type")
+    assert_equal "forbidden", transmissions.last.fetch("error")
+    assert_equal "Owner's thought", post.reload.body
+  end
+
+  test "deletion rejects cross-club and invalid message ids" do
+    other_club = BookClub.create!(name: "Another circle")
+    post = other_club.club_messages.create!(user: @member, body: "Private thought")
+    stub_connection current_user: @member
+    subscribe book_club_id: @book_club.id
+    message_ids = [ post.id, nil, -1, 0, "invalid" ]
+
+    message_ids.each do |message_id|
+      assert_no_difference "ClubMessage.count" do
+        perform :delete_message, request_id: "invalid-delete", message_id: message_id
+      end
+      assert_equal "delete.rejected", transmissions.last.fetch("type")
+      assert_equal "not_found", transmissions.last.fetch("error")
+    end
+    assert_equal "Private thought", post.reload.body
+  end
+
+  test "invalid request ids cannot delete messages" do
+    post = @book_club.club_messages.create!(user: @member, body: "A thought")
+    stub_connection current_user: @member
+    subscribe book_club_id: @book_club.id
+    request_ids = [ nil, "", "a" * 65, 123 ]
+
+    request_ids.each do |request_id|
+      perform :delete_message, request_id: request_id, message_id: post.id
+    end
+    assert_empty transmissions
+    assert_not post.reload.deleted?
+  end
+
+  test "removed members cannot delete their own messages" do
+    post = @book_club.club_messages.create!(user: @member, body: "A thought")
+    stub_connection current_user: @member
+    subscribe book_club_id: @book_club.id
+    @book_club.book_club_memberships.find_by!(user: @member).destroy!
+
+    perform :delete_message, request_id: "former-member-delete", message_id: post.id
+
+    assert_equal "access.revoked", transmissions.last.fetch("type")
+    assert_not post.reload.deleted?
+  end
+
+  test "deleted posts reject edits and new replies" do
+    post = @book_club.club_messages.create!(user: @member, body: "A thought")
+    post.remove_from_discussion!
+    stub_connection current_user: @member
+    subscribe book_club_id: @book_club.id
+
+    assert_no_broadcasts @book_club do
+      perform :update_message, request_id: "deleted-edit", message_id: post.id, body: "Restored thought"
+    end
+    assert_equal "forbidden", transmissions.last.fetch("error")
+    assert_no_difference "ClubMessage.count" do
+      perform :post_reply, request_id: "deleted-reply", parent_id: post.id, body: "A late answer"
+    end
+    assert_equal "not_found", transmissions.last.fetch("error")
+    assert_equal "", post.reload.body
+  end
+
   test "an author can edit their own post without creating another message" do
     message = @book_club.club_messages.create!(user: @member, body: "Original thought")
     stub_connection current_user: @member

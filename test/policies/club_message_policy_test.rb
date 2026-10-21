@@ -11,6 +11,21 @@ class ClubMessagePolicyTest < ActiveSupport::TestCase
     @message = @book_club.club_messages.create!(user: @author, body: "A discussion thought")
   end
 
+  test "deleted posts remain readable but cannot be edited or receive replies" do
+    reply = @book_club.club_messages.create!(parent: @message, user: @author, body: "An answer")
+    @message.remove_from_discussion!
+    viewers = [ @owner, @author, @admin ]
+
+    viewers.each do |viewer|
+      policy = ClubMessagePolicy.new(viewer, @message)
+      assert policy.show?
+      refute policy.update?
+      new_reply = @book_club.club_messages.build(parent: @message, user: viewer, body: "A late answer")
+      refute ClubMessagePolicy.new(viewer, new_reply).create?
+    end
+    assert ClubMessagePolicy.new(@author, reply).update?
+  end
+
   test "members can read history view messages and post" do
     users = [ @owner, @author ]
 
