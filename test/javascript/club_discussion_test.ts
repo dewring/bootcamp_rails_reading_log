@@ -633,12 +633,16 @@ test("disconnecting while a reply is pending preserves its draft without retryin
   expect(requests[0].perform).toHaveBeenCalledOnce()
 })
 
-test("missing reply acknowledgements preserve drafts and do not automatically retry", async () => {
+test("missing reply acknowledgements show a notice after five seconds and preserve drafts without retrying", async () => {
   const composer = await mountReplyForm()
   vi.useFakeTimers()
   composer.body.value = "Keep this answer"
   submitComposer(composer.form)
-  await vi.advanceTimersByTimeAsync(20_000)
+  await vi.advanceTimersByTimeAsync(4_999)
+  expect(composer.body.readOnly).toBe(true)
+  expect(composer.notice.textContent).toBe("Posting reply…")
+  await vi.advanceTimersByTimeAsync(1)
+  expect(composer.body.readOnly).toBe(false)
   expect(composer.body.value).toBe("Keep this answer")
   expect(composer.notice.textContent).toContain("could not be confirmed")
   expect(requests[0].perform).toHaveBeenCalledOnce()

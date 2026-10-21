@@ -144,7 +144,7 @@ export default class extends Controller {
       }
 
       // A missing acknowledgement does not prove that saving failed; never retry automatically.
-      this.replyTimeout = setTimeout(() => this.interruptPosting(), 20_000)
+      this.replyTimeout = setTimeout(() => this.interruptPosting(), 5_000)
     } catch (error) {
       console.error("Failed to send discussion reply", error)
       if (this.pendingReplyId === requestId) this.interruptPosting()
