@@ -8,6 +8,54 @@ class ClubMessageTest < ActiveSupport::TestCase
     @user = users(:leika)
   end
 
+  test "body edits broadcast the updated post or reply payload after commit" do
+    message = create_message(body: "Original thought")
+    reply = create_message(parent: message, user: users(:jaina), body: "Original answer")
+    stream = discussion_stream
+    changes = [ { message: message, type: "message.updated" }, { message: reply, type: "reply.updated" } ]
+
+    changes.each do |change|
+      target = change.fetch(:message)
+      assert_broadcasts stream, 1 do
+        ClubMessage.transaction(requires_new: true) do
+          target.update!(body: "Revised content")
+          assert_no_broadcasts stream
+        end
+      end
+      assert_broadcast_on stream, { type: change.fetch(:type), message: target.discussion_payload, total_posts: 1 }
+    end
+  end
+
+  test "failed body edits emit no update and preserve the saved body" do
+    message = create_message(body: "Original thought")
+
+    assert_no_broadcasts discussion_stream do
+      assert_not message.update(body: " ")
+    end
+    assert_equal "Original thought", message.reload.body
+  end
+
+  test "rolled back body edits emit no update and preserve the saved body" do
+    message = create_message(body: "Original thought")
+
+    assert_no_broadcasts discussion_stream do
+      ClubMessage.transaction(requires_new: true) do
+        message.update!(body: "Rolled back edit")
+        raise ActiveRecord::Rollback
+      end
+    end
+    assert_equal "Original thought", message.reload.body
+  end
+
+  test "unchanged bodies and timestamp-only updates emit no discussion update" do
+    message = create_message(body: "Original thought")
+
+    assert_no_broadcasts discussion_stream do
+      message.update!(body: "Original thought")
+      message.touch
+    end
+  end
+
   test "persists a message with its club author and timestamps" do
     message = create_message(body: "What did you think of the ending?")
 

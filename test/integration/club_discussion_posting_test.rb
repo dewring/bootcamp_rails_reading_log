@@ -26,6 +26,33 @@ class ClubDiscussionPostingTest < ActiveSupport::TestCase
     Rack::Attack.reset!
   end
 
+  test "editing a post or reply acknowledges its author and broadcasts the committed update to both members" do
+    message = @book_club.club_messages.create!(user: @member, body: "Original thought")
+    reply = @book_club.club_messages.create!(parent: message, user: @member, body: "Original answer")
+    sender = subscribe_to_discussion(@member)
+    reader = subscribe_to_discussion(@owner)
+    changes = [ { message: message, type: "message.updated" }, { message: reply, type: "reply.updated" } ]
+
+    changes.each do |change|
+      target = change.fetch(:message)
+      request_id = "edit-#{target.id}"
+      sender.subscriptions.perform_action(
+        "identifier" => @identifier,
+        "data" => { action: "update_message", request_id: request_id, message_id: target.id, body: "Revised content" }.to_json
+      )
+
+      events = [ sender.next_message_data.fetch("message"), sender.next_message_data.fetch("message") ]
+      saved = events.find { |event| event.fetch("type") == "edit.saved" }
+      updated = events.find { |event| event.fetch("type") == change.fetch(:type) }
+      assert_equal "Revised content", target.reload.body
+      assert_equal request_id, saved.fetch("request_id")
+      assert_equal target.discussion_payload.as_json, saved.fetch("message")
+      assert_equal saved.fetch("message"), updated.fetch("message")
+      assert_equal updated, reader.next_message_data.fetch("message")
+      assert_equal @member, target.user
+    end
+  end
+
   test "posting through Cable acknowledges the sender and broadcasts the committed post to both members" do
     sender = subscribe_to_discussion(@member)
     reader = subscribe_to_discussion(@owner)

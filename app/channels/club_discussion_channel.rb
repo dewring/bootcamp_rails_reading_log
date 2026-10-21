@@ -22,14 +22,47 @@ class ClubDiscussionChannel < ApplicationCable::Channel
     save_discussion_message(data, reply: true)
   end
 
+  def update_message(data)
+    return if @access_revoked
+    return revoke_discussion_access unless discussion_allowed?
+
+    request_id = request_id_from(data)
+    return unless request_id
+
+    message_id = data["message_id"]
+    message = @book_club.club_messages.find_by(id: message_id) if message_id.is_a?(Integer) && message_id.positive?
+    unless message
+      transmit({ type: "edit.rejected", request_id: request_id, error: "not_found" })
+      return
+    end
+
+    user = User.find_by(id: current_user.id)
+    unless ClubMessagePolicy.new(user, message).update?
+      transmit({ type: "edit.rejected", request_id: request_id, error: "forbidden" })
+      return
+    end
+
+    body = data["body"] if data["body"].is_a?(String)
+    if message.update(body: body)
+      transmit({ type: "edit.saved", request_id: request_id, message: message.discussion_payload })
+    else
+      transmit({ type: "edit.rejected", request_id: request_id, errors: message.errors.to_hash })
+    end
+  end
+
   private
+
+  def request_id_from(data)
+    request_id = data["request_id"]
+    request_id if request_id.is_a?(String) && request_id.length.between?(1, 64)
+  end
 
   def save_discussion_message(data, reply:)
     return if @access_revoked
     return revoke_discussion_access unless discussion_allowed?
 
-    request_id = data["request_id"]
-    return unless request_id.is_a?(String) && request_id.length.between?(1, 64)
+    request_id = request_id_from(data)
+    return unless request_id
 
     event_prefix = reply ? "reply" : "post"
     parent = reply_parent(data["parent_id"]) if reply

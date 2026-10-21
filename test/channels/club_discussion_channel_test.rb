@@ -15,6 +15,149 @@ class ClubDiscussionChannelTest < ActionCable::Channel::TestCase
     Rack::Attack.reset!
   end
 
+  test "an author can edit their own post without creating another message" do
+    message = @book_club.club_messages.create!(user: @member, body: "Original thought")
+    stub_connection current_user: @member
+    subscribe book_club_id: @book_club.id
+
+    assert_no_difference "ClubMessage.count" do
+      perform :update_message, request_id: "edit-post", message_id: message.id, body: "Revised thought"
+    end
+
+    assert_equal "Revised thought", message.reload.body
+    assert_equal "edit.saved", transmissions.last.fetch("type")
+    assert_equal "edit-post", transmissions.last.fetch("request_id")
+    assert_equal message.discussion_payload.as_json, transmissions.last.fetch("message")
+  end
+
+  test "an author can edit their own reply while preserving its parent" do
+    parent = @book_club.club_messages.create!(user: @owner, body: "A question")
+    reply = @book_club.club_messages.create!(parent: parent, user: @member, body: "Original answer")
+    stub_connection current_user: @member
+    subscribe book_club_id: @book_club.id
+
+    perform :update_message, request_id: "edit-reply", message_id: reply.id, body: "Revised answer"
+
+    assert_equal "Revised answer", reply.reload.body
+    assert_equal parent, reply.parent
+    assert_equal "edit.saved", transmissions.last.fetch("type")
+  end
+
+  test "club owners and joined admins cannot edit another author's post or reply" do
+    message = @book_club.club_messages.create!(user: @member, body: "Original thought")
+    reply = @book_club.club_messages.create!(parent: message, user: @member, body: "Original answer")
+    @book_club.book_club_memberships.create!(user: @admin, role: "member")
+    viewers = [ @owner, @admin ]
+    messages = [ message, reply ]
+
+    viewers.each do |viewer|
+      stub_connection current_user: viewer
+      subscribe book_club_id: @book_club.id
+      messages.each do |target|
+        assert_no_broadcasts @book_club do
+          perform :update_message, request_id: "forbidden-edit", message_id: target.id, body: "Changed by someone else"
+        end
+        assert_equal "edit.rejected", transmissions.last.fetch("type")
+        assert_equal "forbidden", transmissions.last.fetch("error")
+      end
+    end
+    assert_equal "Original thought", message.reload.body
+    assert_equal "Original answer", reply.reload.body
+  end
+
+  test "a nonmember admin cannot edit even their own message" do
+    message = @book_club.club_messages.create!(user: @admin, body: "Original thought")
+    stub_connection current_user: @admin
+    subscribe book_club_id: @book_club.id
+
+    assert_no_broadcasts @book_club do
+      perform :update_message, request_id: "admin-edit", message_id: message.id, body: "Revised thought"
+    end
+
+    assert_equal "forbidden", transmissions.last.fetch("error")
+    assert_equal "Original thought", message.reload.body
+  end
+
+  test "membership removal after subscribing prevents editing and revokes access" do
+    message = @book_club.club_messages.create!(user: @member, body: "Original thought")
+    stub_connection current_user: @member
+    subscribe book_club_id: @book_club.id
+    @book_club.book_club_memberships.find_by!(user: @member).destroy!
+
+    perform :update_message, request_id: "former-member-edit", message_id: message.id, body: "Revised thought"
+
+    assert_equal "access.revoked", transmissions.last.fetch("type")
+    assert_equal "Original thought", message.reload.body
+  end
+
+  test "edits reject messages from another club and invalid message ids" do
+    other_club = BookClub.create!(name: "Another discussion circle")
+    other_message = other_club.club_messages.create!(user: @member, body: "Another club's thought")
+    stub_connection current_user: @member
+    subscribe book_club_id: @book_club.id
+    message_ids = [ other_message.id, nil, -1, 0, "invalid" ]
+
+    message_ids.each do |message_id|
+      assert_no_broadcasts @book_club do
+        perform :update_message, request_id: "missing-edit", message_id: message_id, body: "Revised thought"
+      end
+      assert_equal "edit.rejected", transmissions.last.fetch("type")
+      assert_equal "not_found", transmissions.last.fetch("error")
+    end
+    assert_equal "Another club's thought", other_message.reload.body
+  end
+
+  test "invalid edit bodies leave the saved body unchanged and emit no broadcast" do
+    message = @book_club.club_messages.create!(user: @member, body: "Original thought")
+    stub_connection current_user: @member
+    subscribe book_club_id: @book_club.id
+    bodies = [ nil, "", " ", "a" * 1_001, { text: "Wrong type" } ]
+
+    bodies.each do |body|
+      assert_no_broadcasts @book_club do
+        perform :update_message, request_id: "invalid-edit", message_id: message.id, body: body
+      end
+      assert_equal "edit.rejected", transmissions.last.fetch("type")
+      assert transmissions.last.fetch("errors").fetch("body").any?
+      assert_equal "Original thought", message.reload.body
+    end
+  end
+
+  test "editing ignores spoofed author club parent and timestamps" do
+    message = @book_club.club_messages.create!(user: @member, body: "Original thought")
+    parent = @book_club.club_messages.create!(user: @owner, body: "Another question")
+    original_created_at = message.created_at
+    stub_connection current_user: @member
+    subscribe book_club_id: @book_club.id
+
+    perform :update_message, request_id: "safe-edit", message_id: message.id, body: "Revised thought",
+      user_id: @admin.id, book_club_id: -1, parent_id: parent.id,
+      created_at: "2000-01-01T00:00:00Z", updated_at: "2000-01-01T00:00:00Z"
+
+    assert_equal "edit.saved", transmissions.last.fetch("type")
+    assert_equal "Revised thought", message.reload.body
+    assert_equal @member, message.user
+    assert_equal @book_club, message.book_club
+    assert_nil message.parent_id
+    assert_equal original_created_at, message.created_at
+    assert_not_equal 2000, message.updated_at.year
+  end
+
+  test "invalid request ids cannot edit messages" do
+    message = @book_club.club_messages.create!(user: @member, body: "Original thought")
+    stub_connection current_user: @member
+    subscribe book_club_id: @book_club.id
+    request_ids = [ nil, "", "a" * 65, 123 ]
+
+    request_ids.each do |request_id|
+      assert_no_broadcasts @book_club do
+        perform :update_message, request_id: request_id, message_id: message.id, body: "Revised thought"
+      end
+    end
+    assert_empty transmissions
+    assert_equal "Original thought", message.reload.body
+  end
+
   test "reply submission derives author club and parent from the subscribed club" do
     parent = @book_club.club_messages.create!(user: @owner, body: "A question")
     stub_connection current_user: @member

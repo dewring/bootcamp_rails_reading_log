@@ -10,6 +10,7 @@ class ClubMessage < ApplicationRecord
   scope :top_level, -> { where(parent_id: nil) }
 
   after_create_commit :broadcast_created_message
+  after_update_commit :broadcast_updated_message, if: :saved_change_to_body?
 
   def discussion_payload
     {
@@ -41,15 +42,23 @@ class ClubMessage < ApplicationRecord
   end
 
   def broadcast_created_message
-    event_type = if parent_id.present?
-      "reply.created"
+    broadcast_discussion_change("created")
+  end
+
+  def broadcast_updated_message
+    broadcast_discussion_change("updated")
+  end
+
+  def broadcast_discussion_change(change)
+    event_prefix = if parent_id.present?
+      "reply"
     else
-      "message.created"
+      "message"
     end
 
     ClubDiscussionChannel.broadcast_to(
       book_club,
-      { type: event_type, message: discussion_payload, total_posts: book_club.club_messages.top_level.count }
+      { type: "#{event_prefix}.#{change}", message: discussion_payload, total_posts: book_club.club_messages.top_level.count }
     )
   end
 end
