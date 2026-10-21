@@ -8,6 +8,14 @@ class ClubMessageTest < ActiveSupport::TestCase
     @user = users(:leika)
   end
 
+  test "discussion payload includes the author's uploaded avatar path" do
+    @user.avatar.attach(io: File.open(file_fixture("cover_test.jpg")), filename: "avatar.jpg", content_type: "image/jpeg")
+    message = create_message(body: "A thought")
+
+    expected_path = Rails.application.routes.url_helpers.rails_blob_path(@user.avatar, only_path: true)
+    assert_equal expected_path, message.discussion_payload.fetch(:author).fetch(:avatar_url)
+  end
+
   test "body edits broadcast the updated post or reply payload after commit" do
     message = create_message(body: "Original thought")
     reply = create_message(parent: message, user: users(:jaina), body: "Original answer")

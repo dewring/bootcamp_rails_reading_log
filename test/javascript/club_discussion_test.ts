@@ -1014,6 +1014,8 @@ test("new posts use text content for author and body and preserve timestamp prec
 
   const post = document.getElementById("club_message_2")!
   expect(post.tagName).toBe("ARTICLE")
+  expect(post.querySelector(".club-discussion-message-meta .profile-avatar-initials")?.textContent).toBe("<I")
+  expect(post.querySelector(".club-discussion-message-meta .profile-avatar-initials")?.getAttribute("aria-hidden")).toBe("true")
   expect(post.querySelector("strong")?.textContent).toBe(event.message.author.nickname)
   expect(post.querySelector("p")?.textContent).toBe(event.message.body)
   expect(post.querySelector("img, script")).toBeNull()

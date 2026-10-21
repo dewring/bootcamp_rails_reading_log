@@ -266,7 +266,7 @@ class ClubMessagesControllerTest < ActionDispatch::IntegrationTest
       "body" => "First thought",
       "deleted" => false,
       "replies_count" => 0,
-      "author" => { "id" => @owner.id, "nickname" => @owner.nickname },
+      "author" => { "id" => @owner.id, "nickname" => @owner.nickname, "avatar_url" => nil },
       "created_at" => @message.created_at.iso8601(6),
       "updated_at" => @message.updated_at.iso8601(6)
     } ], response.parsed_body.fetch("messages")
@@ -399,6 +399,7 @@ class ClubMessagesControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     assert_select ".club-discussion-message script", count: 0
+    assert_select ".club-discussion-message-meta .profile-avatar--club_member .profile-avatar-initials", text: @owner.nickname.first(2).upcase
     assert_select ".club-discussion-message-meta strong", text: @owner.nickname
     assert_select ".club-discussion-message-body", text: @message.body
     assert_includes response.body, "&lt;script&gt;"

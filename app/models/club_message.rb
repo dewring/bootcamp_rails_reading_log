@@ -44,7 +44,7 @@ class ClubMessage < ApplicationRecord
       body: body,
       deleted: deleted?,
       replies_count: replies_count,
-      author: { id: user_id, nickname: user.nickname },
+      author: { id: user_id, nickname: user.nickname, avatar_url: author_avatar_path },
       created_at: created_at.iso8601(6),
       updated_at: updated_at.iso8601(6)
     }
@@ -57,6 +57,12 @@ class ClubMessage < ApplicationRecord
   end
 
   private
+
+  def author_avatar_path
+    return unless user.avatar.attached?
+
+    Rails.application.routes.url_helpers.rails_blob_path(user.avatar, only_path: true)
+  end
 
   def deleted_post_state_is_valid
     return unless deleted?

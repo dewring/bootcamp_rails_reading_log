@@ -41,6 +41,7 @@
             <% @messages.each do |message| %>
               <article id="<%= dom_id(message) %>" class="club-discussion-message" data-controller="club-message" data-message-id="<%= message.id %>" data-author-id="<%= message.user_id %>" data-deleted="<%= message.deleted? %>" data-updated-at="<%= message.updated_at.iso8601(6) %>">
                 <header class="club-discussion-message-meta">
+                  <%= render "users/avatar", user: message.user, variant: :club_member %>
                   <strong><%= message.user.nickname %></strong>
                   <time datetime="<%= message.created_at.iso8601(6) %>"><%= message.created_at.strftime("%b %-d, %Y · %H:%M") %></time>
                 </header>

@@ -7,7 +7,7 @@ class ClubMessagesController < ApplicationController
     messages = policy_scope(@book_club.club_messages)
       .visible_posts
       .with_reply_counts
-      .includes(:user)
+      .includes(user: { avatar_attachment: :blob })
       .order(id: :desc)
 
     response.headers["Cache-Control"] = "no-store"

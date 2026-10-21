@@ -1,5 +1,6 @@
 import { Controller } from "@hotwired/stimulus"
 import { cable } from "@hotwired/turbo-rails"
+import { buildUserAvatar } from "../helpers/user_avatar"
 
 export interface DiscussionMessage {
   id: number
@@ -7,7 +8,7 @@ export interface DiscussionMessage {
   body: string
   replies_count?: number
   deleted?: boolean
-  author: { id: number; nickname: string }
+  author: { id: number; nickname: string; avatar_url?: string | null }
   created_at: string
   updated_at: string
 }
@@ -370,7 +371,7 @@ export default class extends Controller {
     const dateText = createdAt.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" })
     const timeText = createdAt.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "UTC" })
     time.textContent = `${dateText} · ${timeText}`
-    header.append(author, time)
+    header.append(buildUserAvatar(message.author), author, time)
 
     const body = document.createElement("p")
     body.className = "club-discussion-message-body"

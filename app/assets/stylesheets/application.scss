@@ -2988,16 +2988,28 @@ main.container:has(> [data-controller~="club-discussion"] > .book-club-detail-pa
 }
 
 .club-discussion-message {
+  margin: 0;
   padding: 18px 20px;
+  border-radius: 0;
   border-bottom: 1px solid $gray-mid;
+  background: transparent;
+  box-shadow: none;
 
   &:last-child { border-bottom: 0; }
+
+  > .club-discussion-message-meta {
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+  }
 }
 
 .club-discussion-message-meta {
   display: flex;
   flex-wrap: wrap;
-  align-items: baseline;
+  align-items: center;
   gap: 7px;
   font-size: 13px;
   overflow-wrap: anywhere;
@@ -3083,19 +3095,6 @@ main.container:has(> [data-controller~="club-discussion"] > .book-club-detail-pa
   display: flex;
   align-items: center;
   gap: 8px;
-}
-
-.club-discussion-reply-avatar {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex: 0 0 24px;
-  height: 24px;
-  border-radius: 50%;
-  background: $accent;
-  color: #fff;
-  font-size: 9px;
-  font-weight: 700;
 }
 
 .club-discussion-reply-author {

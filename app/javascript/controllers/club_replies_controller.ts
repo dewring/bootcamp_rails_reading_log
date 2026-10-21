@@ -1,3 +1,4 @@
+import { buildUserAvatar } from "../helpers/user_avatar"
 import { Controller } from "@hotwired/stimulus"
 import type ClubDiscussionController from "./club_discussion_controller"
 import type { DiscussionEvent, DiscussionMessage } from "./club_discussion_controller"
@@ -255,10 +256,7 @@ export default class extends Controller {
     article.className = "club-discussion-reply"
     const header = document.createElement("header")
     header.className = "club-discussion-reply-header"
-    const avatar = document.createElement("span")
-    avatar.className = "club-discussion-reply-avatar"
-    avatar.setAttribute("aria-hidden", "true")
-    avatar.textContent = reply.author.nickname.slice(0, 2).toUpperCase()
+    const avatar = buildUserAvatar(reply.author)
     const identity = document.createElement("div")
     identity.className = "club-discussion-reply-author"
     const author = document.createElement("strong")
