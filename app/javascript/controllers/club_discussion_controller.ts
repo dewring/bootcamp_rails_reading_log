@@ -369,7 +369,7 @@ export default class extends Controller {
     time.dateTime = message.created_at
     const createdAt = new Date(message.created_at)
     const dateText = createdAt.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" })
-    const timeText = createdAt.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "UTC" })
+    const timeText = createdAt.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZone: "UTC" })
     time.textContent = `${dateText} · ${timeText}`
     header.append(buildUserAvatar(message.author), author, time)
 

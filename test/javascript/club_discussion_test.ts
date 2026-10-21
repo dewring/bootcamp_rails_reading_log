@@ -1027,6 +1027,18 @@ test("new posts use text content for author and body and preserve timestamp prec
   expect(post.querySelector("time")?.textContent).toBe("Oct 17, 2026 · 09:45")
 })
 
+test.each([
+  { timestamp: "2026-10-17T00:05:00.000000Z", expected: "Oct 17, 2026 · 00:05" },
+  { timestamp: "2026-10-17T13:45:00.000000Z", expected: "Oct 17, 2026 · 13:45" }
+])("new posts display $timestamp as $expected without AM or PM", ({ timestamp, expected }) => {
+  const event = createdMessageEvent(2)
+  event.message.created_at = timestamp
+
+  requests[0].callbacks.received(event)
+
+  expect(document.querySelector("#club_message_2 time")?.textContent).toBe(expected)
+})
+
 test("duplicate events and posts already in the HTML are ignored", () => {
   requests[0].callbacks.received(createdMessageEvent(1))
   const event = createdMessageEvent(2)
