@@ -263,7 +263,7 @@ export default class extends Controller {
     author.textContent = reply.author.nickname
     const time = document.createElement("time")
     time.dateTime = reply.created_at
-    time.textContent = new Date(reply.created_at).toLocaleString("en-GB", { timeZone: "UTC", year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })
+    time.textContent = new Date(reply.created_at).toLocaleString("en-US", { timeZone: "UTC", year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", hourCycle: "h23" })
     identity.append(author, time)
     header.append(avatar, identity)
     const body = document.createElement("p")

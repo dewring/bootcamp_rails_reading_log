@@ -77,6 +77,20 @@ test("reply bodies and author names are rendered as text", async () => {
   expect(panel.textContent).toContain("<script>unsafe()</script>")
 })
 
+test.each([
+  { timestamp: "2026-10-20T00:05:00Z", expected: "Oct 20, 2026, 00:05" },
+  { timestamp: "2026-10-20T13:45:00Z", expected: "Oct 20, 2026, 13:45" }
+])("replies display $timestamp as $expected without AM or PM", async ({ timestamp, expected }) => {
+  const data = await history([8]).json()
+  data.replies[0].created_at = timestamp
+  fetchHistory.mockResolvedValue(new Response(JSON.stringify(data)))
+
+  toggle.click()
+
+  await vi.waitFor(() => expect(panel.querySelector("time")?.textContent).toBe(expected))
+  expect(panel.querySelector("time")?.getAttribute("datetime")).toBe(timestamp)
+})
+
 test("a failed read offers a manual retry without automatically repeating the request", async () => {
   fetchHistory.mockRejectedValueOnce(new Error("Offline")).mockResolvedValueOnce(history([8]))
   vi.spyOn(console, "error").mockImplementation(() => {})
