@@ -13,6 +13,27 @@ class ClubMessagesControllerTest < ActionDispatch::IntegrationTest
     @message = @book_club.club_messages.create!(user: @owner, body: "First thought")
   end
 
+  test "members have labelled reply forms while nonmember admins can only read replies" do
+    sign_in @member
+    get book_club_club_messages_path(@book_club)
+
+    assert_response :success
+    assert_select "#club_message_#{@message.id} form[data-action='submit->club-replies#postReply']" do
+      assert_select "label[for='club_reply_body_#{@message.id}']", text: "Your reply"
+      assert_select "textarea#club_reply_body_#{@message.id}[required][maxlength='1000']"
+      assert_select "button[type='submit']", text: "Reply"
+      assert_select "button[type='button']", text: "Cancel"
+    end
+
+    sign_out @member
+    sign_in @admin
+    get book_club_club_messages_path(@book_club)
+
+    assert_response :success
+    assert_select "form[data-action='submit->club-replies#postReply']", count: 0
+    assert_select "#club_message_#{@message.id} button[data-action='club-replies#toggle']", count: 1
+  end
+
   test "each post has collapsed reply controls pointing to its own reply history" do
     sign_in @member
 

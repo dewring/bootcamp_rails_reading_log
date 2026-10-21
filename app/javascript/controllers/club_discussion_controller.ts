@@ -10,7 +10,7 @@ export interface DiscussionMessage {
   updated_at: string
 }
 
-interface DiscussionEvent {
+export interface DiscussionEvent {
   type: string
   message?: DiscussionMessage
   total_posts?: number
@@ -21,7 +21,7 @@ interface DiscussionEvent {
 
 type DiscussionSubscription = {
   unsubscribe(): void
-  perform(action: string, data: { request_id: string; body: string }): boolean
+  perform(action: string, data: { request_id: string; body: string; parent_id?: number }): boolean
 }
 
 export default class extends Controller {
@@ -75,6 +75,8 @@ export default class extends Controller {
             this.endAccess()
           } else if (event.type === "message.created" && event.message) {
             this.displayCreatedMessage(event.message, event.total_posts)
+          } else if (event.type === "reply.created" || event.type === "reply.saved" || event.type === "reply.rejected") {
+            this.dispatch("reply", { detail: event })
           } else if (event.type === "post.saved" || event.type === "post.rejected") {
             this.receivePostResult(event)
           }
@@ -86,6 +88,7 @@ export default class extends Controller {
           if (this.discussionSubscription !== pendingSubscription) return
 
           this.cableConnected = false
+          this.dispatch("connection-ended")
           this.interruptPosting()
           if (!willAttemptReconnect) this.endAccess()
         }
@@ -102,6 +105,7 @@ export default class extends Controller {
   }
 
   disconnect() {
+    this.dispatch("connection-ended")
     this.cableConnected = false
     this.interruptPosting()
     this.unsubscribeFromDiscussion()
@@ -145,6 +149,18 @@ export default class extends Controller {
       console.error("Failed to send discussion post", error)
       if (this.pendingPostId === requestId) this.interruptPosting()
     }
+  }
+
+  async sendReply(requestId: string, parentId: number, body: string, composer: Element): Promise<boolean> {
+    if (!this.cableConnected) return false
+
+    const pendingSubscription = this.discussionSubscription
+    const subscription = await pendingSubscription
+    if (this.discussionSubscription !== pendingSubscription || !this.cableConnected) return false
+
+    if (!composer.isConnected || !this.element.contains(composer)) return false
+
+    return subscription?.perform("post_reply", { request_id: requestId, parent_id: parentId, body }) ?? false
   }
 
   private receivePostResult(event: DiscussionEvent) {

@@ -1,11 +1,12 @@
 import { Application } from "@hotwired/stimulus"
 import { afterEach, beforeEach, expect, test, vi, type Mock } from "vitest"
+import ClubRepliesController from "../../app/javascript/controllers/club_replies_controller"
 import ClubDiscussionController from "../../app/javascript/controllers/club_discussion_controller"
 import type { DiscussionMessage } from "../../app/javascript/controllers/club_discussion_controller"
 
 interface Subscription {
   unsubscribe(): void
-  perform(action: string, data: { request_id: string; body: string }): boolean
+  perform(action: string, data: { request_id: string; body: string; parent_id?: number }): boolean
 }
 
 interface SubscriptionCallbacks {
@@ -101,6 +102,154 @@ function submitComposer(form: HTMLFormElement) {
 function savedPostResult(requestId: string) {
   return { ...createdMessageEvent(2), type: "post.saved", request_id: requestId }
 }
+
+async function mountReplyForm(ready = true) {
+  element.id = "club_discussion_17"
+  application.register("club-replies", ClubRepliesController)
+  const controls = document.createElement("div")
+  controls.dataset.controller = "club-replies"
+  controls.dataset.clubRepliesPostIdValue = "1"
+  controls.dataset.clubRepliesClubDiscussionOutlet = "#club_discussion_17"
+  controls.dataset.action = "club-discussion:reply@document->club-replies#receiveReply club-discussion:connection-ended@document->club-replies#connectionEnded turbo:before-cache@document->club-replies#beforeCache"
+  controls.innerHTML = `<button data-club-replies-target="toggle" aria-expanded="true" data-action="club-replies#toggle">Replies</button><div data-club-replies-target="panel"><div data-club-replies-target="list"></div><p data-club-replies-target="status"></p><button data-club-replies-target="more" hidden></button><form data-action="submit->club-replies#postReply"><label data-club-replies-target="label">Your reply</label><textarea data-club-replies-target="body"></textarea><button type="submit" data-club-replies-target="submit">Reply</button><button type="button" data-club-replies-target="cancel" data-action="club-replies#cancelReply">Cancel</button><p data-club-replies-target="composerStatus"></p></form></div>`
+  messages.firstElementChild!.append(controls)
+  await vi.waitFor(() => expect(controls.querySelector("label")!.htmlFor).toBe("club_reply_body_1"))
+  if (ready) {
+    completeSetup(requests[0])
+    await requests[0].promise
+    requests[0].callbacks.connected()
+  }
+  return {
+    controls,
+    form: controls.querySelector("form")!,
+    body: controls.querySelector("textarea")!,
+    submit: controls.querySelector<HTMLButtonElement>("[data-club-replies-target='submit']")!,
+    cancel: controls.querySelector<HTMLButtonElement>("[data-club-replies-target='cancel']")!,
+    notice: controls.querySelector<HTMLElement>("[data-club-replies-target='composerStatus']")!
+  }
+}
+
+function replyEvent(id: number, type = "reply.created", requestId?: string) {
+  const event = createdMessageEvent(id)
+  event.type = type
+  event.message.parent_id = 1
+  return { ...event, request_id: requestId }
+}
+
+test("reply submission uses the existing Cable subscription and displays acknowledgement and broadcast only once", async () => {
+  const composer = await mountReplyForm()
+  const http = vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("Writes must use Cable"))
+  composer.body.value = "My answer"
+  submitComposer(composer.form)
+  submitComposer(composer.form)
+  await vi.waitFor(() => expect(requests[0].perform).toHaveBeenCalledOnce())
+  const [action, data] = requests[0].perform.mock.calls[0]
+  expect(action).toBe("post_reply")
+  expect(data).toEqual({ request_id: expect.any(String), parent_id: 1, body: "My answer" })
+  expect(composer.body.readOnly).toBe(true)
+  expect(composer.cancel.disabled).toBe(true)
+  requests[0].callbacks.received(replyEvent(8))
+  requests[0].callbacks.received(replyEvent(8, "reply.saved", data.request_id))
+  expect(composer.controls.querySelectorAll("#club_message_8")).toHaveLength(1)
+  expect(composer.body.value).toBe("")
+  expect(composer.notice.textContent).toBe("Reply published.")
+  expect(composer.submit.disabled).toBe(false)
+  expect(subscribeTo).toHaveBeenCalledOnce()
+  expect(http).not.toHaveBeenCalled()
+})
+
+test.each([
+  { error: "rate_limited", notice: "Too many posts or replies" },
+  { error: "forbidden", notice: "permission to reply" },
+  { error: "not_found", notice: "no longer available" },
+  { errors: { body: ["can't be blank"] }, notice: "can't be blank" }
+])("reply rejection preserves the draft: $notice", async result => {
+  const composer = await mountReplyForm()
+  composer.body.value = "Keep this answer"
+  submitComposer(composer.form)
+  await vi.waitFor(() => expect(requests[0].perform).toHaveBeenCalledOnce())
+  const data = requests[0].perform.mock.calls[0][1]
+  requests[0].callbacks.received({ type: "reply.rejected", request_id: data.request_id, ...result })
+  expect(composer.body.value).toBe("Keep this answer")
+  expect(composer.body.readOnly).toBe(false)
+  expect(composer.notice.textContent).toContain(result.notice)
+})
+
+test("live replies are ordered chronologically and replies for another post are ignored", async () => {
+  const composer = await mountReplyForm()
+  requests[0].callbacks.received(replyEvent(10))
+  requests[0].callbacks.received(replyEvent(8))
+  requests[0].callbacks.received(replyEvent(10))
+  const otherReply = replyEvent(11)
+  otherReply.message.parent_id = 77
+  requests[0].callbacks.received(otherReply)
+  const ids = Array.from(composer.controls.querySelectorAll<HTMLElement>("article"), article => article.dataset.replyId)
+  expect(ids).toEqual(["8", "10"])
+  expect(postIds()).toEqual(["1"])
+})
+
+test("disconnecting while a reply is pending preserves its draft without retrying after reconnect", async () => {
+  const composer = await mountReplyForm()
+  composer.body.value = "Keep this answer"
+  submitComposer(composer.form)
+  await vi.waitFor(() => expect(requests[0].perform).toHaveBeenCalledOnce())
+  requests[0].callbacks.disconnected({ willAttemptReconnect: true })
+  requests[0].callbacks.connected()
+  expect(composer.body.value).toBe("Keep this answer")
+  expect(composer.body.readOnly).toBe(false)
+  expect(composer.notice.textContent).toContain("could not be confirmed")
+  expect(requests[0].perform).toHaveBeenCalledOnce()
+})
+
+test("missing reply acknowledgements preserve drafts and do not automatically retry", async () => {
+  const composer = await mountReplyForm()
+  vi.useFakeTimers()
+  composer.body.value = "Keep this answer"
+  submitComposer(composer.form)
+  await vi.advanceTimersByTimeAsync(20_000)
+  expect(composer.body.value).toBe("Keep this answer")
+  expect(composer.notice.textContent).toContain("could not be confirmed")
+  expect(requests[0].perform).toHaveBeenCalledOnce()
+})
+
+test("a failed Cable send keeps the reply draft and permits a manual retry", async () => {
+  const composer = await mountReplyForm()
+  requests[0].perform.mockReturnValueOnce(false)
+  composer.body.value = "Keep this answer"
+  submitComposer(composer.form)
+  await vi.waitFor(() => expect(composer.notice.textContent).toContain("could not be confirmed"))
+  expect(composer.body.value).toBe("Keep this answer")
+  expect(composer.submit.disabled).toBe(false)
+  expect(requests[0].perform).toHaveBeenCalledOnce()
+})
+
+test("Turbo caching removes the reply form and clears its draft", async () => {
+  const composer = await mountReplyForm()
+  composer.body.value = "A private draft"
+  document.dispatchEvent(new Event("turbo:before-cache"))
+  expect(content.childElementCount).toBe(0)
+  expect(composer.body.value).toBe("")
+})
+
+test("cancel clears the reply draft and collapses its panel", async () => {
+  const composer = await mountReplyForm()
+  composer.body.value = "An unwanted draft"
+  composer.cancel.click()
+  expect(composer.body.value).toBe("")
+  expect(composer.controls.querySelector<HTMLElement>("[data-club-replies-target='panel']")!.hidden).toBe(true)
+})
+
+test("a reply form removed during subscription setup cannot send a late write", async () => {
+  const composer = await mountReplyForm(false)
+  requests[0].callbacks.connected()
+  composer.body.value = "A detached answer"
+  submitComposer(composer.form)
+  composer.controls.remove()
+  completeSetup(requests[0])
+  await requests[0].promise
+  await Promise.resolve()
+  expect(requests[0].perform).not.toHaveBeenCalled()
+})
 
 test("live posts receive reply controls for their own reply history", async () => {
   const template = document.createElement("template")

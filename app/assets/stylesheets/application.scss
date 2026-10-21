@@ -3114,6 +3114,52 @@ main.container:has(> .book-club-detail-page) {
 }
 
 
+.club-discussion-reply-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  margin: 10px 0 0;
+
+  textarea {
+    min-height: 72px;
+    margin: 0;
+    padding: 12px;
+    border: 1px solid $gray-mid;
+    border-radius: 10px;
+    background: $gray-light;
+    font-size: 12px;
+    line-height: 1.5;
+    resize: vertical;
+  }
+
+  [role="status"] { grid-column: 1 / -1; }
+}
+
+.club-discussion-reply-actions {
+  display: flex;
+  gap: 8px;
+
+  button {
+    width: auto;
+    margin: 0;
+    padding: 8px 12px;
+    border: 1px solid $gray-mid;
+    border-radius: 100px;
+    font-size: 10px;
+    font-weight: 700;
+    line-height: normal;
+  }
+
+  .club-discussion-reply-cancel { color: $text-muted; background: #fff; }
+  .club-discussion-reply-submit { color: #fff; background: $accent; border-color: $accent; }
+}
+
+@media (max-width: 600px) {
+  .club-discussion-reply-form { grid-template-columns: minmax(0, 1fr); }
+  .club-discussion-reply-actions { justify-content: flex-end; }
+}
+
 .book-club-owner-controls {
   display: grid;
   gap: 24px;

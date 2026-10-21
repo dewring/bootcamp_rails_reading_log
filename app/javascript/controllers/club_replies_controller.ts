@@ -1,5 +1,6 @@
 import { Controller } from "@hotwired/stimulus"
-import type { DiscussionMessage } from "./club_discussion_controller"
+import type ClubDiscussionController from "./club_discussion_controller"
+import type { DiscussionEvent, DiscussionMessage } from "./club_discussion_controller"
 
 interface ReplyHistory {
   replies: DiscussionMessage[]
@@ -7,7 +8,8 @@ interface ReplyHistory {
 }
 
 export default class extends Controller {
-  static targets = ["toggle", "panel", "list", "status", "more"]
+  static targets = ["toggle", "panel", "list", "status", "more", "body", "label", "submit", "cancel", "composerStatus"]
+  static outlets = ["club-discussion"]
   static values = { url: String, postId: Number }
 
   declare readonly urlValue: string
@@ -18,6 +20,17 @@ export default class extends Controller {
   declare readonly statusTarget: HTMLElement
   declare readonly moreTarget: HTMLButtonElement
 
+  declare readonly hasBodyTarget: boolean
+  declare readonly bodyTarget: HTMLTextAreaElement
+  declare readonly labelTarget: HTMLLabelElement
+  declare readonly submitTarget: HTMLButtonElement
+  declare readonly cancelTarget: HTMLButtonElement
+  declare readonly composerStatusTarget: HTMLElement
+  declare readonly hasClubDiscussionOutlet: boolean
+  declare readonly clubDiscussionOutlet: ClubDiscussionController
+
+  private pendingReplyId?: string
+  private replyTimeout?: ReturnType<typeof setTimeout>
   private request?: AbortController
   private loaded = false
   private nextPage: number | null = 1
@@ -26,15 +39,24 @@ export default class extends Controller {
   connect() {
     this.panelTarget.id = `club_replies_${this.postIdValue}`
     this.toggleTarget.setAttribute("aria-controls", this.panelTarget.id)
+    if (this.hasBodyTarget) {
+      this.bodyTarget.id = `club_reply_body_${this.postIdValue}`
+      this.labelTarget.htmlFor = this.bodyTarget.id
+    }
   }
 
   disconnect() {
+    this.interruptPosting()
     this.request?.abort()
     this.request = undefined
   }
 
   beforeCache() {
     this.disconnect()
+    if (this.hasBodyTarget) {
+      this.bodyTarget.value = ""
+      this.composerStatusTarget.textContent = ""
+    }
     this.listTarget.replaceChildren()
     this.displayedIds.clear()
     this.loaded = false
@@ -95,6 +117,106 @@ export default class extends Controller {
     }
   }
 
+  async postReply(event: SubmitEvent) {
+    event.preventDefault()
+    if (this.pendingReplyId) return
+    if (!this.hasClubDiscussionOutlet) {
+      this.composerStatusTarget.textContent = "Live connection is not ready. Your draft is still here."
+      return
+    }
+
+    const requestId = crypto.randomUUID()
+    this.pendingReplyId = requestId
+    this.setPosting(true)
+    this.composerStatusTarget.textContent = "Posting reply…"
+    try {
+      const sent = await this.clubDiscussionOutlet.sendReply(requestId, this.postIdValue, this.bodyTarget.value, this.element)
+      if (this.pendingReplyId !== requestId || !this.element.isConnected) return
+      if (!sent) {
+        this.interruptPosting()
+        return
+      }
+
+      // A missing acknowledgement does not prove that saving failed; never retry automatically.
+      this.replyTimeout = setTimeout(() => this.interruptPosting(), 20_000)
+    } catch (error) {
+      console.error("Failed to send discussion reply", error)
+      if (this.pendingReplyId === requestId) this.interruptPosting()
+    }
+  }
+
+  receiveReply(event: CustomEvent<DiscussionEvent>) {
+    if (!this.belongsToDiscussion(event)) return
+
+    const result = event.detail
+    if (result.type === "reply.created" && result.message) {
+      if (this.loaded || !this.panelTarget.hidden) this.displayReply(result.message)
+      return
+    }
+    if (!this.pendingReplyId || result.request_id !== this.pendingReplyId) return
+
+    if (result.type === "reply.saved" && result.message?.parent_id === this.postIdValue) {
+      this.displayReply(result.message)
+      this.bodyTarget.value = ""
+      this.composerStatusTarget.textContent = "Reply published."
+    } else if (result.type === "reply.rejected") {
+      if (result.error === "rate_limited") {
+        this.composerStatusTarget.textContent = "Too many posts or replies. Wait a minute before trying again. Your draft is still here."
+      } else if (result.error === "forbidden") {
+        this.composerStatusTarget.textContent = "You do not have permission to reply. Your draft is still here."
+      } else if (result.error === "not_found") {
+        this.composerStatusTarget.textContent = "This post is no longer available for replies. Your draft is still here."
+      } else {
+        const errors = result.errors?.body?.join(", ")
+        this.composerStatusTarget.textContent = errors
+          ? `Reply could not be saved: ${errors}. Your draft is still here.`
+          : "Reply could not be saved. Your draft is still here."
+      }
+    } else {
+      return
+    }
+    this.finishPosting()
+  }
+
+  connectionEnded(event: Event) {
+    if (this.belongsToDiscussion(event)) this.interruptPosting()
+  }
+
+  cancelReply() {
+    if (this.pendingReplyId) return
+
+    this.bodyTarget.value = ""
+    this.composerStatusTarget.textContent = ""
+    this.panelTarget.hidden = true
+    this.toggleTarget.setAttribute("aria-expanded", "false")
+  }
+
+  private belongsToDiscussion(event: Event) {
+    return event.target === this.element.closest("[data-controller~='club-discussion']")
+  }
+
+  private interruptPosting() {
+    if (this.pendingReplyId && this.hasBodyTarget) {
+      this.composerStatusTarget.textContent = "Reply could not be confirmed. Your draft is still here. Check the replies before posting again."
+    }
+    this.finishPosting()
+  }
+
+  private finishPosting() {
+    clearTimeout(this.replyTimeout)
+    this.replyTimeout = undefined
+    this.pendingReplyId = undefined
+    this.setPosting(false)
+  }
+
+  private setPosting(posting: boolean) {
+    if (!this.hasBodyTarget) return
+
+    this.bodyTarget.readOnly = posting
+    this.submitTarget.disabled = posting
+    this.cancelTarget.disabled = posting
+  }
+
   private displayReply(reply: DiscussionMessage) {
     if (reply.parent_id !== this.postIdValue || !Number.isSafeInteger(reply.id) || reply.id <= 0) return
     if (this.displayedIds.has(reply.id)) return
@@ -121,6 +243,13 @@ export default class extends Controller {
     const body = document.createElement("p")
     body.textContent = reply.body
     article.append(header, body)
-    this.listTarget.append(article)
+    article.dataset.replyId = String(reply.id)
+    const newerReply = Array.from(this.listTarget.children).find(element => Number((element as HTMLElement).dataset.replyId) > reply.id)
+    if (newerReply) {
+      this.listTarget.insertBefore(article, newerReply)
+    } else {
+      this.listTarget.append(article)
+    }
+    this.statusTarget.textContent = ""
   }
 }
