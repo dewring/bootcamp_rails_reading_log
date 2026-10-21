@@ -14,6 +14,7 @@ import SelectDropdownController from "./select_dropdown_controller"
 import ClubBookSearchController from "./club_book_search_controller"
 import FlashNotificationsController from "./flash_notifications_controller"
 import ClubRepliesController from "./club_replies_controller"
+import ClubMessageController from "./club_message_controller"
 import ClubDiscussionController from "./club_discussion_controller"
 
 application.register("search", SearchController)
@@ -33,3 +34,5 @@ application.register("flash-notifications", FlashNotificationsController)
 application.register("club-discussion", ClubDiscussionController)
 
 application.register("club-replies", ClubRepliesController)
+
+application.register("club-message", ClubMessageController)

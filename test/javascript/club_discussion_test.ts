@@ -1,12 +1,13 @@
 import { Application } from "@hotwired/stimulus"
 import { afterEach, beforeEach, expect, test, vi, type Mock } from "vitest"
+import ClubMessageController from "../../app/javascript/controllers/club_message_controller"
 import ClubRepliesController from "../../app/javascript/controllers/club_replies_controller"
 import ClubDiscussionController from "../../app/javascript/controllers/club_discussion_controller"
 import type { DiscussionMessage } from "../../app/javascript/controllers/club_discussion_controller"
 
 interface Subscription {
   unsubscribe(): void
-  perform(action: string, data: { request_id: string; body: string; parent_id?: number }): boolean
+  perform(action: string, data: { request_id: string; body: string; parent_id?: number; message_id?: number }): boolean
 }
 
 interface SubscriptionCallbacks {
@@ -102,6 +103,201 @@ function submitComposer(form: HTMLFormElement) {
 function savedPostResult(requestId: string) {
   return { ...createdMessageEvent(2), type: "post.saved", request_id: requestId }
 }
+
+function enableMessageEditing() {
+  element.id = "club_discussion_17"
+  element.dataset.clubDiscussionCurrentUserIdValue = "7"
+  element.dataset.clubDiscussionCanPostValue = "true"
+  application.register("club-message", ClubMessageController)
+  const template = document.createElement("template")
+  template.dataset.clubDiscussionTarget = "editor"
+  template.innerHTML = `<div class="club-message-editor"><button data-club-message-target="editButton" data-action="club-message#edit">Edit</button><form data-club-message-target="form" data-action="submit->club-message#save" hidden><label data-club-message-target="label">Edit your message</label><textarea data-club-message-target="input"></textarea><button type="submit" data-club-message-target="save">Save</button><button type="button" data-club-message-target="cancel" data-action="club-message#cancel">Cancel</button></form></div>`
+  content.append(template)
+}
+
+function editingControls(article: HTMLElement) {
+  return {
+    article,
+    body: article.querySelector<HTMLElement>("[data-club-message-target='body']")!,
+    edit: article.querySelector<HTMLButtonElement>("[data-club-message-target='editButton']")!,
+    form: article.querySelector<HTMLFormElement>("[data-club-message-target='form']")!,
+    input: article.querySelector<HTMLTextAreaElement>("[data-club-message-target='input']")!,
+    save: article.querySelector<HTMLButtonElement>("[data-club-message-target='save']")!,
+    cancel: article.querySelector<HTMLButtonElement>("[data-club-message-target='cancel']")!,
+    notice: article.querySelector<HTMLElement>("[data-club-message-target='status']")!
+  }
+}
+
+async function mountEditablePost() {
+  enableMessageEditing()
+  completeSetup(requests[0])
+  await requests[0].promise
+  requests[0].callbacks.connected()
+  requests[0].callbacks.received(createdMessageEvent(2))
+  const article = messages.querySelector<HTMLElement>("#club_message_2")!
+  await vi.waitFor(() => expect(article.querySelector("label")!.htmlFor).toBe("club_message_edit_2"))
+  return editingControls(article)
+}
+
+function editedMessage(id: number, body: string, version = "2026-10-21T12:00:00.000001Z") {
+  return { ...createdMessageEvent(id).message, body, updated_at: version }
+}
+
+test("the author can save an inline edit through the existing Cable connection", async () => {
+  const editor = await mountEditablePost()
+  editor.edit.click()
+  expect(editor.input.value).toBe("Thought 2")
+  expect(editor.body.hidden).toBe(true)
+  editor.input.value = "Revised thought"
+  submitComposer(editor.form)
+  submitComposer(editor.form)
+  await vi.waitFor(() => expect(requests[0].perform).toHaveBeenCalledOnce())
+  const [action, data] = requests[0].perform.mock.calls[0]
+  expect(action).toBe("update_message")
+  expect(data).toEqual({ request_id: expect.any(String), message_id: 2, body: "Revised thought" })
+  expect(editor.input.readOnly).toBe(true)
+  const message = editedMessage(2, "Revised thought")
+  requests[0].callbacks.received({ type: "message.updated", message })
+  requests[0].callbacks.received({ type: "edit.saved", request_id: data.request_id, message })
+  expect(editor.body.textContent).toBe("Revised thought")
+  expect(editor.form.hidden).toBe(true)
+  expect(editor.body.hidden).toBe(false)
+  expect(editor.notice.textContent).toBe("Changes saved.")
+  expect(editor.input.value).toBe("")
+  expect(subscribeTo).toHaveBeenCalledOnce()
+})
+
+test("cancel discards an edit draft and restores the published message", async () => {
+  const editor = await mountEditablePost()
+  editor.edit.click()
+  editor.input.value = "Unwanted draft"
+  editor.cancel.click()
+  expect(editor.body.textContent).toBe("Thought 2")
+  expect(editor.input.value).toBe("")
+  expect(editor.form.hidden).toBe(true)
+})
+
+test("another author's live post has no editing controls", async () => {
+  enableMessageEditing()
+  const event = createdMessageEvent(3)
+  event.message.author.id = 8
+  requests[0].callbacks.received(event)
+  const article = messages.querySelector<HTMLElement>("#club_message_3")!
+  await vi.waitFor(() => expect(application.getControllerForElementAndIdentifier(article, "club-message")).not.toBeNull())
+  expect(article.querySelector("[data-club-message-target='editButton']")).toBeNull()
+  requests[0].callbacks.received({ type: "message.updated", message: editedMessage(3, "Someone else's revision") })
+  expect(article.querySelector("[data-club-message-target='body']")!.textContent).toBe("Someone else's revision")
+})
+
+test.each([
+  { error: "forbidden", text: "permission" },
+  { error: "not_found", text: "no longer available" },
+  { errors: { body: ["can't be blank"] }, text: "can't be blank" }
+])("edit rejection preserves the draft: $text", async result => {
+  const editor = await mountEditablePost()
+  editor.edit.click()
+  editor.input.value = "Keep this draft"
+  submitComposer(editor.form)
+  await vi.waitFor(() => expect(requests[0].perform).toHaveBeenCalledOnce())
+  const data = requests[0].perform.mock.calls[0][1]
+  requests[0].callbacks.received({ type: "edit.rejected", request_id: data.request_id, ...result })
+  expect(editor.input.value).toBe("Keep this draft")
+  expect(editor.input.readOnly).toBe(false)
+  expect(editor.form.hidden).toBe(false)
+  expect(editor.notice.textContent).toContain(result.text)
+})
+
+test("duplicate and stale edits cannot replace newer text even within the same millisecond", async () => {
+  const editor = await mountEditablePost()
+  requests[0].callbacks.received({ type: "message.updated", message: editedMessage(2, "Newest", "2026-10-21T12:00:00.000002Z") })
+  requests[0].callbacks.received({ type: "message.updated", message: editedMessage(2, "Older", "2026-10-21T12:00:00.000001Z") })
+  requests[0].callbacks.received({ type: "message.updated", message: editedMessage(2, "Newest", "2026-10-21T12:00:00.000002Z") })
+  expect(editor.body.textContent).toBe("Newest")
+})
+
+test("updated message bodies are displayed as text rather than executable markup", async () => {
+  const editor = await mountEditablePost()
+  const body = "<script>unsafe()</script><img src=x onerror=unsafe()>"
+  requests[0].callbacks.received({ type: "message.updated", message: editedMessage(2, body) })
+  expect(editor.body.textContent).toBe(body)
+  expect(editor.body.querySelector("script, img")).toBeNull()
+})
+
+test("a remote update preserves an open edit draft and cancel reveals the latest text", async () => {
+  const editor = await mountEditablePost()
+  editor.edit.click()
+  editor.input.value = "My draft"
+  requests[0].callbacks.received({ type: "message.updated", message: editedMessage(2, "Changed elsewhere") })
+  expect(editor.input.value).toBe("My draft")
+  expect(editor.notice.textContent).toContain("changed elsewhere")
+  editor.cancel.click()
+  expect(editor.body.textContent).toBe("Changed elsewhere")
+})
+
+test("an update delivered before creation is retained when the message appears", async () => {
+  enableMessageEditing()
+  requests[0].callbacks.received({ type: "message.updated", message: editedMessage(2, "Updated before creation arrived") })
+  requests[0].callbacks.received(createdMessageEvent(2))
+  await vi.waitFor(() => expect(messages.querySelector("#club_message_2 [data-club-message-target='body']")!.textContent).toBe("Updated before creation arrived"))
+})
+
+test("disconnect and timeout preserve edit drafts without automatically retrying", async () => {
+  const editor = await mountEditablePost()
+  editor.edit.click()
+  editor.input.value = "Keep this draft"
+  vi.useFakeTimers()
+  submitComposer(editor.form)
+  await vi.advanceTimersByTimeAsync(20_000)
+  expect(editor.input.value).toBe("Keep this draft")
+  expect(editor.notice.textContent).toContain("could not be confirmed")
+  expect(requests[0].perform).toHaveBeenCalledOnce()
+  submitComposer(editor.form)
+  await vi.advanceTimersByTimeAsync(0)
+  requests[0].callbacks.disconnected({ willAttemptReconnect: true })
+  expect(editor.input.value).toBe("Keep this draft")
+  expect(editor.input.readOnly).toBe(false)
+  expect(requests[0].perform).toHaveBeenCalledTimes(2)
+})
+
+test("a detached editor cannot send a delayed Cable write", async () => {
+  const editor = await mountEditablePost()
+  editor.edit.click()
+  editor.input.value = "Detached draft"
+  submitComposer(editor.form)
+  editor.article.remove()
+  await vi.waitFor(() => expect(application.getControllerForElementAndIdentifier(editor.article, "club-message")).toBeNull())
+  expect(requests[0].perform).not.toHaveBeenCalled()
+})
+
+test("Turbo caching clears edit drafts and private message text", async () => {
+  const editor = await mountEditablePost()
+  editor.edit.click()
+  editor.input.value = "Private edit draft"
+  document.dispatchEvent(new Event("turbo:before-cache"))
+  expect(editor.input.value).toBe("")
+  expect(editor.body.textContent).toBe("")
+  expect(content.childElementCount).toBe(0)
+})
+
+test("replies use the same inline editor and receive reply update broadcasts", async () => {
+  enableMessageEditing()
+  const composer = await mountReplyForm()
+  requests[0].callbacks.received(replyEvent(8))
+  const article = composer.controls.querySelector<HTMLElement>("#club_message_8")!
+  await vi.waitFor(() => expect(article.querySelector("label")!.htmlFor).toBe("club_message_edit_8"))
+  const editor = editingControls(article)
+  editor.edit.click()
+  editor.input.value = "Revised answer"
+  submitComposer(editor.form)
+  await vi.waitFor(() => expect(requests[0].perform).toHaveBeenCalledOnce())
+  const data = requests[0].perform.mock.calls[0][1]
+  expect(data.message_id).toBe(8)
+  const message = { ...editedMessage(8, "Revised answer"), parent_id: 1 }
+  requests[0].callbacks.received({ type: "reply.updated", message })
+  requests[0].callbacks.received({ type: "edit.saved", request_id: data.request_id, message })
+  expect(editor.body.textContent).toBe("Revised answer")
+  expect(editor.form.hidden).toBe(true)
+})
 
 async function mountReplyForm(ready = true) {
   element.id = "club_discussion_17"
@@ -390,14 +586,16 @@ test("a Cable send exception preserves the draft and reports the error", async (
   expect(requests[0].perform).toHaveBeenCalledOnce()
 })
 
-test("a missing acknowledgement unlocks the draft after 20 seconds without retrying", async () => {
+test("a missing acknowledgement unlocks the draft after 5 seconds without retrying", async () => {
   const composer = await mountComposer()
   composer.body.value = "Unconfirmed"
   vi.useFakeTimers()
 
   submitComposer(composer.form)
   await Promise.resolve()
-  await vi.advanceTimersByTimeAsync(20_000)
+  await vi.advanceTimersByTimeAsync(4_999)
+  expect(composer.body.readOnly).toBe(true)
+  await vi.advanceTimersByTimeAsync(1)
 
   expect(composer.body.value).toBe("Unconfirmed")
   expect(composer.body.readOnly).toBe(false)

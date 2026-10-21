@@ -242,7 +242,9 @@ export default class extends Controller {
     header.append(avatar, identity)
     const body = document.createElement("p")
     body.textContent = reply.body
+    body.className = "club-discussion-reply-body"
     article.append(header, body)
+    if (this.hasClubDiscussionOutlet) this.clubDiscussionOutlet.prepareMessageElement(article, reply)
     article.dataset.replyId = String(reply.id)
     const newerReply = Array.from(this.listTarget.children).find(element => Number((element as HTMLElement).dataset.replyId) > reply.id)
     if (newerReply) {

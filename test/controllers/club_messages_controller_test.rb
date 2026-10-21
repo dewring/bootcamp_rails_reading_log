@@ -13,6 +13,28 @@ class ClubMessagesControllerTest < ActionDispatch::IntegrationTest
     @message = @book_club.club_messages.create!(user: @owner, body: "First thought")
   end
 
+  test "inline edit controls are rendered only for the current member's own posts" do
+    own_message = @book_club.club_messages.create!(user: @member, body: "My thought")
+    @book_club.club_messages.create!(user: @admin, body: "An admin thought before leaving")
+    sign_in @member
+    get book_club_club_messages_path(@book_club)
+
+    assert_response :success
+    assert_select "#club_message_#{own_message.id} button[data-action='club-message#edit']", count: 1
+    assert_select "#club_message_#{own_message.id} form[data-club-message-target='form'][hidden]" do
+      assert_select "textarea[required][maxlength='1000']"
+      assert_select "button[type='submit']", text: "Save"
+    end
+    assert_select "#club_message_#{@message.id} button[data-action='club-message#edit']", count: 0
+
+    sign_out @member
+    sign_in @admin
+    get book_club_club_messages_path(@book_club)
+
+    assert_response :success
+    assert_select "article button[data-action='club-message#edit']", count: 0
+  end
+
   test "members have labelled reply forms while nonmember admins can only read replies" do
     sign_in @member
     get book_club_club_messages_path(@book_club)

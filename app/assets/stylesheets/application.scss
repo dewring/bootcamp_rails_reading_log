@@ -3160,6 +3160,54 @@ main.container:has(> .book-club-detail-page) {
   .club-discussion-reply-actions { justify-content: flex-end; }
 }
 
+[data-controller~="club-message"] { position: relative; }
+.club-message-editable > header { padding-right: 48px; }
+
+.club-message-edit-button {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: auto;
+  margin: 0;
+  padding: 4px 8px;
+  border: 1px solid $gray-mid;
+  border-radius: 100px;
+  background: #fff;
+  color: $text-muted;
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: normal;
+
+  &[hidden] { display: none; }
+}
+
+.club-message-edit-form {
+  display: grid;
+  gap: 10px;
+  margin: 10px 0 0;
+
+  &[hidden] { display: none; }
+  textarea {
+    margin: 0;
+    padding: 12px;
+    border: 1px solid $gray-mid;
+    border-radius: 10px;
+    background: $gray-light;
+    font-size: 12px;
+    line-height: 1.5;
+    resize: vertical;
+  }
+  .club-discussion-reply-actions { justify-content: flex-end; }
+}
+
+.club-message-edit-status {
+  margin: 8px 0 0;
+  font-size: 12px;
+
+  &:empty { display: none; }
+}
+
 .book-club-owner-controls {
   display: grid;
   gap: 24px;

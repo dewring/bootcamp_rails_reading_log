@@ -2,10 +2,15 @@
 <% can_post_message = policy(@book_club).post_message? %>
 <div id="club_discussion_<%= @book_club.id %>" data-controller="club-discussion"
      data-club-discussion-book-club-id-value="<%= @book_club.id %>"
+     data-club-discussion-current-user-id-value="<%= current_user.id %>"
+     data-club-discussion-can-post-value="<%= can_post_message %>"
      data-club-discussion-page-value="<%= @pagy.page %>"
      data-club-discussion-total-posts-value="<%= @pagy.count %>"
      data-action="turbo:before-cache@document->club-discussion#beforeCache">
   <div class="book-club-detail-page" data-club-discussion-target="content">
+    <template data-club-discussion-target="editor">
+      <%= render "editor", message_id: nil %>
+    </template>
     <template data-club-discussion-target="replyControls">
       <%= render "reply_controls", book_club: @book_club, message_id: nil, can_reply: can_post_message %>
     </template>
@@ -29,12 +34,15 @@
           <p class="club-discussion-empty" data-club-discussion-target="emptyState" <%= "hidden" unless @messages.empty? %>>No discussion posts yet.</p>
           <div data-club-discussion-target="messages">
             <% @messages.each do |message| %>
-              <article id="<%= dom_id(message) %>" class="club-discussion-message" data-message-id="<%= message.id %>">
+              <article id="<%= dom_id(message) %>" class="club-discussion-message" data-controller="club-message" data-message-id="<%= message.id %>" data-author-id="<%= message.user_id %>" data-updated-at="<%= message.updated_at.iso8601(6) %>">
                 <header class="club-discussion-message-meta">
                   <strong><%= message.user.nickname %></strong>
                   <time datetime="<%= message.created_at.iso8601(6) %>"><%= message.created_at.strftime("%b %-d, %Y · %H:%M") %></time>
                 </header>
                 <p class="club-discussion-message-body"><%= message.body %></p>
+                <% if can_post_message && message.user_id == current_user.id %>
+                  <%= render "editor", message_id: message.id %>
+                <% end %>
                 <%= render "reply_controls", book_club: @book_club, message_id: message.id, can_reply: can_post_message %>
               </article>
             <% end %>

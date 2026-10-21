@@ -19,14 +19,19 @@ export interface DiscussionEvent {
   error?: string
 }
 
+// Keep fractional seconds when comparing UTC timestamps from Rails.
+export function discussionVersion(timestamp: string): string {
+  return timestamp.replace(/(?:\.(\d+))?Z$/, (_match, fraction: string = "") => `.${fraction.padEnd(6, "0")}Z`)
+}
+
 type DiscussionSubscription = {
   unsubscribe(): void
-  perform(action: string, data: { request_id: string; body: string; parent_id?: number }): boolean
+  perform(action: string, data: { request_id: string; body: string; parent_id?: number; message_id?: number }): boolean
 }
 
 export default class extends Controller {
-  static targets = ["content", "status", "messages", "emptyState", "paginationSummary", "pagination", "olderPosts", "body", "submit", "composerStatus", "replyControls"]
-  static values = { bookClubId: Number, page: Number, totalPosts: Number }
+  static targets = ["content", "status", "messages", "emptyState", "paginationSummary", "pagination", "olderPosts", "body", "submit", "composerStatus", "replyControls", "editor"]
+  static values = { bookClubId: Number, page: Number, totalPosts: Number, currentUserId: Number, canPost: Boolean }
 
   declare readonly contentTarget: HTMLElement
   declare readonly statusTarget: HTMLElement
@@ -48,6 +53,12 @@ export default class extends Controller {
   declare readonly replyControlsTarget: HTMLTemplateElement
   declare readonly hasReplyControlsTarget: boolean
 
+  declare readonly editorTarget: HTMLTemplateElement
+  declare readonly hasEditorTarget: boolean
+  declare readonly currentUserIdValue: number
+  declare readonly canPostValue: boolean
+
+  private messageUpdates = new Map<number, DiscussionMessage>()
   private discussionSubscription?: Promise<DiscussionSubscription | undefined>
   private receivedMessageIds = new Set<number>()
   private posting = false
@@ -56,6 +67,14 @@ export default class extends Controller {
   private postTimeout?: ReturnType<typeof setTimeout>
 
   connect() {
+    for (const element of this.messagesTarget.children) {
+      const article = element as HTMLElement
+      this.prepareMessageElement(article, {
+        id: Number(article.dataset.messageId),
+        author: { id: Number(article.dataset.authorId) },
+        updated_at: article.dataset.updatedAt ?? ""
+      })
+    }
     this.receivedMessageIds = new Set(
       Array.from(this.messagesTarget.children, message => Number((message as HTMLElement).dataset.messageId))
     )
@@ -73,6 +92,11 @@ export default class extends Controller {
 
           if (event.type === "access.revoked") {
             this.endAccess()
+          } else if ((event.type === "message.updated" || event.type === "reply.updated") && event.message) {
+            this.rememberMessageUpdate(event.message)
+          } else if (event.type === "edit.saved" || event.type === "edit.rejected") {
+            if (event.message) this.rememberMessageUpdate(event.message)
+            this.dispatch("edit", { detail: event })
           } else if (event.type === "message.created" && event.message) {
             this.displayCreatedMessage(event.message, event.total_posts)
           } else if (event.type === "reply.created" || event.type === "reply.saved" || event.type === "reply.rejected") {
@@ -109,6 +133,7 @@ export default class extends Controller {
     this.cableConnected = false
     this.interruptPosting()
     this.unsubscribeFromDiscussion()
+    this.messageUpdates.clear()
   }
 
   beforeCache() {
@@ -116,6 +141,7 @@ export default class extends Controller {
     this.finishPosting()
     this.contentTarget.replaceChildren()
     this.receivedMessageIds.clear()
+    this.messageUpdates.clear()
     this.unsubscribeFromDiscussion()
   }
 
@@ -144,23 +170,69 @@ export default class extends Controller {
       }
 
       // No automatic retry: a missing acknowledgement does not prove the save failed.
-      this.postTimeout = setTimeout(() => this.interruptPosting(), 20_000)
+      this.postTimeout = setTimeout(() => this.interruptPosting(), 5_000)
     } catch (error) {
       console.error("Failed to send discussion post", error)
       if (this.pendingPostId === requestId) this.interruptPosting()
     }
   }
 
-  async sendReply(requestId: string, parentId: number, body: string, composer: Element): Promise<boolean> {
+  sendReply(requestId: string, parentId: number, body: string, composer: Element): Promise<boolean> {
+    return this.performDiscussionAction("post_reply", { request_id: requestId, parent_id: parentId, body }, composer)
+  }
+
+  sendEdit(requestId: string, messageId: number, body: string, editor: Element): Promise<boolean> {
+    return this.performDiscussionAction("update_message", { request_id: requestId, message_id: messageId, body }, editor)
+  }
+
+  latestMessageUpdate(messageId: number) {
+    return this.messageUpdates.get(messageId)
+  }
+
+  prepareMessageElement(article: HTMLElement, message: Pick<DiscussionMessage, "id" | "updated_at"> & { author: { id: number } }) {
+    const body = article.querySelector<HTMLElement>(".club-discussion-message-body, .club-discussion-reply-body")
+    if (!body) return
+
+    article.dataset.controller = "club-message"
+    article.dataset.clubMessageMessageIdValue = String(message.id)
+    article.dataset.clubMessageUpdatedAtValue = message.updated_at
+    article.dataset.clubMessageClubDiscussionOutlet = `#${this.element.id}`
+    article.dataset.action = "club-discussion:edit@document->club-message#receiveEdit club-discussion:connection-ended@document->club-message#connectionEnded turbo:before-cache@document->club-message#beforeCache"
+    body.dataset.clubMessageTarget = "body"
+    if (this.canPostValue && message.author.id === this.currentUserIdValue && this.hasEditorTarget) {
+      article.classList.add("club-message-editable")
+      if (!article.querySelector("[data-club-message-target='form']")) article.append(this.editorTarget.content.cloneNode(true))
+    }
+    if (!article.querySelector("[data-club-message-target='status']")) {
+      const status = document.createElement("p")
+      status.setAttribute("role", "status")
+      status.dataset.clubMessageTarget = "status"
+      status.className = "club-message-edit-status"
+      const editor = article.querySelector(".club-message-editor")
+      if (editor) editor.append(status)
+      else article.append(status)
+    }
+  }
+
+  private async performDiscussionAction(action: string, data: { request_id: string; body: string; parent_id?: number; message_id?: number }, source: Element): Promise<boolean> {
     if (!this.cableConnected) return false
 
     const pendingSubscription = this.discussionSubscription
     const subscription = await pendingSubscription
     if (this.discussionSubscription !== pendingSubscription || !this.cableConnected) return false
+    if (!source.isConnected || !this.element.contains(source)) return false
 
-    if (!composer.isConnected || !this.element.contains(composer)) return false
+    return subscription?.perform(action, data) ?? false
+  }
 
-    return subscription?.perform("post_reply", { request_id: requestId, parent_id: parentId, body }) ?? false
+  private rememberMessageUpdate(message: DiscussionMessage) {
+    if (!Number.isSafeInteger(message.id) || !Number.isFinite(Date.parse(message.updated_at))) return
+
+    const previous = this.messageUpdates.get(message.id)
+    if (previous && discussionVersion(message.updated_at) <= discussionVersion(previous.updated_at)) return
+
+    this.messageUpdates.set(message.id, message)
+    this.dispatch("edit", { detail: { type: "message.updated", message } })
   }
 
   private receivePostResult(event: DiscussionEvent) {
@@ -212,6 +284,7 @@ export default class extends Controller {
     this.finishPosting()
     this.contentTarget.replaceChildren()
     this.receivedMessageIds.clear()
+    this.messageUpdates.clear()
     this.showStatus("Discussion access has ended. Sign in or reopen the club to continue.")
     this.unsubscribeFromDiscussion()
   }
@@ -271,6 +344,7 @@ export default class extends Controller {
     body.className = "club-discussion-message-body"
     body.textContent = message.body
     article.append(header, body)
+    this.prepareMessageElement(article, message)
     if (this.hasReplyControlsTarget) {
       const controls = this.replyControlsTarget.content.firstElementChild!.cloneNode(true) as HTMLElement
       controls.dataset.clubRepliesPostIdValue = String(message.id)

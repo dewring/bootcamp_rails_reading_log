@@ -1,0 +1,11 @@
+<div class="club-message-editor">
+  <button type="button" class="club-message-edit-button" data-club-message-target="editButton" data-action="club-message#edit">Edit</button>
+  <form class="club-message-edit-form" data-club-message-target="form" data-action="submit->club-message#save" data-turbo="false" hidden>
+    <label for="club_message_edit_<%= message_id %>" class="club-discussion-body-label" data-club-message-target="label">Edit your message</label>
+    <textarea id="club_message_edit_<%= message_id %>" data-club-message-target="input" required maxlength="1000" rows="3"></textarea>
+    <div class="club-discussion-reply-actions">
+      <button type="button" class="club-discussion-reply-cancel" data-club-message-target="cancel" data-action="club-message#cancel">Cancel</button>
+      <button type="submit" class="club-discussion-reply-submit" data-club-message-target="save">Save</button>
+    </div>
+  </form>
+</div>
