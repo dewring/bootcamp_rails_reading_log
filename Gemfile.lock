@@ -125,8 +125,9 @@ GEM
       bigdecimal
       rexml
     crass (1.0.7)
-    css_parser (>= 3.3.0)
+    css_parser (3.3.0)
       addressable
+      base64
       ssrf_filter (~> 1.5)
     dartsass-rails (0.5.1)
       railties (>= 6.0.0)
@@ -537,6 +538,7 @@ DEPENDENCIES
   brakeman
   bullet
   bundler-audit
+  css_parser (>= 3.3.0)
   dartsass-rails
   debug
   devise
