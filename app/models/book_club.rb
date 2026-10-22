@@ -4,6 +4,7 @@ class BookClub < ApplicationRecord
   belongs_to :current_book, class_name: "Book", optional: true
   has_many :book_club_memberships, dependent: :destroy
   has_many :users, through: :book_club_memberships
+  has_many :club_messages, dependent: :destroy
 
   after_commit :refresh_live_panels, on: :update
   after_commit :notify_members_of_new_pick, on: :update
@@ -26,6 +27,13 @@ class BookClub < ApplicationRecord
       )
     SQL
   }
+
+  def preload_covers
+    ActiveRecord::Associations::Preloader.new(
+      records: [ self ],
+      associations: { current_book: { cover_image_attachment: :blob } }
+    ).call
+  end
 
   def leaderboard
     users

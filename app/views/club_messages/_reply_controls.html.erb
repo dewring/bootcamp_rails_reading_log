@@ -1,0 +1,29 @@
+<div class="club-discussion-replies"
+     data-controller="club-replies"
+     data-club-replies-deleted-value="<%= local_assigns.fetch(:deleted, false) %>"
+     data-club-replies-club-discussion-outlet="#club_discussion_<%= book_club.id %>"
+     data-club-replies-post-id-value="<%= message_id %>"
+     data-club-replies-url-value="<%= book_club_club_message_replies_path(book_club, message_id) if message_id %>"
+     data-action="club-discussion:reply@document->club-replies#receiveReply club-discussion:delete@document->club-replies#receiveDelete club-discussion:connection-ended@document->club-replies#connectionEnded turbo:before-cache@document->club-replies#beforeCache club-replies:access-revoked->club-discussion#endAccess">
+  <button type="button" class="club-discussion-replies-toggle" aria-expanded="false"
+          data-club-replies-target="toggle" data-action="club-replies#toggle">
+    <%= image_tag "discussion-replies.svg", alt: "", width: 11, height: 11 %>
+    Replies
+  </button>
+  <div data-club-replies-target="panel" hidden>
+    <div class="club-discussion-reply-list" data-club-replies-target="list"></div>
+    <p role="status" data-club-replies-target="status"></p>
+    <button type="button" class="club-discussion-replies-toggle" data-club-replies-target="more" data-action="club-replies#loadMore" hidden>Load more replies</button>
+    <% if can_reply %>
+      <form data-club-replies-target="form" class="club-discussion-reply-form" data-action="submit->club-replies#postReply" data-turbo="false">
+        <label for="club_reply_body_<%= message_id %>" class="club-discussion-body-label" data-club-replies-target="label">Your reply</label>
+        <textarea id="club_reply_body_<%= message_id %>" data-club-replies-target="body" required maxlength="1000" rows="3" placeholder="Add a reply…"></textarea>
+        <div class="club-discussion-reply-actions">
+          <button type="button" class="club-discussion-reply-cancel" data-club-replies-target="cancel" data-action="club-replies#cancelReply">Cancel</button>
+          <button type="submit" class="club-discussion-reply-submit" data-club-replies-target="submit">Reply</button>
+        </div>
+        <p role="status" data-club-replies-target="composerStatus"></p>
+      </form>
+    <% end %>
+  </div>
+</div>

@@ -15,19 +15,12 @@ class BookClubsController < ApplicationController
   end
 
   def show
-    membership_associations = params[:view] == "leaderboard" ? :user : { user: :avatar_attachment }
-    detail_associations = { book_club_memberships: membership_associations }
-    detail_associations[:current_book] = { cover_image_attachment: :blob }
-    @book_club = BookClub
-      .includes(detail_associations)
-      .find(@book_club.id)
     authorize @book_club
-    prepare_detail_state
 
-    if params[:view] == "leaderboard"
-      @leaderboard = @book_club.leaderboard.to_a
-      render :leaderboard
-    end
+    @book_club = BookClub
+      .includes(current_book: { cover_image_attachment: :blob }, book_club_memberships: { user: :avatar_attachment })
+      .find(@book_club.id)
+    prepare_detail_state
   end
 
   def search_books
@@ -111,7 +104,6 @@ class BookClubsController < ApplicationController
       @book_club.book_club_memberships.includes(user: :avatar_attachment)
     end
     @owner = @memberships.find { |membership| membership.role == "owner" }&.user
-    @current_membership = @memberships.find { |membership| membership.user_id == current_user.id }
     @past_picks = @book_club.pick_history
   end
 end

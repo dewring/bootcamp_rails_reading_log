@@ -1,0 +1,91 @@
+<% turbo_exempts_page_from_cache %>
+<% can_post_message = policy(@book_club).post_message? %>
+<% can_moderate_messages = current_user.admin? || policy(@book_club).manage? %>
+<div id="club_discussion_<%= @book_club.id %>" data-controller="club-discussion"
+     data-club-discussion-book-club-id-value="<%= @book_club.id %>"
+     data-club-discussion-current-user-id-value="<%= current_user.id %>"
+     data-club-discussion-can-moderate-value="<%= can_moderate_messages %>"
+     data-club-discussion-can-post-value="<%= can_post_message %>"
+     data-club-discussion-page-value="<%= @pagy.page %>"
+     data-club-discussion-total-posts-value="<%= @pagy.count %>"
+     data-action="turbo:before-cache@document->club-discussion#beforeCache">
+  <div class="book-club-detail-page" data-club-discussion-target="content">
+    <template data-club-discussion-target="deleteButton">
+      <%= render "delete_button" %>
+    </template>
+    <template data-club-discussion-target="editor">
+      <%= render "editor", message_id: nil %>
+    </template>
+    <template data-club-discussion-target="replyControls">
+      <%= render "reply_controls", book_club: @book_club, message_id: nil, can_reply: can_post_message %>
+    </template>
+    <%= render "book_clubs/club_sidebar", book_club: @book_club %>
+
+    <section class="book-club-overview-content" aria-labelledby="discussion-title">
+      <header class="book-club-detail-header">
+        <div>
+          <h1 id="discussion-title">Discussion</h1>
+          <p><span><%= @book_club.name %></span> · CURRENT CYCLE</p>
+        </div>
+        <%= render "book_clubs/membership_status", book_club: @book_club %>
+      </header>
+
+      <%= render "book_clubs/current_pick", book_club: @book_club, variant: :discussion %>
+
+      <div class="club-discussion-body">
+        <section class="book-club-overview-card club-discussion-history" aria-labelledby="club-discussion-history-title">
+          <h2 id="club-discussion-history-title">All Threads</h2>
+
+          <p class="club-discussion-empty" data-club-discussion-target="emptyState" <%= "hidden" unless @messages.empty? %>>No discussion posts yet.</p>
+          <div data-club-discussion-target="messages">
+            <% @messages.each do |message| %>
+              <article id="<%= dom_id(message) %>" class="club-discussion-message" data-controller="club-message" data-message-id="<%= message.id %>" data-author-id="<%= message.user_id %>" data-deleted="<%= message.deleted? %>" data-updated-at="<%= message.updated_at.iso8601(6) %>">
+                <header class="club-discussion-message-meta">
+                  <%= render "users/avatar", user: message.user, variant: :club_member %>
+                  <strong><%= message.user.nickname %></strong>
+                  <time datetime="<%= message.created_at.iso8601(6) %>"><%= message.created_at.strftime("%b %-d, %Y · %H:%M") %></time>
+                </header>
+                <p class="club-discussion-message-body"><%= message.deleted? ? "Deleted post" : message.body %></p>
+                <% if !message.deleted? && can_post_message && message.user_id == current_user.id %>
+                  <%= render "editor", message_id: message.id %>
+                <% end %>
+                <% if !message.deleted? && (can_moderate_messages || (can_post_message && message.user_id == current_user.id)) %>
+                  <%= render "delete_button" %>
+                <% end %>
+                <%= render "reply_controls", book_club: @book_club, message_id: message.id, can_reply: can_post_message && !message.deleted?, deleted: message.deleted? %>
+              </article>
+            <% end %>
+          </div>
+        </section>
+
+        <% if can_post_message %>
+          <section class="club-discussion-composer" aria-labelledby="club-discussion-composer-title">
+            <header>
+              <%= render "users/avatar", user: current_user, variant: :club_member %>
+              <div>
+                <h2 id="club-discussion-composer-title">Add a discussion post</h2>
+                <p>Posting as <%= current_user.nickname %></p>
+              </div>
+            </header>
+            <form data-action="submit->club-discussion#postMessage" data-turbo="false">
+              <%= label_tag :club_message_body, "Your discussion post", class: "club-discussion-body-label" %>
+              <%= text_area_tag :club_message_body, nil, required: true, maxlength: 1_000, rows: 6, placeholder: "Share a thought, question, or favorite line…", aria: { describedby: "club-discussion-composer-hint" }, data: { club_discussion_target: "body" } %>
+              <footer>
+                <p id="club-discussion-composer-hint">Mark spoilers kindly</p>
+                <%= button_tag "Post", type: :submit, disabled: true, data: { club_discussion_target: "submit" } %>
+              </footer>
+              <p role="status" data-club-discussion-target="composerStatus"></p>
+            </form>
+          </section>
+        <% end %>
+      </div>
+
+      <footer class="club-discussion-pagination">
+        <p data-club-discussion-target="paginationSummary"><%= pluralize(@pagy.count, "post") %> · Page <%= @pagy.page %> of <%= @pagy.last %></p>
+        <div data-club-discussion-target="pagination"><%== @pagy.series_nav if @pagy.last > 1 %></div>
+        <%= link_to "Older posts", book_club_club_messages_path(@book_club, page: 2), data: { club_discussion_target: "olderPosts" }, hidden: true %>
+      </footer>
+    </section>
+  </div>
+  <p role="status" data-club-discussion-target="status" hidden></p>
+</div>

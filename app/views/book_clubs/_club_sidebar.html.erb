@@ -1,14 +1,19 @@
 <aside class="book-club-sidebar">
   <div>
     <div class="book-club-sidebar-identity">
-      <h2><%= book_club.name.present? ? "#{book_club.name.first(2).upcase} #{book_club.name}" : "New book club" %></h2>
+      <h2><%= book_club.name.presence || "New book club" %></h2>
       <% if book_club.persisted? %>
         <p>Joined · <%= pluralize(book_club.book_club_memberships_count, "member") %></p>
       <% end %>
     </div>
     <nav class="book-club-sidebar-navigation" aria-label="Book club sections">
-      <%= link_to "Overview", (book_club.persisted? ? book_club_path(book_club) : book_clubs_path(new_club: true)), class: ("is-active" unless params[:view] == "leaderboard") %>
-      <%= link_to "Leaderboard", book_club_path(book_club, view: "leaderboard"), class: ("is-active" if params[:view] == "leaderboard") if book_club.persisted? %>
+      <%= link_to "Overview", (book_club.persisted? ? book_club_path(book_club) : book_clubs_path(new_club: true)), class: ("is-active" if controller_name == "book_clubs"), aria: { current: ("page" if controller_name == "book_clubs") } %>
+      <% if book_club.persisted? && policy(book_club).discuss? %>
+        <%= link_to "Discussion", book_club_club_messages_path(book_club), class: ("is-active" if controller_name == "club_messages"), aria: { current: ("page" if controller_name == "club_messages") } %>
+      <% end %>
+      <% if book_club.persisted? && policy(book_club).leaderboard? %>
+        <%= link_to "Leaderboard", book_club_leaderboard_path(book_club), class: ("is-active" if controller_name == "book_club_leaderboards"), aria: { current: ("page" if controller_name == "book_club_leaderboards") } %>
+      <% end %>
     </nav>
   </div>
 
@@ -18,7 +23,14 @@
       <div>
         <strong><%= current_user.nickname %></strong>
         <% if book_club.persisted? %>
-          <span><%= policy(book_club).manage? ? "Club owner" : "Club member" %></span>
+          <% viewer_role = policy(book_club).viewer_role %>
+          <% if viewer_role == "owner" %>
+            <span>Club owner</span>
+          <% elsif viewer_role == "member" %>
+            <span>Club member</span>
+          <% elsif viewer_role == "admin" %>
+            <span>Admin</span>
+          <% end %>
         <% end %>
       </div>
     </div>
