@@ -29,7 +29,7 @@ export function discussionVersion(timestamp: string): string {
 
 type DiscussionSubscription = {
   unsubscribe(): void
-  perform(action: string, data: { request_id: string; body?: string; parent_id?: number; message_id?: number }): boolean
+  perform(action: string, data: { request_id?: string; body?: string; parent_id?: number; message_id?: number }): boolean
 }
 
 export default class extends Controller {
@@ -72,6 +72,7 @@ export default class extends Controller {
   private cableConnected = false
   private pendingPostId?: string
   private postTimeout?: ReturnType<typeof setTimeout>
+  private heartbeatInterval?: ReturnType<typeof setInterval>
 
   connect() {
     for (const element of this.messagesTarget.children) {
@@ -93,6 +94,7 @@ export default class extends Controller {
           if (this.discussionSubscription !== pendingSubscription) return
 
           this.cableConnected = true
+          this.startHeartbeat(pendingSubscription)
           if (this.hasSubmitTarget) this.submitTarget.disabled = this.posting
         },
         received: event => {
@@ -125,6 +127,7 @@ export default class extends Controller {
           if (this.discussionSubscription !== pendingSubscription) return
 
           this.cableConnected = false
+          this.stopHeartbeat()
           this.dispatch("connection-ended")
           this.interruptPosting()
           if (!willAttemptReconnect) this.endAccess()
@@ -142,6 +145,7 @@ export default class extends Controller {
   }
 
   disconnect() {
+    this.stopHeartbeat()
     this.dispatch("connection-ended")
     this.cableConnected = false
     this.interruptPosting()
@@ -150,6 +154,7 @@ export default class extends Controller {
   }
 
   beforeCache() {
+    this.stopHeartbeat()
     this.cableConnected = false
     this.finishPosting()
     this.contentTarget.replaceChildren()
@@ -405,6 +410,7 @@ export default class extends Controller {
   }
 
   private unsubscribeFromDiscussion() {
+    this.stopHeartbeat()
     const pendingSubscription = this.discussionSubscription
     this.discussionSubscription = undefined
 
@@ -413,5 +419,27 @@ export default class extends Controller {
     }).catch(error => {
       console.error("Failed to unsubscribe from club discussion", error)
     })
+  }
+
+  private startHeartbeat(pendingSubscription: Promise<DiscussionSubscription | undefined>) {
+    this.stopHeartbeat()
+    const heartbeatInterval = setInterval(() => {
+      this.sendHeartbeat(pendingSubscription, heartbeatInterval).catch(error => {
+        console.error("Failed to send club presence heartbeat", error)
+      })
+    }, 10_000)
+    this.heartbeatInterval = heartbeatInterval
+  }
+
+  private stopHeartbeat() {
+    clearInterval(this.heartbeatInterval)
+    this.heartbeatInterval = undefined
+  }
+
+  private async sendHeartbeat(pendingSubscription: Promise<DiscussionSubscription | undefined>, heartbeatInterval: ReturnType<typeof setInterval>) {
+    const subscription = await pendingSubscription
+    if (this.discussionSubscription !== pendingSubscription || !this.cableConnected || this.heartbeatInterval !== heartbeatInterval) return
+
+    subscription?.perform("heartbeat", {})
   }
 }

@@ -915,6 +915,100 @@ function completeSetup(request: SubscriptionRequest) {
   request.resolve({ unsubscribe: request.unsubscribe, perform: request.perform })
 }
 
+test("heartbeat sends every ten seconds only after subscription confirmation", async () => {
+  vi.useFakeTimers()
+  completeSetup(requests[0])
+  await vi.advanceTimersByTimeAsync(20_000)
+  expect(requests[0].perform).not.toHaveBeenCalled()
+
+  requests[0].callbacks.connected()
+  await vi.advanceTimersByTimeAsync(9_999)
+  expect(requests[0].perform).not.toHaveBeenCalled()
+  await vi.advanceTimersByTimeAsync(1)
+  expect(requests[0].perform).toHaveBeenCalledWith("heartbeat", {})
+  await vi.advanceTimersByTimeAsync(10_000)
+  expect(requests[0].perform).toHaveBeenCalledTimes(2)
+})
+
+test("temporary disconnection stops heartbeat and reconnection starts one interval", async () => {
+  vi.useFakeTimers()
+  completeSetup(requests[0])
+  requests[0].callbacks.connected()
+  await vi.advanceTimersByTimeAsync(10_000)
+  requests[0].callbacks.disconnected({ willAttemptReconnect: true })
+  await vi.advanceTimersByTimeAsync(30_000)
+  expect(requests[0].perform).toHaveBeenCalledOnce()
+
+  requests[0].callbacks.connected()
+  requests[0].callbacks.connected()
+  await vi.advanceTimersByTimeAsync(10_000)
+  expect(requests[0].perform).toHaveBeenCalledTimes(2)
+})
+
+test("rejection and access revocation stop heartbeat", async () => {
+  vi.useFakeTimers()
+  completeSetup(requests[0])
+  requests[0].callbacks.connected()
+  requests[0].callbacks.received({ type: "access.revoked" })
+  requests[0].callbacks.rejected()
+
+  await vi.advanceTimersByTimeAsync(30_000)
+
+  expect(requests[0].perform).not.toHaveBeenCalled()
+})
+
+test("Turbo navigation stops heartbeat", async () => {
+  vi.useFakeTimers()
+  completeSetup(requests[0])
+  requests[0].callbacks.connected()
+  document.dispatchEvent(new Event("turbo:before-cache"))
+
+  await vi.advanceTimersByTimeAsync(30_000)
+
+  expect(requests[0].perform).not.toHaveBeenCalled()
+})
+
+test("page removal cancels a heartbeat waiting for subscription setup", async () => {
+  vi.useFakeTimers()
+  requests[0].callbacks.connected()
+  await vi.advanceTimersByTimeAsync(10_000)
+  await removePage()
+  completeSetup(requests[0])
+
+  await vi.advanceTimersByTimeAsync(30_000)
+
+  expect(requests[0].perform).not.toHaveBeenCalled()
+  expect(requests[0].unsubscribe).toHaveBeenCalledOnce()
+})
+
+test("reconnection cancels an old heartbeat waiting for subscription setup", async () => {
+  vi.useFakeTimers()
+  requests[0].callbacks.connected()
+  await vi.advanceTimersByTimeAsync(10_000)
+  requests[0].callbacks.disconnected({ willAttemptReconnect: true })
+  requests[0].callbacks.connected()
+  completeSetup(requests[0])
+  await vi.advanceTimersByTimeAsync(0)
+  expect(requests[0].perform).not.toHaveBeenCalled()
+
+  await vi.advanceTimersByTimeAsync(10_000)
+  expect(requests[0].perform).toHaveBeenCalledOnce()
+})
+
+test("heartbeat send errors are reported and the next heartbeat can succeed", async () => {
+  vi.useFakeTimers()
+  const error = new Error("Heartbeat failed")
+  const errorLog = vi.spyOn(console, "error").mockImplementation(() => {})
+  requests[0].perform.mockImplementationOnce(() => { throw error })
+  completeSetup(requests[0])
+  requests[0].callbacks.connected()
+
+  await vi.advanceTimersByTimeAsync(10_000)
+  expect(errorLog).toHaveBeenCalledWith("Failed to send club presence heartbeat", error)
+  await vi.advanceTimersByTimeAsync(10_000)
+  expect(requests[0].perform).toHaveBeenCalledTimes(2)
+})
+
 test("subscribes to the club identified by the page HTML", () => {
   expect(subscribeTo).toHaveBeenCalledWith(
     { channel: "ClubDiscussionChannel", book_club_id: 17 },

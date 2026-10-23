@@ -9,6 +9,8 @@ class ClubDiscussionChannelTest < ActionCable::Channel::TestCase
     @admin = users(:admin)
     @book_club.book_club_memberships.create!(user: @owner, role: "owner")
     @book_club.book_club_memberships.create!(user: @member, role: "member")
+    presence = instance_double(ClubPresence, renew_connection: [], active_member_ids: [])
+    allow(ClubPresence).to receive(:new).and_return(presence)
   end
 
   teardown do

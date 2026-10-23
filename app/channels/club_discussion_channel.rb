@@ -1,6 +1,7 @@
 class ClubDiscussionChannel < ApplicationCable::Channel
   MESSAGE_LIMIT = 20
   MESSAGE_PERIOD = 1.minute
+  HEARTBEAT_MINIMUM_INTERVAL = 5.seconds
 
   def subscribed
     @book_club = BookClub.find_by(id: params[:book_club_id])
@@ -9,9 +10,18 @@ class ClubDiscussionChannel < ApplicationCable::Channel
       stream_for @book_club, coder: ActiveSupport::JSON do |event|
         transmit_discussion_event(event)
       end
+      @presence_connection_token = SecureRandom.hex(16)
+      renew_presence
     else
       reject
     end
+  end
+
+  def heartbeat(_data = {})
+    return if @access_revoked || !@presence_connection_token
+    return revoke_discussion_access unless discussion_allowed?
+
+    renew_presence
   end
 
   def post_message(data)
@@ -69,6 +79,24 @@ class ClubDiscussionChannel < ApplicationCable::Channel
   end
 
   private
+
+  def renew_presence
+    now = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+    return if @last_presence_renewal_at && now - @last_presence_renewal_at < HEARTBEAT_MINIMUM_INTERVAL.to_i
+
+    @last_presence_renewal_at = now
+    Rails.configuration.x.club_presence.redis_pool.with do |redis|
+      presence = ClubPresence.new(@book_club, redis: redis)
+      if @book_club.book_club_memberships.exists?(user_id: current_user.id)
+        presence.renew_connection(user_id: current_user.id, connection_token: @presence_connection_token)
+      else
+        presence.active_member_ids
+      end
+    end
+  rescue Redis::BaseError, ConnectionPool::TimeoutError => error
+    Rails.logger.warn("Club presence unavailable for book club #{@book_club.id}: #{error.class}")
+    transmit({ type: "presence.unavailable" })
+  end
 
   def discussion_message_from(data)
     message_id = data["message_id"]
