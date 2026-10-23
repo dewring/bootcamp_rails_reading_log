@@ -11,6 +11,12 @@ class ClubDiscussionHeartbeatTest < ActionCable::Channel::TestCase
     @admin = users(:admin)
     @book_club.book_club_memberships.create!(user: @member, role: "owner")
     @key = "#{@namespace}:#{@book_club.id}"
+    @owned_keys = [ @key ]
+    @stream_callbacks = []
+    allow_any_instance_of(ClubDiscussionChannel).to receive(:stream_for).and_wrap_original do |original, *arguments, **keywords, &callback|
+      @stream_callbacks.push(callback)
+      original.call(*arguments, **keywords, &callback)
+    end
     allow(ClubPresence).to receive(:new).and_wrap_original do |original, book_club, redis:|
       original.call(book_club, redis: redis, namespace: @namespace)
     end
@@ -20,7 +26,7 @@ class ClubDiscussionHeartbeatTest < ActionCable::Channel::TestCase
   end
 
   teardown do
-    @redis.del(@key) if @key
+    @redis.del(*@owned_keys) if @owned_keys.present?
     Rack::Attack.reset!
   ensure
     @redis&.close
@@ -157,7 +163,162 @@ class ClubDiscussionHeartbeatTest < ActionCable::Channel::TestCase
     assert_equal "presence.unavailable", transmissions.last.fetch("type")
   end
 
+  test "joining broadcasts member ids and directly delivers an initial named snapshot" do
+    stub_connection current_user: @member
+    subscribe book_club_id: @book_club.id
+
+    event = presence_events.last
+    assert_equal [ @member.id ], event.fetch("member_ids")
+    assert_equal "presence.snapshot", transmissions.last.fetch("type")
+    assert_equal [ { "id" => @member.id, "nickname" => @member.nickname } ], transmissions.last.fetch("members")
+    assert_equal event.fetch("generated_at"), transmissions.last.fetch("generated_at")
+    assert_not transmissions.last.key?("member_ids")
+  end
+
+  test "accepted heartbeats broadcast snapshots and frequent heartbeats do not" do
+    stub_connection current_user: @member
+    subscribe book_club_id: @book_club.id
+    set_monotonic_time(104.0)
+    assert_no_broadcasts(@book_club) { perform :heartbeat }
+
+    set_monotonic_time(105.0)
+    assert_broadcasts(@book_club, 1) { perform :heartbeat }
+    assert_equal [ @member.id ], presence_events.last.fetch("member_ids")
+  end
+
+  test "closing one of two tabs retains one online member and closing the last removes them" do
+    stub_connection current_user: @member
+    subscribe book_club_id: @book_club.id
+    first_tab = subscription
+    subscribe book_club_id: @book_club.id
+
+    assert_equal [ @member.id ], presence_events.last.fetch("member_ids")
+    first_tab.unsubscribe_from_channel
+    assert_equal 1, @redis.zcard(@key)
+    assert_equal [ @member.id ], presence_events.last.fetch("member_ids")
+
+    unsubscribe
+    assert_equal 0, @redis.zcard(@key)
+    assert_empty presence_events.last.fetch("member_ids")
+  end
+
+  test "another members heartbeat removes a connection abandoned for 45 seconds" do
+    other_member = users(:jaina)
+    @book_club.book_club_memberships.create!(user: other_member, role: "member")
+    freeze_time do
+      stub_connection current_user: @member
+      subscribe book_club_id: @book_club.id
+      travel 10.seconds
+      stub_connection current_user: other_member
+      subscribe book_club_id: @book_club.id
+      travel 35.seconds
+      set_monotonic_time(135.0)
+
+      perform :heartbeat
+
+      assert_equal [ other_member.id ], presence_events.last.fetch("member_ids")
+      assert_equal 1, @redis.zcard(@key)
+    end
+  end
+
+  test "a nonmember admin receives the roster without being included" do
+    stub_connection current_user: @member
+    subscribe book_club_id: @book_club.id
+    stub_connection current_user: @admin
+    subscribe book_club_id: @book_club.id
+
+    assert_equal [ @member.id ], transmissions.last.fetch("members").map { |member| member.fetch("id") }
+    assert_equal 1, @redis.zcard(@key)
+  end
+
+  test "membership is rechecked before a queued snapshot reaches an authorized admin" do
+    stub_connection current_user: @member
+    subscribe book_club_id: @book_club.id
+    event = presence_events.last
+    stub_connection current_user: @admin
+    subscribe book_club_id: @book_club.id
+    @book_club.book_club_memberships.find_by!(user: @member).destroy!
+
+    @stream_callbacks.last.call(event)
+
+    assert_equal "presence.snapshot", transmissions.last.fetch("type")
+    assert_empty transmissions.last.fetch("members")
+  end
+
+  test "delivery revokes a departed recipients access and removes their connection" do
+    stub_connection current_user: @member
+    subscribe book_club_id: @book_club.id
+    event = presence_events.last
+    @book_club.book_club_memberships.find_by!(user: @member).destroy!
+
+    @stream_callbacks.last.call(event)
+
+    assert_no_streams
+    assert_equal "access.revoked", transmissions.last.fetch("type")
+    assert_equal 0, @redis.zcard(@key)
+    assert_empty presence_events.last.fetch("member_ids")
+    initial_transmissions = transmissions.dup
+    @stream_callbacks.last.call(event)
+    assert_equal initial_transmissions, transmissions
+  end
+
+  test "access revocation followed by unsubscribe removes the connection only once" do
+    stub_connection current_user: @member
+    subscribe book_club_id: @book_club.id
+    @book_club.book_club_memberships.find_by!(user: @member).destroy!
+    perform :heartbeat
+
+    assert_no_broadcasts(@book_club) { unsubscribe }
+    assert_equal 0, @redis.zcard(@key)
+  end
+
+  test "snapshots and connection removal remain isolated between clubs" do
+    other_club = BookClub.create!(name: "Isolated presence circle")
+    other_club.book_club_memberships.create!(user: @member, role: "owner")
+    other_key = "#{@namespace}:#{other_club.id}"
+    @owned_keys.push(other_key)
+    stub_connection current_user: @member
+    subscribe book_club_id: @book_club.id
+    first_club_tab = subscription
+    subscribe book_club_id: other_club.id
+
+    assert_no_broadcasts(other_club) { first_club_tab.unsubscribe_from_channel }
+    assert_equal 1, @redis.zcard(other_key)
+    assert_equal 0, @redis.zcard(@key)
+    assert_equal [ @member.id ], transmissions.last.fetch("members").map { |member| member.fetch("id") }
+  end
+
+  test "snapshot delivery excludes identities belonging only to another club" do
+    stub_connection current_user: @member
+    subscribe book_club_id: @book_club.id
+    event = presence_events.last.merge("member_ids" => [ @member.id, users(:jaina).id ])
+
+    @stream_callbacks.last.call(event)
+
+    assert_equal [ @member.id ], transmissions.last.fetch("members").map { |member| member.fetch("id") }
+  end
+
+  test "Redis cleanup failure broadcasts unavailable and still finishes unsubscribing" do
+    stub_connection current_user: @member
+    subscribe book_club_id: @book_club.id
+    pool = Rails.configuration.x.club_presence.redis_pool
+    allow(pool).to receive(:with).and_raise(Redis::CannotConnectError)
+
+    assert_broadcast_on(@book_club, { type: "presence.unavailable" }) { unsubscribe }
+
+    assert_no_streams
+    initial_transmissions = transmissions.dup
+    @stream_callbacks.last.call(presence_events.last)
+    assert_equal initial_transmissions, transmissions
+  end
+
   private
+
+  def presence_events
+    broadcasts(ClubDiscussionChannel.broadcasting_for(@book_club)).map do |event|
+      JSON.parse(event)
+    end.select { |event| event.fetch("type") == "presence.snapshot" }
+  end
 
   def set_monotonic_time(time)
     allow(Process).to receive(:clock_gettime).with(Process::CLOCK_MONOTONIC).and_return(time)

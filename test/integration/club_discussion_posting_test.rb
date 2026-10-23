@@ -5,6 +5,8 @@ class ClubDiscussionPostingTest < ActiveSupport::TestCase
   self.use_transactional_tests = false
 
   setup do
+    presence = instance_double(ClubPresence, renew_connection: [], active_member_ids: [], remove_connection: [])
+    allow(ClubPresence).to receive(:new).and_return(presence)
     Rack::Attack.reset!
     @book_club = BookClub.create!(name: "Cable posting circle")
     @owner = users(:leika)

@@ -11,10 +11,15 @@ class ClubDiscussionChannel < ApplicationCable::Channel
         transmit_discussion_event(event)
       end
       @presence_connection_token = SecureRandom.hex(16)
-      renew_presence
+      renew_presence(initial_snapshot: true)
     else
       reject
     end
+  end
+
+  def unsubscribed
+    @access_revoked = true
+    remove_presence_connection
   end
 
   def heartbeat(_data = {})
@@ -80,12 +85,12 @@ class ClubDiscussionChannel < ApplicationCable::Channel
 
   private
 
-  def renew_presence
+  def renew_presence(initial_snapshot: false)
     now = Process.clock_gettime(Process::CLOCK_MONOTONIC)
     return if @last_presence_renewal_at && now - @last_presence_renewal_at < HEARTBEAT_MINIMUM_INTERVAL.to_i
 
     @last_presence_renewal_at = now
-    Rails.configuration.x.club_presence.redis_pool.with do |redis|
+    member_ids = Rails.configuration.x.club_presence.redis_pool.with do |redis|
       presence = ClubPresence.new(@book_club, redis: redis)
       if @book_club.book_club_memberships.exists?(user_id: current_user.id)
         presence.renew_connection(user_id: current_user.id, connection_token: @presence_connection_token)
@@ -93,9 +98,38 @@ class ClubDiscussionChannel < ApplicationCable::Channel
         presence.active_member_ids
       end
     end
+    event = broadcast_presence_snapshot(member_ids)
+    transmit_discussion_event(event.stringify_keys) if initial_snapshot
   rescue Redis::BaseError, ConnectionPool::TimeoutError => error
     Rails.logger.warn("Club presence unavailable for book club #{@book_club.id}: #{error.class}")
     transmit({ type: "presence.unavailable" })
+  end
+
+  def remove_presence_connection
+    return unless @presence_connection_token
+
+    connection_token = @presence_connection_token
+    @presence_connection_token = nil
+    member_ids = Rails.configuration.x.club_presence.redis_pool.with do |redis|
+      presence = ClubPresence.new(@book_club, redis: redis)
+      presence.remove_connection(user_id: current_user.id, connection_token: connection_token)
+    end
+    broadcast_presence_snapshot(member_ids) if BookClub.exists?(@book_club.id)
+  rescue Redis::BaseError, ConnectionPool::TimeoutError => error
+    Rails.logger.warn("Club presence cleanup failed for book club #{@book_club.id}: #{error.class}")
+    self.class.broadcast_to(@book_club, { type: "presence.unavailable" })
+  end
+
+  def broadcast_presence_snapshot(member_ids)
+    event = { type: "presence.snapshot", member_ids: member_ids, generated_at: Time.current.iso8601(6) }
+    self.class.broadcast_to(@book_club, event)
+    event
+  end
+
+  def presence_members(member_ids)
+    @book_club.users.where(id: member_ids).order(:id).pluck(:id, :nickname).map do |id, nickname|
+      { id: id, nickname: nickname }
+    end
   end
 
   def discussion_message_from(data)
@@ -188,6 +222,9 @@ class ClubDiscussionChannel < ApplicationCable::Channel
     if discussion_allowed?
       return if event["type"] == "access.recheck"
 
+      if event["type"] == "presence.snapshot"
+        event = event.except("member_ids").merge("members" => presence_members(event.fetch("member_ids")))
+      end
       transmit event
     else
       revoke_discussion_access
@@ -197,6 +234,7 @@ class ClubDiscussionChannel < ApplicationCable::Channel
   def revoke_discussion_access
     @access_revoked = true
     stop_all_streams
+    remove_presence_connection
     transmit({ type: "access.revoked" })
   end
 end

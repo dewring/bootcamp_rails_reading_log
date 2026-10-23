@@ -5,6 +5,8 @@ class ClubDiscussionRevocationTest < ActiveSupport::TestCase
   self.use_transactional_tests = false
 
   setup do
+    presence = instance_double(ClubPresence, renew_connection: [], active_member_ids: [], remove_connection: [])
+    allow(ClubPresence).to receive(:new).and_return(presence)
     @book_club = BookClub.create!(name: "Discussion circle")
     @member = users(:jaina)
     @admin = users(:admin)

@@ -5,11 +5,12 @@ require "action_cable/channel/test_case"
 class DiscussionTestConnection < ActionCable::Channel::ConnectionStub
   attr_reader :received_message_data
 
-  def initialize(server:, user:)
+  def initialize(server:, user:, include_presence: false)
     super(current_user: user)
     @server = server
     @logger = ActionCable::Connection::TaggedLoggerProxy.new(server.logger, tags: [])
     @received_message_data = Queue.new
+    @include_presence = include_presence
   end
 
   def worker_pool
@@ -17,7 +18,11 @@ class DiscussionTestConnection < ActionCable::Channel::ConnectionStub
   end
 
   def transmit(message_data)
-    received_message_data.push(message_data.deep_stringify_keys)
+    data = message_data.deep_stringify_keys
+    # Discussion-only tests ignore presence; presence integration tests opt in.
+    return if !@include_presence && data.dig("message", "type").to_s.start_with?("presence.")
+
+    received_message_data.push(data)
   end
 
   def next_message_data
