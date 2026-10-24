@@ -317,6 +317,37 @@ test("disconnection cancels pending typing and clears presence and expiry timers
   expect(roster.children).toHaveLength(0)
 })
 
+test.each(["rejection", "access revocation", "permanent disconnection"])("%s clears active presence timers and releases a subscription that finishes setup later", async reason => {
+  vi.useFakeTimers()
+  callbacks.connected()
+  snapshot()
+  typing()
+  input(mainInput)
+  expect(vi.getTimerCount()).toBeGreaterThan(0)
+
+  if (reason === "rejection") {
+    callbacks.rejected()
+  } else if (reason === "access revocation") {
+    callbacks.received({ type: "access.revoked" })
+  } else {
+    callbacks.disconnected({ willAttemptReconnect: false })
+  }
+  expect(vi.getTimerCount()).toBe(0)
+  expect(element.querySelector("[data-club-discussion-target='onlineMembers']")).toBeNull()
+  expect(element.querySelector("[data-club-discussion-target='typingStatus']")).toBeNull()
+  expect(element.querySelector("[data-club-discussion-target='content']")!.textContent).toBe("")
+
+  pending.resolve({ perform, unsubscribe })
+  await vi.advanceTimersByTimeAsync(60_000)
+  snapshot()
+  typing()
+
+  expect(unsubscribe).toHaveBeenCalledOnce()
+  expect(perform).not.toHaveBeenCalled()
+  expect(element.querySelector("[data-club-discussion-target='content']")!.textContent).toBe("")
+  expect(vi.getTimerCount()).toBe(0)
+})
+
 test("Redis unavailability clears transient UI and preserves discussion and the draft", async () => {
   await confirmConnection()
   snapshot()
@@ -331,6 +362,27 @@ test("Redis unavailability clears transient UI and preserves discussion and the 
   expect(mainInput.value).toBe("Keep this draft")
   expect(element.querySelector("[data-club-discussion-target='messages']")!.textContent).toBe("Discussion history")
   expect(element.querySelector<HTMLButtonElement>("[data-club-discussion-target='submit']")!.disabled).toBe(false)
+})
+
+test("a fresh snapshot after Redis failure restores presence without restoring old typing or replacing the subscription", async () => {
+  vi.useFakeTimers()
+  await confirmConnection()
+  snapshot()
+  typing()
+  mainInput.value = "Keep this draft"
+  callbacks.received({ type: "presence.unavailable" })
+  expect(vi.getTimerCount()).toBe(1)
+
+  await vi.advanceTimersByTimeAsync(10_000)
+  expect(perform).toHaveBeenCalledExactlyOnceWith("heartbeat", {})
+  snapshot([{ id: 7, nickname: "Joon" }, { id: 10, nickname: "Lena" }])
+
+  expect(Array.from(roster.querySelectorAll("strong"), name => name.textContent)).toEqual(["Joon", "Lena"])
+  expect(presenceStatus.classList.contains("club-discussion-sr-only")).toBe(true)
+  expect(typingStatus.textContent).toBe("")
+  expect(mainInput.value).toBe("Keep this draft")
+  expect(subscribeTo).toHaveBeenCalledOnce()
+  expect(unsubscribe).not.toHaveBeenCalled()
 })
 
 test("reconnection discards pending typing from the old connection and allows new input", async () => {
@@ -385,6 +437,22 @@ test("duplicate snapshots do not extend the freshness timeout", async () => {
   snapshot(undefined, timestamp)
   await vi.advanceTimersByTimeAsync(25_000)
 
+  expect(presenceStatus.textContent).toBe("Presence unavailable")
+})
+
+test("a newer snapshot restarts the 55 second freshness deadline", async () => {
+  vi.useFakeTimers()
+  await confirmConnection()
+  snapshot()
+  await vi.advanceTimersByTimeAsync(30_000)
+  snapshot()
+
+  await vi.advanceTimersByTimeAsync(25_000)
+  expect(roster.children).toHaveLength(2)
+  await vi.advanceTimersByTimeAsync(29_999)
+  expect(roster.children).toHaveLength(2)
+  await vi.advanceTimersByTimeAsync(1)
+  expect(roster.children).toHaveLength(0)
   expect(presenceStatus.textContent).toBe("Presence unavailable")
 })
 
