@@ -3505,8 +3505,9 @@ main.container:has(> [data-controller~="club-discussion"] > .book-club-detail-pa
 
   b {
     color: $accent;
-    font-family: "Fraunces", Georgia, serif;
+    font-family: inherit;
     font-size: 19px;
+    line-height: 1.3;
   }
 
   &--first {
@@ -3518,7 +3519,7 @@ main.container:has(> [data-controller~="club-discussion"] > .book-club-detail-pa
     }
 
     .book-club-podium-step {
-      height: 64px;
+      height: 88px;
       background: $accent;
       color: #fff;
       font-size: 26px;
@@ -3526,11 +3527,11 @@ main.container:has(> [data-controller~="club-discussion"] > .book-club-detail-pa
   }
 
   &--second .book-club-podium-step {
-    height: 42px;
+    height: 66px;
   }
 
   &--third .book-club-podium-step {
-    height: 36px;
+    height: 60px;
     background: #d5c5af;
   }
 }
@@ -3545,6 +3546,14 @@ main.container:has(> [data-controller~="club-discussion"] > .book-club-detail-pa
   color: #fff;
   font-size: 12px;
   font-weight: 700;
+
+  > .profile-avatar {
+    width: 100%;
+    height: 100%;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+  }
 }
 
 .book-club-podium-avatar {
@@ -3581,17 +3590,17 @@ main.container:has(> [data-controller~="club-discussion"] > .book-club-detail-pa
 
 .book-club-podium-step {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: center;
   width: 100%;
   align-self: center;
   margin-top: 2px;
-  padding-top: 10px;
   background: #e8e0d6;
   color: $text-muted;
   font-family: "Fraunces", Georgia, serif;
   font-size: 22px;
   font-weight: 700;
+  line-height: 1;
 }
 
 .book-club-ranking-card {
@@ -3636,6 +3645,10 @@ main.container:has(> [data-controller~="club-discussion"] > .book-club-detail-pa
   font-family: "Fraunces", Georgia, serif;
   font-size: 15px;
   font-weight: 700;
+}
+
+.book-club-ranking-pages {
+  font-family: inherit;
 }
 
 .book-club-ranking-reader {
