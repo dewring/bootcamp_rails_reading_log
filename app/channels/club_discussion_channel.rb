@@ -2,6 +2,8 @@ class ClubDiscussionChannel < ApplicationCable::Channel
   MESSAGE_LIMIT = 20
   MESSAGE_PERIOD = 1.minute
   HEARTBEAT_MINIMUM_INTERVAL = 5.seconds
+  TYPING_MINIMUM_INTERVAL = 1.second
+  TYPING_EXPIRY = 3.seconds
 
   def subscribed
     @book_club = BookClub.find_by(id: params[:book_club_id])
@@ -27,6 +29,25 @@ class ClubDiscussionChannel < ApplicationCable::Channel
     return revoke_discussion_access unless discussion_allowed?
 
     renew_presence
+  end
+
+  def typing(_data = {})
+    return if @access_revoked || !@presence_connection_token
+    return revoke_discussion_access unless discussion_allowed?
+
+    user = User.find_by(id: current_user.id)
+    return unless BookClubPolicy.new(user, @book_club).post_message?
+
+    now = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+    return if @last_typing_event_at && now - @last_typing_event_at < TYPING_MINIMUM_INTERVAL.to_i
+
+    @last_typing_event_at = now
+    self.class.broadcast_to(@book_club, {
+      type: "typing.started",
+      user_id: user.id,
+      connection_token: @presence_connection_token,
+      generated_at: Time.current.iso8601(6)
+    })
   end
 
   def post_message(data)
@@ -224,6 +245,13 @@ class ClubDiscussionChannel < ApplicationCable::Channel
 
       if event["type"] == "presence.snapshot"
         event = event.except("member_ids").merge("members" => presence_members(event.fetch("member_ids")))
+      elsif event["type"] == "typing.started"
+        return if Time.iso8601(event.fetch("generated_at")) <= Time.current - TYPING_EXPIRY
+
+        member = presence_members([ event.fetch("user_id") ]).first
+        return unless member
+
+        event = event.except("user_id").merge("member" => member)
       end
       transmit event
     else

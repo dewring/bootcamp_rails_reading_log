@@ -64,6 +64,25 @@ class ClubDiscussionPresenceTest < ActiveSupport::TestCase
     assert_equal 1, @redis.zcard(@key)
   end
 
+  test "real streams deliver typing with server derived identity and no message or notification records" do
+    sender = subscribe_to_presence(@member)
+    observer = subscribe_to_presence(@owner)
+    identifier = { channel: "ClubDiscussionChannel", book_club_id: @book_club.id }.to_json
+
+    assert_no_difference [ "ClubMessage.count", "Noticed::Event.count", "Noticed::Notification.count" ] do
+      sender.subscriptions.perform_action(
+        "identifier" => identifier,
+        "data" => { action: "typing", user_id: @owner.id, body: "Private draft", connection_token: "spoofed" }.to_json
+      )
+    end
+
+    event = next_event(observer, "typing.started")
+    assert_equal({ "id" => @member.id, "nickname" => @member.nickname }, event.fetch("member"))
+    assert_match(/\A[0-9a-f]{32}\z/, event.fetch("connection_token"))
+    assert_not event.key?("body")
+    assert_not event.key?("user_id")
+  end
+
   private
 
   def subscribe_to_presence(user)
