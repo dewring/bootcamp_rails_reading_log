@@ -2790,6 +2790,11 @@ main.container:has(> [data-controller~="club-discussion"] > .book-club-detail-pa
   }
 }
 
+.book-club-overview-card > .book-club-description {
+  font-size: 13px;
+  line-height: 1.6;
+}
+
 .book-club-past-picks-card {
   min-height: 232px;
 }

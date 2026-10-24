@@ -44,6 +44,7 @@ class BookClubsControllerTest < ActionDispatch::IntegrationTest
       assert_select "#owner-controls form[action='#{book_club_path(club)}']"
       assert_select "#owner-controls input[name='book_club[name]'][value='#{club.name}']"
       assert_select "#owner-controls textarea[name='book_club[description]']"
+      assert_select ".book-club-current-pick-card a", text: "Change Pick", count: 0
       assert_select "#owner-controls .form-submit a.club-owner-delete[href='#{book_club_path(club)}'][data-turbo-method='delete'][data-turbo-confirm]", text: "Delete book club"
 
       patch book_club_path(club), params: { book_club: { name: "Updated club", description: "Read together", current_book_id: books(:refactoring).id, reading_deadline: "2026-12-15" } }
@@ -319,7 +320,9 @@ class BookClubsControllerTest < ActionDispatch::IntegrationTest
       assert_select "meta[name='turbo-refresh-method'][content='morph']"
       assert_select "meta[name='turbo-refresh-scroll'][content='preserve']"
       assert_select ".book-club-current-pick-information h2", text: books(:pragmatic).title
-      assert_select ".book-club-current-pick-card a[href='#{edit_book_club_path(club)}']", text: "Change Pick", count: controls
+      assert_select ".book-club-current-pick-card a", text: "Change Pick", count: 0
+      assert_select "#owner-controls", count: controls
+      assert_select ".book-club-description", text: "A welcoming space for readers to share the books they love."
       sign_out viewer
     end
   end
