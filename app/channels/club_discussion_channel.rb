@@ -148,8 +148,12 @@ class ClubDiscussionChannel < ApplicationCable::Channel
   end
 
   def presence_members(member_ids)
-    @book_club.users.where(id: member_ids).order(:id).pluck(:id, :nickname).map do |id, nickname|
-      { id: id, nickname: nickname }
+    @book_club.users.where(id: member_ids).includes(avatar_attachment: :blob).order(:id).map do |user|
+      member = { id: user.id, nickname: user.nickname }
+      if user.avatar.attached?
+        member[:avatar_url] = Rails.application.routes.url_helpers.rails_blob_path(user.avatar, only_path: true)
+      end
+      member
     end
   end
 

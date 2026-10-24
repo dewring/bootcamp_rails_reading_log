@@ -53,6 +53,17 @@ class ClubDiscussionHeartbeatTest < ActionCable::Channel::TestCase
     assert_equal [ @member.id ], presence.active_member_ids
   end
 
+  test "presence snapshots include the same attached avatar path used for discussion authors" do
+    @member.avatar.attach(io: File.open(file_fixture("cover_test.jpg")), filename: "avatar.jpg", content_type: "image/jpeg")
+    stub_connection current_user: @member
+
+    subscribe book_club_id: @book_club.id
+
+    member = transmissions.last.fetch("members").find { |entry| entry.fetch(:id) == @member.id }
+    expected_path = Rails.application.routes.url_helpers.rails_blob_path(@member.avatar, only_path: true)
+    assert_equal expected_path, member.fetch(:avatar_url)
+  end
+
   test "heartbeat ignores client identity timestamps tokens and club ids" do
     freeze_time do
       stub_connection current_user: @member

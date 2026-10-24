@@ -17,6 +17,7 @@ export interface DiscussionMessage {
 export interface DiscussionMember {
   id: number
   nickname: string
+  avatar_url?: string | null
 }
 
 export interface DiscussionEvent {
@@ -526,13 +527,7 @@ export default class extends Controller {
     const members = new Map(event.members.map(member => [member.id, member]))
     if (this.hasOnlineMembersTarget) {
       const orderedMembers = Array.from(members.values()).sort((first, second) => Number(second.id === this.currentUserIdValue) - Number(first.id === this.currentUserIdValue))
-      let peerIndex = 0
-      const items = orderedMembers.map(member => {
-        const isCurrentUser = member.id === this.currentUserIdValue
-        const color = isCurrentUser ? "self" : ["sage", "blue", "lavender"][peerIndex % 3]
-        if (!isCurrentUser) peerIndex += 1
-        return this.buildPresenceMember(member, color)
-      })
+      const items = orderedMembers.map(member => this.buildPresenceMember(member))
       this.onlineMembersTarget.replaceChildren(...items)
       this.onlineMembersTarget.hidden = items.length === 0
     }
@@ -554,19 +549,11 @@ export default class extends Controller {
     this.snapshotTimeout = setTimeout(() => this.showPresenceUnavailable(), 55_000)
   }
 
-  private buildPresenceMember(member: DiscussionMember, color: string): HTMLLIElement {
+  private buildPresenceMember(member: DiscussionMember): HTMLLIElement {
     const item = document.createElement("li")
     item.className = "club-presence-member"
     item.dataset.memberId = String(member.id)
     const avatar = buildUserAvatar(member)
-    avatar.dataset.presenceColor = color
-    const initials = avatar.querySelector<HTMLElement>(".profile-avatar-initials")
-    const words = member.nickname.trim().split(/\s+/)
-    if (initials) {
-      initials.textContent = words.length > 1
-        ? words.slice(0, 2).map(word => word.charAt(0)).join("").toUpperCase()
-        : member.nickname.slice(0, 2).toUpperCase()
-    }
     const details = document.createElement("span")
     details.className = "club-presence-details"
     const name = document.createElement("strong")

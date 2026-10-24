@@ -126,6 +126,16 @@ test("an empty successful snapshot shows zero members rather than unavailable", 
   expect(roster.hidden).toBe(true)
 })
 
+test("presence members use the shared profile image when an avatar URL is supplied", () => {
+  const avatarUrl = "/rails/active_storage/blobs/redirect/signed-id/avatar.jpg"
+  snapshot([{ id: 7, nickname: "Admin", avatar_url: avatarUrl }])
+
+  const avatar = roster.querySelector(".profile-avatar--club_member")!
+  expect(avatar.querySelector("img")!.getAttribute("src")).toBe(avatarUrl)
+  expect(avatar.querySelector(".profile-avatar-initials")).toBeNull()
+  expect(avatar.hasAttribute("data-presence-color")).toBe(false)
+})
+
 test("the Figma roster puts the current user first and shows initials and per-member typing status", async () => {
   vi.useFakeTimers()
   snapshot([
@@ -136,7 +146,7 @@ test("the Figma roster puts the current user first and shows initials and per-me
   ])
   const rows = Array.from(roster.children)
   expect(rows.map(row => row.querySelector("strong")!.textContent)).toEqual(["Maya Chen", "Lena Ortiz", "Theo Brooks", "Amara Singh"])
-  expect(rows.map(row => row.querySelector(".profile-avatar-initials")!.textContent)).toEqual(["MC", "LO", "TB", "AS"])
+  expect(rows.map(row => row.querySelector(".profile-avatar-initials")!.textContent)).toEqual(["MA", "LE", "TH", "AM"])
   expect(rows.map(row => row.querySelector(".club-presence-member-status")!.textContent)).toEqual(["You", "Online", "Online", "Online"])
   expect(presenceStatus.classList.contains("club-discussion-sr-only")).toBe(true)
 
