@@ -24,6 +24,7 @@ class BookClubLeaderboardsControllerTest < ActionDispatch::IntegrationTest
     assert_select ".book-club-sidebar-navigation a.is-active[href='#{leaderboard_path}']", text: "Leaderboard"
     assert_select ".book-club-sidebar-navigation a.is-active", count: 1
     assert_select ".book-club-podium-card"
+    assert_select ".book-club-podium-column--first .book-club-podium-label", count: 0
     assert_select ".book-club-ranking-card"
     assert_select ".book-club-reading-rail"
     assert_select ".book-club-ranking-row", count: 1
@@ -57,6 +58,32 @@ class BookClubLeaderboardsControllerTest < ActionDispatch::IntegrationTest
     get book_club_leaderboard_path(club)
 
     assert_redirected_to new_user_session_path
+  end
+
+  test "podium and ranking show uploaded photos and fall back to the first two nickname characters" do
+    club = BookClub.create!(name: "Avatar ranking", current_book: books(:refactoring))
+    photo_reader = users(:leika)
+    initials_reader = users(:jaina)
+    club.book_club_memberships.create!(user: photo_reader, role: "owner")
+    club.book_club_memberships.create!(user: initials_reader, role: "member")
+    photo_reader.avatar.attach(io: File.open(file_fixture("cover_test.jpg")), filename: "avatar.jpg", content_type: "image/jpeg")
+    ReadingSession.create!(user: initials_reader, book: books(:refactoring), read_on: Date.current, pages_read: 50)
+    sign_in photo_reader
+
+    get book_club_leaderboard_path(club)
+
+    assert_response :success
+    [ ".book-club-podium-avatar", ".book-club-ranking-avatar" ].each do |selector|
+      assert_select "#{selector} .profile-avatar[aria-label='#{photo_reader.nickname} profile photo']" do
+        assert_select "img.profile-avatar-image[src*='avatar.jpg']", count: 1
+        assert_select ".profile-avatar-initials", count: 0
+      end
+      assert_select "#{selector} .profile-avatar[aria-label='#{initials_reader.nickname} profile photo']" do
+        assert_select ".profile-avatar-initials", text: initials_reader.nickname.first(2).upcase
+        assert_select "img", count: 0
+      end
+    end
+    assert_select ".book-club-podium-avatar--empty", text: "—", count: 1
   end
 
   test "ordinary nonmembers cannot request leaderboard directly" do

@@ -1,6 +1,9 @@
 class ClubDiscussionChannel < ApplicationCable::Channel
   MESSAGE_LIMIT = 20
   MESSAGE_PERIOD = 1.minute
+  HEARTBEAT_MINIMUM_INTERVAL = 5.seconds
+  TYPING_MINIMUM_INTERVAL = 1.second
+  TYPING_EXPIRY = 3.seconds
 
   def subscribed
     @book_club = BookClub.find_by(id: params[:book_club_id])
@@ -9,9 +12,42 @@ class ClubDiscussionChannel < ApplicationCable::Channel
       stream_for @book_club, coder: ActiveSupport::JSON do |event|
         transmit_discussion_event(event)
       end
+      @presence_connection_token = SecureRandom.hex(16)
+      renew_presence(initial_snapshot: true)
     else
       reject
     end
+  end
+
+  def unsubscribed
+    @access_revoked = true
+    remove_presence_connection
+  end
+
+  def heartbeat(_data = {})
+    return if @access_revoked || !@presence_connection_token
+    return revoke_discussion_access unless discussion_allowed?
+
+    renew_presence
+  end
+
+  def typing(_data = {})
+    return if @access_revoked || !@presence_connection_token
+    return revoke_discussion_access unless discussion_allowed?
+
+    user = User.find_by(id: current_user.id)
+    return unless BookClubPolicy.new(user, @book_club).post_message?
+
+    now = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+    return if @last_typing_event_at && now - @last_typing_event_at < TYPING_MINIMUM_INTERVAL.to_i
+
+    @last_typing_event_at = now
+    self.class.broadcast_to(@book_club, {
+      type: "typing.started",
+      user_id: user.id,
+      connection_token: @presence_connection_token,
+      generated_at: Time.current.iso8601(6)
+    })
   end
 
   def post_message(data)
@@ -69,6 +105,57 @@ class ClubDiscussionChannel < ApplicationCable::Channel
   end
 
   private
+
+  def renew_presence(initial_snapshot: false)
+    now = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+    return if @last_presence_renewal_at && now - @last_presence_renewal_at < HEARTBEAT_MINIMUM_INTERVAL.to_i
+
+    @last_presence_renewal_at = now
+    member_ids = Rails.configuration.x.club_presence.redis_pool.with do |redis|
+      presence = ClubPresence.new(@book_club, redis: redis)
+      if @book_club.book_club_memberships.exists?(user_id: current_user.id)
+        presence.renew_connection(user_id: current_user.id, connection_token: @presence_connection_token)
+      else
+        presence.active_member_ids
+      end
+    end
+    event = broadcast_presence_snapshot(member_ids)
+    transmit_discussion_event(event.stringify_keys) if initial_snapshot
+  rescue Redis::BaseError, ConnectionPool::TimeoutError => error
+    Rails.logger.warn("Club presence unavailable for book club #{@book_club.id}: #{error.class}")
+    transmit({ type: "presence.unavailable" })
+  end
+
+  def remove_presence_connection
+    return unless @presence_connection_token
+
+    connection_token = @presence_connection_token
+    @presence_connection_token = nil
+    member_ids = Rails.configuration.x.club_presence.redis_pool.with do |redis|
+      presence = ClubPresence.new(@book_club, redis: redis)
+      presence.remove_connection(user_id: current_user.id, connection_token: connection_token)
+    end
+    broadcast_presence_snapshot(member_ids) if BookClub.exists?(@book_club.id)
+  rescue Redis::BaseError, ConnectionPool::TimeoutError => error
+    Rails.logger.warn("Club presence cleanup failed for book club #{@book_club.id}: #{error.class}")
+    self.class.broadcast_to(@book_club, { type: "presence.unavailable" })
+  end
+
+  def broadcast_presence_snapshot(member_ids)
+    event = { type: "presence.snapshot", member_ids: member_ids, generated_at: Time.current.iso8601(6) }
+    self.class.broadcast_to(@book_club, event)
+    event
+  end
+
+  def presence_members(member_ids)
+    @book_club.users.where(id: member_ids).includes(avatar_attachment: :blob).order(:id).map do |user|
+      member = { id: user.id, nickname: user.nickname }
+      if user.avatar.attached?
+        member[:avatar_url] = Rails.application.routes.url_helpers.rails_blob_path(user.avatar, only_path: true)
+      end
+      member
+    end
+  end
 
   def discussion_message_from(data)
     message_id = data["message_id"]
@@ -160,6 +247,16 @@ class ClubDiscussionChannel < ApplicationCable::Channel
     if discussion_allowed?
       return if event["type"] == "access.recheck"
 
+      if event["type"] == "presence.snapshot"
+        event = event.except("member_ids").merge("members" => presence_members(event.fetch("member_ids")))
+      elsif event["type"] == "typing.started"
+        return if Time.iso8601(event.fetch("generated_at")) <= Time.current - TYPING_EXPIRY
+
+        member = presence_members([ event.fetch("user_id") ]).first
+        return unless member
+
+        event = event.except("user_id").merge("member" => member)
+      end
       transmit event
     else
       revoke_discussion_access
@@ -169,6 +266,7 @@ class ClubDiscussionChannel < ApplicationCable::Channel
   def revoke_discussion_access
     @access_revoked = true
     stop_all_streams
+    remove_presence_connection
     transmit({ type: "access.revoked" })
   end
 end

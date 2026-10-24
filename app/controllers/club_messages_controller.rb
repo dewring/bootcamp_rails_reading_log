@@ -11,14 +11,17 @@ class ClubMessagesController < ApplicationController
       .order(id: :desc)
 
     response.headers["Cache-Control"] = "no-store"
+    @pagy, @messages = pagy(:offset, messages, limit: 10)
 
     respond_to do |format|
       format.json do
-        render json: { messages: messages.limit(20).map(&:discussion_payload) }
+        render json: {
+          messages: @messages.map(&:discussion_payload),
+          pagination_html: render_to_string(partial: "club_messages/pagination", formats: [ :html ])
+        }
       end
       format.html do
         @book_club.preload_covers
-        @pagy, @messages = pagy(:offset, messages, limit: 20)
       end
     end
   end

@@ -35,6 +35,7 @@ gem "noticed", "~> 3.0"
 # Security Updates (Bundler Audit)
 gem "mail", "~> 2.9.1"
 gem "css_parser", ">= 3.3.0"
+gem "crass", ">= 1.0.8"
 
 
 # Use Active Model has_secure_password [https://guides.rubyonrails.org/active_model_basics.html#securepassword]

@@ -29,12 +29,11 @@
               <% reader = entry[:reader] %>
               <div class="book-club-podium-column book-club-podium-column--<%= entry[:class_name] %>">
                 <% if reader %>
-                  <% initials = reader.nickname.to_s.first(2).upcase %>
-                  <div class="book-club-podium-avatar"><%= initials %></div>
+                  <div class="book-club-podium-avatar">
+                    <%= render "users/avatar", user: reader, variant: :leaderboard %>
+                  </div>
                   <strong><%= reader.nickname %></strong>
-                  <% if entry[:place] == 1 %>
-                    <span class="book-club-podium-label">#1 · Leading the pack</span>
-                  <% elsif reader.id == current_user.id %>
+                  <% if entry[:place] != 1 && reader.id == current_user.id %>
                     <span class="book-club-podium-label">you</span>
                   <% end %>
                   <b><%= reader.furthest_page_read %> pages</b>
@@ -60,15 +59,17 @@
               <% current_reader = reader.id == current_user.id %>
               <div class="book-club-ranking-row <%= "book-club-ranking-row--current" if current_reader %>">
                 <span class="book-club-ranking-number">#<%= reader.rank.to_i %></span>
-                <span class="book-club-ranking-reader">
-                  <span class="book-club-ranking-avatar"><%= reader.nickname.to_s.first(2).upcase %></span>
+                <div class="book-club-ranking-reader">
+                  <div class="book-club-ranking-avatar">
+                    <%= render "users/avatar", user: reader, variant: :leaderboard %>
+                  </div>
                   <strong><%= reader.nickname %></strong>
                   <% if reader.rank.to_i == 1 %>
                     <span class="book-club-ranking-badge">leading</span>
                   <% elsif current_reader %>
                     <span class="book-club-ranking-badge">you</span>
                   <% end %>
-                </span>
+                </div>
                 <strong class="book-club-ranking-pages"><%= reader.furthest_page_read %></strong>
               </div>
             <% end %>

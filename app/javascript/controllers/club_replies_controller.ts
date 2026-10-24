@@ -9,11 +9,13 @@ interface ReplyHistory {
 }
 
 export default class extends Controller {
-  static targets = ["toggle", "panel", "list", "status", "more", "body", "label", "submit", "cancel", "composerStatus", "form"]
+  static targets = ["toggle", "countLabel", "panel", "list", "status", "more", "body", "label", "submit", "cancel", "composerStatus", "form"]
   static outlets = ["club-discussion"]
-  static values = { url: String, postId: Number, deleted: Boolean }
+  static values = { url: String, postId: Number, deleted: Boolean, count: Number }
 
   declare deletedValue: boolean
+  declare countValue: number
+  declare readonly countLabelTarget: HTMLElement
   declare readonly hasFormTarget: boolean
   declare readonly formTarget: HTMLFormElement
   declare readonly urlValue: string
@@ -39,8 +41,10 @@ export default class extends Controller {
   private loaded = false
   private nextPage: number | null = 1
   private displayedIds = new Set<number>()
+  private replyCountChanges = new Map<number, boolean>()
 
   connect() {
+    this.updateCommentLabel()
     this.panelTarget.id = `club_replies_${this.postIdValue}`
     this.toggleTarget.setAttribute("aria-controls", this.panelTarget.id)
     if (this.hasBodyTarget) {
@@ -155,6 +159,9 @@ export default class extends Controller {
     if (!this.belongsToDiscussion(event)) return
 
     const result = event.detail
+    if ((result.type === "reply.created" || result.type === "reply.saved") && result.message?.parent_id === this.postIdValue) {
+      this.updateCommentCount(result.message.id, true)
+    }
     if (result.type === "reply.created" && result.message) {
       if (this.loaded || !this.panelTarget.hidden) this.displayReply(result.message)
       return
@@ -191,9 +198,25 @@ export default class extends Controller {
 
     if (message.id === this.postIdValue) this.disableReplies()
     if (message.parent_id === this.postIdValue) {
+      this.updateCommentCount(message.id, false)
       this.listTarget.querySelector(`#club_message_${message.id}`)?.remove()
       this.displayedIds.delete(message.id)
     }
+  }
+
+  private updateCommentCount(replyId: number, present: boolean) {
+    const previous = this.replyCountChanges.get(replyId)
+    // The sender can receive both the broadcast and acknowledgement for one comment.
+    // A delayed creation event must not restore a comment already deleted.
+    if (previous === present || (previous === false && present)) return
+
+    this.replyCountChanges.set(replyId, present)
+    this.countValue = Math.max(0, this.countValue + (present ? 1 : -1))
+    this.updateCommentLabel()
+  }
+
+  private updateCommentLabel() {
+    this.countLabelTarget.textContent = `${this.countValue} ${this.countValue === 1 ? "comment" : "comments"}`
   }
 
   private disableReplies() {

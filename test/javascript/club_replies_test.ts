@@ -17,7 +17,7 @@ beforeEach(async () => {
   element.dataset.clubRepliesPostIdValue = "7"
   element.dataset.clubRepliesUrlValue = "/book_clubs/17/club_messages/7/replies"
   element.dataset.action = "turbo:before-cache@document->club-replies#beforeCache"
-  element.innerHTML = `<button data-club-replies-target="toggle" data-action="club-replies#toggle" aria-expanded="false">Replies</button><div data-club-replies-target="panel" hidden><div data-club-replies-target="list"></div><p role="status" data-club-replies-target="status"></p><button data-club-replies-target="more" data-action="club-replies#loadMore" hidden>Load more replies</button></div>`
+  element.innerHTML = `<button data-club-replies-target="toggle" data-action="club-replies#toggle" aria-expanded="false"><span data-club-replies-target="countLabel">0 comments</span></button><div data-club-replies-target="panel" hidden><div data-club-replies-target="list"></div><p role="status" data-club-replies-target="status"></p><button data-club-replies-target="more" data-action="club-replies#loadMore" hidden>Load more replies</button></div>`
   document.body.append(element)
   toggle = element.querySelector("button")!
   panel = element.querySelector("[data-club-replies-target='panel']")!

@@ -124,7 +124,7 @@ GEM
     crack (1.0.1)
       bigdecimal
       rexml
-    crass (1.0.7)
+    crass (1.0.8)
     css_parser (3.3.0)
       addressable
       base64
@@ -527,6 +527,7 @@ PLATFORMS
   arm-linux-musleabihf
   arm64-darwin-24
   arm64-darwin-25
+  arm64-darwin-27
   x86_64-linux
   x86_64-linux-gnu
   x86_64-linux-musl
@@ -539,6 +540,7 @@ DEPENDENCIES
   brakeman
   bullet
   bundler-audit
+  crass (>= 1.0.8)
   css_parser (>= 3.3.0)
   dartsass-rails
   debug

@@ -9,6 +9,8 @@ class ClubDiscussionChannelTest < ActionCable::Channel::TestCase
     @admin = users(:admin)
     @book_club.book_club_memberships.create!(user: @owner, role: "owner")
     @book_club.book_club_memberships.create!(user: @member, role: "member")
+    presence = instance_double(ClubPresence, renew_connection: [], active_member_ids: [], remove_connection: [])
+    allow(ClubPresence).to receive(:new).and_return(presence)
   end
 
   teardown do
@@ -77,12 +79,13 @@ class ClubDiscussionChannelTest < ActionCable::Channel::TestCase
     post = @book_club.club_messages.create!(user: @member, body: "A thought")
     stub_connection current_user: @member
     subscribe book_club_id: @book_club.id
+    initial_transmissions = transmissions.dup
     request_ids = [ nil, "", "a" * 65, 123 ]
 
     request_ids.each do |request_id|
       perform :delete_message, request_id: request_id, message_id: post.id
     end
-    assert_empty transmissions
+    assert_equal initial_transmissions, transmissions
     assert_not post.reload.deleted?
   end
 
@@ -247,6 +250,7 @@ class ClubDiscussionChannelTest < ActionCable::Channel::TestCase
     message = @book_club.club_messages.create!(user: @member, body: "Original thought")
     stub_connection current_user: @member
     subscribe book_club_id: @book_club.id
+    initial_transmissions = transmissions.dup
     request_ids = [ nil, "", "a" * 65, 123 ]
 
     request_ids.each do |request_id|
@@ -254,7 +258,7 @@ class ClubDiscussionChannelTest < ActionCable::Channel::TestCase
         perform :update_message, request_id: request_id, message_id: message.id, body: "Revised thought"
       end
     end
-    assert_empty transmissions
+    assert_equal initial_transmissions, transmissions
     assert_equal "Original thought", message.reload.body
   end
 

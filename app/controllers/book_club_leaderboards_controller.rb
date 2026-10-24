@@ -4,7 +4,7 @@ class BookClubLeaderboardsController < ApplicationController
 
   def show
     authorize @book_club, :leaderboard?
-    @leaderboard = @book_club.leaderboard.to_a
+    @leaderboard = @book_club.leaderboard.preload(avatar_attachment: :blob).to_a
   end
 
   private

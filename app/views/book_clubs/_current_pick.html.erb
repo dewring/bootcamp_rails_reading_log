@@ -16,9 +16,6 @@
       <h2><%= link_to book_club.current_book.title, book_club.current_book %></h2>
       <p><%= book_club.current_book.author %><% if variant == :discussion && book_club.current_book.total_pages.present? %> · <%= pluralize(book_club.current_book.total_pages, "page") %><% end %></p>
     </div>
-    <% if variant == :overview && policy(book_club).manage? %>
-      <%= link_to "Change Pick", edit_book_club_path(book_club), class: "book-club-action book-club-action--secondary" %>
-    <% end %>
   <% else %>
     <div class="book-club-current-pick-empty">
       <h2>Current pick</h2>
