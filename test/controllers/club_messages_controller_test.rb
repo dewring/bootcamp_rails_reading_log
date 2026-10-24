@@ -13,7 +13,7 @@ class ClubMessagesControllerTest < ActionDispatch::IntegrationTest
     @message = @book_club.club_messages.create!(user: @owner, body: "First thought")
   end
 
-  test "history fills the page with visible posts before applying its twenty post limit" do
+  test "history fills the page with visible posts before applying its ten post limit" do
     visible_posts = [ @message ]
     20.times do |number|
       visible_posts.push(@book_club.club_messages.create!(user: @member, body: "Visible thought #{number}"))
@@ -27,13 +27,30 @@ class ClubMessagesControllerTest < ActionDispatch::IntegrationTest
     get book_club_club_messages_path(@book_club), as: :json
 
     assert_response :success
-    expected_ids = visible_posts.last(20).reverse.map(&:id)
+    expected_ids = visible_posts.last(10).reverse.map(&:id)
     assert_equal expected_ids, response.parsed_body.fetch("messages").map { |message| message.fetch("id") }
 
     get book_club_club_messages_path(@book_club)
 
     assert_response :success
-    assert_select "[data-club-discussion-target='paginationSummary']", text: "21 posts · Page 1 of 2"
+    assert_select "[data-club-discussion-target='paginationSummary']", text: "21 posts · Page 1 of 3"
+  end
+
+  test "comment toggles show each post's total with singular and plural labels before expansion" do
+    single_comment_post = @book_club.club_messages.create!(user: @owner, body: "One answer")
+    two_comment_post = @book_club.club_messages.create!(user: @owner, body: "Two answers")
+    [ single_comment_post, two_comment_post, two_comment_post ].each do |post|
+      @book_club.club_messages.create!(parent: post, user: @member, body: "A comment")
+    end
+    sign_in @member
+
+    get book_club_club_messages_path(@book_club)
+
+    assert_response :success
+    { @message => "0 comments", single_comment_post => "1 comment", two_comment_post => "2 comments" }.each do |post, label|
+      assert_select "#club_message_#{post.id} button[data-club-replies-target='toggle']", text: label
+      assert_select "#club_message_#{post.id} [data-club-replies-target='panel'][hidden]", count: 1
+    end
   end
 
   test "deleted posts without replies are excluded from HTML JSON and pagination while remaining in the database" do
@@ -289,7 +306,7 @@ class ClubMessagesControllerTest < ActionDispatch::IntegrationTest
     assert_select "[data-club-discussion-target='paginationSummary']", text: "1 post · Page 1 of 1"
   end
 
-  test "history returns only the latest 20 messages in descending id order" do
+  test "history returns only the latest 10 messages in descending id order" do
     messages = [ @message ]
     21.times do |number|
       messages.push(@book_club.club_messages.create!(user: @member, body: "Thought #{number}"))
@@ -299,7 +316,14 @@ class ClubMessagesControllerTest < ActionDispatch::IntegrationTest
     get book_club_club_messages_path(@book_club), as: :json
 
     assert_response :success
-    assert_equal messages.last(20).reverse.map(&:id), response.parsed_body.fetch("messages").map { |message| message.fetch("id") }
+    assert_equal messages.last(10).reverse.map(&:id), response.parsed_body.fetch("messages").map { |message| message.fetch("id") }
+    pagination = Nokogiri::HTML.fragment(response.parsed_body.fetch("pagination_html"))
+    assert pagination.at_css("nav.pagy.series-nav a[href*='page=2']")
+
+    get book_club_club_messages_path(@book_club), params: { page: 3 }, as: :json
+
+    assert_response :success
+    assert_equal messages.first(2).reverse.map(&:id), response.parsed_body.fetch("messages").map { |message| message.fetch("id") }
   end
 
   test "nonmember admin can read history without leaking another clubs messages" do
@@ -349,7 +373,7 @@ class ClubMessagesControllerTest < ActionDispatch::IntegrationTest
     assert_not_includes response.body, @message.body
   end
 
-  test "html history paginates 20 posts newest first and links to older posts" do
+  test "html history paginates 10 posts newest first and links to older posts" do
     messages = [ @message ]
     21.times do |number|
       message = @book_club.club_messages.create!(user: @member, body: "Thought #{number}")
@@ -362,19 +386,24 @@ class ClubMessagesControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_equal "text/html", response.media_type
     assert_equal "no-store", response.headers["Cache-Control"]
-    expected_ids = messages.last(20).reverse.map { |message| "club_message_#{message.id}" }
+    expected_ids = messages.last(10).reverse.map { |message| "club_message_#{message.id}" }
     actual_ids = css_select(".club-discussion-message").map { |element| element["id"] }
     assert_equal expected_ids, actual_ids
     assert_select ".club-discussion-pagination a[href*='page=2']"
+    assert_select ".club-discussion-pagination nav.pagy.series-nav", count: 1
+    assert_select ".club-discussion-feed > .club-discussion-history + footer.club-discussion-pagination", count: 1
+    assert_select ".club-discussion-body > aside.club-discussion-rail", count: 1
+    assert_select "[data-club-discussion-target='olderPosts']", count: 0
     assert_select ".book-club-sidebar-navigation a.is-active[aria-current='page']", text: "Discussion"
     assert_select ".book-club-sidebar-navigation a.is-active", count: 1
 
     get book_club_club_messages_path(@book_club), params: { page: 2 }
 
     assert_response :success
-    expected_ids = messages.first(2).reverse.map { |message| "club_message_#{message.id}" }
+    expected_ids = messages.reverse.slice(10, 10).map { |message| "club_message_#{message.id}" }
     actual_ids = css_select(".club-discussion-message").map { |element| element["id"] }
     assert_equal expected_ids, actual_ids
+    assert_select "[data-club-discussion-target='paginationSummary']", text: "22 posts · Page 2 of 3"
   end
 
   test "html history is readable by nonmember admins and scoped to the requested club" do
@@ -443,6 +472,45 @@ class ClubMessagesControllerTest < ActionDispatch::IntegrationTest
       assert_select "[data-club-discussion-target='emptyState'][hidden]"
       assert_select "p[role='status'][data-club-discussion-target='status'][hidden]"
     end
+  end
+
+  test "discussion renders an unavailable semantic roster and wires typing only for new posts and replies" do
+    sign_in @member
+
+    get book_club_club_messages_path(@book_club)
+
+    assert_response :success
+    assert_select "aside.club-discussion-rail" do
+      assert_select "section[aria-labelledby='club-discussion-presence-title']"
+      assert_select "section[aria-labelledby='club-discussion-composer-title']"
+    end
+    rail_sections = css_select(".club-discussion-rail > section").map { |section| section["aria-labelledby"] }
+    assert_equal [ "club-discussion-presence-title", "club-discussion-composer-title" ], rail_sections
+    assert_select ".book-club-overview-content > section.club-discussion-presence", count: 0
+    assert_select "aside.club-discussion-rail section[aria-labelledby='club-discussion-presence-title']" do
+      assert_select "h2#club-discussion-presence-title", text: "Online members"
+      assert_select "p[role='status'][data-club-discussion-target='presenceStatus']", text: "Presence unavailable"
+      assert_select "ul[data-club-discussion-target='onlineMembers'][hidden]" do
+        assert_select "li", count: 0
+      end
+    end
+    assert_select "p.club-discussion-sr-only[role='status'][data-club-discussion-target='typingStatus']"
+    assert_select "template[data-club-discussion-target='typingIndicator'] img[src*='discussion-typing-dot'][width='6'][height='6']"
+    assert_select "textarea[data-club-discussion-target='body'][data-action='input->club-discussion#typing']", count: 1
+    assert_select ".club-discussion-reply-form textarea[data-action='input->club-discussion#typing']", minimum: 1
+    assert_select ".club-message-edit-form textarea[data-action*='typing']", count: 0
+  end
+
+  test "a nonmember admin sees presence markup without typing inputs" do
+    sign_in @admin
+
+    get book_club_club_messages_path(@book_club)
+
+    assert_response :success
+    assert_select "[data-club-discussion-can-post-value='false']"
+    assert_select "section[aria-labelledby='club-discussion-presence-title']"
+    assert_select "p[role='status'][data-club-discussion-target='typingStatus']"
+    assert_select "textarea[data-action='input->club-discussion#typing']", count: 0
   end
 
   test "discussion navigation is available to members and admins but hidden from ordinary nonmembers" do

@@ -57,7 +57,7 @@ beforeEach(async () => {
   element.setAttribute("data-club-discussion-total-posts-value", "1")
   element.setAttribute("data-action", "turbo:before-cache@document->club-discussion#beforeCache")
   element.innerHTML = `
-    <section data-club-discussion-target="content"><div data-club-discussion-target="messages"><article id="club_message_1" data-message-id="1">Private discussion</article></div><p data-club-discussion-target="emptyState" hidden></p><p data-club-discussion-target="paginationSummary"></p><div data-club-discussion-target="pagination"></div><a data-club-discussion-target="olderPosts" href="/book_clubs/17/club_messages?page=2" hidden></a></section>
+    <section data-club-discussion-target="content"><div data-club-discussion-target="messages"><article id="club_message_1" data-message-id="1">Private discussion</article></div><p data-club-discussion-target="emptyState" hidden></p><p data-club-discussion-target="paginationSummary"></p><div data-club-discussion-target="pagination"></div></section>
     <p data-club-discussion-target="status" role="status" hidden></p>
   `
   content = element.querySelector<HTMLElement>("[data-club-discussion-target='content']")!
@@ -491,7 +491,7 @@ async function mountReplyForm(ready = true) {
   controls.dataset.clubRepliesPostIdValue = "1"
   controls.dataset.clubRepliesClubDiscussionOutlet = "#club_discussion_17"
   controls.dataset.action = "club-discussion:reply@document->club-replies#receiveReply club-discussion:delete@document->club-replies#receiveDelete club-discussion:connection-ended@document->club-replies#connectionEnded turbo:before-cache@document->club-replies#beforeCache"
-  controls.innerHTML = `<button data-club-replies-target="toggle" aria-expanded="true" data-action="club-replies#toggle">Replies</button><div data-club-replies-target="panel"><div data-club-replies-target="list"></div><p data-club-replies-target="status"></p><button data-club-replies-target="more" hidden></button><form data-club-replies-target="form" data-action="submit->club-replies#postReply"><label data-club-replies-target="label">Your reply</label><textarea data-club-replies-target="body"></textarea><button type="submit" data-club-replies-target="submit">Reply</button><button type="button" data-club-replies-target="cancel" data-action="club-replies#cancelReply">Cancel</button><p data-club-replies-target="composerStatus"></p></form></div>`
+  controls.innerHTML = `<button data-club-replies-target="toggle" aria-expanded="true" data-action="club-replies#toggle"><span data-club-replies-target="countLabel">0 comments</span></button><div data-club-replies-target="panel"><div data-club-replies-target="list"></div><p data-club-replies-target="status"></p><button data-club-replies-target="more" hidden></button><form data-club-replies-target="form" data-action="submit->club-replies#postReply"><label data-club-replies-target="label">Your reply</label><textarea data-club-replies-target="body"></textarea><button type="submit" data-club-replies-target="submit">Reply</button><button type="button" data-club-replies-target="cancel" data-action="club-replies#cancelReply">Cancel</button><p data-club-replies-target="composerStatus"></p></form></div>`
   messages.firstElementChild!.append(controls)
   await vi.waitFor(() => expect(controls.querySelector("label")!.htmlFor).toBe("club_reply_body_1"))
   if (ready) {
@@ -568,6 +568,29 @@ function replyEvent(id: number, type = "reply.created", requestId?: string) {
   return { ...event, request_id: requestId }
 }
 
+test("collapsed comment counts update for live creates and deletes without counting duplicate events", async () => {
+  const composer = await mountReplyForm()
+  const toggle = composer.controls.querySelector<HTMLButtonElement>("[data-club-replies-target='toggle']")!
+  const label = composer.controls.querySelector("[data-club-replies-target='countLabel']")!
+  toggle.click()
+  expect(label.textContent).toBe("0 comments")
+
+  requests[0].callbacks.received(replyEvent(8))
+  requests[0].callbacks.received(replyEvent(8, "reply.saved"))
+  expect(label.textContent).toBe("1 comment")
+  requests[0].callbacks.received(replyEvent(9))
+  expect(label.textContent).toBe("2 comments")
+
+  requests[0].callbacks.received(deletionEvent(8, 1))
+  requests[0].callbacks.received({ ...deletionEvent(8, 1), type: "delete.saved" })
+  requests[0].callbacks.received(replyEvent(8))
+  expect(label.textContent).toBe("1 comment")
+  requests[0].callbacks.received(deletionEvent(9, 1))
+  expect(label.textContent).toBe("0 comments")
+  expect(toggle.getAttribute("aria-expanded")).toBe("false")
+  expect(composer.controls.querySelector<HTMLElement>("[data-club-replies-target='panel']")!.hidden).toBe(true)
+})
+
 test("reply submission uses the existing Cable subscription and displays acknowledgement and broadcast only once", async () => {
   const composer = await mountReplyForm()
   const http = vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("Writes must use Cable"))
@@ -583,6 +606,7 @@ test("reply submission uses the existing Cable subscription and displays acknowl
   requests[0].callbacks.received(replyEvent(8))
   requests[0].callbacks.received(replyEvent(8, "reply.saved", data.request_id))
   expect(composer.controls.querySelectorAll("#club_message_8")).toHaveLength(1)
+  expect(composer.controls.querySelector("[data-club-replies-target='countLabel']")!.textContent).toBe("1 comment")
   expect(composer.body.value).toBe("")
   expect(composer.notice.textContent).toBe("Reply published.")
   expect(composer.submit.disabled).toBe(false)
@@ -1155,21 +1179,54 @@ test("out-of-order creation events remain newest first and do not reduce the pos
     .toBe("4 posts · Page 1 of 1")
 })
 
-test("live history retains only the latest 20 posts and offers older history", () => {
+test("live history retains only the latest 10 posts", () => {
   for (let id = 2; id <= 22; id += 1) {
     requests[0].callbacks.received(createdMessageEvent(id))
   }
   // A duplicate whose original element was removed must not be inserted again.
   requests[0].callbacks.received(createdMessageEvent(2))
 
-  expect(messages.childElementCount).toBe(20)
+  expect(messages.childElementCount).toBe(10)
   expect(postIds()[0]).toBe("22")
-  expect(postIds()[19]).toBe("3")
+  expect(postIds()[9]).toBe("13")
   expect(element.querySelector("[data-club-discussion-target='paginationSummary']")?.textContent)
-    .toBe("22 posts · Page 1 of 2")
-  const olderPosts = element.querySelector<HTMLAnchorElement>("[data-club-discussion-target='olderPosts']")!
-  expect(olderPosts.hidden).toBe(false)
-  expect(olderPosts.getAttribute("href")).toContain("page=2")
+    .toBe("22 posts · Page 1 of 3")
+})
+
+test("crossing ten posts loads Rails-rendered Pagy controls and deleting back to ten removes them", async () => {
+  element.dataset.clubDiscussionPaginationUrlValue = "/book_clubs/17/club_messages"
+  await Promise.resolve()
+  const http = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({
+    pagination_html: '<nav class="pagy series-nav"><a href="/book_clubs/17/club_messages?page=2">2</a></nav>'
+  })))
+  for (let id = 2; id <= 11; id += 1) requests[0].callbacks.received(createdMessageEvent(id))
+
+  await vi.waitFor(() => expect(element.querySelector("nav.pagy.series-nav a")?.textContent).toBe("2"))
+  expect(http).toHaveBeenCalledOnce()
+  expect(String(http.mock.calls[0][0])).toContain("page=1")
+  expect(http.mock.calls[0][1]?.headers).toEqual({ Accept: "application/json" })
+
+  const deleted = deletionEvent(11)
+  deleted.message.replies_count = 0
+  requests[0].callbacks.received({ ...deleted, total_posts: 10 })
+  expect(element.querySelector("nav.pagy.series-nav")).toBeNull()
+})
+
+test("leaving the discussion aborts a pending pagination read and ignores its late response", async () => {
+  element.dataset.clubDiscussionPaginationUrlValue = "/book_clubs/17/club_messages"
+  await Promise.resolve()
+  const pending = Promise.withResolvers<Response>()
+  const http = vi.spyOn(globalThis, "fetch").mockReturnValue(pending.promise)
+  const page = element.querySelector("[data-club-discussion-target='pagination']")!
+  requests[0].callbacks.received({ ...createdMessageEvent(11), total_posts: 11 })
+  const signal = http.mock.calls[0][1]!.signal!
+
+  await removePage()
+  expect(signal.aborted).toBe(true)
+  pending.resolve(new Response(JSON.stringify({ pagination_html: '<nav class="pagy series-nav">Late controls</nav>' })))
+  await pending.promise
+  await Promise.resolve()
+  expect(page.children).toHaveLength(0)
 })
 
 test("the first live post hides the empty state", () => {

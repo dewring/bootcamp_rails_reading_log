@@ -1,5 +1,6 @@
 import { Controller } from "@hotwired/stimulus"
 import { cable } from "@hotwired/turbo-rails"
+import { throttle } from "lodash"
 import { buildUserAvatar } from "../helpers/user_avatar"
 
 export interface DiscussionMessage {
@@ -13,6 +14,11 @@ export interface DiscussionMessage {
   updated_at: string
 }
 
+export interface DiscussionMember {
+  id: number
+  nickname: string
+}
+
 export interface DiscussionEvent {
   type: string
   message?: DiscussionMessage
@@ -20,6 +26,10 @@ export interface DiscussionEvent {
   request_id?: string
   errors?: { body?: string[] }
   error?: string
+  members?: DiscussionMember[]
+  member?: DiscussionMember
+  connection_token?: string
+  generated_at?: string
 }
 
 // Keep fractional seconds when comparing UTC timestamps from Rails.
@@ -33,8 +43,8 @@ type DiscussionSubscription = {
 }
 
 export default class extends Controller {
-  static targets = ["content", "status", "messages", "emptyState", "paginationSummary", "pagination", "olderPosts", "body", "submit", "composerStatus", "replyControls", "editor", "deleteButton"]
-  static values = { bookClubId: Number, page: Number, totalPosts: Number, currentUserId: Number, canPost: Boolean, canModerate: Boolean }
+  static targets = ["content", "status", "messages", "emptyState", "paginationSummary", "pagination", "body", "submit", "composerStatus", "replyControls", "editor", "deleteButton", "onlineMembers", "presenceStatus", "typingStatus", "typingIndicator"]
+  static values = { bookClubId: Number, page: Number, totalPosts: Number, paginationUrl: String, currentUserId: Number, canPost: Boolean, canModerate: Boolean }
 
   declare readonly contentTarget: HTMLElement
   declare readonly statusTarget: HTMLElement
@@ -45,7 +55,7 @@ export default class extends Controller {
   declare readonly emptyStateTarget: HTMLElement
   declare readonly paginationSummaryTarget: HTMLElement
   declare readonly paginationTarget: HTMLElement
-  declare readonly olderPostsTarget: HTMLAnchorElement
+  declare readonly paginationUrlValue: string
   declare readonly hasBodyTarget: boolean
   declare readonly hasSubmitTarget: boolean
   declare readonly hasComposerStatusTarget: boolean
@@ -63,8 +73,17 @@ export default class extends Controller {
   declare readonly canModerateValue: boolean
   declare readonly currentUserIdValue: number
   declare readonly canPostValue: boolean
+  declare readonly hasOnlineMembersTarget: boolean
+  declare readonly onlineMembersTarget: HTMLUListElement
+  declare readonly hasPresenceStatusTarget: boolean
+  declare readonly presenceStatusTarget: HTMLElement
+  declare readonly hasTypingStatusTarget: boolean
+  declare readonly typingStatusTarget: HTMLElement
+  declare readonly hasTypingIndicatorTarget: boolean
+  declare readonly typingIndicatorTarget: HTMLTemplateElement
 
   private paginationVersion = ""
+  private paginationRequest?: AbortController
   private messageUpdates = new Map<number, DiscussionMessage>()
   private discussionSubscription?: Promise<DiscussionSubscription | undefined>
   private receivedMessageIds = new Set<number>()
@@ -73,8 +92,21 @@ export default class extends Controller {
   private pendingPostId?: string
   private postTimeout?: ReturnType<typeof setTimeout>
   private heartbeatInterval?: ReturnType<typeof setInterval>
+  private snapshotTimeout?: ReturnType<typeof setTimeout>
+  private latestPresenceVersion = ""
+  private presenceAvailable = false
+  private acceptingPresenceEvents = false
+  private typingConnections = new Map<string, { member: DiscussionMember; timeout: ReturnType<typeof setTimeout>; version: string }>()
+  private throttledTyping = throttle((source: HTMLTextAreaElement, pendingSubscription: Promise<DiscussionSubscription | undefined>, heartbeatInterval: ReturnType<typeof setInterval>) => {
+    this.sendTyping(source, pendingSubscription, heartbeatInterval).catch(error => {
+      console.error("Failed to send club typing event", error)
+    })
+  }, 1_000, { leading: true, trailing: false })
 
   connect() {
+    this.acceptingPresenceEvents = true
+    this.latestPresenceVersion = ""
+    this.showPresenceUnavailable()
     for (const element of this.messagesTarget.children) {
       const article = element as HTMLElement
       this.prepareMessageElement(article, {
@@ -94,6 +126,7 @@ export default class extends Controller {
           if (this.discussionSubscription !== pendingSubscription) return
 
           this.cableConnected = true
+          this.acceptingPresenceEvents = true
           this.startHeartbeat(pendingSubscription)
           if (this.hasSubmitTarget) this.submitTarget.disabled = this.posting
         },
@@ -102,6 +135,12 @@ export default class extends Controller {
 
           if (event.type === "access.revoked") {
             this.endAccess()
+          } else if (event.type === "presence.snapshot") {
+            if (this.acceptingPresenceEvents) this.receivePresenceSnapshot(event)
+          } else if (event.type === "presence.unavailable") {
+            this.showPresenceUnavailable()
+          } else if (event.type === "typing.started") {
+            if (this.acceptingPresenceEvents) this.receiveTyping(event)
           } else if ((event.type === "message.deleted" || event.type === "reply.deleted") && event.message) {
             this.rememberMessageUpdate(event.message, event.total_posts)
           } else if (event.type === "delete.saved" || event.type === "delete.rejected") {
@@ -128,6 +167,9 @@ export default class extends Controller {
 
           this.cableConnected = false
           this.stopHeartbeat()
+          this.acceptingPresenceEvents = false
+          this.throttledTyping.cancel()
+          this.showPresenceUnavailable()
           this.dispatch("connection-ended")
           this.interruptPosting()
           if (!willAttemptReconnect) this.endAccess()
@@ -136,6 +178,8 @@ export default class extends Controller {
     ).catch(error => {
       console.error("Failed to subscribe to club discussion", error)
       if (this.discussionSubscription === pendingSubscription) {
+        this.acceptingPresenceEvents = false
+        this.showPresenceUnavailable()
         this.showStatus("Live updates could not connect. Refresh to try again.")
       }
       return undefined
@@ -193,6 +237,14 @@ export default class extends Controller {
       console.error("Failed to send discussion post", error)
       if (this.pendingPostId === requestId) this.interruptPosting()
     }
+  }
+
+  typing(event: Event) {
+    const source = event.target
+    if (!(source instanceof HTMLTextAreaElement) || source.disabled || source.readOnly || !source.value.trim()) return
+    if (!this.canPostValue || !this.cableConnected || !this.discussionSubscription || !this.heartbeatInterval) return
+
+    this.throttledTyping(source, this.discussionSubscription, this.heartbeatInterval)
   }
 
   sendReply(requestId: string, parentId: number, body: string, composer: Element): Promise<boolean> {
@@ -355,7 +407,7 @@ export default class extends Controller {
     }
     this.emptyStateTarget.hidden = true
 
-    while (this.messagesTarget.children.length > 20) {
+    while (this.messagesTarget.children.length > 10) {
       this.messagesTarget.lastElementChild?.remove()
     }
   }
@@ -388,6 +440,7 @@ export default class extends Controller {
       controls.dataset.clubRepliesPostIdValue = String(message.id)
       controls.dataset.clubRepliesUrlValue = `/book_clubs/${this.bookClubIdValue}/club_messages/${message.id}/replies`
       controls.dataset.clubRepliesDeletedValue = String(message.deleted ?? false)
+      controls.dataset.clubRepliesCountValue = String(message.replies_count ?? 0)
       article.append(controls)
     }
     return article
@@ -399,18 +452,59 @@ export default class extends Controller {
     const version = discussionVersion(updatedAt)
     if (version < this.paginationVersion) return
 
+    const previousPageCount = Math.max(1, Math.ceil(this.totalPostsValue / 10))
     this.totalPostsValue = version === this.paginationVersion && !allowDecrease
       ? Math.max(this.totalPostsValue, totalPosts)
       : totalPosts
     this.paginationVersion = version
-    const pageCount = Math.max(1, Math.ceil(this.totalPostsValue / 20))
+    const pageCount = Math.max(1, Math.ceil(this.totalPostsValue / 10))
     const postLabel = this.totalPostsValue === 1 ? "post" : "posts"
     this.paginationSummaryTarget.textContent = `${this.totalPostsValue} ${postLabel} · Page ${this.pageValue} of ${pageCount}`
-    this.olderPostsTarget.hidden = this.pageValue !== 1 || pageCount === 1 || this.paginationTarget.childElementCount > 0
+    if (pageCount !== previousPageCount) {
+      this.refreshPagination(pageCount).catch(error => console.error("Failed to refresh discussion pagination", error))
+    }
+  }
+
+  private async refreshPagination(pageCount: number) {
+    this.paginationRequest?.abort()
+    this.paginationRequest = undefined
+    if (pageCount === 1) {
+      this.paginationTarget.replaceChildren()
+      return
+    }
+    if (!this.paginationUrlValue) return
+
+    const request = new AbortController()
+    this.paginationRequest = request
+    try {
+      const url = new URL(this.paginationUrlValue, window.location.origin)
+      url.searchParams.set("page", String(Math.min(this.pageValue, pageCount)))
+      const response = await fetch(url, { headers: { Accept: "application/json" }, credentials: "same-origin", signal: request.signal })
+      if (this.paginationRequest !== request || !this.element.isConnected) return
+      if (response.status === 401 || response.status === 403) {
+        this.endAccess()
+        return
+      }
+      if (!response.ok) throw new Error(`Discussion pagination returned ${response.status}`)
+
+      const history: { pagination_html: string } = await response.json()
+      if (this.paginationRequest !== request || !this.element.isConnected) return
+      // Render the same trusted Rails Pagy partial used on the initial page.
+      this.paginationTarget.innerHTML = history.pagination_html
+    } catch (error) {
+      if (!request.signal.aborted) throw error
+    } finally {
+      if (this.paginationRequest === request) this.paginationRequest = undefined
+    }
   }
 
   private unsubscribeFromDiscussion() {
+    this.paginationRequest?.abort()
+    this.paginationRequest = undefined
     this.stopHeartbeat()
+    this.acceptingPresenceEvents = false
+    this.throttledTyping.cancel()
+    this.showPresenceUnavailable()
     const pendingSubscription = this.discussionSubscription
     this.discussionSubscription = undefined
 
@@ -419,6 +513,141 @@ export default class extends Controller {
     }).catch(error => {
       console.error("Failed to unsubscribe from club discussion", error)
     })
+  }
+
+  private receivePresenceSnapshot(event: DiscussionEvent) {
+    if (!event.members || !event.generated_at || !Number.isFinite(Date.parse(event.generated_at))) return
+
+    const version = discussionVersion(event.generated_at)
+    if (version <= this.latestPresenceVersion) return
+
+    this.latestPresenceVersion = version
+    this.presenceAvailable = true
+    const members = new Map(event.members.map(member => [member.id, member]))
+    if (this.hasOnlineMembersTarget) {
+      const orderedMembers = Array.from(members.values()).sort((first, second) => Number(second.id === this.currentUserIdValue) - Number(first.id === this.currentUserIdValue))
+      let peerIndex = 0
+      const items = orderedMembers.map(member => {
+        const isCurrentUser = member.id === this.currentUserIdValue
+        const color = isCurrentUser ? "self" : ["sage", "blue", "lavender"][peerIndex % 3]
+        if (!isCurrentUser) peerIndex += 1
+        return this.buildPresenceMember(member, color)
+      })
+      this.onlineMembersTarget.replaceChildren(...items)
+      this.onlineMembersTarget.hidden = items.length === 0
+    }
+    if (this.hasPresenceStatusTarget) {
+      this.presenceStatusTarget.textContent = `${members.size} ${members.size === 1 ? "member" : "members"} online.`
+      this.presenceStatusTarget.classList.add("club-discussion-sr-only")
+    }
+    for (const [token, connection] of this.typingConnections) {
+      const member = members.get(connection.member.id)
+      if (member) {
+        connection.member = member
+      } else {
+        clearTimeout(connection.timeout)
+        this.typingConnections.delete(token)
+      }
+    }
+    this.renderTyping()
+    clearTimeout(this.snapshotTimeout)
+    this.snapshotTimeout = setTimeout(() => this.showPresenceUnavailable(), 55_000)
+  }
+
+  private buildPresenceMember(member: DiscussionMember, color: string): HTMLLIElement {
+    const item = document.createElement("li")
+    item.className = "club-presence-member"
+    item.dataset.memberId = String(member.id)
+    const avatar = buildUserAvatar(member)
+    avatar.dataset.presenceColor = color
+    const initials = avatar.querySelector<HTMLElement>(".profile-avatar-initials")
+    const words = member.nickname.trim().split(/\s+/)
+    if (initials) {
+      initials.textContent = words.length > 1
+        ? words.slice(0, 2).map(word => word.charAt(0)).join("").toUpperCase()
+        : member.nickname.slice(0, 2).toUpperCase()
+    }
+    const details = document.createElement("span")
+    details.className = "club-presence-details"
+    const name = document.createElement("strong")
+    name.textContent = member.nickname
+    const status = document.createElement("span")
+    status.className = "club-presence-member-status"
+    details.append(name, status)
+    item.append(avatar, details)
+    return item
+  }
+
+  private receiveTyping(event: DiscussionEvent) {
+    if (!this.presenceAvailable || !event.member || !event.connection_token || !event.generated_at) return
+
+    const generatedAt = Date.parse(event.generated_at)
+    if (!Number.isFinite(generatedAt) || Date.now() - generatedAt >= 3_000) return
+
+    const token = event.connection_token
+    const previous = this.typingConnections.get(token)
+    const version = discussionVersion(event.generated_at)
+    if (previous && version <= previous.version) return
+
+    clearTimeout(previous?.timeout)
+    const timeout = setTimeout(() => {
+      this.typingConnections.delete(token)
+      this.renderTyping()
+    }, 3_000)
+    this.typingConnections.set(token, { member: event.member, timeout, version })
+    this.renderTyping()
+  }
+
+  private renderTyping() {
+    const members = new Map(Array.from(this.typingConnections.values(), connection => [connection.member.id, connection.member]))
+    const names = Array.from(members.values(), member => member.nickname)
+    if (this.hasTypingStatusTarget) {
+      const announcement = names.length === 0 ? "" : `${names.join(", ")} ${names.length === 1 ? "is" : "are"} typing…`
+      if (this.typingStatusTarget.textContent !== announcement) this.typingStatusTarget.textContent = announcement
+    }
+    if (!this.hasOnlineMembersTarget) return
+
+    for (const item of Array.from(this.onlineMembersTarget.children)) {
+      const memberId = Number((item as HTMLElement).dataset.memberId)
+      const state = members.has(memberId) ? "Writing a post…" : memberId === this.currentUserIdValue ? "You" : "Online"
+      const status = item.querySelector<HTMLElement>(".club-presence-member-status")
+      if (!status || status.dataset.state === state) continue
+
+      status.dataset.state = state
+      status.replaceChildren()
+      if (state === "Writing a post…" && this.hasTypingIndicatorTarget) {
+        status.append(this.typingIndicatorTarget.content.cloneNode(true))
+      } else {
+        status.textContent = state
+      }
+    }
+  }
+
+  private showPresenceUnavailable() {
+    this.presenceAvailable = false
+    clearTimeout(this.snapshotTimeout)
+    this.snapshotTimeout = undefined
+    for (const connection of this.typingConnections.values()) {
+      clearTimeout(connection.timeout)
+    }
+    this.typingConnections.clear()
+    this.renderTyping()
+    if (this.hasOnlineMembersTarget) {
+      this.onlineMembersTarget.replaceChildren()
+      this.onlineMembersTarget.hidden = true
+    }
+    if (this.hasPresenceStatusTarget) {
+      this.presenceStatusTarget.textContent = "Presence unavailable"
+      this.presenceStatusTarget.classList.remove("club-discussion-sr-only")
+    }
+  }
+
+  private async sendTyping(source: HTMLTextAreaElement, pendingSubscription: Promise<DiscussionSubscription | undefined>, heartbeatInterval: ReturnType<typeof setInterval>) {
+    const subscription = await pendingSubscription
+    if (this.discussionSubscription !== pendingSubscription || !this.cableConnected || this.heartbeatInterval !== heartbeatInterval) return
+    if (!source.isConnected || !this.element.contains(source) || source.readOnly || source.disabled || !source.value.trim()) return
+
+    subscription?.perform("typing", {})
   }
 
   private startHeartbeat(pendingSubscription: Promise<DiscussionSubscription | undefined>) {
