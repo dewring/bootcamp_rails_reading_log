@@ -17,6 +17,7 @@ class ClubMessagesController < ApplicationController
       format.json do
         render json: {
           messages: @messages.map(&:discussion_payload),
+          total_posts: @pagy.count,
           pagination_html: render_to_string(partial: "club_messages/pagination", formats: [ :html ])
         }
       end
