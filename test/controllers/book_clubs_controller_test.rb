@@ -3,6 +3,36 @@ require "test_helper"
 class BookClubsControllerTest < ActionDispatch::IntegrationTest
   include Devise::Test::IntegrationHelpers
 
+  test "overview current pick frame refresh returns the latest book without containing the stream subscription" do
+    club = BookClub.create!(name: "Frame circle", current_book: books(:pragmatic))
+    club.book_club_memberships.create!(user: users(:leika), role: "owner")
+    sign_in users(:leika)
+    frame_id = dom_id(club, :current_pick_frame)
+
+    get book_club_path(club)
+
+    assert_response :success
+    assert_select "turbo-frame##{frame_id}[target='_top']" do
+      assert_select "a[href='#{book_club_path(club)}'][data-turbo-frame='#{frame_id}']", text: /Refresh/
+      assert_select "turbo-cable-stream-source, form", count: 0
+    end
+    assert_select "turbo-cable-stream-source", count: 1
+
+    club.update!(current_book: books(:refactoring))
+    get book_club_path(club), headers: { "Turbo-Frame" => frame_id }
+
+    assert_response :success
+    assert_select "turbo-frame##{frame_id} h2 a", text: books(:refactoring).title
+  end
+
+  test "overview current pick frame refresh requires sign in" do
+    club = BookClub.create!(name: "Frame circle")
+
+    get book_club_path(club), headers: { "Turbo-Frame" => dom_id(club, :current_pick_frame) }
+
+    assert_redirected_to new_user_session_path
+  end
+
   test "club pick search requires sign in and returns five case insensitive title or author matches" do
     get search_books_book_clubs_path, params: { q: "Refactoring" }, as: :json
     assert_response :unauthorized

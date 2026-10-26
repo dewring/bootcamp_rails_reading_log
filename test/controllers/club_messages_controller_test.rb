@@ -273,7 +273,7 @@ class ClubMessagesControllerTest < ActionDispatch::IntegrationTest
     get book_club_club_messages_path(@book_club)
 
     assert_response :success
-    assert_select "p[role='status'][data-club-discussion-target='connectionStatus']", text: "Connecting…"
+    assert_select "header .club-discussion-connection p[role='status'][data-club-discussion-target='connectionStatus']", text: "Connecting…"
     assert_select "button[type='button'][hidden][data-club-discussion-target='retry'][data-action='club-discussion#recoverDiscussion']", text: "Retry"
     assert_select "section[aria-labelledby='club-discussion-composer-title']" do
       assert_select "form[data-action='submit->club-discussion#postMessage']:not([action])" do
@@ -314,6 +314,42 @@ class ClubMessagesControllerTest < ActionDispatch::IntegrationTest
       assert_select "h2", text: "Current pick"
       assert_select "p", text: "No current pick yet."
     end
+  end
+
+  test "current pick frame refresh returns the changed book and keeps discussion controls outside the frame" do
+    sign_in @member
+    frame_id = dom_id(@book_club, :current_pick_frame)
+
+    get book_club_club_messages_path(@book_club)
+
+    assert_response :success
+    assert_select "turbo-frame##{frame_id}[target='_top']" do
+      assert_select "a[href='#{book_club_club_messages_path(@book_club)}'][data-turbo-frame='#{frame_id}'][data-turbo-prefetch='false']", text: /Refresh/
+      assert_select "article.book-club-current-pick-card--refreshable a.book-club-current-pick-refresh[aria-label='Refresh current pick']" do
+        assert_select "span[aria-hidden='true']", text: "↻"
+        assert_select "span:not([aria-hidden])", text: "Refresh"
+      end
+      assert_select "[data-controller='club-discussion'], form, turbo-cable-stream-source", count: 0
+    end
+    assert_select "[data-controller='club-discussion']", count: 1
+    assert_select "form[data-action='submit->club-discussion#postMessage']", count: 1
+
+    @book_club.update!(current_book: books(:refactoring))
+    get book_club_club_messages_path(@book_club), headers: { "Turbo-Frame" => frame_id }
+
+    assert_response :success
+    assert_select "turbo-frame##{frame_id} h2 a", text: books(:refactoring).title
+  end
+
+  test "current pick frame refresh denies a former discussion member" do
+    @book_club.book_club_memberships.find_by!(user: @member).destroy!
+    sign_in @member
+
+    get book_club_club_messages_path(@book_club), headers: { "Turbo-Frame" => dom_id(@book_club, :current_pick_frame) }
+
+    assert_redirected_to root_path
+    assert_select "turbo-frame", count: 0
+    assert_not_includes response.body, @message.body
   end
 
   test "nonmember admins can read discussion but do not see a posting form" do

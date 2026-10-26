@@ -146,7 +146,7 @@ export default class DiscussionRecovery {
     const labels: Record<ConnectionState, string> = {
       connecting: "Connecting…",
       recovering: "Recovering discussion…",
-      live: "Live · discussion refreshed.",
+      live: "Discussion live",
       offline: "Offline · discussion updates paused.",
       failed: "Recovery failed · your draft is still here. Retry to refresh the discussion."
     }

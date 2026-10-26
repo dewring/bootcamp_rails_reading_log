@@ -111,6 +111,7 @@ test("confirmed subscription requests the selected authorized page and becomes L
   expect(http.mock.calls[0][1]).toMatchObject({ credentials: "same-origin", cache: "no-store", headers: { Accept: "application/json" } })
   await finish([post(2), post(1)])
   expect(ids()).toEqual([2, 1])
+  expect(element.querySelector("[data-club-discussion-target='connectionStatus']")!.textContent).toBe("Discussion live")
   expect(element.querySelector("textarea")!.value).toBe("My unsent draft")
 })
 
