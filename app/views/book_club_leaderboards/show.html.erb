@@ -1,4 +1,5 @@
 <% turbo_refreshes_with method: :morph, scroll: :preserve %>
+<% frame_id = dom_id(@book_club, :leaderboard_frame) %>
 <%= turbo_stream_from @book_club %>
 <div class="book-club-detail-page">
   <%= render "book_clubs/club_sidebar", book_club: @book_club %>
@@ -7,9 +8,12 @@
       <div>
         <h1>Leaderboard</h1>
         <p><span><%= @book_club.name.upcase %></span> · CURRENT CYCLE</p>
+        <%= link_to "↻ Refresh leaderboard", book_club_leaderboard_path(@book_club), class: "book-club-leaderboard-refresh", data: { turbo_frame: frame_id, turbo_prefetch: false } %>
       </div>
       <%= render "book_clubs/membership_status", book_club: @book_club %>
     </header>
-    <%= render "leaderboard", book_club: @book_club, leaderboard: @leaderboard %>
+    <%= turbo_frame_tag frame_id, target: "_top" do %>
+      <%= render "leaderboard", book_club: @book_club, leaderboard: @leaderboard %>
+    <% end %>
   </div>
 </div>

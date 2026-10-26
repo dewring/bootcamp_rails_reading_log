@@ -3047,6 +3047,23 @@ main.container:has(> [data-controller~="club-discussion"] > .book-club-detail-pa
   &:focus-visible { outline: 2px solid $accent; outline-offset: 3px; }
 }
 
+.book-club-leaderboard-refresh {
+  display: inline-flex;
+  align-items: center;
+  margin-top: 10px;
+  padding: 5px 9px;
+  border: 1px solid $gray-mid;
+  border-radius: 8px;
+  background: #fff;
+  color: $text-muted;
+  font-size: 11px;
+  font-weight: 600;
+  text-decoration: none;
+
+  &:hover { border-color: $accent; color: $accent; background: #fdf6f4; }
+  &:focus-visible { outline: 2px solid $accent; outline-offset: 3px; }
+}
+
 .club-discussion-connection {
   display: flex;
   flex-wrap: wrap;
