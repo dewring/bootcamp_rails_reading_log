@@ -31,6 +31,9 @@
         <%= render "book_clubs/membership_status", book_club: @book_club %>
       </header>
 
+      <p role="status" data-club-discussion-target="connectionStatus">Connecting…</p>
+      <button type="button" data-club-discussion-target="retry" data-action="club-discussion#recoverDiscussion" hidden>Retry</button>
+
       <%= render "book_clubs/current_pick", book_club: @book_club, variant: :discussion %>
 
       <div class="club-discussion-body">

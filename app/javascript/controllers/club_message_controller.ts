@@ -1,6 +1,7 @@
 import { Controller } from "@hotwired/stimulus"
 import type ClubDiscussionController from "./club_discussion_controller"
-import { discussionVersion, type DiscussionEvent, type DiscussionMessage } from "./club_discussion_controller"
+import { discussionVersion } from "../club_discussion/message_version"
+import type { DiscussionEvent, DiscussionMessage } from "../club_discussion/types"
 
 export default class extends Controller {
   static targets = ["body", "form", "editButton", "input", "label", "save", "cancel", "status", "deleteButton"]

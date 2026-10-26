@@ -273,6 +273,8 @@ class ClubMessagesControllerTest < ActionDispatch::IntegrationTest
     get book_club_club_messages_path(@book_club)
 
     assert_response :success
+    assert_select "p[role='status'][data-club-discussion-target='connectionStatus']", text: "Connecting…"
+    assert_select "button[type='button'][hidden][data-club-discussion-target='retry'][data-action='club-discussion#recoverDiscussion']", text: "Retry"
     assert_select "section[aria-labelledby='club-discussion-composer-title']" do
       assert_select "form[data-action='submit->club-discussion#postMessage']:not([action])" do
         assert_select "label[for='club_message_body']", text: "Your discussion post"
