@@ -2,6 +2,12 @@ class NotificationsController < ApplicationController
   before_action :authenticate_user!
   before_action :set_notification, only: :update
 
+  def index
+    authorize Noticed::Notification, policy_class: NotificationPolicy
+    response.headers["Cache-Control"] = "no-store"
+    render partial: "notifications/panel", locals: current_user.notification_panel_locals
+  end
+
   def update
     authorize @notification, policy_class: NotificationPolicy
     @notification.mark_as_read!

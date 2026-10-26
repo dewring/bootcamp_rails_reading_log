@@ -490,6 +490,10 @@ main.container:has(> .my-log-page) {
 }
 
 .notifications-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   margin: 0 0 12px;
   padding: 0 0 12px;
   border-bottom: 1px solid $gray-mid;
@@ -508,6 +512,16 @@ main.container:has(> .my-log-page) {
     font-size: 0.72rem;
     font-weight: 400;
   }
+}
+
+.notifications-refresh {
+  color: $text-muted;
+  font-size: 12px;
+  white-space: nowrap;
+  text-decoration: none;
+
+  &:hover { color: $accent; }
+  &:focus-visible { outline: 2px solid $accent; outline-offset: 3px; }
 }
 
 .notification-list {
