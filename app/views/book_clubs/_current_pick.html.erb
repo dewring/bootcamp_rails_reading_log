@@ -1,5 +1,5 @@
 <% variant = local_assigns.fetch(:variant, :overview) %>
-<article id="<%= dom_id(book_club, :current_pick) %>" class="<%= class_names("book-club-current-pick-card", "book-club-current-pick-card--discussion" => variant == :discussion) %>">
+<article id="<%= dom_id(book_club, :current_pick) %>" class="<%= class_names("book-club-current-pick-card", "book-club-current-pick-card--discussion" => variant == :discussion, "book-club-current-pick-card--refreshable" => local_assigns[:refresh_path].present?) %>">
   <% if book_club.current_book %>
     <div class="book-club-current-pick-cover">
       <% if book_club.current_book.cover_image.attached? %>
@@ -21,5 +21,11 @@
       <h2>Current pick</h2>
       <p>No current pick yet.</p>
     </div>
+  <% end %>
+  <% if local_assigns[:refresh_path].present? %>
+    <%= link_to refresh_path, class: "book-club-current-pick-refresh", aria: { label: "Refresh current pick" }, data: { turbo_frame: frame_id, turbo_prefetch: false } do %>
+      <span aria-hidden="true">↻</span>
+      <span>Refresh</span>
+    <% end %>
   <% end %>
 </article>

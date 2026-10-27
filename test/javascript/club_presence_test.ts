@@ -1,6 +1,7 @@
 import { Application } from "@hotwired/stimulus"
 import { afterEach, beforeEach, expect, test, vi } from "vitest"
-import ClubDiscussionController, { type DiscussionEvent, type DiscussionMember } from "../../app/javascript/controllers/club_discussion_controller"
+import ClubDiscussionController from "../../app/javascript/controllers/club_discussion_controller"
+import type { DiscussionEvent, DiscussionMember } from "../../app/javascript/club_discussion/types"
 
 interface Subscription {
   unsubscribe(): void

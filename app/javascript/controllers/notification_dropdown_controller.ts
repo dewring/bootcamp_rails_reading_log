@@ -5,6 +5,14 @@ import { cable } from "@hotwired/turbo-rails"
 export default class extends NavDropdownController {
   private notificationSubscription?: Promise<{ unsubscribe: () => void } | undefined>
 
+  menuTargetConnected(menu: HTMLElement) {
+    menu.hidden = !this.openValue
+  }
+
+  triggerTargetConnected(trigger: HTMLButtonElement) {
+    trigger.setAttribute("aria-expanded", String(this.openValue))
+  }
+
   connect() {
     this.notificationSubscription = cable.subscribeTo("Noticed::NotificationChannel", {
       received: (message: string) => renderStreamMessage(message)

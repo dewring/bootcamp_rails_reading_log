@@ -12,6 +12,11 @@ class NotificationPolicyTest < ActiveSupport::TestCase
     assert_not NotificationPolicy.new(users(:jaina), @owner_notification).update?
   end
 
+  test "only signed in users can request their notification panel" do
+    assert NotificationPolicy.new(users(:leika), Noticed::Notification).index?
+    assert_not NotificationPolicy.new(nil, Noticed::Notification).index?
+  end
+
   private
 
   def create_notification(recipient)

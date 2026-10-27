@@ -23,6 +23,14 @@ current conversation take precedence.
    refactoring, speculative abstractions, or cleanup work that is not required
    for correctness, security, or the requested behavior. Record unrelated
    improvements as follow-up issues.
+   Do not commit temporary verification screenshots, demo evidence, test-output
+   captures, student/demo notes, or issue-specific Markdown reports such as
+   `docs/verification/issue131.md` unless the user explicitly requests those
+   files in the repository. Keep these review artifacts outside the repository
+   and present results in the conversation or PR description. This does not
+   exclude required application assets, automated tests, or project guidance
+   such as `AGENTS.md`. Before staging, inspect the changed-file list and omit
+   artifacts that are not needed by the application or explicitly requested.
 
 5. Keep models lean and controllers slim. Controllers should coordinate
    requests, authorization, and responses without containing complex business
@@ -48,6 +56,16 @@ current conversation take precedence.
 
 11. Extract nested or repetitive logic into private methods. Keep public
     methods short, focused, and high-level.
+    Avoid deeply nested `if`/`unless` branches in backend code. Use guard
+    clauses and early returns for invalid input, missing records, denied
+    access, and other cases that should stop processing, so the main flow
+    remains easy to follow. Extract a branch into an intention-revealing
+    private method when it represents a separate responsibility. Keep simple
+    `if`/`else` branches when they express alternatives clearly; do not replace
+    nesting with dense compound conditions or nested ternaries. Preserve
+    authorization checks, transaction boundaries, side effects, and return
+    values when flattening existing code. Apply this guidance to new or
+    changed logic; do not refactor unrelated code solely to reduce nesting.
 
 12. Handle N+1 query problems explicitly. Use `includes`, `eager_load`, or
     `preload` when fetching associations. Bullet warnings in development or

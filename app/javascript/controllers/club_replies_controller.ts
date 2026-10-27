@@ -1,7 +1,7 @@
 import { buildUserAvatar } from "../helpers/user_avatar"
 import { Controller } from "@hotwired/stimulus"
 import type ClubDiscussionController from "./club_discussion_controller"
-import type { DiscussionEvent, DiscussionMessage } from "./club_discussion_controller"
+import type { DiscussionEvent, DiscussionMessage } from "../club_discussion/types"
 
 interface ReplyHistory {
   replies: DiscussionMessage[]

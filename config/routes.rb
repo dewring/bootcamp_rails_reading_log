@@ -40,7 +40,7 @@ Rails.application.routes.draw do
     resources :reading_sessions, only: [ :index, :show, :create ]
   end
   resources :user_books, only: [ :new, :create, :update, :destroy ]
-  resources :notifications, only: :update
+  resources :notifications, only: [ :index, :update ]
   resources :book_clubs, only: [ :index, :show, :new, :create, :edit, :update, :destroy ] do
     get :search_books, on: :collection
     resources :club_messages, only: [ :index ] do

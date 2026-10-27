@@ -36,6 +36,73 @@ class ClubMessagesControllerTest < ActionDispatch::IntegrationTest
     assert_select "[data-club-discussion-target='paginationSummary']", text: "21 posts · Page 1 of 3"
   end
 
+  test "history JSON returns ten visible posts per selected page and the full visible post count" do
+    visible_posts = [ @message ]
+    59.times do |number|
+      visible_posts.push(@book_club.club_messages.create!(user: @member, body: "Recent thought #{number}"))
+    end
+    @book_club.club_messages.create!(parent: @message, user: @member, body: "A separately loaded reply")
+    hidden_post = @book_club.club_messages.create!(user: @member, body: "Hidden thought")
+    hidden_post.remove_from_discussion!
+    other_club = BookClub.create!(name: "Another circle")
+    other_club.club_messages.create!(user: @owner, body: "Another club's private thought")
+    sign_in @member
+
+    get book_club_club_messages_path(@book_club), as: :json
+
+    assert_response :success
+    assert_equal "application/json", response.media_type
+    assert_equal "no-store", response.headers["Cache-Control"]
+    snapshot = response.parsed_body
+    assert_equal visible_posts.last(10).reverse.map(&:id), snapshot.fetch("messages").map { |message| message.fetch("id") }
+    assert_equal 60, snapshot.fetch("total_posts")
+    assert_equal [ "messages", "pagination_html", "total_posts" ], snapshot.keys.sort
+
+    get book_club_club_messages_path(@book_club), params: { page: 3 }, as: :json
+
+    assert_response :success
+    snapshot = response.parsed_body
+    assert_equal visible_posts.reverse.slice(20, 10).map(&:id), snapshot.fetch("messages").map { |message| message.fetch("id") }
+    assert_equal 60, snapshot.fetch("total_posts")
+    pagination = Nokogiri::HTML.fragment(snapshot.fetch("pagination_html"))
+    assert pagination.at_css("nav.pagy.series-nav a[href*='page=4']")
+  end
+
+  test "history JSON returns no posts a zero count and no pagination when discussion is empty" do
+    @message.remove_from_discussion!
+    sign_in @member
+
+    get book_club_club_messages_path(@book_club), as: :json
+
+    assert_response :success
+    assert_empty response.parsed_body.fetch("messages")
+    assert_equal 0, response.parsed_body.fetch("total_posts")
+    assert_empty response.parsed_body.fetch("pagination_html").strip
+  end
+
+  test "history JSON counts deleted parents with replies without exposing the deleted body" do
+    @book_club.club_messages.create!(parent: @message, user: @member, body: "Retained reply")
+    @message.remove_from_discussion!
+    sign_in @member
+
+    get book_club_club_messages_path(@book_club), as: :json
+
+    assert_response :success
+    assert_equal [ @message.discussion_payload.as_json ], response.parsed_body.fetch("messages")
+    assert_equal 1, response.parsed_body.fetch("total_posts")
+    assert_not_includes response.body, "First thought"
+  end
+
+  test "history JSON includes the post count for the existing nonmember administrator read access" do
+    sign_in @admin
+
+    get book_club_club_messages_path(@book_club), as: :json
+
+    assert_response :success
+    assert_equal [ @message.discussion_payload.as_json ], response.parsed_body.fetch("messages")
+    assert_equal 1, response.parsed_body.fetch("total_posts")
+  end
+
   test "comment toggles show each post's total with singular and plural labels before expansion" do
     single_comment_post = @book_club.club_messages.create!(user: @owner, body: "One answer")
     two_comment_post = @book_club.club_messages.create!(user: @owner, body: "Two answers")
@@ -206,6 +273,8 @@ class ClubMessagesControllerTest < ActionDispatch::IntegrationTest
     get book_club_club_messages_path(@book_club)
 
     assert_response :success
+    assert_select "header .club-discussion-connection p[role='status'][data-club-discussion-target='connectionStatus']", text: "Connecting…"
+    assert_select "button[type='button'][hidden][data-club-discussion-target='retry'][data-action='club-discussion#recoverDiscussion']", text: "Retry"
     assert_select "section[aria-labelledby='club-discussion-composer-title']" do
       assert_select "form[data-action='submit->club-discussion#postMessage']:not([action])" do
         assert_select "label[for='club_message_body']", text: "Your discussion post"
@@ -245,6 +314,42 @@ class ClubMessagesControllerTest < ActionDispatch::IntegrationTest
       assert_select "h2", text: "Current pick"
       assert_select "p", text: "No current pick yet."
     end
+  end
+
+  test "current pick frame refresh returns the changed book and keeps discussion controls outside the frame" do
+    sign_in @member
+    frame_id = dom_id(@book_club, :current_pick_frame)
+
+    get book_club_club_messages_path(@book_club)
+
+    assert_response :success
+    assert_select "turbo-frame##{frame_id}[target='_top']" do
+      assert_select "a[href='#{book_club_club_messages_path(@book_club)}'][data-turbo-frame='#{frame_id}'][data-turbo-prefetch='false']", text: /Refresh/
+      assert_select "article.book-club-current-pick-card--refreshable a.book-club-current-pick-refresh[aria-label='Refresh current pick']" do
+        assert_select "span[aria-hidden='true']", text: "↻"
+        assert_select "span:not([aria-hidden])", text: "Refresh"
+      end
+      assert_select "[data-controller='club-discussion'], form, turbo-cable-stream-source", count: 0
+    end
+    assert_select "[data-controller='club-discussion']", count: 1
+    assert_select "form[data-action='submit->club-discussion#postMessage']", count: 1
+
+    @book_club.update!(current_book: books(:refactoring))
+    get book_club_club_messages_path(@book_club), headers: { "Turbo-Frame" => frame_id }
+
+    assert_response :success
+    assert_select "turbo-frame##{frame_id} h2 a", text: books(:refactoring).title
+  end
+
+  test "current pick frame refresh denies a former discussion member" do
+    @book_club.book_club_memberships.find_by!(user: @member).destroy!
+    sign_in @member
+
+    get book_club_club_messages_path(@book_club), headers: { "Turbo-Frame" => dom_id(@book_club, :current_pick_frame) }
+
+    assert_redirected_to root_path
+    assert_select "turbo-frame", count: 0
+    assert_not_includes response.body, @message.body
   end
 
   test "nonmember admins can read discussion but do not see a posting form" do

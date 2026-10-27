@@ -18,6 +18,39 @@ class NotificationsControllerTest < ActionDispatch::IntegrationTest
     assert notification.reload.read?
   end
 
+  test "frame refresh returns only the signed in user's latest notifications and unread count without marking them as read" do
+    own_notification = create_notification(users(:leika))
+    other_notification = create_notification(users(:jaina))
+    sign_in users(:leika)
+
+    get notifications_path, headers: { "Turbo-Frame" => "notifications_frame" }
+
+    assert_response :success
+    assert_equal "no-store", response.headers["Cache-Control"]
+    assert_select "turbo-frame#notifications_frame[target='_top']" do
+      assert_select "li##{dom_id(own_notification)}", count: 1
+      assert_select "li##{dom_id(other_notification)}", count: 0
+      assert_select ".notification-count", text: "1"
+      assert_select "a[data-turbo-frame='notifications_frame'][data-turbo-prefetch='false'][href='#{notifications_path}'][aria-label='Refresh notifications']"
+    end
+    assert_not own_notification.reload.read?
+
+    latest_notification = create_notification(users(:leika))
+    get notifications_path, headers: { "Turbo-Frame" => "notifications_frame" }
+
+    assert_response :success
+    assert_select ".notification-count", text: "2"
+    assert_select ".notification-list > li:first-child", id: dom_id(latest_notification)
+    assert_not latest_notification.reload.read?
+  end
+
+  test "notification frame refresh requires sign in" do
+    get notifications_path, headers: { "Turbo-Frame" => "notifications_frame" }
+
+    assert_redirected_to new_user_session_path
+    assert_select "turbo-frame", count: 0
+  end
+
   test "a user is redirected home after marking a notification as read with html" do
     notification = create_notification(users(:leika))
     sign_in users(:leika)

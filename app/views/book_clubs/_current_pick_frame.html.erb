@@ -1,0 +1,6 @@
+<% variant = local_assigns.fetch(:variant, :overview) %>
+<% frame_id = dom_id(book_club, :current_pick_frame) %>
+<% refresh_path = variant == :discussion ? book_club_club_messages_path(book_club, page: params[:page]) : book_club_path(book_club) %>
+<%= turbo_frame_tag frame_id, target: "_top" do %>
+  <%= render "book_clubs/current_pick", book_club: book_club, variant: variant, refresh_path: refresh_path, frame_id: frame_id %>
+<% end %>

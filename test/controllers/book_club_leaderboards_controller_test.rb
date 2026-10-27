@@ -60,6 +60,59 @@ class BookClubLeaderboardsControllerTest < ActionDispatch::IntegrationTest
     assert_redirected_to new_user_session_path
   end
 
+  test "leaderboard frame refresh returns updated rankings and the signed in reader highlight" do
+    club = BookClub.create!(name: "Refresh ranking", current_book: books(:refactoring))
+    club.book_club_memberships.create!(user: users(:leika), role: "owner")
+    club.book_club_memberships.create!(user: users(:jaina), role: "member")
+    session = ReadingSession.create!(user: users(:jaina), book: books(:refactoring), read_on: Date.current, pages_read: 20)
+    sign_in users(:leika)
+    frame_id = dom_id(club, :leaderboard_frame)
+    path = book_club_leaderboard_path(club)
+
+    get path
+
+    assert_response :success
+    assert_select "a[href='#{path}'][data-turbo-frame='#{frame_id}'][data-turbo-prefetch='false']", text: "↻ Refresh leaderboard"
+    assert_select "turbo-frame##{frame_id}[target='_top']" do
+      assert_select ".book-club-ranking-row", count: 2
+      assert_select "turbo-cable-stream-source", count: 0
+    end
+    assert_select "turbo-cable-stream-source", count: 1
+
+    session.update!(pages_read: 75)
+    get path, headers: { "Turbo-Frame" => frame_id }
+
+    assert_response :success
+    assert_select "turbo-frame##{frame_id}" do
+      assert_select ".book-club-ranking-row:first-child" do
+        assert_select "strong", text: users(:jaina).nickname
+        assert_select ".book-club-ranking-pages", text: "75"
+      end
+      assert_select ".book-club-ranking-row--current", count: 1 do
+        assert_select "strong", text: users(:leika).nickname
+      end
+    end
+  end
+
+  test "leaderboard frame refresh denies former members and guests" do
+    club = BookClub.create!(name: "Private ranking", current_book: books(:refactoring))
+    membership = club.book_club_memberships.create!(user: users(:leika), role: "owner")
+    sign_in users(:leika)
+    membership.destroy!
+    headers = { "Turbo-Frame" => dom_id(club, :leaderboard_frame) }
+
+    get book_club_leaderboard_path(club), headers: headers
+
+    assert_redirected_to root_path
+    assert_select "turbo-frame", count: 0
+
+    sign_out users(:leika)
+    get book_club_leaderboard_path(club), headers: headers
+
+    assert_redirected_to new_user_session_path
+    assert_select "turbo-frame", count: 0
+  end
+
   test "podium and ranking show uploaded photos and fall back to the first two nickname characters" do
     club = BookClub.create!(name: "Avatar ranking", current_book: books(:refactoring))
     photo_reader = users(:leika)

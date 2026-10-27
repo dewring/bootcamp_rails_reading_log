@@ -3,7 +3,7 @@ import { afterEach, beforeEach, expect, test, vi, type Mock } from "vitest"
 import ClubMessageController from "../../app/javascript/controllers/club_message_controller"
 import ClubRepliesController from "../../app/javascript/controllers/club_replies_controller"
 import ClubDiscussionController from "../../app/javascript/controllers/club_discussion_controller"
-import type { DiscussionMessage } from "../../app/javascript/controllers/club_discussion_controller"
+import type { DiscussionMessage } from "../../app/javascript/club_discussion/types"
 
 interface Subscription {
   unsubscribe(): void
