@@ -48,6 +48,16 @@ current conversation take precedence.
 
 11. Extract nested or repetitive logic into private methods. Keep public
     methods short, focused, and high-level.
+    Avoid deeply nested `if`/`unless` branches in backend code. Use guard
+    clauses and early returns for invalid input, missing records, denied
+    access, and other cases that should stop processing, so the main flow
+    remains easy to follow. Extract a branch into an intention-revealing
+    private method when it represents a separate responsibility. Keep simple
+    `if`/`else` branches when they express alternatives clearly; do not replace
+    nesting with dense compound conditions or nested ternaries. Preserve
+    authorization checks, transaction boundaries, side effects, and return
+    values when flattening existing code. Apply this guidance to new or
+    changed logic; do not refactor unrelated code solely to reduce nesting.
 
 12. Handle N+1 query problems explicitly. Use `includes`, `eager_load`, or
     `preload` when fetching associations. Bullet warnings in development or
