@@ -9,7 +9,8 @@ module ApplicationCable
     private
 
     def find_verified_user
-      env["warden"].user || reject_unauthorized_connection
+      scope = Devise::Mapping.find_scope!(User)
+      env["warden"].user(scope: scope) || reject_unauthorized_connection
     end
   end
 end
