@@ -42,13 +42,6 @@ Production was not redeployed or tested in this assessment. The original failure
 | Restart authentication is fixed and re-demonstrated. The first WebSocket request authenticated and the draft survived. | 재시작 인증 문제를 수정하고 재시연했다. 첫 WebSocket 요청이 인증됐고 초안도 유지됐다. |
 | The fix does not bypass login checks. Guest and outdated authentication sessions remain rejected. | 로그인 검사를 우회하지 않는다. 비로그인 사용자와 오래된 인증 세션은 계속 거부된다. |
 
-## Evidence images
-
-- [Recovered feed and retained draft](issue131/reconnected.png)
-- [Posting with unavailable presence](issue131/presence-unavailable.png)
-- [Restored presence](issue131/presence-restored.png)
-- [Successful authentication after full restart](issue131/auth-restart-fixed.png)
-
 ## 한국어 요약
 
 - 책 변경, 알림, 접속자, 입력 중 표시, 실시간 게시를 두 사용자로 확인했다.
@@ -84,7 +77,7 @@ This is an engineering self-assessment against the category weights stated in is
 | Custom Cable | 20/20 | Real two-user posting and typing over Solid Cable; spoofing, ownership, and nonmember tests / 실제 두 사용자 게시·입력 전달과 위조·소유권·비멤버 테스트 |
 | Presence/typing | 15/15 | Two online members, typing, isolated Redis outage with continued posting, automatic presence recovery / 접속자·입력 표시, Redis 장애 중 게시, 접속 상태 자동 복구 |
 | Recovery | 20/20 | Snapshot/event merging, selected-page bounds, stale requests, Retry, revocation, draft preservation, transport recovery and corrected cold restart / 병합·페이지 제한·오래된 요청·재시도·권한 철회·초안·연결 복구·서버 재시작 |
-| Explanation/tests | 10/10 | Student Q&A provided in chat; complete required checks, regression tests, screenshots, measurements and explicit limitations / 대화 내 학생 문답, 필수 검사·회귀 테스트·스크린샷·측정과 한계 기록 |
+| Explanation/tests | 10/10 | Student Q&A provided in chat; complete required checks, regression tests, measurements and explicit limitations / 대화 내 학생 문답, 필수 검사·회귀 테스트·측정과 한계 기록 |
 | **Total / 합계** | **100/100** | Core categories demonstrated; no privacy leak or executable-user-text failure observed in tested cases / 핵심 항목 시연 완료, 검증한 경우에서 개인정보 노출·사용자 텍스트 실행 실패 없음 |
 
 User-provided message text is assigned through `textContent` in `app/javascript/club_discussion/message_elements.ts`; recovery tests include executable-looking text. Authorization denial/revocation and notification recipient isolation have automated coverage. This is bounded test evidence, not a claim of exhaustive security certification.
