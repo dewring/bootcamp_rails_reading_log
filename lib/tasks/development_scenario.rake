@@ -1,4 +1,18 @@
 namespace :development_scenario do
+  desc "Inspect the saved catalog and report identity collisions without writing records (development only)"
+  task preflight_catalog: :environment do
+    report = OpenLibraryCatalogPreflight.new.preflight_catalog
+    books = report.fetch("books")
+    $stdout.write("Snapshot ID: #{report.fetch('snapshot_id')}\n")
+    $stdout.write("Works checked: #{books.length}; existing Works to reuse: #{books.count { |book| book.fetch('book_status') == 'reused' }}\n")
+    $stdout.write("Works without representative Editions: #{books.count { |book| book.fetch('edition_status') == 'skipped' }}\n")
+    $stdout.write("Preflight passed. No database records were changed.\n")
+  rescue OpenLibraryCatalogPreflight::PreflightError => error
+    $stderr.write("#{error.message}\n")
+    $stderr.write("#{JSON.pretty_generate(error.report.fetch('conflicts', []))}\n")
+    abort "Catalog preflight failed."
+  end
+
   desc "Capture 100 Open Library Works for offline development seed replay (development only)"
   task capture_catalog: :environment do
     snapshot = OpenLibraryCatalogCapture.new.capture_catalog
