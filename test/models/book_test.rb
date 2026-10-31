@@ -31,10 +31,34 @@ class BookTest < ActiveSupport::TestCase
     assert @book.valid?
   end
 
-  test "title and author are titleized before save" do
-    book = Book.create!(title: "the great gatsby", author: "f. scott fitzgerald", total_pages: 180)
-    assert_equal "The Great Gatsby", book.title
-    assert_equal "F. Scott Fitzgerald", book.author
+  test "title and author trim surrounding whitespace without changing capitalization" do
+    book = Book.create!(title: "  the great gatsby  ", author: "  f. scott fitzgerald  ", total_pages: 180)
+
+    book.reload
+
+    assert_equal "the great gatsby", book.title
+    assert_equal "f. scott fitzgerald", book.author
+  end
+
+  test "find_or_create_from_search_result preserves mixed capitalization and Unicode source text" do
+    doc = {
+      "key" => "/works/OL82563W",
+      "title" => "eBooks and EPUB: a reader's guide",
+      "author_name" => [ "Gabriel García Márquez" ]
+    }
+
+    book = Book.find_or_create_from_search_result(doc).reload
+
+    assert_equal doc.fetch("title"), book.title
+    assert_equal doc.fetch("author_name").first, book.author
+  end
+
+  test "title and author containing only whitespace are invalid" do
+    book = Book.new(title: "   ", author: "\t ")
+
+    assert_not book.valid?
+    assert_includes book.errors[:title], "can't be blank"
+    assert_includes book.errors[:author], "can't be blank"
   end
 
   test "find_or_create_from_search_result creates a book from a search doc" do
