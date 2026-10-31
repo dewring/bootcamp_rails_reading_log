@@ -33,6 +33,7 @@ gem "noticed", "~> 3.0"
 # ~> x.y.z means ">= x.y.z and < x.(y+1).0"
 
 # Security Updates (Bundler Audit)
+gem "rack", "~> 3.2.8"
 gem "mail", "~> 2.9.1"
 gem "css_parser", ">= 3.3.0"
 gem "crass", ">= 1.0.8"
