@@ -10,6 +10,23 @@ class OpenLibraryCatalogReplay
   end
 
   def replay_catalog
+    with_catalog_context do
+      @scenario_manifest.save_scenario
+      @plan.fetch("books").each { |entry| import_catalog_entry(entry) }
+      verify_catalog_totals
+      @manifest.fetch("catalog")["status"] = "complete"
+      @scenario_manifest.save_scenario
+      @manifest.deep_dup
+    end
+  end
+
+  def preflight_catalog
+    with_catalog_context { @manifest.fetch("catalog").deep_dup }
+  end
+
+  private
+
+  def with_catalog_context
     raise ReplayError, "Catalog replay is only available in development" unless Rails.env.development?
 
     @scenario_manifest.with_exclusive_access do
@@ -19,18 +36,11 @@ class OpenLibraryCatalogReplay
       @manifest["catalog"] ||= planned_catalog
       validate_catalog_inventory(@manifest.fetch("catalog"))
       verify_recorded_rows
-      @scenario_manifest.save_scenario
-      @plan.fetch("books").each { |entry| import_catalog_entry(entry) }
-      verify_catalog_totals
-      @manifest.fetch("catalog")["status"] = "complete"
-      @scenario_manifest.save_scenario
-      @manifest.deep_dup
+      yield
     end
   rescue DevelopmentReadingScenarioManifest::ManifestError => error
     raise ReplayError, error.message
   end
-
-  private
 
   def load_catalog_records
     book_keys = @plan.fetch("books").map { |entry| entry.fetch("book_attributes").fetch("ol_work_key") }

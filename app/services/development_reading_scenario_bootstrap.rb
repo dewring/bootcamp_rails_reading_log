@@ -14,6 +14,24 @@ class DevelopmentReadingScenarioBootstrap
   end
 
   def bootstrap_scenario
+    with_bootstrap_context do
+      @manifest["bootstrap"] = @bootstrap
+      @scenario_manifest.save_scenario
+      import_bootstrap_records
+      verify_bootstrap_totals
+      @bootstrap["status"] = "complete"
+      @scenario_manifest.save_scenario
+      @manifest.deep_dup
+    end
+  end
+
+  def preflight_bootstrap
+    with_bootstrap_context { @bootstrap.deep_dup }
+  end
+
+  private
+
+  def with_bootstrap_context
     raise BootstrapError, "Scenario bootstrap is only available in development" unless Rails.env.development?
 
     @scenario_manifest.with_exclusive_access do
@@ -26,19 +44,11 @@ class DevelopmentReadingScenarioBootstrap
       validate_inventory
       verify_recorded_rows
       validate_pending_writes
-      @manifest["bootstrap"] = @bootstrap
-      @scenario_manifest.save_scenario
-      import_bootstrap_records
-      verify_bootstrap_totals
-      @bootstrap["status"] = "complete"
-      @scenario_manifest.save_scenario
-      @manifest.deep_dup
+      yield
     end
   rescue DevelopmentReadingScenarioManifest::ManifestError => error
     raise BootstrapError, error.message
   end
-
-  private
 
   def load_existing_records
     genres = Genre.where(name: @plan.fetch("genres").map { |entry| entry.fetch("name") }).order(:id).to_a

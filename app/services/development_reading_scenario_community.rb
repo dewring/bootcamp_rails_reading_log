@@ -13,20 +13,7 @@ class DevelopmentReadingScenarioCommunity
   end
 
   def replay_community
-    raise CommunityError, "Scenario community writes are only available in development" unless Rails.env.development?
-
-    @scenario_manifest.with_exclusive_access do
-      # Reconciliation checks the saved actors, catalog and reading inventory using the same lock.
-      DevelopmentReadingScenarioActivity.new(snapshot_path: @snapshot_path, as_of: @as_of, manifest: @scenario_manifest).reconcile_reading
-      catalog = OpenLibraryCatalogPreflight.new(snapshot_path: @snapshot_path).preflight_catalog
-      @plan = DevelopmentReadingScenarioPlan.new(catalog: catalog, as_of: @as_of).build_baseline
-      @manifest = @scenario_manifest.prepare_scenario(snapshot_id: catalog.fetch("snapshot_id"))
-      load_references
-      @intended = planned_community
-      @community = @manifest["community"] || @intended.deep_dup
-      load_community_rows
-      reject_existing_community unless @manifest["community"]
-      verify_inventory
+    with_community_context do
       @manifest["community"] = @community
       @scenario_manifest.save_scenario
       import_clubs
@@ -38,11 +25,33 @@ class DevelopmentReadingScenarioCommunity
       @scenario_manifest.save_scenario
       @manifest.deep_dup
     end
-  rescue DevelopmentReadingScenarioManifest::ManifestError, DevelopmentReadingScenarioActivity::ActivityError => error
-    raise CommunityError, error.message
+  end
+
+  def preflight_community
+    with_community_context { @community.deep_dup }
   end
 
   private
+
+  def with_community_context
+    raise CommunityError, "Scenario community writes are only available in development" unless Rails.env.development?
+
+    @scenario_manifest.with_exclusive_access do
+      DevelopmentReadingScenarioActivity.new(snapshot_path: @snapshot_path, as_of: @as_of, manifest: @scenario_manifest).preflight_reading
+      catalog = OpenLibraryCatalogPreflight.new(snapshot_path: @snapshot_path).preflight_catalog
+      @plan = DevelopmentReadingScenarioPlan.new(catalog: catalog, as_of: @as_of).build_baseline
+      @manifest = @scenario_manifest.prepare_scenario(snapshot_id: catalog.fetch("snapshot_id"))
+      load_references
+      @intended = planned_community
+      @community = @manifest["community"] || @intended.deep_dup
+      load_community_rows
+      reject_existing_community unless @manifest["community"]
+      verify_inventory
+      yield
+    end
+  rescue DevelopmentReadingScenarioManifest::ManifestError, DevelopmentReadingScenarioActivity::ActivityError => error
+    raise CommunityError, error.message
+  end
 
   def load_references
     users = @manifest.fetch("bootstrap").fetch("records").fetch("users")
