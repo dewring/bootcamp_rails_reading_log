@@ -1,47 +1,36 @@
-require "fileutils"
-require "tempfile"
-
 class OpenLibraryCatalogReplay
   class ReplayError < StandardError; end
 
   def initialize(snapshot_path: Rails.root.join("db/seeds/open_library_catalog.json"),
     manifest_path: Rails.root.join("storage/development_scenarios/week15.json"),
     lock_path: Rails.root.join("storage/development_scenarios/week15.lock"),
-    as_of: Time.zone.local(2026, 10, 30, 12))
+    as_of: Time.zone.local(2026, 10, 30, 12), manifest: nil)
     @snapshot_path = Pathname.new(snapshot_path)
-    @manifest_path = Pathname.new(manifest_path)
-    @lock_path = Pathname.new(lock_path)
-    @as_of = as_of
+    @scenario_manifest = manifest || DevelopmentReadingScenarioManifest.new(path: manifest_path, lock_path: lock_path, as_of: as_of)
   end
 
   def replay_catalog
     raise ReplayError, "Catalog replay is only available in development" unless Rails.env.development?
 
-    with_scenario_lock do
+    @scenario_manifest.with_exclusive_access do
       @plan = OpenLibraryCatalogPreflight.new(snapshot_path: @snapshot_path).preflight_catalog
       load_catalog_records
-      @manifest = @manifest_path.exist? ? read_manifest : planned_manifest
-      validate_manifest
+      @manifest = @scenario_manifest.prepare_scenario(snapshot_id: @plan.fetch("snapshot_id"))
+      @manifest["catalog"] ||= planned_catalog
+      validate_catalog_inventory(@manifest.fetch("catalog"))
       verify_recorded_rows
-      save_manifest
+      @scenario_manifest.save_scenario
       @plan.fetch("books").each { |entry| import_catalog_entry(entry) }
       verify_catalog_totals
       @manifest.fetch("catalog")["status"] = "complete"
-      save_manifest
+      @scenario_manifest.save_scenario
       @manifest.deep_dup
     end
+  rescue DevelopmentReadingScenarioManifest::ManifestError => error
+    raise ReplayError, error.message
   end
 
   private
-
-  def with_scenario_lock
-    FileUtils.mkdir_p(@lock_path.dirname)
-    File.open(@lock_path, File::RDWR | File::CREAT, 0o600) do |lock|
-      raise ReplayError, "Another week15 operation is already running" unless lock.flock(File::LOCK_EX | File::LOCK_NB)
-
-      yield
-    end
-  end
 
   def load_catalog_records
     book_keys = @plan.fetch("books").map { |entry| entry.fetch("book_attributes").fetch("ol_work_key") }
@@ -50,13 +39,7 @@ class OpenLibraryCatalogReplay
     @editions = BookEdition.where(ol_edition_key: edition_keys).index_by(&:ol_edition_key)
   end
 
-  def read_manifest
-    JSON.parse(@manifest_path.read)
-  rescue JSON::ParserError
-    raise ReplayError, "The week15 manifest contains invalid JSON; preserve it and inspect the failure before replaying."
-  end
-
-  def planned_manifest
+  def planned_catalog
     records = @plan.fetch("books").to_h do |entry|
       attributes = entry.fetch("book_attributes")
       key = attributes.fetch("ol_work_key")
@@ -71,17 +54,9 @@ class OpenLibraryCatalogReplay
       } ]
     end
     {
-      "version" => 1,
-      "scenario" => "week15",
-      "snapshot_id" => @plan.fetch("snapshot_id"),
-      "seed" => 15,
-      "as_of" => @as_of.in_time_zone.iso8601(6),
-      "database" => ActiveRecord::Base.connection_db_config.database,
-      "catalog" => {
-        "status" => "pending",
-        "expected_counts" => expected_counts,
-        "records" => records
-      }
+      "status" => "pending",
+      "expected_counts" => expected_counts,
+      "records" => records
     }
   end
 
@@ -92,19 +67,6 @@ class OpenLibraryCatalogReplay
       "result" => record ? "reused" : nil,
       "expected_attributes" => record ? recorded_attributes(record) : attributes
     }
-  end
-
-  def validate_manifest
-    expected = {
-      "version" => 1, "scenario" => "week15", "snapshot_id" => @plan.fetch("snapshot_id"),
-      "seed" => 15, "as_of" => @as_of.in_time_zone.iso8601(6),
-      "database" => ActiveRecord::Base.connection_db_config.database
-    }
-    unless @manifest.is_a?(Hash) && @manifest.slice(*expected.keys) == expected
-      raise ReplayError, "Snapshot, seed, reference time or database differs from the recorded week15 scenario; no records were imported."
-    end
-    catalog = @manifest["catalog"]
-    validate_catalog_inventory(catalog)
   end
 
   def validate_catalog_inventory(catalog)
@@ -189,12 +151,12 @@ class OpenLibraryCatalogReplay
     @editions[edition.ol_edition_key] = edition if edition
     record_saved_row(pair.fetch("book"), book, book_result)
     record_saved_row(pair.fetch("edition"), edition, edition_result) if edition
-    save_manifest
+    @scenario_manifest.save_scenario
   rescue ActiveRecord::RecordInvalid => error
     kind = error.record.is_a?(BookEdition) ? "edition" : "book"
     pair.fetch(kind)["result"] = "failed"
     pair.fetch(kind)["errors"] = error.record.errors.full_messages
-    save_manifest
+    @scenario_manifest.save_scenario
     raise ReplayError, "Could not import #{key}: #{error.record.errors.full_messages.join(', ')}. Previously committed records remain resumable."
   end
 
@@ -229,16 +191,5 @@ class OpenLibraryCatalogReplay
 
   def planned_work_keys
     @plan.fetch("books").map { |entry| entry.fetch("book_attributes").fetch("ol_work_key") }
-  end
-
-  def save_manifest
-    FileUtils.mkdir_p(@manifest_path.dirname)
-    Tempfile.create([ ".week15", ".json" ], @manifest_path.dirname) do |file|
-      file.write(JSON.pretty_generate(@manifest))
-      file.write("\n")
-      file.flush
-      file.fsync
-      File.rename(file.path, @manifest_path)
-    end
   end
 end

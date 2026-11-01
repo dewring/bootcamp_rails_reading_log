@@ -1,4 +1,14 @@
 namespace :development_scenario do
+  desc "Bootstrap synthetic readers, genres and badges with safe resume (development only)"
+  task bootstrap_scenario: :environment do
+    manifest = DevelopmentReadingScenarioBootstrap.new.bootstrap_scenario
+    $stdout.write("Bootstrap complete: #{manifest.fetch('bootstrap').fetch('actual_counts').to_json}\n")
+    $stdout.write("Credentials come from DEVELOPMENT_SCENARIO_PASSWORD; plaintext passwords are not stored in the manifest.\n")
+  rescue DevelopmentReadingScenarioBootstrap::BootstrapError, OpenLibraryCatalogPreflight::PreflightError => error
+    $stderr.write("#{error.message}\n")
+    abort "Scenario bootstrap stopped; review the reported identity or configuration before retrying."
+  end
+
   desc "Preview the deterministic Week 15 baseline inventory without writing records (development only)"
   task plan_baseline: :environment do
     catalog = OpenLibraryCatalogPreflight.new.preflight_catalog
