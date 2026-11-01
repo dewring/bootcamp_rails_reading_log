@@ -18,6 +18,9 @@
   </div>
 
   <div class="book-club-sidebar-account">
+    <% if book_club.persisted? && policy(book_club).leave? %>
+      <%= button_to "Leave Book Club", leave_book_club_path(book_club), method: :delete, class: "book-club-action book-club-action--secondary", data: { turbo_confirm: "Leave this book club?" } %>
+    <% end %>
     <div class="book-club-account-row">
       <%= render "users/avatar", user: current_user, variant: :club_member %>
       <div>

@@ -13,7 +13,7 @@
     <div class="reading-detail-identity">
       <p class="reading-detail-eyebrow">Reading journal</p>
       <h2 id="reading-detail-title"><%= @book.title %></h2>
-      <p class="reading-detail-author">by <%= @book.author %></p>
+      <p class="reading-detail-author"><%= @book.author %></p>
     </div>
     <div class="reading-detail-actions">
       <% user_book = current_user.user_books.find_by(book: @book) %>
