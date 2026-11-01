@@ -1,4 +1,19 @@
 namespace :development_scenario do
+  desc "Replay the captured catalog offline with a resumable local manifest (development only)"
+  task replay_catalog: :environment do
+    manifest = OpenLibraryCatalogReplay.new.replay_catalog
+    catalog = manifest.fetch("catalog")
+    $stdout.write("Catalog replay complete: #{catalog.fetch('actual_counts').to_json}\n")
+    $stdout.write("Snapshot ID: #{manifest.fetch('snapshot_id')}; seed: #{manifest.fetch('seed')}; as_of: #{manifest.fetch('as_of')}\n")
+    $stdout.write("Manifest: #{Rails.root.join('storage/development_scenarios/week15.json')}\n")
+  rescue OpenLibraryCatalogReplay::ReplayError, OpenLibraryCatalogPreflight::PreflightError => error
+    $stderr.write("#{error.message}\n")
+    if error.is_a?(OpenLibraryCatalogPreflight::PreflightError)
+      $stderr.write("#{JSON.pretty_generate(error.report.fetch('conflicts', []))}\n")
+    end
+    abort "Catalog replay stopped; preserve the manifest and resolve the reported conflict before retrying."
+  end
+
   desc "Inspect the saved catalog and report identity collisions without writing records (development only)"
   task preflight_catalog: :environment do
     report = OpenLibraryCatalogPreflight.new.preflight_catalog
