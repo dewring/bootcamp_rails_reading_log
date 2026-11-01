@@ -1,4 +1,17 @@
 namespace :development_scenario do
+  desc "Preview the deterministic Week 15 baseline inventory without writing records (development only)"
+  task plan_baseline: :environment do
+    catalog = OpenLibraryCatalogPreflight.new.preflight_catalog
+    plan = DevelopmentReadingScenarioPlan.new(catalog: catalog).build_baseline
+    $stdout.write("Baseline plan: #{plan.fetch('counts').to_json}\n")
+    $stdout.write("Seed: #{plan.fetch('seed')}; as_of: #{plan.fetch('as_of')}\n")
+    $stdout.write("No database records were changed.\n")
+  rescue OpenLibraryCatalogPreflight::PreflightError => error
+    $stderr.write("#{error.message}\n")
+    $stderr.write("#{JSON.pretty_generate(error.report.fetch('conflicts', []))}\n")
+    abort "Baseline planning stopped."
+  end
+
   desc "Replay the captured catalog offline with a resumable local manifest (development only)"
   task replay_catalog: :environment do
     manifest = OpenLibraryCatalogReplay.new.replay_catalog
