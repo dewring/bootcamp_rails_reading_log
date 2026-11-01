@@ -1,14 +1,15 @@
 class DevelopmentReadingScenarioActivity::CallbackJobs
   CALLBACK_JOBS = [ "BookProgressJob", "BadgeAwardJob", "ChallengeProgressJob", "BookClubLeaderboardJob" ].freeze
 
-  def initialize(users:, books:)
+  def initialize(users:, books:, additional_club_ids: [])
     @users = users
     @books = books
+    @additional_club_ids = additional_club_ids
   end
 
   def pending_work
     actor_gids = @users.values.map { |user| user.to_global_id.to_s }
-    club_ids = BookClub.where(current_book_id: @books.values.map(&:id)).pluck(:id)
+    club_ids = (BookClub.where(current_book_id: @books.values.map(&:id)).pluck(:id) + @additional_club_ids).uniq
     relevant = ->(name, arguments) {
       if name == "BookClubLeaderboardJob"
         club_ids.include?(arguments.first)

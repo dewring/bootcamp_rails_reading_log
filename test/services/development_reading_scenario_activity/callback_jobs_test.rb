@@ -54,6 +54,14 @@ class DevelopmentReadingScenarioActivity::CallbackJobsTest < ActiveSupport::Test
     end
   end
 
+  test "a selected quiet club is monitored even when it has no current book" do
+    quiet = BookClub.create!(name: "Selected quiet club")
+    BookClubLeaderboardJob.perform_later(quiet.id)
+    monitor = DevelopmentReadingScenarioActivity::CallbackJobs.new(users: { "reader" => @user }, books: { "work" => @book }, additional_club_ids: [ quiet.id ])
+
+    assert_equal({ "pending_count" => 1, "failed_job_ids" => [] }, monitor.pending_work)
+  end
+
   private
 
   def queue_adapter_for_test

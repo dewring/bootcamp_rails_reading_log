@@ -1,4 +1,24 @@
 namespace :development_scenario do
+  desc "Advance named tick1 once: three sessions and two top-level posts (development only)"
+  task :advance_scenario, [ :tick ] => :environment do |_task, arguments|
+    manifest = DevelopmentReadingScenarioTick.new.advance_scenario(tick: arguments[:tick])
+    tick = manifest.fetch("ticks").fetch(arguments[:tick])
+    $stdout.write("Baseline activity: #{tick.fetch('baseline_counts').to_json}\n")
+    $stdout.write("#{tick.fetch('name')}: #{tick.fetch('status')}; scenario counts: #{tick.fetch('scenario_counts').to_json}\n")
+    $stdout.write("Drain the worker, then run development_scenario:reconcile_tick[#{tick.fetch('name')}].\n")
+  rescue DevelopmentReadingScenarioTick::TickError => error
+    abort error.message
+  end
+
+  desc "Verify named tick1 after normal callback jobs drain (development only)"
+  task :reconcile_tick, [ :tick ] => :environment do |_task, arguments|
+    manifest = DevelopmentReadingScenarioTick.new.reconcile_tick(tick: arguments[:tick])
+    tick = manifest.fetch("ticks").fetch(arguments[:tick])
+    $stdout.write("#{tick.fetch('name')}: #{tick.fetch('status')}; callback work: #{tick.fetch('callback_work').to_json}\n")
+  rescue DevelopmentReadingScenarioTick::TickError => error
+    abort error.message
+  end
+
   desc "Replay four clubs, 24 memberships, 80 posts and 20 reviews offline (development only)"
   task replay_community: :environment do
     manifest = DevelopmentReadingScenarioCommunity.new.replay_community

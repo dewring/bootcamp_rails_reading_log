@@ -62,7 +62,8 @@ class DevelopmentReadingScenarioActivity
   end
 
   def reconcile_saved_reading
-    work = CallbackJobs.new(users: @references.users, books: @references.books).pending_work
+    club_ids = @manifest.dig("community", "records", "book_clubs")&.values&.filter_map { |record| record["id"] } || []
+    work = CallbackJobs.new(users: @references.users, books: @references.books, additional_club_ids: club_ids).pending_work
     @inventory.verify_reading
     unless @inventory.complete?
       raise ActivityError, "Reading replay is incomplete; resume it before checking final truth."
