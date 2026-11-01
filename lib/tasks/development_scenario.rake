@@ -1,4 +1,13 @@
 namespace :development_scenario do
+  desc "Replay four clubs, 24 memberships, 80 posts and 20 reviews offline (development only)"
+  task replay_community: :environment do
+    manifest = DevelopmentReadingScenarioCommunity.new.replay_community
+    $stdout.write("Community rows saved: #{manifest.fetch('community').fetch('actual_counts').to_json}\n")
+    $stdout.write("Normal membership jobs remain queued; drain the worker before recording final scenario truth.\n")
+  rescue DevelopmentReadingScenarioCommunity::CommunityError, OpenLibraryCatalogPreflight::PreflightError => error
+    abort error.message
+  end
+
   desc "Replay 150 library entries and 300 dated sessions offline (development only)"
   task replay_reading: :environment do
     manifest = DevelopmentReadingScenarioActivity.new.replay_reading
