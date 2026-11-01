@@ -1,4 +1,22 @@
 namespace :development_scenario do
+  desc "Replay 150 library entries and 300 dated sessions offline (development only)"
+  task replay_reading: :environment do
+    manifest = DevelopmentReadingScenarioActivity.new.replay_reading
+    $stdout.write("Reading rows saved: #{manifest.fetch('reading').fetch('actual_counts').to_json}\n")
+    $stdout.write("Run the development worker, then development_scenario:reconcile_reading before recording final truth.\n")
+  rescue DevelopmentReadingScenarioActivity::ActivityError, OpenLibraryCatalogPreflight::PreflightError => error
+    abort error.message
+  end
+
+  desc "Check callback jobs and final scenario library states without bypassing the worker (development only)"
+  task reconcile_reading: :environment do
+    manifest = DevelopmentReadingScenarioActivity.new.reconcile_reading
+    reading = manifest.fetch("reading")
+    $stdout.write("Reading status: #{reading.fetch('status')}; callback work: #{reading.fetch('callback_work').to_json}\n")
+  rescue DevelopmentReadingScenarioActivity::ActivityError, OpenLibraryCatalogPreflight::PreflightError => error
+    abort error.message
+  end
+
   desc "Bootstrap synthetic readers, genres and badges with safe resume (development only)"
   task bootstrap_scenario: :environment do
     manifest = DevelopmentReadingScenarioBootstrap.new.bootstrap_scenario
