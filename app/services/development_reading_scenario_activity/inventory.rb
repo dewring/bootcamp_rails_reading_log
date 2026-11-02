@@ -87,17 +87,6 @@ class DevelopmentReadingScenarioActivity::Inventory
     counts
   end
 
-  def verify_final_library_states
-    @library_matches.each do |identity, row|
-      record = @reading.fetch("records").fetch("user_books").fetch(identity)
-      expected = record.fetch("initial_status") == "reading" ? derived_status(row) : record.fetch("initial_status")
-      raise DevelopmentReadingScenarioActivity::ActivityError, "Progress jobs did not reconcile library row ID #{row.id}: expected #{expected}, found #{row.status}." unless row.status == expected
-    end
-    unless (@library_matches.values.map(&:status).uniq & UserBook::STATUSES).length == 3
-      raise DevelopmentReadingScenarioActivity::ActivityError, "Final library states do not include all three required states; review source page totals and activity."
-    end
-  end
-
   def snapshot_attributes(row, library: false)
     attributes = recorded_attributes(row)
     library ? attributes.except("status") : attributes

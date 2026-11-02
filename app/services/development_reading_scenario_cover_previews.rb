@@ -1,5 +1,3 @@
-require "securerandom"
-
 class DevelopmentReadingScenarioCoverPreviews
   class PreviewError < StandardError; end
 
@@ -20,9 +18,11 @@ class DevelopmentReadingScenarioCoverPreviews
       @previews.fetch("records").each do |key, record|
         next unless record.fetch("status") == "planned"
 
-        record["status"] = "enqueueing"
+        # Save intent before enqueueing so an interrupted request is not sent twice.
+        record["status"] = "requested"
         @scenario_manifest.save_scenario
-        @jobs.enqueue_preview(record, @books.fetch(key))
+        job = CoverAttachJob.perform_later(@books.fetch(key), record.fetch("cover_id"))
+        record["job_id"] = job.job_id
         record["status"] = "queued"
         @scenario_manifest.save_scenario
       end
@@ -50,9 +50,7 @@ class DevelopmentReadingScenarioCoverPreviews
       @books = Book.where(id: ids).with_attached_cover_image.index_by(&:ol_work_key)
       plan = Plan.new(snapshot: JSON.parse(@snapshot_path.read), books: @books).build_previews(missing_work_key: @manifest.dig("cover_previews", "missing_case", "work_key"))
       @previews = @manifest["cover_previews"] || plan.deep_dup
-      @previews.fetch("records").each_value { |record| record["job_id"] = SecureRandom.uuid } unless @manifest["cover_previews"]
       verify_preview_plan(plan)
-      @jobs = Jobs.new
       yield
     end
   rescue DevelopmentReadingScenarioManifest::ManifestError, OpenLibraryCatalogPreflight::PreflightError, OpenLibraryCatalogReplay::ReplayError => error
@@ -60,43 +58,19 @@ class DevelopmentReadingScenarioCoverPreviews
   end
 
   def verify_preview_plan(plan)
-    unless @previews.values_at("limit", "missing_case", "source_unavailable_work_keys") == plan.values_at("limit", "missing_case", "source_unavailable_work_keys") && @previews["records"].is_a?(Hash) && @previews.fetch("records").keys == plan.fetch("records").keys
+    selected = @previews.fetch("records").transform_values { |record| record.slice("book_id", "cover_id") }
+    intended = plan.fetch("records").transform_values { |record| record.slice("book_id", "cover_id") }
+    unless selected == intended && @previews.values_at("limit", "missing_case", "source_unavailable_work_keys") == plan.values_at("limit", "missing_case", "source_unavailable_work_keys")
       raise PreviewError, "Recorded preview selection differs from the captured catalog or exceeds its fixed budget."
     end
-    plan.fetch("records").each do |key, intended|
-      saved = @previews.fetch("records").fetch(key)
-      unless saved.is_a?(Hash) && saved.slice("book_id", "cover_id") == intended.slice("book_id", "cover_id") && saved["job_id"].is_a?(String) && saved["job_id"].present?
-        raise PreviewError, "Recorded preview #{key} changed its book, source cover or job identity."
-      end
-    end
-    job_ids = @previews.fetch("records").values.map { |record| record.fetch("job_id") }
-    raise PreviewError, "Two cover previews claim the same job identity; review before enqueueing work." unless job_ids.uniq.length == job_ids.length
   end
 
   def refresh_preview_states
     @previews.fetch("records").each do |key, record|
-      book = @books.fetch(key)
-      observation = @jobs.observe_job(record, book)
-      record.merge!(observation)
-      record["cover_attached"] = book.cover_image.attached?
-      record["status"] = preview_status(record)
-      record["notice"] = case record.fetch("status")
-      when "unavailable"
-        "The job finished without an attached cover; inspect worker logs."
-      when "unverified"
-        "No visible queue job and no attached cover; automatic re-enqueue is disabled."
-      end
+      record["cover_attached"] = @books.fetch(key).cover_image.attached?
+      record["status"] = "attached" if record.fetch("cover_attached")
+      record.except!("job_status", "failed_job_ids", "notice")
     end
-  end
-
-  def preview_status(record)
-    return "failed" if record.fetch("job_status") == "failed"
-    return "queued" if record.fetch("job_status") == "pending"
-    return "attached" if record.fetch("cover_attached")
-    return "unavailable" if record.fetch("job_status") == "finished"
-    return "planned" if record.fetch("status") == "planned"
-
-    "unverified"
   end
 
   def save_preview_report

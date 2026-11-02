@@ -129,7 +129,7 @@ class DevelopmentReadingScenarioTick
     @tick["baseline_counts"] = { "reading_sessions" => 300, "club_messages" => 80 }
     @tick["scenario_counts"] = totals
     @tick["status"] = @manifest.fetch("reading").fetch("status")
-    @tick["callback_work"] = @manifest.fetch("reading").fetch("callback_work")
+    @tick.delete("callback_work")
     @manifest.fetch("community").fetch("actual_counts")["club_messages_with_ticks"] = totals.fetch("club_messages")
     @manifest.fetch("baseline").fetch("actual_counts").merge!(totals)
     @manifest.fetch("baseline")["status"] = @tick.fetch("status")

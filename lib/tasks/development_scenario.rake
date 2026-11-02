@@ -9,11 +9,12 @@ namespace :development_scenario do
     abort error.message
   end
 
-  desc "Report attached pending unavailable or failed cover previews without retrying downloads (development only)"
+  desc "Report selected cover attachments without inspecting queue jobs (development only)"
   task reconcile_cover_previews: :environment do
     report = DevelopmentReadingScenarioCoverPreviews.new.reconcile_previews.fetch("cover_previews")
     $stdout.write("Preview results: #{report.fetch('actual_counts').to_json}\n")
-    report.fetch("records").each { |key, record| $stdout.write("#{key}: #{record.slice('status', 'cover_attached', 'job_id', 'failed_job_ids').to_json}\n") }
+    report.fetch("records").each { |key, record| $stdout.write("#{key}: #{record.slice('status', 'cover_attached').to_json}\n") }
+    $stdout.write("Queued means the request was submitted; inspect the normal worker logs for retries or failures.\n")
   rescue DevelopmentReadingScenarioCoverPreviews::PreviewError => error
     abort error.message
   end
@@ -24,16 +25,16 @@ namespace :development_scenario do
     tick = manifest.fetch("ticks").fetch(arguments[:tick])
     $stdout.write("Baseline activity: #{tick.fetch('baseline_counts').to_json}\n")
     $stdout.write("#{tick.fetch('name')}: #{tick.fetch('status')}; scenario counts: #{tick.fetch('scenario_counts').to_json}\n")
-    $stdout.write("Drain the worker, then run development_scenario:reconcile_tick[#{tick.fetch('name')}].\n")
+    $stdout.write("Run the development worker to process normal background jobs.\n")
   rescue DevelopmentReadingScenarioTick::TickError => error
     abort error.message
   end
 
-  desc "Verify named tick1 after normal callback jobs drain (development only)"
+  desc "Refresh recorded counts for named tick1 (development only)"
   task :reconcile_tick, [ :tick ] => :environment do |_task, arguments|
     manifest = DevelopmentReadingScenarioTick.new.reconcile_tick(tick: arguments[:tick])
     tick = manifest.fetch("ticks").fetch(arguments[:tick])
-    $stdout.write("#{tick.fetch('name')}: #{tick.fetch('status')}; callback work: #{tick.fetch('callback_work').to_json}\n")
+    $stdout.write("#{tick.fetch('name')}: #{tick.fetch('status')}; scenario counts: #{tick.fetch('scenario_counts').to_json}\n")
   rescue DevelopmentReadingScenarioTick::TickError => error
     abort error.message
   end
@@ -42,7 +43,7 @@ namespace :development_scenario do
   task replay_community: :environment do
     manifest = DevelopmentReadingScenarioCommunity.new.replay_community
     $stdout.write("Community rows saved: #{manifest.fetch('community').fetch('actual_counts').to_json}\n")
-    $stdout.write("Normal membership jobs remain queued; drain the worker before recording final scenario truth.\n")
+    $stdout.write("Run the development worker to process normal background jobs.\n")
   rescue DevelopmentReadingScenarioCommunity::CommunityError, OpenLibraryCatalogPreflight::PreflightError => error
     abort error.message
   end
@@ -51,16 +52,16 @@ namespace :development_scenario do
   task replay_reading: :environment do
     manifest = DevelopmentReadingScenarioActivity.new.replay_reading
     $stdout.write("Reading rows saved: #{manifest.fetch('reading').fetch('actual_counts').to_json}\n")
-    $stdout.write("Run the development worker, then development_scenario:reconcile_reading before recording final truth.\n")
+    $stdout.write("Run the development worker to process normal background jobs.\n")
   rescue DevelopmentReadingScenarioActivity::ActivityError, OpenLibraryCatalogPreflight::PreflightError => error
     abort error.message
   end
 
-  desc "Check callback jobs and final scenario library states without bypassing the worker (development only)"
+  desc "Refresh recorded reading counts and library states (development only)"
   task reconcile_reading: :environment do
     manifest = DevelopmentReadingScenarioActivity.new.reconcile_reading
     reading = manifest.fetch("reading")
-    $stdout.write("Reading status: #{reading.fetch('status')}; callback work: #{reading.fetch('callback_work').to_json}\n")
+    $stdout.write("Reading status: #{reading.fetch('status')}; library states: #{reading.fetch('state_counts').to_json}\n")
   rescue DevelopmentReadingScenarioActivity::ActivityError, OpenLibraryCatalogPreflight::PreflightError => error
     abort error.message
   end

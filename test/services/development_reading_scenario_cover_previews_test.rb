@@ -15,8 +15,7 @@ class DevelopmentReadingScenarioCoverPreviewsTest < ActiveSupport::TestCase
     records(result).each_value do |record|
       job = cover_jobs.find { |candidate| candidate.fetch("job_id") == record.fetch("job_id") }
       assert_equal "low", job.fetch("queue_name")
-      assert_equal record.fetch("cover_id"), job.fetch("arguments").last
-      assert_equal Book.find(record.fetch("book_id")).to_global_id.to_s, job.fetch("arguments").first.fetch("_aj_globalid")
+      assert_equal [ Book.find(record.fetch("book_id")), record.fetch("cover_id") ], ActiveJob::Arguments.deserialize(job.fetch("arguments"))
     end
     assert_not_requested :any, /https?:/
   end
@@ -69,7 +68,7 @@ class DevelopmentReadingScenarioCoverPreviewsTest < ActiveSupport::TestCase
     assert_equal 12, cover_jobs.length
   end
 
-  test "normal cover jobs attach valid images and a discarded 404 is reported unavailable without automatic retry" do
+  test "normal cover jobs attach valid images while a discarded download is not automatically queued again" do
     first = prepare_previews
     unavailable = records(first).values.first
     stub_cover_downloads
@@ -77,14 +76,15 @@ class DevelopmentReadingScenarioCoverPreviewsTest < ActiveSupport::TestCase
     perform_enqueued_jobs(only: CoverAttachJob)
     report = in_development { @previews.reconcile_previews }.fetch("cover_previews")
 
-    assert_equal({ "attached" => 11, "unavailable" => 1 }, report.fetch("actual_counts").fetch("statuses"))
+    assert_equal({ "attached" => 11, "queued" => 1 }, report.fetch("actual_counts").fetch("statuses"))
+    assert_not report.fetch("records").values.first.key?("job_status")
     assert_not Book.find(unavailable.fetch("book_id")).cover_image.attached?
     assert_not Book.find(report.fetch("missing_case").fetch("book_id")).cover_image.attached?
     prepare_previews
     assert_empty cover_jobs
   end
 
-  test "a normal scheduled retry remains pending when earlier attempts have the same Active Job ID" do
+  test "repeated preparation does not duplicate a retry scheduled by the existing cover job" do
     first = prepare_previews
     retrying = records(first).values.first
     stub_cover_downloads

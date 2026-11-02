@@ -43,7 +43,8 @@ class DevelopmentReadingScenarioActivityTest < ActiveSupport::TestCase
     original_sessions = ReadingSession.where(user_id: @initial_user_ids).order(:id).map(&:attributes)
     manifest = replay
     reading = manifest.fetch("reading")
-    assert_equal "awaiting_jobs", reading.fetch("status")
+    assert_equal "complete", reading.fetch("status")
+    assert_not reading.key?("callback_work")
     assert_equal({ "user_books" => 150, "baseline_reading_sessions" => 300, "reading_sessions" => 300 }, reading.fetch("actual_counts"))
     assert_equal({ "want_to_read" => 54, "finished" => 24, "reading" => 72 }, reading.fetch("state_counts"))
     assert_equal 300, enqueued_jobs.count { |job| job.fetch("job_class") == "BookProgressJob" }
@@ -68,11 +69,12 @@ class DevelopmentReadingScenarioActivityTest < ActiveSupport::TestCase
     assert_not_requested :any, /https?:/
   end
 
-  test "final truth waits for callback jobs and then verifies reconciled library states" do
+  test "reading replay completes with jobs queued and can refresh library states after jobs perform" do
     replay
     pending = in_development { @activity.reconcile_reading }
-    assert_equal "awaiting_jobs", pending.fetch("reading").fetch("status")
-    assert_operator pending.dig("reading", "callback_work", "pending_count"), :>, 0
+    assert_equal "complete", pending.fetch("reading").fetch("status")
+    assert_not pending.fetch("reading").key?("callback_work")
+    assert_not_empty enqueued_jobs
     5.times do
       break if enqueued_jobs.empty?
 
@@ -81,7 +83,6 @@ class DevelopmentReadingScenarioActivityTest < ActiveSupport::TestCase
     assert_empty enqueued_jobs
     final = in_development { @activity.reconcile_reading }
     assert_equal "complete", final.fetch("reading").fetch("status")
-    assert_equal 0, final.dig("reading", "callback_work", "pending_count")
     assert_equal 3, final.dig("reading", "state_counts").length
     assert_operator final.dig("reading", "state_counts", "finished"), :>, 24
   end

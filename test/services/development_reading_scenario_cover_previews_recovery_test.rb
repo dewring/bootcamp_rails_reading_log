@@ -4,7 +4,7 @@ require_relative "../support/development_reading_scenario_cover_preview_context"
 class DevelopmentReadingScenarioCoverPreviewsRecoveryTest < ActiveSupport::TestCase
   include DevelopmentReadingScenarioCoverPreviewContext
 
-  test "an enqueue acknowledged by the queue before its file checkpoint is reused by Active Job ID" do
+  test "interruption after enqueue does not submit the same cover request again" do
     original = File.method(:rename)
     File.stub(:rename, ->(source, destination) {
       raise IOError, "Interrupted after queue acknowledgement" if Pathname.new(destination) == @paths.fetch(:manifest_path) && cover_jobs.any?
@@ -18,14 +18,15 @@ class DevelopmentReadingScenarioCoverPreviewsRecoveryTest < ActiveSupport::TestC
 
     assert_equal 12, cover_jobs.length
     assert_equal 1, cover_jobs.count { |job| job.fetch("job_id") == first_id }
-    assert_equal first_id, records(result).values.first.fetch("job_id")
+    assert_nil records(result).values.first.fetch("job_id")
+    assert_equal "requested", records(result).values.first.fetch("status")
   end
 
   test "an uncertain enqueue is reported without automatically creating a replacement job" do
     original = File.method(:rename)
     File.stub(:rename, ->(source, destination) {
       result = original.call(source, destination)
-      if Pathname.new(destination) == @paths.fetch(:manifest_path) && JSON.parse(@paths.fetch(:manifest_path).read).dig("cover_previews", "records")&.values&.first&.fetch("status") == "enqueueing"
+      if Pathname.new(destination) == @paths.fetch(:manifest_path) && JSON.parse(@paths.fetch(:manifest_path).read).dig("cover_previews", "records")&.values&.first&.fetch("status") == "requested"
         raise IOError, "Interrupted before queue acknowledgement"
       end
       result
@@ -36,8 +37,8 @@ class DevelopmentReadingScenarioCoverPreviewsRecoveryTest < ActiveSupport::TestC
     report = prepare_previews.fetch("cover_previews")
 
     assert_equal 11, cover_jobs.length
-    assert_equal "unverified", report.fetch("records").values.first.fetch("status")
-    assert_includes report.fetch("records").values.first.fetch("notice"), "automatic re-enqueue is disabled"
+    assert_equal "requested", report.fetch("records").values.first.fetch("status")
+    assert_not report.fetch("records").values.first.key?("job_status")
   end
 
   test "altered source cover IDs in the manifest are refused before any new enqueue" do
@@ -47,19 +48,7 @@ class DevelopmentReadingScenarioCoverPreviewsRecoveryTest < ActiveSupport::TestC
     jobs = cover_jobs.dup
 
     error = assert_raises(DevelopmentReadingScenarioCoverPreviews::PreviewError) { prepare_previews }
-    assert_includes error.message, "changed its book, source cover or job identity"
-    assert_equal jobs, cover_jobs
-  end
-
-  test "two previews claiming the same job identity are refused before any new enqueue" do
-    result = prepare_previews
-    selected = records(result).values
-    selected.second["job_id"] = selected.first.fetch("job_id")
-    @paths.fetch(:manifest_path).write(JSON.generate(result))
-    jobs = cover_jobs.dup
-
-    error = assert_raises(DevelopmentReadingScenarioCoverPreviews::PreviewError) { prepare_previews }
-    assert_includes error.message, "same job identity"
+    assert_includes error.message, "differs from the captured catalog"
     assert_equal jobs, cover_jobs
   end
 

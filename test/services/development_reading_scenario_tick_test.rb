@@ -16,7 +16,8 @@ class DevelopmentReadingScenarioTickTest < ActiveSupport::TestCase
     assert_equal({ "reading_sessions" => 3, "club_messages" => 2 }, tick.fetch("actual_counts"))
     assert_equal({ "reading_sessions" => 300, "club_messages" => 80 }, tick.fetch("baseline_counts"))
     assert_equal({ "reading_sessions" => 303, "club_messages" => 82 }, tick.fetch("scenario_counts"))
-    assert_equal "awaiting_jobs", tick.fetch("status")
+    assert_equal "complete", tick.fetch("status")
+    assert_not tick.key?("callback_work")
     jobs.each { |name, count| assert_equal count + 3, queue_count(name) }
     sessions = ReadingSession.where(id: tick_ids(result).fetch("reading_sessions").values)
     assert_equal [ Date.new(2026, 10, 30) ], sessions.distinct.pluck(:read_on)
@@ -61,10 +62,12 @@ class DevelopmentReadingScenarioTickTest < ActiveSupport::TestCase
     assert_not_requested :any, /https?:/
   end
 
-  test "tick reconciliation waits for queued jobs and records final truth only after they drain" do
+  test "tick reconciliation refreshes counts without waiting for callback jobs" do
     advance
     pending = in_development { @tick.reconcile_tick(tick: "tick1") }
-    assert_equal "awaiting_jobs", pending.dig("ticks", "tick1", "status")
+    assert_equal "complete", pending.dig("ticks", "tick1", "status")
+    assert_not pending.dig("ticks", "tick1").key?("callback_work")
+    assert_not_empty enqueued_jobs
     5.times do
       break if enqueued_jobs.empty?
 
@@ -73,7 +76,6 @@ class DevelopmentReadingScenarioTickTest < ActiveSupport::TestCase
     assert_empty enqueued_jobs
     final = in_development { @tick.reconcile_tick(tick: "tick1") }
     assert_equal "complete", final.dig("ticks", "tick1", "status")
-    assert_equal 0, final.dig("ticks", "tick1", "callback_work", "pending_count")
     assert_equal({ "reading_sessions" => 303, "club_messages" => 82 }, final.dig("ticks", "tick1", "scenario_counts"))
   end
 

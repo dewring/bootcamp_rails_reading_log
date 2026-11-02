@@ -37,7 +37,7 @@ class DevelopmentReadingScenarioTest < ActiveSupport::TestCase
     FileUtils.remove_entry(@directory)
   end
 
-  test "the seed entry point creates the complete offline baseline and reports pending worker jobs" do
+  test "the seed entry point creates the complete offline baseline while callbacks remain queued" do
     output, = capture_io do
       DevelopmentReadingScenario.stub(:new, @scenario) do
         in_development { load Rails.root.join("db/seeds.rb") }
@@ -48,8 +48,10 @@ class DevelopmentReadingScenarioTest < ActiveSupport::TestCase
     assert_equal({ "books" => 100, "book_editions" => 0, "users" => 31, "user_books" => 150, "reading_sessions" => 300,
       "book_clubs" => 4, "book_club_memberships" => 24, "club_messages" => 80, "reviews" => 20 }, baseline.fetch("actual_counts"))
     assert_equal baseline.fetch("expected_counts"), baseline.fetch("actual_counts")
-    assert_equal "awaiting_jobs", baseline.fetch("status")
-    assert_includes output, "awaiting_jobs"
+    assert_equal "complete", baseline.fetch("status")
+    assert_includes output, "complete"
+    assert_not manifest.fetch("reading").key?("callback_work")
+    assert_not_empty enqueued_jobs
     assert_equal 12, manifest.dig("bootstrap", "actual_counts", "genres")
     assert_equal 5, manifest.dig("bootstrap", "actual_counts", "badges")
     actors = manifest.dig("bootstrap", "records", "users").values.map { |record| record.fetch("id") }
