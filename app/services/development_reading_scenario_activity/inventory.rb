@@ -7,46 +7,16 @@ class DevelopmentReadingScenarioActivity::Inventory
     @users = references.users
     @books = references.books
     @edition_ids = references.edition_ids
-    @reading = @manifest["reading"] || planned_reading
+    @intended_reading = planned_reading
+    @reading = @manifest["reading"] || @intended_reading.deep_dup
   end
 
   def verify_reading
     load_reading_rows
-    if @manifest["reading"].nil? && (@library_rows.any? || @session_rows.any?)
-      raise DevelopmentReadingScenarioActivity::ActivityError, "Unrecorded reading data already exists for scenario accounts; review record IDs #{@library_rows.map(&:id) + @session_rows.map(&:id)} before importing."
-    end
-    intended = planned_reading
-    unless @reading.is_a?(Hash) && @reading["expected_counts"] == intended.fetch("expected_counts") && @reading["records"].is_a?(Hash)
-      raise DevelopmentReadingScenarioActivity::ActivityError, "Reading inventory differs from the recorded scenario plan."
-    end
-    intended.fetch("records").each do |group, records|
-      actual = @reading.fetch("records")[group]
-      unless actual.is_a?(Hash) && actual.keys.sort == records.keys.sort
-        raise DevelopmentReadingScenarioActivity::ActivityError, "Recorded #{group} identities differ from the reading plan."
-      end
-      records.each do |identity, record|
-        saved = actual.fetch(identity)
-        unless saved.is_a?(Hash) && saved["expected_attributes"].is_a?(Hash) && saved.fetch("expected_attributes").slice(*record.fetch("expected_attributes").keys) == record.fetch("expected_attributes")
-          raise DevelopmentReadingScenarioActivity::ActivityError, "Recorded #{group} #{identity} differs from its planned payload."
-        end
-        if group == "user_books" && saved["initial_status"] != record.fetch("initial_status")
-          raise DevelopmentReadingScenarioActivity::ActivityError, "Recorded library status for #{identity} changed."
-        end
-      end
-    end
-    @library_matches = match_rows(@reading.fetch("records").fetch("user_books"), @library_rows, library: true)
-    @session_matches = match_rows(@reading.fetch("records").fetch("reading_sessions"), @session_rows)
-    tick_records = @manifest.fetch("ticks", {}).flat_map do |name, tick|
-      tick.fetch("reading_sessions", {}).map { |identity, record| [ "#{name}/#{identity}", record ] }
-    end.to_h
-    @tick_matches = match_rows(tick_records, @session_rows)
-    session_ids = (@session_matches.values + @tick_matches.values).compact.map(&:id)
-    raise DevelopmentReadingScenarioActivity::ActivityError, "Two logical reading events claim the same session; review the manifest." unless session_ids.uniq.length == session_ids.length
-    verify_no_unrecorded_rows(@library_rows, @library_matches.values, "library")
-    verify_no_unrecorded_rows(@session_rows, @session_matches.values + @tick_matches.values, "session")
-    @library_matches.each do |identity, row|
-      verify_library_status(@reading.fetch("records").fetch("user_books").fetch(identity), row) if row
-    end
+    reject_unrecorded_start
+    verify_recorded_plan
+    match_baseline_and_tick_rows
+    verify_account_inventory
   end
 
   def complete?
@@ -76,23 +46,69 @@ class DevelopmentReadingScenarioActivity::Inventory
   end
 
   def counts
-    counts = {
+    {
       "user_books" => @library_matches.values.compact.length,
       "baseline_reading_sessions" => @session_matches.values.compact.length,
       "reading_sessions" => @session_matches.values.compact.length + @tick_matches.values.compact.length
     }
-    unless counts.fetch("user_books") == 150 && counts.fetch("baseline_reading_sessions") == 300
-      raise DevelopmentReadingScenarioActivity::ActivityError, "Unexpected reading inventory: #{counts.inspect}"
-    end
-    counts
   end
 
   def snapshot_attributes(row, library: false)
-    attributes = recorded_attributes(row)
+    attributes = row.attributes.except("id", "updated_at").as_json
     library ? attributes.except("status") : attributes
   end
 
   private
+
+  def reject_unrecorded_start
+    return if @manifest["reading"] || (@library_rows.empty? && @session_rows.empty?)
+
+    ids = @library_rows.map(&:id) + @session_rows.map(&:id)
+    raise DevelopmentReadingScenarioActivity::ActivityError, "Unrecorded reading data already exists for scenario accounts; review record IDs #{ids} before importing."
+  end
+
+  def verify_recorded_plan
+    unless @reading.fetch("expected_counts") == @intended_reading.fetch("expected_counts")
+      raise DevelopmentReadingScenarioActivity::ActivityError, "Reading inventory differs from the recorded scenario plan."
+    end
+    @intended_reading.fetch("records").each do |group, records|
+      saved = @reading.fetch("records").fetch(group)
+      unless saved.keys.sort == records.keys.sort
+        raise DevelopmentReadingScenarioActivity::ActivityError, "Recorded #{group} identities differ from the reading plan."
+      end
+      records.each { |identity, record| verify_planned_record(saved.fetch(identity), record, group, identity) }
+    end
+  end
+
+  def verify_planned_record(saved, planned, group, identity)
+    expected = planned.fetch("expected_attributes")
+    attributes = saved.fetch("expected_attributes").slice(*expected.keys)
+    return if attributes == expected && saved["initial_status"] == planned["initial_status"]
+
+    raise DevelopmentReadingScenarioActivity::ActivityError, "Recorded #{group} #{identity} differs from its planned payload."
+  end
+
+  def match_baseline_and_tick_rows
+    @library_matches = match_rows(@reading.fetch("records").fetch("user_books"), @library_rows, library: true)
+    @session_matches = match_rows(@reading.fetch("records").fetch("reading_sessions"), @session_rows)
+    # Tick sessions belong to this scenario too; baseline replay must preserve them.
+    tick_records = @manifest.fetch("ticks", {}).flat_map do |name, tick|
+      tick.fetch("reading_sessions", {}).map { |identity, record| [ "#{name}/#{identity}", record ] }
+    end.to_h
+    @tick_matches = match_rows(tick_records, @session_rows)
+  end
+
+  def verify_account_inventory
+    sessions = (@session_matches.values + @tick_matches.values).compact
+    session_ids = sessions.map(&:id)
+    raise DevelopmentReadingScenarioActivity::ActivityError, "Two logical reading events claim the same session; review the manifest." unless session_ids.uniq.length == session_ids.length
+
+    verify_no_unrecorded_rows(@library_rows, @library_matches.values, "library")
+    verify_no_unrecorded_rows(@session_rows, sessions, "session")
+    @library_matches.each do |identity, row|
+      verify_library_status(@reading.fetch("records").fetch("user_books").fetch(identity), row) if row
+    end
+  end
 
   def load_reading_rows
     @library_rows = UserBook.where(user_id: @users.values.map(&:id)).to_a
@@ -164,9 +180,5 @@ class DevelopmentReadingScenarioActivity::Inventory
     pages = @books.values.find { |book| book.id == row.book_id }.total_pages
     total = @page_totals.fetch([ row.user_id, row.book_id ], 0)
     pages && total >= pages ? "finished" : "reading"
-  end
-
-  def recorded_attributes(row)
-    JSON.parse(row.attributes.except("id", "updated_at", "remember_created_at", "reset_password_token", "reset_password_sent_at").to_json)
   end
 end

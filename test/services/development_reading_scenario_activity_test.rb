@@ -182,6 +182,22 @@ class DevelopmentReadingScenarioActivityTest < ActiveSupport::TestCase
     end
   end
 
+  test "editing both a saved session and its manifest payload cannot replace the deterministic reading plan" do
+    manifest = replay
+    record = records(manifest, "reading_sessions").values.last
+    session = ReadingSession.find(record.fetch("id"))
+    session.update!(notes: "A reader changed this journal entry")
+    record.fetch("expected_attributes")["notes"] = session.notes
+    @paths.fetch(:manifest_path).write(JSON.generate(manifest))
+
+    assert_no_difference [ "UserBook.count", "ReadingSession.count" ] do
+      error = assert_raises(DevelopmentReadingScenarioActivity::ActivityError) { replay }
+      assert_includes error.message, "differs from its planned payload"
+    end
+    assert_equal session.notes, session.reload.notes
+    assert_not_requested :any, /https?:/
+  end
+
   test "non-development replay refuses before creating reading rows" do
     assert_no_difference [ "UserBook.count", "ReadingSession.count" ] do
       assert_raises(DevelopmentReadingScenarioActivity::ActivityError) { @activity.replay_reading }
