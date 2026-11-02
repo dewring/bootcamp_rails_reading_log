@@ -1,4 +1,23 @@
 namespace :development_scenario do
+  desc "Explicitly enqueue at most 12 captured cover previews and retain a missing-cover case (development only)"
+  task prepare_cover_previews: :environment do
+    report = DevelopmentReadingScenarioCoverPreviews.new.prepare_previews.fetch("cover_previews")
+    $stdout.write("Preview setup: #{report.fetch('actual_counts').to_json}\n")
+    $stdout.write("Missing-cover case: #{report.fetch('missing_case').to_json}\n")
+    $stdout.write("Source cover IDs do not guarantee downloads. Run the worker, then development_scenario:reconcile_cover_previews.\n")
+  rescue DevelopmentReadingScenarioCoverPreviews::PreviewError => error
+    abort error.message
+  end
+
+  desc "Report attached pending unavailable or failed cover previews without retrying downloads (development only)"
+  task reconcile_cover_previews: :environment do
+    report = DevelopmentReadingScenarioCoverPreviews.new.reconcile_previews.fetch("cover_previews")
+    $stdout.write("Preview results: #{report.fetch('actual_counts').to_json}\n")
+    report.fetch("records").each { |key, record| $stdout.write("#{key}: #{record.slice('status', 'cover_attached', 'job_id', 'failed_job_ids').to_json}\n") }
+  rescue DevelopmentReadingScenarioCoverPreviews::PreviewError => error
+    abort error.message
+  end
+
   desc "Advance named tick1 once: three sessions and two top-level posts (development only)"
   task :advance_scenario, [ :tick ] => :environment do |_task, arguments|
     manifest = DevelopmentReadingScenarioTick.new.advance_scenario(tick: arguments[:tick])
