@@ -135,6 +135,15 @@ current conversation take precedence.
 28. Avoid `%w` string-array shorthand. Prefer explicit arrays such as
     `["active", "suspended"]`.
 
+29. Guarantee required execution order in the coordinating code. Run setup and
+    prerequisite steps before their consumers, and pass prepared data or
+    dependencies to later steps. Do not add repeated `if`/`unless` checks or
+    `raise` statements for internal states that the caller can guarantee by
+    construction. Validate external input and persisted state at the operation
+    boundary, and keep checks for real authorization, collision, concurrency,
+    and recovery risks. Test the required order and resulting behavior instead
+    of adding defensive checks throughout the workflow.
+
 ## Semantic HTML
 
 - Use semantic HTML for newly created markup, including Rails ERB views,

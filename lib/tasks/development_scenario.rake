@@ -39,43 +39,6 @@ namespace :development_scenario do
     abort error.message
   end
 
-  desc "Replay four clubs, 24 memberships, 80 posts and 20 reviews offline (development only)"
-  task replay_community: :environment do
-    manifest = DevelopmentReadingScenarioCommunity.new.replay_community
-    $stdout.write("Community rows saved: #{manifest.fetch('community').fetch('actual_counts').to_json}\n")
-    $stdout.write("Run the development worker to process normal background jobs.\n")
-  rescue DevelopmentReadingScenarioCommunity::CommunityError, OpenLibraryCatalogPreflight::PreflightError => error
-    abort error.message
-  end
-
-  desc "Replay 150 library entries and 300 dated sessions offline (development only)"
-  task replay_reading: :environment do
-    manifest = DevelopmentReadingScenarioActivity.new.replay_reading
-    $stdout.write("Reading rows saved: #{manifest.fetch('reading').fetch('actual_counts').to_json}\n")
-    $stdout.write("Run the development worker to process normal background jobs.\n")
-  rescue DevelopmentReadingScenarioActivity::ActivityError, OpenLibraryCatalogPreflight::PreflightError => error
-    abort error.message
-  end
-
-  desc "Refresh recorded reading counts and library states (development only)"
-  task reconcile_reading: :environment do
-    manifest = DevelopmentReadingScenarioActivity.new.reconcile_reading
-    reading = manifest.fetch("reading")
-    $stdout.write("Reading status: #{reading.fetch('status')}; library states: #{reading.fetch('state_counts').to_json}\n")
-  rescue DevelopmentReadingScenarioActivity::ActivityError, OpenLibraryCatalogPreflight::PreflightError => error
-    abort error.message
-  end
-
-  desc "Bootstrap synthetic readers, genres and badges with safe resume (development only)"
-  task bootstrap_scenario: :environment do
-    manifest = DevelopmentReadingScenarioBootstrap.new.bootstrap_scenario
-    $stdout.write("Bootstrap complete: #{manifest.fetch('bootstrap').fetch('actual_counts').to_json}\n")
-    $stdout.write("Credentials come from DEVELOPMENT_SCENARIO_PASSWORD; plaintext passwords are not stored in the manifest.\n")
-  rescue DevelopmentReadingScenarioBootstrap::BootstrapError, OpenLibraryCatalogPreflight::PreflightError => error
-    $stderr.write("#{error.message}\n")
-    abort "Scenario bootstrap stopped; review the reported identity or configuration before retrying."
-  end
-
   desc "Preview the deterministic reading scenario baseline inventory without writing records (development only)"
   task plan_baseline: :environment do
     catalog = OpenLibraryCatalogPreflight.new.preflight_catalog
@@ -87,21 +50,6 @@ namespace :development_scenario do
     $stderr.write("#{error.message}\n")
     $stderr.write("#{JSON.pretty_generate(error.report.fetch('conflicts', []))}\n")
     abort "Baseline planning stopped."
-  end
-
-  desc "Replay the captured catalog offline with a resumable local manifest (development only)"
-  task replay_catalog: :environment do
-    manifest = OpenLibraryCatalogReplay.new.replay_catalog
-    catalog = manifest.fetch("catalog")
-    $stdout.write("Catalog replay complete: #{catalog.fetch('actual_counts').to_json}\n")
-    $stdout.write("Snapshot ID: #{manifest.fetch('snapshot_id')}; seed: #{manifest.fetch('seed')}; as_of: #{manifest.fetch('as_of')}\n")
-    $stdout.write("Manifest: #{DevelopmentReadingScenarioManifest::DEFAULT_PATH}\n")
-  rescue OpenLibraryCatalogReplay::ReplayError, OpenLibraryCatalogPreflight::PreflightError => error
-    $stderr.write("#{error.message}\n")
-    if error.is_a?(OpenLibraryCatalogPreflight::PreflightError)
-      $stderr.write("#{JSON.pretty_generate(error.report.fetch('conflicts', []))}\n")
-    end
-    abort "Catalog replay stopped; preserve the manifest and resolve the reported conflict before retrying."
   end
 
   desc "Inspect the saved catalog and report identity collisions without writing records (development only)"

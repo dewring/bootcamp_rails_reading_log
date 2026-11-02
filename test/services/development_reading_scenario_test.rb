@@ -62,6 +62,62 @@ class DevelopmentReadingScenarioTest < ActiveSupport::TestCase
     assert_not_requested :any, /https?:/
   end
 
+  test "one baseline command saves users books and shelves before reading sessions and community records" do
+    observed = {}
+    recorder_factory = ReadingSessionRecorder.method(:new)
+    club_factory = BookClubCreator.method(:new)
+    reading = ->(*arguments) {
+      observed[:before_reading] ||= {
+        users: User.where.not(id: @initial_users).count,
+        books: Book.where.not(id: @initial_books).count,
+        shelves: UserBook.where(user_id: User.where.not(id: @initial_users).select(:id)).count
+      }
+      recorder_factory.call(*arguments)
+    }
+    community = ->(**arguments) {
+      observed[:before_community] ||= ReadingSession.where(user_id: User.where.not(id: @initial_users).select(:id)).count
+      club_factory.call(**arguments)
+    }
+
+    ReadingSessionRecorder.stub(:new, reading) do
+      BookClubCreator.stub(:new, community) { seed }
+    end
+
+    assert_equal({ users: 31, books: 100, shelves: 150 }, observed.fetch(:before_reading))
+    assert_equal 300, observed.fetch(:before_community)
+    assert_equal 4, BookClub.where.not(id: @initial_clubs).count
+    assert_not_requested :any, /https?:/
+  end
+
+  test "baseline preflight rejects an edited synthetic user before any phase writes" do
+    seed
+    user = User.find_by!(email: "reader30@example.test")
+    user.update!(first_name: "Changed by the reader")
+
+    assert_no_difference model_counts do
+      error = assert_raises(DevelopmentReadingScenario::ScenarioError) { seed }
+      assert_includes error.message, user.id.to_s
+      assert_includes error.message, "changed"
+    end
+    assert_equal "Changed by the reader", user.reload.first_name
+    assert_not_requested :any, /https?:/
+  end
+
+  test "baseline preflight rejects an edited book before any phase writes" do
+    manifest = seed
+    book = Book.find(manifest.fetch("catalog").fetch("records").values.first.fetch("book").fetch("id"))
+    pages = book.total_pages + 1
+    book.update!(total_pages: pages)
+
+    assert_no_difference model_counts do
+      error = assert_raises(DevelopmentReadingScenario::ScenarioError) { seed }
+      assert_includes error.message, book.id.to_s
+      assert_includes error.message, "changed"
+    end
+    assert_equal pages, book.reload.total_pages
+    assert_not_requested :any, /https?:/
+  end
+
   test "after normal jobs drain replay reports complete without duplicating records or queue work" do
     first = seed
     ids = selected_ids(first)
@@ -126,12 +182,8 @@ class DevelopmentReadingScenarioTest < ActiveSupport::TestCase
       assert_raises(IOError) { seed }
     end
     session = ReadingSession.where.not(user_id: @initial_users).sole
-    assert_no_difference [ "BookClub.count", "ClubMessage.count" ] do
-      error = assert_raises(DevelopmentReadingScenarioCommunity::CommunityError) do
-        in_development { DevelopmentReadingScenarioCommunity.new(**@paths).replay_community }
-      end
-      assert_includes error.message, "incomplete"
-    end
+    assert_equal 0, BookClub.where.not(id: @initial_clubs).count
+    assert_equal 0, ClubMessage.where(user_id: User.where.not(id: @initial_users).select(:id)).count
     completed = seed
     assert_includes completed.dig("reading", "records", "reading_sessions").values.map { |record| record.fetch("id") }, session.id
     assert_equal 300, completed.dig("baseline", "actual_counts", "reading_sessions")

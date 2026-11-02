@@ -18,28 +18,22 @@ class DevelopmentReadingScenarioActivity
       @scenario_manifest.save_scenario
       import_library_entries
       import_reading_sessions
-      reconcile_saved_reading
+      record_reading_totals
     end
   end
 
   def reconcile_reading
     with_reading_context do
-      @reading = @manifest["reading"]
-      raise ActivityError, "Replay the reading inventory before reconciling jobs." unless @reading
-
-      reconcile_saved_reading
+      @reading = @manifest.fetch("reading")
+      @inventory.verify_reading
+      record_reading_totals
     end
   end
 
-  def preflight_reading(allow_incomplete: false)
+  def preflight_reading
     with_reading_context do
-      @reading = @manifest["reading"]
-      raise ActivityError, "Replay the reading inventory before preflighting saved reading activity." unless @reading
-
+      @reading = @manifest.fetch("reading")
       @inventory.verify_reading
-      unless allow_incomplete || @inventory.complete?
-        raise ActivityError, "Reading replay is incomplete; resume it before importing community data."
-      end
       @reading.deep_dup
     end
   end
@@ -53,7 +47,7 @@ class DevelopmentReadingScenarioActivity
       catalog = OpenLibraryCatalogPreflight.new(snapshot_path: @snapshot_path).preflight_catalog
       @plan = DevelopmentReadingScenarioPlan.new(catalog: catalog, as_of: @as_of).build_baseline
       @manifest = @scenario_manifest.prepare_scenario(snapshot_id: catalog.fetch("snapshot_id"))
-      @references = References.new(plan: @plan, manifest: @manifest).load_references
+      @references = References.new(manifest: @manifest).load_references
       @inventory = Inventory.new(plan: @plan, manifest: @manifest, references: @references)
       yield
     end
@@ -61,11 +55,7 @@ class DevelopmentReadingScenarioActivity
     raise ActivityError, error.message
   end
 
-  def reconcile_saved_reading
-    @inventory.verify_reading
-    unless @inventory.complete?
-      raise ActivityError, "Reading replay is incomplete; resume it before checking final truth."
-    end
+  def record_reading_totals
     @reading["actual_counts"] = @inventory.counts
     @reading.delete("callback_work")
     @reading["status"] = "complete"
@@ -81,7 +71,6 @@ class DevelopmentReadingScenarioActivity
       UserBook.transaction(requires_new: true) do
         if row
           row.lock!
-          @inventory.verify_library_entry(record, row, identity)
         else
           row = UserBook.create!(record.fetch("expected_attributes").merge("status" => record.fetch("initial_status")))
         end
@@ -102,12 +91,10 @@ class DevelopmentReadingScenarioActivity
       ReadingSession.transaction(requires_new: true) do
         if row
           row.lock!
-          @inventory.verify_reading_session(record, row, identity)
         else
           library_identity = "#{entry.fetch('reader')}/#{entry.fetch('work_key')}"
           library = @inventory.library_matches.fetch(library_identity)
           library.lock!
-          @inventory.verify_library_entry(@reading.fetch("records").fetch("user_books").fetch(library_identity), library, library_identity)
           row = ReadingSessionRecorder.new(@references.books.fetch(entry.fetch("work_key")), @references.users.fetch(entry.fetch("reader")), entry.fetch("attributes").merge("book_edition_id" => @references.edition_ids.fetch(entry.fetch("work_key")))).record
           raise ActiveRecord::RecordInvalid, row unless row.persisted?
         end

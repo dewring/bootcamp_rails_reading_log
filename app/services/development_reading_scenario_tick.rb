@@ -9,6 +9,8 @@ class DevelopmentReadingScenarioTick
     @as_of = as_of
     @scenario_manifest = DevelopmentReadingScenarioManifest.new(path: manifest_path, lock_path: lock_path, as_of: as_of)
     dependencies = { snapshot_path: snapshot_path, as_of: as_of, manifest: @scenario_manifest }
+    @bootstrap = DevelopmentReadingScenarioBootstrap.new(**dependencies)
+    @catalog = OpenLibraryCatalogReplay.new(**dependencies)
     @reading = DevelopmentReadingScenarioActivity.new(**dependencies)
     @community = DevelopmentReadingScenarioCommunity.new(**dependencies)
   end
@@ -53,37 +55,36 @@ class DevelopmentReadingScenarioTick
       unless @manifest["baseline"] && @manifest.dig("community", "status") == "saved"
         raise TickError, "Seed the complete baseline with db:seed before advancing a tick."
       end
+      @bootstrap.preflight_bootstrap
+      @catalog.preflight_catalog
       planned = Plan.new(baseline: @baseline, manifest: @manifest, as_of: @as_of).build_tick
       @tick = @manifest.dig("ticks", name) || planned.deep_dup
       @inventory = Inventory.new(planned: planned, tick: @tick)
       @inventory.verify_tick
       @reading.preflight_reading
       @community.preflight_community
-      @references = DevelopmentReadingScenarioActivity::References.new(plan: @baseline, manifest: @manifest).load_references
+      @references = DevelopmentReadingScenarioActivity::References.new(manifest: @manifest).load_references
       @users = @references.users.values.index_by(&:id)
       @books = @references.books.values.index_by(&:id)
       yield
     end
   rescue DevelopmentReadingScenarioManifest::ManifestError, OpenLibraryCatalogPreflight::PreflightError,
+    DevelopmentReadingScenarioBootstrap::BootstrapError, OpenLibraryCatalogReplay::ReplayError,
     DevelopmentReadingScenarioActivity::ActivityError, DevelopmentReadingScenarioCommunity::CommunityError => error
     raise TickError, error.message
   end
 
   def import_sessions
-    reading_inventory = DevelopmentReadingScenarioActivity::Inventory.new(plan: @baseline, manifest: @manifest, references: @references)
-    reading_inventory.verify_reading
     @tick.fetch("reading_sessions").each do |identity, record|
       row = @inventory.matches.fetch("reading_sessions")[identity]
       result = row ? "reused" : "imported"
       ReadingSession.transaction(requires_new: true) do
         if row
           row.lock!
-          @inventory.verify_saved_record(record, row, identity)
         else
           library_id = record.fetch("library_identity")
           library_record = @manifest.fetch("reading").fetch("records").fetch("user_books").fetch(library_id)
-          library = UserBook.lock.find(library_record.fetch("id"))
-          reading_inventory.verify_library_entry(library_record, library, library_id)
+          UserBook.lock.find(library_record.fetch("id"))
           attributes = record.fetch("expected_attributes")
           row = ReadingSessionRecorder.new(@books.fetch(attributes.fetch("book_id")), @users.fetch(attributes.fetch("user_id")), attributes.except("user_id", "book_id")).record
           raise ActiveRecord::RecordInvalid, row unless row.persisted?
@@ -103,7 +104,6 @@ class DevelopmentReadingScenarioTick
       ClubMessage.transaction(requires_new: true) do
         if row
           row.lock!
-          @inventory.verify_saved_record(record, row, identity)
         else
           attributes = record.fetch("expected_attributes")
           row = ClubMessage.new(attributes)
@@ -119,9 +119,7 @@ class DevelopmentReadingScenarioTick
   end
 
   def record_tick_truth
-    @inventory.verify_tick
     @reading.reconcile_reading
-    @community.preflight_community
     club_ids = @manifest.fetch("community").fetch("records").fetch("book_clubs").values.map { |record| record.fetch("id") }
     totals = { "reading_sessions" => @manifest.dig("reading", "actual_counts", "reading_sessions"),
       "club_messages" => ClubMessage.where(book_club_id: club_ids).count }

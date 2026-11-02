@@ -19,10 +19,6 @@ class DevelopmentReadingScenarioActivity::Inventory
     verify_account_inventory
   end
 
-  def complete?
-    @library_matches.values.all? && @session_matches.values.all?
-  end
-
   def remember_library_entry(identity, row)
     @library_matches[identity] = row
   end
@@ -30,15 +26,6 @@ class DevelopmentReadingScenarioActivity::Inventory
   def remember_session(identity, row, imported:)
     @session_matches[identity] = row
     @page_totals[[ row.user_id, row.book_id ]] = @page_totals.fetch([ row.user_id, row.book_id ], 0) + row.pages_read if imported
-  end
-
-  def verify_library_entry(record, row, identity)
-    verify_reading_row(record, row, identity, library: true)
-    verify_library_status(record, row)
-  end
-
-  def verify_reading_session(record, row, identity)
-    verify_reading_row(record, row, identity)
   end
 
   def state_counts

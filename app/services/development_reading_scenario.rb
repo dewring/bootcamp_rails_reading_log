@@ -27,7 +27,6 @@ class DevelopmentReadingScenario
       @catalog.replay_catalog
       @reading.replay_reading
       @community.replay_community
-      @reading.reconcile_reading
       record_baseline_result
       @scenario_manifest.save_scenario
       @manifest.deep_dup
@@ -43,7 +42,7 @@ class DevelopmentReadingScenario
   def preflight_baseline
     @catalog.preflight_catalog
     @bootstrap.preflight_bootstrap
-    @reading.preflight_reading(allow_incomplete: true) if @manifest["reading"]
+    @reading.preflight_reading if @manifest["reading"]
     if @manifest["community"]
       @community.preflight_community
       return

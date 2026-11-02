@@ -19,7 +19,6 @@ class DevelopmentReadingScenarioCommunity
       import_clubs
       [ "book_club_memberships", "club_messages", "reviews" ].each { |group| import_records(group) }
       load_community_rows
-      verify_inventory
       verify_final_counts
       @community["status"] = "saved"
       @scenario_manifest.save_scenario
@@ -37,7 +36,6 @@ class DevelopmentReadingScenarioCommunity
     raise CommunityError, "Scenario community writes are only available in development" unless Rails.env.development?
 
     @scenario_manifest.with_exclusive_access do
-      DevelopmentReadingScenarioActivity.new(snapshot_path: @snapshot_path, as_of: @as_of, manifest: @scenario_manifest).preflight_reading
       catalog = OpenLibraryCatalogPreflight.new(snapshot_path: @snapshot_path).preflight_catalog
       @plan = DevelopmentReadingScenarioPlan.new(catalog: catalog, as_of: @as_of).build_baseline
       @manifest = @scenario_manifest.prepare_scenario(snapshot_id: catalog.fetch("snapshot_id"))
@@ -190,7 +188,6 @@ class DevelopmentReadingScenarioCommunity
       BookClub.transaction(requires_new: true) do
         if club
           club.lock!
-          verify_record(club, "book_clubs", identity, record)
         else
           club = BookClubCreator.new(book_club: BookClub.new(record.fetch("expected_attributes")), owner: @users.fetch(record.fetch("owner_id"))).create_club(validation_context: :public_creation)
         end
@@ -215,7 +212,6 @@ class DevelopmentReadingScenarioCommunity
       model.transaction(requires_new: true) do
         if row
           row.lock!
-          verify_record(row, group, identity, record)
         else
           attributes = resolved_attributes(record)
           row = model.new(attributes)
@@ -249,7 +245,7 @@ class DevelopmentReadingScenarioCommunity
     counts = @matches.transform_values { |records| records.values.compact.length }
     raise CommunityError, "Community counts differ from the plan: #{counts.inspect}" unless counts == @community.fetch("expected_counts")
 
-    @matches.fetch("book_clubs").each_value do |club|
+    @rows.fetch("book_clubs").each do |club|
       memberships = @rows.fetch("book_club_memberships").count { |row| row.book_club_id == club.id }
       unless memberships == 6 && club.book_club_memberships_count == memberships
         raise CommunityError, "Club ID #{club.id} membership count or counter cache differs from six."
