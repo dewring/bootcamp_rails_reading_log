@@ -77,6 +77,42 @@ class OpenLibraryCatalogCaptureTest < ActiveSupport::TestCase
     assert_equal 2, snapshot.fetch("http_attempts")
   end
 
+  test "capture preserves actual API response bytes received as binary and saves valid UTF-8 without warnings" do
+    recorded = JSON.parse(Rails.root.join("db/seeds/open_library_catalog.json").read)
+    body = recorded.fetch("pages").first.fetch("raw_body")
+    request = stub_page(1, body: body)
+    client = OpenLibraryClient.new
+    fetch = client.method(:fetch_catalog_page)
+    client.define_singleton_method(:fetch_catalog_page) do |**arguments|
+      response = fetch.call(**arguments)
+      response.env.body = response.body.b
+      response
+    end
+    @capture = build_capture(client: client)
+    snapshot = nil
+    _output, errors = capture_io { snapshot = capture_catalog }
+
+    assert_empty errors
+    raw = snapshot.fetch("pages").first.fetch("raw_body")
+    assert_equal Encoding::UTF_8, raw.encoding
+    assert_equal body.b, raw.b
+    assert_equal 100, snapshot.fetch("selected").length
+    assert_equal snapshot, JSON.parse(@snapshot_path.read)
+    assert_requested request, times: 1
+  end
+
+  test "invalid UTF-8 stops after one response and preserves the previous snapshot" do
+    preserve_previous_snapshot
+    body = '{"docs":[{"title":"'.b.concat("\xFF".b).concat('"}]}')
+    request = stub_page(1, body: body)
+
+    error = assert_capture_failure
+
+    assert_includes error.message, "Invalid UTF-8 JSON on page 1"
+    assert_equal 1, error.report.fetch("http_attempts")
+    assert_requested request, times: 1
+  end
+
   test "capture retries a failed page at most twice and never exceeds nine HTTP attempts" do
     requests = (1..3).map do |page|
       stub_request(:get, "https://openlibrary.org/search.json")
@@ -283,11 +319,12 @@ class OpenLibraryCatalogCaptureTest < ActiveSupport::TestCase
 
   private
 
-  def build_capture(contact_email: "contact@example.test")
+  def build_capture(contact_email: "contact@example.test", client: OpenLibraryClient.new)
     OpenLibraryCatalogCapture.new(
       snapshot_path: @snapshot_path,
       lock_path: @lock_path,
       contact_email: contact_email,
+      client: client,
       clock: -> { @monotonic },
       sleeper: ->(seconds) {
         @waits.push(seconds)

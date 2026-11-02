@@ -66,12 +66,13 @@ class OpenLibraryCatalogCapture
   def collect_snapshot
     1.upto(MAX_PAGES) do |page|
       response = fetch_page(page)
-      docs = parse_documents(response.body, page)
+      body = utf8_response_body(response.body, page)
+      docs = parse_documents(body, page)
       @pages.push({
         "page" => page,
         "parameters" => URI.decode_www_form(response.env.url.query).to_h,
         "captured_at" => Time.current.utc.iso8601(6),
-        "raw_body" => response.body
+        "raw_body" => body
       })
       select_works(docs, page)
       break if @selected.length == TARGET_COUNT
@@ -139,6 +140,15 @@ class OpenLibraryCatalogCapture
   rescue ArgumentError
     # An invalid Retry-After value still retains the minimum one-second request spacing.
     nil
+  end
+
+  def utf8_response_body(body, page)
+    fail_capture("Invalid search response on page #{page}: expected JSON text") unless body.is_a?(String)
+
+    text = body.dup.force_encoding(Encoding::UTF_8)
+    fail_capture("Invalid UTF-8 JSON on page #{page}") unless text.valid_encoding?
+
+    text
   end
 
   def parse_documents(body, page)
