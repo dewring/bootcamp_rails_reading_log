@@ -53,16 +53,19 @@ class DevelopmentReadingScenarioTickRecoveryTest < ActiveSupport::TestCase
     assert_ambiguous_without_writes(first, duplicate)
   end
 
-  test "reconciliation refuses complete database writes until every event ID is checkpointed" do
+  test "advancing again recovers the last committed post and finalizes the tick without another command" do
     interrupt_checkpoint_when { scenario_posts.count == 82 }
     saved = @paths.fetch(:manifest_path).read
     assert_nil tick_records(JSON.parse(saved), "club_messages").fetch("discussion2").fetch("id")
-    error = assert_raises(DevelopmentReadingScenarioTick::TickError) do
-      in_development { @tick.reconcile_tick(tick: "tick1") }
+    post = scenario_posts.order(:id).last
+    queued = enqueued_jobs.dup
+    completed = nil
+    assert_no_difference [ "ReadingSession.count", "ClubMessage.count" ] do
+      completed = advance
     end
-    assert_includes error.message, "Resume tick1 with advance_scenario"
-    assert_equal saved, @paths.fetch(:manifest_path).read
-    completed = advance
+    assert_equal post.id, tick_records(completed, "club_messages").fetch("discussion2").fetch("id")
+    assert_equal "complete", completed.dig("ticks", "tick1", "status")
+    assert_equal queued, enqueued_jobs
     assert_equal({ "reading_sessions" => 303, "club_messages" => 82 }, completed.dig("ticks", "tick1", "scenario_counts"))
   end
 

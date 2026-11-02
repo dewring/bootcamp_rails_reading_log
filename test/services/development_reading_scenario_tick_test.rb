@@ -62,11 +62,11 @@ class DevelopmentReadingScenarioTickTest < ActiveSupport::TestCase
     assert_not_requested :any, /https?:/
   end
 
-  test "tick reconciliation refreshes counts without waiting for callback jobs" do
+  test "a completed tick remains unchanged before and after its background jobs perform" do
     advance
-    pending = in_development { @tick.reconcile_tick(tick: "tick1") }
-    assert_equal "complete", pending.dig("ticks", "tick1", "status")
-    assert_not pending.dig("ticks", "tick1").key?("callback_work")
+    before_jobs = advance
+    assert_equal "complete", before_jobs.dig("ticks", "tick1", "status")
+    assert_not before_jobs.dig("ticks", "tick1").key?("callback_work")
     assert_not_empty enqueued_jobs
     5.times do
       break if enqueued_jobs.empty?
@@ -74,9 +74,9 @@ class DevelopmentReadingScenarioTickTest < ActiveSupport::TestCase
       perform_enqueued_jobs
     end
     assert_empty enqueued_jobs
-    final = in_development { @tick.reconcile_tick(tick: "tick1") }
-    assert_equal "complete", final.dig("ticks", "tick1", "status")
-    assert_equal({ "reading_sessions" => 303, "club_messages" => 82 }, final.dig("ticks", "tick1", "scenario_counts"))
+    after_jobs = advance
+    assert_equal "complete", after_jobs.dig("ticks", "tick1", "status")
+    assert_equal({ "reading_sessions" => 303, "club_messages" => 82 }, after_jobs.dig("ticks", "tick1", "scenario_counts"))
   end
 
   test "unsupported names non-development and overlapping runs are refused before writes" do

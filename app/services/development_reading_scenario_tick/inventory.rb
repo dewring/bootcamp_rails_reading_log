@@ -37,16 +37,11 @@ class DevelopmentReadingScenarioTick::Inventory
     @matches.fetch(group)[identity] = row
   end
 
-  def checkpointed?
-    @matches.values.all? { |records| records.values.all? } && MODELS.keys.all? { |group| @tick.fetch(group).values.all? { |record| record["id"] } }
+  def saved_counts
+    @matches.transform_values { |records| records.values.compact.length }
   end
 
-  def counts
-    actual = @matches.transform_values { |records| records.values.compact.length }
-    raise DevelopmentReadingScenarioTick::TickError, "Tick is incomplete; resume its writes before reconciliation." unless actual == @tick.fetch("expected_counts")
-
-    actual
-  end
+  private
 
   def verify_saved_record(record, row, identity)
     expected = record.fetch("expected_attributes")
@@ -54,8 +49,6 @@ class DevelopmentReadingScenarioTick::Inventory
       raise DevelopmentReadingScenarioTick::TickError, "Recorded tick #{identity} (ID #{row.id}) changed; no automatic overwrite is allowed."
     end
   end
-
-  private
 
   def matching_record(rows, record, group, identity)
     if record["id"]
@@ -74,6 +67,6 @@ class DevelopmentReadingScenarioTick::Inventory
   end
 
   def snapshot_attributes(row)
-    JSON.parse(row.attributes.except("id", "updated_at").to_json)
+    row.attributes.except("id", "updated_at").as_json
   end
 end

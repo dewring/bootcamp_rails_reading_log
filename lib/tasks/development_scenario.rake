@@ -30,15 +30,6 @@ namespace :development_scenario do
     abort error.message
   end
 
-  desc "Refresh recorded counts for named tick1 (development only)"
-  task :reconcile_tick, [ :tick ] => :environment do |_task, arguments|
-    manifest = DevelopmentReadingScenarioTick.new.reconcile_tick(tick: arguments[:tick])
-    tick = manifest.fetch("ticks").fetch(arguments[:tick])
-    $stdout.write("#{tick.fetch('name')}: #{tick.fetch('status')}; scenario counts: #{tick.fetch('scenario_counts').to_json}\n")
-  rescue DevelopmentReadingScenarioTick::TickError => error
-    abort error.message
-  end
-
   desc "Preview the deterministic reading scenario baseline inventory without writing records (development only)"
   task plan_baseline: :environment do
     catalog = OpenLibraryCatalogPreflight.new.preflight_catalog

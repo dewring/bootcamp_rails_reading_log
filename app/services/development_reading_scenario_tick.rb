@@ -17,28 +17,14 @@ class DevelopmentReadingScenarioTick
 
   def advance_scenario(tick:)
     with_tick_context(tick) do
-      if @inventory.checkpointed? && @tick["actual_counts"] == @tick.fetch("expected_counts") && @tick["scenario_counts"]
-        return @manifest.deep_dup
-      end
+      return @manifest.deep_dup if @tick.fetch("status") == "complete"
 
       @manifest["ticks"] ||= {}
       @manifest.fetch("ticks")[tick] = @tick
       @scenario_manifest.save_scenario
       import_sessions
       import_posts
-      record_tick_truth
-    end
-  end
-
-  def reconcile_tick(tick:)
-    with_tick_context(tick) do
-      raise TickError, "Advance #{tick} before reconciling it." unless @manifest.dig("ticks", tick)
-      unless @inventory.checkpointed?
-        raise TickError, "Resume #{tick} with advance_scenario before reconciliation; some event IDs have not been checkpointed."
-      end
-
-      @inventory.counts
-      record_tick_truth
+      record_tick_result
     end
   end
 
@@ -118,12 +104,12 @@ class DevelopmentReadingScenarioTick
     end
   end
 
-  def record_tick_truth
+  def record_tick_result
     @reading.reconcile_reading
     club_ids = @manifest.fetch("community").fetch("records").fetch("book_clubs").values.map { |record| record.fetch("id") }
     totals = { "reading_sessions" => @manifest.dig("reading", "actual_counts", "reading_sessions"),
       "club_messages" => ClubMessage.where(book_club_id: club_ids).count }
-    @tick["actual_counts"] = @inventory.counts
+    @tick["actual_counts"] = @inventory.saved_counts
     @tick["baseline_counts"] = { "reading_sessions" => 300, "club_messages" => 80 }
     @tick["scenario_counts"] = totals
     @tick["status"] = @manifest.fetch("reading").fetch("status")
