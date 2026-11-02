@@ -5,7 +5,7 @@ class OpenLibraryCatalogCaptureTest < ActiveSupport::TestCase
   setup do
     @directory = Pathname.new(Dir.mktmpdir("booknook-catalog-capture-"))
     @snapshot_path = @directory.join("snapshot/catalog.json")
-    @lock_path = @directory.join("state/week15.lock")
+    @lock_path = @directory.join("state/reading_scenario.lock")
     @monotonic = 0.0
     @waits = []
     @capture = build_capture

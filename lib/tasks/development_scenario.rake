@@ -56,7 +56,7 @@ namespace :development_scenario do
     abort "Scenario bootstrap stopped; review the reported identity or configuration before retrying."
   end
 
-  desc "Preview the deterministic Week 15 baseline inventory without writing records (development only)"
+  desc "Preview the deterministic reading scenario baseline inventory without writing records (development only)"
   task plan_baseline: :environment do
     catalog = OpenLibraryCatalogPreflight.new.preflight_catalog
     plan = DevelopmentReadingScenarioPlan.new(catalog: catalog).build_baseline
@@ -75,7 +75,7 @@ namespace :development_scenario do
     catalog = manifest.fetch("catalog")
     $stdout.write("Catalog replay complete: #{catalog.fetch('actual_counts').to_json}\n")
     $stdout.write("Snapshot ID: #{manifest.fetch('snapshot_id')}; seed: #{manifest.fetch('seed')}; as_of: #{manifest.fetch('as_of')}\n")
-    $stdout.write("Manifest: #{Rails.root.join('storage/development_scenarios/week15.json')}\n")
+    $stdout.write("Manifest: #{DevelopmentReadingScenarioManifest::DEFAULT_PATH}\n")
   rescue OpenLibraryCatalogReplay::ReplayError, OpenLibraryCatalogPreflight::PreflightError => error
     $stderr.write("#{error.message}\n")
     if error.is_a?(OpenLibraryCatalogPreflight::PreflightError)

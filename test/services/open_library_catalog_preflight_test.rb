@@ -317,7 +317,7 @@ class OpenLibraryCatalogPreflightTest < ActiveSupport::TestCase
       .to_return(status: 200, body: { docs: @docs }.to_json)
     snapshot = Rails.stub(:env, "development".inquiry) do
       OpenLibraryCatalogCapture.new(
-        snapshot_path: @snapshot_path, lock_path: @directory.join("week15.lock"),
+        snapshot_path: @snapshot_path, lock_path: @directory.join("reading_scenario.lock"),
         contact_email: "contact@example.test"
       ).capture_catalog
     end

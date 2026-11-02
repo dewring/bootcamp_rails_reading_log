@@ -1,6 +1,6 @@
 class DevelopmentReadingScenarioTick::Inventory
   MODELS = { "reading_sessions" => ReadingSession, "club_messages" => ClubMessage }.freeze
-  attr_reader :tick, :matches
+  attr_reader :matches
 
   def initialize(planned:, tick:)
     @planned = planned

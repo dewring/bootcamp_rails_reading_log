@@ -12,9 +12,9 @@ class DevelopmentReadingScenarioBootstrapTest < ActiveSupport::TestCase
     @initial_badges = Badge.all.map(&:attributes)
     @directory = Pathname.new(Dir.mktmpdir("booknook-scenario-bootstrap-"))
     @snapshot_path = @directory.join("catalog.json")
-    @manifest_path = @directory.join("state/week15.json")
-    @lock_path = @directory.join("state/week15.lock")
-    @password = "synthetic-test-password-142"
+    @manifest_path = @directory.join("state/reading_scenario.json")
+    @lock_path = @directory.join("state/reading_scenario.lock")
+    @password = "synthetic-scenario-test-password"
     @docs = Array.new(100) do |index|
       { "key" => "/works/OL#{155_000 + index}W", "title" => "Bootstrap source #{index + 1}", "author_name" => [ "Source Author" ] }
     end
@@ -90,7 +90,7 @@ class DevelopmentReadingScenarioBootstrapTest < ActiveSupport::TestCase
 
   test "a collision at the final admin nickname cannot cause an account takeover or earlier writes" do
     collision = User.create!(
-      first_name: "Existing", last_name: "Reader", nickname: "week15_admin",
+      first_name: "Existing", last_name: "Reader", nickname: "reading_scenario_admin",
       email: "someone@example.test", password: @password, role: "user", account_status: "active"
     )
     write_snapshot

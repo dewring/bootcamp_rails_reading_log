@@ -10,7 +10,11 @@ class DevelopmentReadingScenarioPlan
     { "badge_type" => "page_turner", "name" => "Page Turner", "description" => "Logged 500 or more total pages read." }
   ].freeze
 
-  def initialize(catalog:, as_of: Time.zone.local(2026, 10, 30, 12))
+  def self.default_reference_time
+    Time.zone.local(2026, 10, 30, 12)
+  end
+
+  def initialize(catalog:, as_of: DevelopmentReadingScenarioPlan.default_reference_time)
     @catalog = catalog
     @as_of = as_of.in_time_zone
   end
@@ -58,7 +62,7 @@ class DevelopmentReadingScenarioPlan
         "identity" => "reader#{number}", "profile" => PROFILES.fetch(index / 6),
         "attributes" => {
           "first_name" => "Synthetic", "last_name" => "Reader #{number}",
-          "nickname" => "week15_reader#{number}", "email" => "reader#{number}@example.test",
+          "nickname" => "reading_scenario_reader#{number}", "email" => "reader#{number}@example.test",
           "role" => "user", "account_status" => "active"
         }
       }
@@ -70,7 +74,7 @@ class DevelopmentReadingScenarioPlan
       "identity" => "admin",
       "attributes" => {
         "first_name" => "Synthetic", "last_name" => "Administrator",
-        "nickname" => "week15_admin", "email" => "week15_admin@example.test",
+        "nickname" => "reading_scenario_admin", "email" => "reading_scenario_admin@example.test",
         "role" => "admin", "account_status" => "active"
       }
     }
@@ -150,7 +154,7 @@ class DevelopmentReadingScenarioPlan
         "identity" => name, "owner" => @readers.fetch(6 + index * 6).fetch("identity"),
         "current_work_key" => index < 3 ? @activity_keys.fetch(index) : nil,
         "attributes" => {
-          "name" => "Week15 #{name.capitalize} Readers",
+          "name" => "Reading Scenario #{name.capitalize} Readers",
           "description" => "Synthetic development club for #{name} reading activity.",
           "reading_deadline" => index < 3 ? (@as_of.to_date + 14).iso8601 : nil
         }

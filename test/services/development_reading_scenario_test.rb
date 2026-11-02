@@ -13,7 +13,7 @@ class DevelopmentReadingScenarioTest < ActiveSupport::TestCase
     @initial_badges = Badge.all.map(&:attributes)
     @directory = Pathname.new(Dir.mktmpdir("booknook-baseline-"))
     @paths = { snapshot_path: @directory.join("catalog.json"), manifest_path: @directory.join("manifest.json"), lock_path: @directory.join("scenario.lock") }
-    @scenario = DevelopmentReadingScenario.new(**@paths, password: "synthetic-test-password-142")
+    @scenario = DevelopmentReadingScenario.new(**@paths, password: "synthetic-scenario-test-password")
     docs = Array.new(100) do |index|
       { "key" => "/works/OL#{205_000 + index}W", "title" => "Baseline source #{index}", "author_name" => [ "Source Author" ], "number_of_pages_median" => 1000 }
     end
@@ -83,7 +83,7 @@ class DevelopmentReadingScenarioTest < ActiveSupport::TestCase
   end
 
   test "a fresh club collision is reported before any baseline records are inserted" do
-    club = BookClub.create!(name: "Week15 Recent Readers")
+    club = BookClub.create!(name: "Reading Scenario Recent Readers")
     assert_no_difference model_counts do
       error = assert_raises(DevelopmentReadingScenario::ScenarioError) { seed }
       assert_includes error.message, club.id.to_s

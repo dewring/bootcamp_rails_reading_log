@@ -2,9 +2,9 @@ class OpenLibraryCatalogReplay
   class ReplayError < StandardError; end
 
   def initialize(snapshot_path: Rails.root.join("db/seeds/open_library_catalog.json"),
-    manifest_path: Rails.root.join("storage/development_scenarios/week15.json"),
-    lock_path: Rails.root.join("storage/development_scenarios/week15.lock"),
-    as_of: Time.zone.local(2026, 10, 30, 12), manifest: nil)
+    manifest_path: DevelopmentReadingScenarioManifest::DEFAULT_PATH,
+    lock_path: DevelopmentReadingScenarioManifest::DEFAULT_LOCK_PATH,
+    as_of: DevelopmentReadingScenarioPlan.default_reference_time, manifest: nil)
     @snapshot_path = Pathname.new(snapshot_path)
     @scenario_manifest = manifest || DevelopmentReadingScenarioManifest.new(path: manifest_path, lock_path: lock_path, as_of: as_of)
   end

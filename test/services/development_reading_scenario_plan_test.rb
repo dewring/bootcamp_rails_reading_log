@@ -56,6 +56,23 @@ class DevelopmentReadingScenarioPlanTest < ActiveSupport::TestCase
     assert users.none? { |user| user.fetch("attributes").key?("password") || user.fetch("attributes").key?("encrypted_password") }
   end
 
+  test "default baseline dates stay reproducible across application time zones" do
+    plans = [ "UTC", "America/Vancouver" ].map do |zone|
+      Time.use_zone(zone) do
+        Rails.stub(:env, "development".inquiry) do
+          DevelopmentReadingScenarioPlan.new(catalog: @catalog).build_baseline
+        end
+      end
+    end
+    utc, pacific = plans
+
+    assert_equal utc.fetch("reading_sessions"), pacific.fetch("reading_sessions")
+    assert_equal utc.fetch("counts"), pacific.fetch("counts")
+    assert_equal 0, Time.iso8601(utc.fetch("as_of")).utc_offset
+    assert_not_equal 0, Time.iso8601(pacific.fetch("as_of")).utc_offset
+    assert_equal Time.iso8601(utc.fetch("as_of")).to_date, Time.iso8601(pacific.fetch("as_of")).to_date
+  end
+
   test "each reader has five distinct books and all three library states are represented" do
     library = build_baseline.fetch("user_books")
 

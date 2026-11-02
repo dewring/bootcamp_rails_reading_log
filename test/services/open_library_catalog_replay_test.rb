@@ -9,8 +9,8 @@ class OpenLibraryCatalogReplayTest < ActiveSupport::TestCase
     @initial_book_ids = Book.pluck(:id)
     @directory = Pathname.new(Dir.mktmpdir("booknook-catalog-replay-"))
     @snapshot_path = @directory.join("catalog.json")
-    @manifest_path = @directory.join("state/week15.json")
-    @lock_path = @directory.join("state/week15.lock")
+    @manifest_path = @directory.join("state/reading_scenario.json")
+    @lock_path = @directory.join("state/reading_scenario.lock")
     @as_of = Time.zone.local(2026, 10, 30, 12)
     @docs = Array.new(100) do |index|
       number = 153_000 + index

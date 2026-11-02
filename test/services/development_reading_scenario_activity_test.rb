@@ -20,7 +20,7 @@ class DevelopmentReadingScenarioActivityTest < ActiveSupport::TestCase
       .to_return(status: 200, body: { docs: docs }.to_json)
     in_development do
       OpenLibraryCatalogCapture.new(snapshot_path: @paths.fetch(:snapshot_path), lock_path: @directory.join("capture.lock"), contact_email: "contact@example.test").capture_catalog
-      DevelopmentReadingScenarioBootstrap.new(**@paths, password: "synthetic-test-password-142").bootstrap_scenario
+      DevelopmentReadingScenarioBootstrap.new(**@paths, password: "synthetic-scenario-test-password").bootstrap_scenario
       OpenLibraryCatalogReplay.new(**@paths).replay_catalog
       catalog = OpenLibraryCatalogPreflight.new(snapshot_path: @paths.fetch(:snapshot_path)).preflight_catalog
       @plan = DevelopmentReadingScenarioPlan.new(catalog: catalog).build_baseline

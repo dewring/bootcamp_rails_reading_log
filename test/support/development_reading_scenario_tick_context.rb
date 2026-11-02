@@ -32,7 +32,7 @@ module DevelopmentReadingScenarioTickContext
       .to_return(status: 200, body: { docs: docs }.to_json)
     in_development do
       OpenLibraryCatalogCapture.new(snapshot_path: @paths.fetch(:snapshot_path), lock_path: @directory.join("capture.lock"), contact_email: "contact@example.test").capture_catalog
-      @seed = DevelopmentReadingScenario.new(**@paths, password: "synthetic-test-password-142")
+      @seed = DevelopmentReadingScenario.new(**@paths, password: "synthetic-scenario-test-password")
       @baseline = @seed.seed_baseline
     end
     WebMock.reset!
