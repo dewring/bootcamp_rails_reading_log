@@ -2,27 +2,15 @@ class DevelopmentReadingScenarioTick::Inventory
   MODELS = { "reading_sessions" => ReadingSession, "club_messages" => ClubMessage }.freeze
   attr_reader :matches
 
-  def initialize(planned:, tick:)
-    @planned = planned
+  def initialize(tick:)
     @tick = tick
   end
 
   def verify_tick
-    unless @tick.is_a?(Hash) && @tick.values_at("name", "expected_counts") == @planned.values_at("name", "expected_counts")
-      raise DevelopmentReadingScenarioTick::TickError, "Recorded tick differs from its named plan."
-    end
     @matches = MODELS.to_h do |group, model|
-      planned = @planned.fetch(group)
-      saved = @tick[group]
-      unless saved.is_a?(Hash) && saved.keys.sort == planned.keys.sort
-        raise DevelopmentReadingScenarioTick::TickError, "Recorded tick #{group} identities differ from the plan."
-      end
-      rows = model.where(user_id: planned.values.map { |record| record.fetch("expected_attributes").fetch("user_id") }).to_a
-      [ group, planned.to_h do |identity, expected|
-        record = saved.fetch(identity)
-        unless record.is_a?(Hash) && record["expected_attributes"].is_a?(Hash) && record.fetch("expected_attributes").slice(*expected.fetch("expected_attributes").keys) == expected.fetch("expected_attributes") && record["library_identity"] == expected["library_identity"]
-          raise DevelopmentReadingScenarioTick::TickError, "Recorded tick #{group} #{identity} differs from its planned payload."
-        end
+      records = @tick.fetch(group)
+      rows = model.where(user_id: records.values.map { |record| record.fetch("expected_attributes").fetch("user_id") }).to_a
+      [ group, records.to_h do |identity, record|
         [ identity, matching_record(rows, record, group, identity) ]
       end ]
     end

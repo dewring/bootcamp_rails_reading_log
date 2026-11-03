@@ -43,9 +43,8 @@ class DevelopmentReadingScenarioTick
       end
       @bootstrap.preflight_bootstrap
       @catalog.preflight_catalog
-      planned = Plan.new(baseline: @baseline, manifest: @manifest, as_of: @as_of).build_tick
-      @tick = @manifest.dig("ticks", name) || planned.deep_dup
-      @inventory = Inventory.new(planned: planned, tick: @tick)
+      @tick = @manifest.dig("ticks", name) || Plan.new(baseline: @baseline, manifest: @manifest, as_of: @as_of).build_tick
+      @inventory = Inventory.new(tick: @tick)
       @inventory.verify_tick
       @reading.preflight_reading
       @community.preflight_community

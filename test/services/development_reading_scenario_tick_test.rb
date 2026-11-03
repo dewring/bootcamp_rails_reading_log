@@ -14,6 +14,7 @@ class DevelopmentReadingScenarioTickTest < ActiveSupport::TestCase
       end
     end
     tick = result.fetch("ticks").fetch("tick1")
+    assert_equal({ "reading_sessions" => 3, "club_messages" => 2 }, tick.fetch("expected_counts"))
     assert_equal({ "reading_sessions" => 3, "club_messages" => 2 }, tick.fetch("actual_counts"))
     assert_equal({ "reading_sessions" => 300, "club_messages" => 80 }, tick.fetch("baseline_counts"))
     assert_equal({ "reading_sessions" => 303, "club_messages" => 82 }, tick.fetch("scenario_counts"))
@@ -23,11 +24,13 @@ class DevelopmentReadingScenarioTickTest < ActiveSupport::TestCase
     sessions = ReadingSession.where(id: tick_ids(result).fetch("reading_sessions").values)
     assert_equal [ Date.new(2026, 10, 30) ], sessions.distinct.pluck(:read_on)
     assert_equal [ 16, 17, 18 ], sessions.order(:pages_read).pluck(:pages_read)
+    assert_equal [ "reader08@example.test", "reader14@example.test", "reader20@example.test" ], sessions.order(:pages_read).joins(:user).pluck("users.email")
     assert_equal 28, broadcasts(ClubDiscussionChannel.broadcasting_for(club("steady"))).length
     assert_equal 28, broadcasts(ClubDiscussionChannel.broadcasting_for(club("lapsed"))).length
     assert_equal 26, broadcasts(ClubDiscussionChannel.broadcasting_for(club("recent"))).length
     assert_equal 0, club("quiet").club_messages.count
     posts = ClubMessage.where(id: tick_ids(result).fetch("club_messages").values)
+    assert_equal [ "reader08@example.test", "reader14@example.test" ], posts.joins(:user).order("users.email").pluck("users.email")
     assert posts.all? { |post| post.parent_id.nil? && !post.body.include?("tick1") && !post.body.include?("@example.test") && !post.body.include?("/works/") }
     assert_not_requested :any, /https?:/
   end
