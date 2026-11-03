@@ -50,6 +50,7 @@ class DevelopmentReadingScenarioCommunityTest < ActiveSupport::TestCase
     records(manifest, "book_clubs").each do |identity, record|
       club = BookClub.find(record.fetch("id"))
       assert_equal 6, club.book_club_memberships_count
+      assert_equal club.book_club_memberships.count, club.book_club_memberships_count
       assert_equal [ record.fetch("owner_id") ], club.book_club_memberships.where(role: "owner").pluck(:user_id)
       expected = { "steady" => 27, "lapsed" => 27, "recent" => 26, "quiet" => 0 }.fetch(identity)
       assert_equal expected, club.club_messages.top_level.count
@@ -77,6 +78,7 @@ class DevelopmentReadingScenarioCommunityTest < ActiveSupport::TestCase
       second = replay
     end
     assert_equal community_ids(first), community_ids(second)
+    assert_equal first.dig("community", "actual_counts"), second.dig("community", "actual_counts")
     assert_equal jobs, enqueued_jobs.length
     assert_equal broadcast_counts, clubs.map { |club| broadcasts(ClubDiscussionChannel.broadcasting_for(club)).length }
   end

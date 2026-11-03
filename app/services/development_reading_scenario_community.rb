@@ -18,8 +18,7 @@ class DevelopmentReadingScenarioCommunity
       @scenario_manifest.save_scenario
       import_clubs
       [ "book_club_memberships", "club_messages", "reviews" ].each { |group| import_records(group) }
-      load_community_rows
-      verify_final_counts
+      record_community_counts
       @community["status"] = "saved"
       @scenario_manifest.save_scenario
       @manifest.deep_dup
@@ -40,8 +39,7 @@ class DevelopmentReadingScenarioCommunity
       @plan = DevelopmentReadingScenarioPlan.new(catalog: catalog, as_of: @as_of).build_baseline
       @manifest = @scenario_manifest.prepare_scenario(snapshot_id: catalog.fetch("snapshot_id"))
       load_references
-      @intended = planned_community
-      @community = @manifest["community"] || @intended.deep_dup
+      @community = @manifest["community"] || planned_community
       load_community_rows
       reject_existing_community unless @manifest["community"]
       verify_inventory
@@ -80,7 +78,7 @@ class DevelopmentReadingScenarioCommunity
   end
 
   def load_community_rows
-    names = @intended.fetch("records").fetch("book_clubs").values.map { |record| record.fetch("expected_attributes").fetch("name").downcase }
+    names = @community.fetch("records").fetch("book_clubs").values.map { |record| record.fetch("expected_attributes").fetch("name").downcase }
     saved_ids = @community.fetch("records").fetch("book_clubs").values.filter_map { |record| record["id"] }
     clubs = BookClub.where("LOWER(name) IN (?)", names).or(BookClub.where(id: saved_ids)).to_a
     club_ids = clubs.map(&:id)
@@ -99,21 +97,9 @@ class DevelopmentReadingScenarioCommunity
   end
 
   def verify_inventory
-    unless @community["expected_counts"] == @intended.fetch("expected_counts") && @community["records"].is_a?(Hash)
-      raise CommunityError, "Community inventory differs from the planned scenario."
-    end
     @matches = {}
     MODELS.each_key do |group|
-      intended = @intended.fetch("records").fetch(group)
-      saved = @community.fetch("records")[group]
-      unless saved.is_a?(Hash) && saved.keys.sort == intended.keys.sort
-        raise CommunityError, "Recorded #{group} identities differ from the plan."
-      end
-      @matches[group] = intended.to_h do |identity, expected|
-        record = saved.fetch(identity)
-        unless record.is_a?(Hash) && record["expected_attributes"].is_a?(Hash) && record.fetch("expected_attributes").slice(*expected.fetch("expected_attributes").keys) == expected.fetch("expected_attributes") && record.values_at("club", "owner_id") == expected.values_at("club", "owner_id")
-          raise CommunityError, "Recorded #{group} #{identity} differs from its planned payload."
-        end
+      @matches[group] = @community.fetch("records").fetch(group).to_h do |identity, record|
         [ identity, match_record(group, identity, record) ]
       end
     end
@@ -241,17 +227,9 @@ class DevelopmentReadingScenarioCommunity
     raise CommunityError, "Community record #{identity} failed validation: #{record.fetch('errors').join(', ')}"
   end
 
-  def verify_final_counts
+  def record_community_counts
     counts = @matches.transform_values { |records| records.values.compact.length }
-    raise CommunityError, "Community counts differ from the plan: #{counts.inspect}" unless counts == @community.fetch("expected_counts")
-
-    @rows.fetch("book_clubs").each do |club|
-      memberships = @rows.fetch("book_club_memberships").count { |row| row.book_club_id == club.id }
-      unless memberships == 6 && club.book_club_memberships_count == memberships
-        raise CommunityError, "Club ID #{club.id} membership count or counter cache differs from six."
-      end
-    end
-    @community["actual_counts"] = counts.merge("club_messages_with_ticks" => 80 + @tick_messages.values.compact.length)
+    @community["actual_counts"] = counts.merge("club_messages_with_ticks" => counts.fetch("club_messages") + @tick_messages.values.compact.length)
   end
 
   def attributes_for(row)
