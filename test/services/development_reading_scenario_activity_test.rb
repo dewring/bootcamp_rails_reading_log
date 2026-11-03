@@ -117,8 +117,8 @@ class DevelopmentReadingScenarioActivityTest < ActiveSupport::TestCase
     recorder = Object.new
     recorder.define_singleton_method(:record) { invalid }
     ReadingSessionRecorder.stub(:new, recorder) do
-      error = assert_raises(DevelopmentReadingScenarioActivity::ActivityError) { replay }
-      assert_includes error.message, "failed validation"
+      error = assert_raises(ActiveRecord::RecordInvalid) { replay }
+      assert_same invalid, error.record
     end
     manifest = JSON.parse(@paths.fetch(:manifest_path).read)
     failed = records(manifest, "reading_sessions").values.first

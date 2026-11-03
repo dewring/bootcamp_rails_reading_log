@@ -114,7 +114,8 @@ class DevelopmentReadingScenarioTickRecoveryTest < ActiveSupport::TestCase
     recorder = Object.new
     recorder.define_singleton_method(:record) { invalid }
     ReadingSessionRecorder.stub(:new, recorder) do
-      assert_raises(DevelopmentReadingScenarioTick::TickError) { advance }
+      error = assert_raises(ActiveRecord::RecordInvalid) { advance }
+      assert_same invalid, error.record
     end
     manifest = JSON.parse(@paths.fetch(:manifest_path).read)
     assert_equal "failed", tick_records(manifest, "reading_sessions").fetch("reading1").fetch("result")

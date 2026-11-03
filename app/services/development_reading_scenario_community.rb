@@ -182,7 +182,8 @@ class DevelopmentReadingScenarioCommunity
       snapshot_record(@community.fetch("records").fetch("book_club_memberships").fetch(owner_identity), owner, result)
       @scenario_manifest.save_scenario
     rescue ActiveRecord::RecordInvalid => error
-      record_failure(record, identity, error)
+      record_failure(record, error)
+      raise
     end
   end
 
@@ -211,7 +212,8 @@ class DevelopmentReadingScenarioCommunity
       snapshot_record(record, row, result)
       @scenario_manifest.save_scenario
     rescue ActiveRecord::RecordInvalid => error
-      record_failure(record, identity, error)
+      record_failure(record, error)
+      raise
     end
   end
 
@@ -222,11 +224,10 @@ class DevelopmentReadingScenarioCommunity
     record.delete("errors")
   end
 
-  def record_failure(record, identity, error)
+  def record_failure(record, error)
     record["result"] = "failed"
     record["errors"] = error.record.errors.full_messages
     @scenario_manifest.save_scenario
-    raise CommunityError, "Community record #{identity} failed validation: #{record.fetch('errors').join(', ')}"
   end
 
   def record_community_counts

@@ -273,6 +273,32 @@ class DevelopmentReadingScenarioBootstrapTest < ActiveSupport::TestCase
     assert_not @manifest_path.exist?
   end
 
+  test "an account save failure preserves the original exception and remains resumable" do
+    write_snapshot
+    factory = User.method(:new)
+    failure = nil
+    User.stub(:new, ->(*arguments) {
+      user = factory.call(*arguments)
+      user.define_singleton_method(:save!) do |*|
+        errors.add(:base, "Temporary account save failure")
+        failure = ActiveRecord::RecordInvalid.new(self)
+        raise failure
+      end
+      user
+    }) do
+      error = assert_raises(ActiveRecord::RecordInvalid) { bootstrap_scenario }
+      assert_same failure, error
+    end
+    manifest = JSON.parse(@manifest_path.read)
+    failed = user_records(manifest).fetch("reader01")
+    assert_equal "failed", failed.fetch("result")
+    assert_equal failure.record.errors.full_messages, failed.fetch("errors")
+
+    completed = bootstrap_scenario
+    assert_equal 31, completed.dig("bootstrap", "actual_counts", "users")
+    assert user_records(completed).values.none? { |record| record.key?("errors") }
+  end
+
   test "catalog replay and bootstrap share one manifest and lock in a coordinated operation" do
     write_snapshot
     context = DevelopmentReadingScenarioManifest.new(path: @manifest_path, lock_path: @lock_path)

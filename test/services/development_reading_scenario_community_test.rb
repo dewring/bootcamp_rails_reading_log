@@ -186,6 +186,22 @@ class DevelopmentReadingScenarioCommunityTest < ActiveSupport::TestCase
     end
   end
 
+  test "a failed message save preserves the invalid model and checkpoints the failure for retry" do
+    invalid = ClubMessage.new
+    ClubMessage.stub(:new, invalid) do
+      error = assert_raises(ActiveRecord::RecordInvalid) { replay }
+      assert_same invalid, error.record
+    end
+    manifest = JSON.parse(@paths.fetch(:manifest_path).read)
+    failed = records(manifest, "club_messages").values.first
+    assert_equal "failed", failed.fetch("result")
+    assert_equal invalid.errors.full_messages, failed.fetch("errors")
+
+    completed = replay
+    assert_equal 80, completed.dig("community", "actual_counts", "club_messages")
+    assert records(completed, "club_messages").values.none? { |record| record.key?("errors") }
+  end
+
   test "non-development replay refuses before community writes" do
     assert_no_difference [ "BookClub.count", "BookClubMembership.count", "ClubMessage.count", "Review.count" ] do
       assert_raises(DevelopmentReadingScenarioManifest::ManifestError) { @community.replay_community }

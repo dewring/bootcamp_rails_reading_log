@@ -74,7 +74,8 @@ class DevelopmentReadingScenarioActivity
       @inventory.remember_library_entry(identity, row)
       record_saved_reading(record, row, result, library: true)
     rescue ActiveRecord::RecordInvalid => error
-      record_reading_failure(record, identity, error)
+      record_reading_failure(record, error)
+      raise
     end
   end
 
@@ -94,7 +95,8 @@ class DevelopmentReadingScenarioActivity
       @inventory.remember_session(identity, row)
       record_saved_reading(record, row, result)
     rescue ActiveRecord::RecordInvalid => error
-      record_reading_failure(record, identity, error)
+      record_reading_failure(record, error)
+      raise
     end
   end
 
@@ -110,11 +112,10 @@ class DevelopmentReadingScenarioActivity
     session
   end
 
-  def record_reading_failure(record, identity, error)
+  def record_reading_failure(record, error)
     record["result"] = "failed"
     record["errors"] = error.record.errors.full_messages
     @scenario_manifest.save_scenario
-    raise ActivityError, "Reading record #{identity} failed validation: #{record.fetch('errors').join(', ')}"
   end
 
   def record_saved_reading(record, row, result, library: false)

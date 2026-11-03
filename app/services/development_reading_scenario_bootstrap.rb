@@ -189,7 +189,7 @@ class DevelopmentReadingScenarioBootstrap
         record["result"] = "failed"
         record["errors"] = error.record.errors.full_messages
         @scenario_manifest.save_scenario
-        raise BootstrapError, "Could not save #{group} #{identity}; previously committed records remain resumable."
+        raise
       end
     end
   end

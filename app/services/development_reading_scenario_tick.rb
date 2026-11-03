@@ -68,7 +68,8 @@ class DevelopmentReadingScenarioTick
       @inventory.checkpoint_saved_record("reading_sessions", identity, row, result)
       @scenario_manifest.save_scenario
     rescue ActiveRecord::RecordInvalid => error
-      record_failure(record, identity, error)
+      record_failure(record, error)
+      raise
     end
   end
 
@@ -101,7 +102,8 @@ class DevelopmentReadingScenarioTick
       @inventory.checkpoint_saved_record("club_messages", identity, row, result)
       @scenario_manifest.save_scenario
     rescue ActiveRecord::RecordInvalid => error
-      record_failure(record, identity, error)
+      record_failure(record, error)
+      raise
     end
   end
 
@@ -122,10 +124,9 @@ class DevelopmentReadingScenarioTick
     @manifest.deep_dup
   end
 
-  def record_failure(record, identity, error)
+  def record_failure(record, error)
     record["result"] = "failed"
     record["errors"] = error.record.errors.full_messages
     @scenario_manifest.save_scenario
-    raise TickError, "Tick record #{identity} failed validation: #{record.fetch('errors').join(', ')}"
   end
 end

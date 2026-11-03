@@ -146,7 +146,7 @@ class OpenLibraryCatalogReplay
     pair.fetch(kind)["result"] = "failed"
     pair.fetch(kind)["errors"] = error.record.errors.full_messages
     @scenario_manifest.save_scenario
-    raise ReplayError, "Could not import #{key}: #{error.record.errors.full_messages.join(', ')}. Previously committed records remain resumable."
+    raise
   end
 
   def record_saved_row(record, row, result)
