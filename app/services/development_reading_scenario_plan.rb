@@ -2,6 +2,13 @@ class DevelopmentReadingScenarioPlan
   SEED = 15
   PROFILES = [ "inactive", "steady", "lapsed", "recent", "spiky" ].freeze
   SESSIONS_PER_READER = { "inactive" => 0, "steady" => 24, "lapsed" => 8, "recent" => 8, "spiky" => 10 }.freeze
+  READER_NAMES = [
+    "Maya Chen", "Liam Patel", "Sofia Rivera", "Noah Brooks", "Amelia Kim", "Ethan Wilson",
+    "Olivia Bennett", "Lucas Nguyen", "Isabella Ortiz", "Mason Clarke", "Charlotte Evans", "James Park",
+    "Harper Lewis", "Benjamin Shah", "Evelyn Reed", "Elijah Santos", "Abigail Turner", "Henry Zhao",
+    "Ella Mitchell", "Alexander Costa", "Grace Martin", "Daniel Ahmed", "Chloe Wright", "Samuel Ito",
+    "Nora Campbell", "David Okafor", "Lily Thompson", "Joseph Silva", "Zoe Anderson", "Gabriel Rossi"
+  ].freeze
   BADGES = [
     { "badge_type" => "first_session", "name" => "First Session", "description" => "Logged your first reading session." },
     { "badge_type" => "week_streak", "name" => "Week Streak", "description" => "Read for 7 or more days in a row." },
@@ -56,13 +63,14 @@ class DevelopmentReadingScenarioPlan
   private
 
   def readers
-    Array.new(30) do |index|
+    READER_NAMES.each_with_index.map do |name, index|
       number = format("%02d", index + 1)
+      first_name, last_name = name.split(" ", 2)
       {
         "identity" => "reader#{number}", "profile" => PROFILES.fetch(index / 6),
         "attributes" => {
-          "first_name" => "Synthetic", "last_name" => "Reader #{number}",
-          "nickname" => "reading_scenario_reader#{number}", "email" => "reader#{number}@example.test",
+          "first_name" => first_name, "last_name" => last_name,
+          "nickname" => name.downcase.tr(" ", "."), "email" => "reader#{number}@example.test",
           "role" => "user", "account_status" => "active"
         }
       }
@@ -73,8 +81,8 @@ class DevelopmentReadingScenarioPlan
     {
       "identity" => "admin",
       "attributes" => {
-        "first_name" => "Synthetic", "last_name" => "Administrator",
-        "nickname" => "reading_scenario_admin", "email" => "reading_scenario_admin@example.test",
+        "first_name" => "Avery", "last_name" => "Morgan",
+        "nickname" => "avery.morgan", "email" => "reading_scenario_admin@example.test",
         "role" => "admin", "account_status" => "active"
       }
     }

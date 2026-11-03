@@ -49,6 +49,10 @@ class DevelopmentReadingScenarioBootstrapTest < ActiveSupport::TestCase
     assert_equal 1, users.where(role: "admin").count
     assert_equal 31, users.where(account_status: "active").count
     assert users.all? { |user| user.email.end_with?("@example.test") && user.valid_password?(@password) }
+    reader = User.find(user_records(manifest).fetch("reader01").fetch("id"))
+    assert_equal [ "Maya", "Chen", "maya.chen" ], [ reader.first_name, reader.last_name, reader.nickname ]
+    admin = User.find(user_records(manifest).fetch("admin").fetch("id"))
+    assert_equal [ "Avery", "Morgan", "avery.morgan" ], [ admin.first_name, admin.last_name, admin.nickname ]
     assert_equal 0, WebhookEndpoint.where(user_id: ids).count
     existing_genres.each { |attributes| assert_equal attributes, Genre.find(attributes.fetch("id")).attributes }
     existing_badges.each { |attributes| assert_equal attributes, Badge.find(attributes.fetch("id")).attributes }
@@ -90,7 +94,7 @@ class DevelopmentReadingScenarioBootstrapTest < ActiveSupport::TestCase
 
   test "a collision at the final admin nickname cannot cause an account takeover or earlier writes" do
     collision = User.create!(
-      first_name: "Existing", last_name: "Reader", nickname: "reading_scenario_admin",
+      first_name: "Existing", last_name: "Reader", nickname: "avery.morgan",
       email: "someone@example.test", password: @password, role: "user", account_status: "active"
     )
     write_snapshot

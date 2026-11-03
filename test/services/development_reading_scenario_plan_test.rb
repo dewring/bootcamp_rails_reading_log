@@ -56,6 +56,26 @@ class DevelopmentReadingScenarioPlanTest < ActiveSupport::TestCase
     assert users.none? { |user| user.fetch("attributes").key?("password") || user.fetch("attributes").key?("encrypted_password") }
   end
 
+  test "fictional display names are distinct while reader identities and login emails remain stable" do
+    users = build_baseline.fetch("users")
+    readers = users.select { |entry| entry.fetch("attributes").fetch("role") == "user" }
+
+    assert_equal 31, users.map { |entry| entry.fetch("attributes").values_at("first_name", "last_name") }.uniq.length
+    users.each do |entry|
+      attributes = entry.fetch("attributes")
+      assert_match(/\A[A-Z][a-z]+\z/, attributes.fetch("first_name"))
+      assert_match(/\A[A-Z][a-z]+\z/, attributes.fetch("last_name"))
+      assert_equal "#{attributes.fetch('first_name')}.#{attributes.fetch('last_name')}".downcase, attributes.fetch("nickname")
+    end
+    readers.each_with_index do |entry, index|
+      identity = "reader#{format('%02d', index + 1)}"
+      assert_equal identity, entry.fetch("identity")
+      assert_equal "#{identity}@example.test", entry.fetch("attributes").fetch("email")
+    end
+    admin = users.find { |entry| entry.fetch("identity") == "admin" }
+    assert_equal "reading_scenario_admin@example.test", admin.fetch("attributes").fetch("email")
+  end
+
   test "default baseline dates stay reproducible across application time zones" do
     plans = [ "UTC", "America/Vancouver" ].map do |zone|
       Time.use_zone(zone) do
