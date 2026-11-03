@@ -71,6 +71,7 @@ class DevelopmentReadingScenarioBootstrapTest < ActiveSupport::TestCase
     second = Rails.stub(:env, "development".inquiry) { without_password.bootstrap_scenario }
 
     assert_equal bootstrap_ids(first), bootstrap_ids(second)
+    assert_equal first.dig("bootstrap", "actual_counts"), second.dig("bootstrap", "actual_counts")
     assert_equal before, User.order(:id).map(&:attributes)
     assert user_records(second).values.all? { |record| record.fetch("result") == "reused" }
   end
@@ -139,7 +140,8 @@ class DevelopmentReadingScenarioBootstrapTest < ActiveSupport::TestCase
 
     assert_no_difference [ "Genre.count", "Badge.count", "User.count" ] do
       Rails.stub(:env, "development".inquiry) do
-        assert_raises(DevelopmentReadingScenarioBootstrap::BootstrapError) { bootstrap.bootstrap_scenario }
+        error = assert_raises(ActiveRecord::RecordInvalid) { bootstrap.bootstrap_scenario }
+        assert_includes error.record.errors.attribute_names, :password
       end
     end
     assert_not @manifest_path.exist?
@@ -202,7 +204,9 @@ class DevelopmentReadingScenarioBootstrapTest < ActiveSupport::TestCase
     @manifest_path.write(JSON.pretty_generate(manifest))
 
     assert_no_difference "User.count" do
-      assert_raises(DevelopmentReadingScenarioBootstrap::BootstrapError) { bootstrap_scenario }
+      error = assert_raises(DevelopmentReadingScenarioBootstrap::BootstrapError) { bootstrap_scenario }
+      assert_includes error.message, "Recorded credentials"
+      assert_includes error.message, "no automatic account adoption"
     end
   end
 
@@ -254,6 +258,21 @@ class DevelopmentReadingScenarioBootstrapTest < ActiveSupport::TestCase
     assert badge.valid?
   end
 
+  test "an invalid pending badge stops setup before any records or checkpoint are written" do
+    Badge.find_by!(badge_type: "first_session").destroy!
+    write_snapshot
+    invalid = Badge.new(badge_type: "first_session")
+
+    Badge.stub(:new, invalid) do
+      assert_no_difference [ "Genre.count", "Badge.count", "User.count" ] do
+        error = assert_raises(ActiveRecord::RecordInvalid) { bootstrap_scenario }
+        assert_same invalid, error.record
+        assert_includes error.record.errors.attribute_names, :name
+      end
+    end
+    assert_not @manifest_path.exist?
+  end
+
   test "catalog replay and bootstrap share one manifest and lock in a coordinated operation" do
     write_snapshot
     context = DevelopmentReadingScenarioManifest.new(path: @manifest_path, lock_path: @lock_path)
@@ -298,7 +317,7 @@ class DevelopmentReadingScenarioBootstrapTest < ActiveSupport::TestCase
     File.open(@lock_path, File::RDWR | File::CREAT, 0o600) do |lock|
       assert lock.flock(File::LOCK_EX | File::LOCK_NB)
       assert_no_difference [ "User.count", "Genre.count", "Badge.count" ] do
-        assert_raises(DevelopmentReadingScenarioBootstrap::BootstrapError) { bootstrap_scenario }
+        assert_raises(DevelopmentReadingScenarioManifest::ManifestError) { bootstrap_scenario }
       end
     end
 
@@ -309,7 +328,7 @@ class DevelopmentReadingScenarioBootstrapTest < ActiveSupport::TestCase
   test "non-development bootstrap refuses before filesystem writes or HTTP requests" do
     [ "test", "production" ].each do |environment|
       Rails.stub(:env, environment.inquiry) do
-        assert_raises(DevelopmentReadingScenarioBootstrap::BootstrapError) { @bootstrap.bootstrap_scenario }
+        assert_raises(DevelopmentReadingScenarioManifest::ManifestError) { @bootstrap.bootstrap_scenario }
       end
     end
 

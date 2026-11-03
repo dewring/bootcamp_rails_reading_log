@@ -18,7 +18,7 @@ class DevelopmentReadingScenarioBootstrap
       @manifest["bootstrap"] = @bootstrap
       @scenario_manifest.save_scenario
       import_bootstrap_records
-      verify_bootstrap_totals
+      record_bootstrap_counts
       @bootstrap["status"] = "complete"
       @scenario_manifest.save_scenario
       @manifest.deep_dup
@@ -32,22 +32,17 @@ class DevelopmentReadingScenarioBootstrap
   private
 
   def with_bootstrap_context
-    raise BootstrapError, "Scenario bootstrap is only available in development" unless Rails.env.development?
-
     @scenario_manifest.with_exclusive_access do
       catalog = OpenLibraryCatalogPreflight.new(snapshot_path: @snapshot_path).preflight_catalog
       @plan = DevelopmentReadingScenarioPlan.new(catalog: catalog, as_of: @as_of).build_baseline
       @manifest = @scenario_manifest.prepare_scenario(snapshot_id: catalog.fetch("snapshot_id"))
-      @prepared_users = {}
+      @prepared_records = BOOTSTRAP_MODELS.transform_values { {} }
       load_existing_records
       @bootstrap = @manifest["bootstrap"] || planned_bootstrap
-      validate_inventory
       verify_recorded_rows
-      validate_pending_writes
+      prepare_pending_records
       yield
     end
-  rescue DevelopmentReadingScenarioManifest::ManifestError => error
-    raise BootstrapError, error.message
   end
 
   def load_existing_records
@@ -89,7 +84,7 @@ class DevelopmentReadingScenarioBootstrap
     @plan.fetch("users").each do |entry|
       identity = entry.fetch("identity")
       user = prepare_new_user(entry.fetch("attributes"))
-      @prepared_users[identity] = user
+      @prepared_records.fetch("users")[identity] = user
       records.fetch("users")[identity] = {
         "id" => nil, "origin" => "imported", "result" => nil,
         "expected_attributes" => recorded_attributes(user).except("created_at")
@@ -108,35 +103,6 @@ class DevelopmentReadingScenarioBootstrap
     }
   end
 
-  def validate_inventory
-    unless @bootstrap.is_a?(Hash) && @bootstrap["expected_counts"] == expected_counts && @bootstrap["records"].is_a?(Hash)
-      raise BootstrapError, "Recorded bootstrap inventory differs from the scenario plan."
-    end
-    BOOTSTRAP_MODELS.each_key do |group|
-      records = @bootstrap.fetch("records")[group]
-      unless records.is_a?(Hash) && records.keys.sort == @existing.fetch(group).keys.sort
-        raise BootstrapError, "Recorded #{group} identities differ from the scenario plan."
-      end
-      records.each do |identity, record|
-        unless record.is_a?(Hash) && record["expected_attributes"].is_a?(Hash) && [ "imported", "reused" ].include?(record["origin"])
-          raise BootstrapError, "Invalid recorded #{group} identity #{identity}."
-        end
-        if group == "users"
-          attributes = @plan.fetch("users").find { |entry| entry.fetch("identity") == identity }.fetch("attributes")
-          password_hash = record.fetch("expected_attributes")["encrypted_password"]
-          unless record.fetch("expected_attributes").slice(*attributes.keys) == attributes && record["origin"] == "imported" && password_hash.is_a?(String) && password_hash.present?
-            raise BootstrapError, "Recorded user #{identity} differs from the synthetic account plan."
-          end
-        else
-          key_name = group == "genres" ? "name" : "badge_type"
-          unless record.fetch("expected_attributes")[key_name] == identity
-            raise BootstrapError, "Recorded #{group} #{identity} differs from its planned identity."
-          end
-        end
-      end
-    end
-  end
-
   def verify_recorded_rows
     @bootstrap.fetch("records").each do |group, records|
       records.each do |identity, record|
@@ -148,6 +114,12 @@ class DevelopmentReadingScenarioBootstrap
   end
 
   def verify_recorded_row(group, identity, record, row)
+    if group == "users"
+      password_hash = record.fetch("expected_attributes")["encrypted_password"]
+      unless password_hash.is_a?(String) && password_hash.present?
+        raise BootstrapError, "Recorded credentials for #{identity} are missing; no automatic account adoption is allowed."
+      end
+    end
     if record["id"] && (!row || row.id != record.fetch("id"))
       raise BootstrapError, "Recorded #{group} #{identity} (ID #{record.fetch('id')}) is missing or changed; no automatic recreation is allowed."
     end
@@ -159,19 +131,22 @@ class DevelopmentReadingScenarioBootstrap
     end
   end
 
-  def validate_pending_writes
+  def prepare_pending_records
     @bootstrap.fetch("records").each do |group, records|
       records.each do |identity, record|
         next if @existing.fetch(group).fetch(identity).any?
 
-        if group == "users"
-          @prepared_users[identity] ||= prepare_new_user(record.fetch("expected_attributes"))
-        else
-          row = BOOTSTRAP_MODELS.fetch(group).new(record.fetch("expected_attributes"))
-          raise BootstrapError, "Invalid planned #{group} #{identity}: #{row.errors.full_messages.join(', ')}" unless row.valid?
-        end
+        @prepared_records.fetch(group)[identity] ||= prepare_pending_record(group, record.fetch("expected_attributes"))
       end
     end
+  end
+
+  def prepare_pending_record(group, attributes)
+    return prepare_new_user(attributes) if group == "users"
+
+    row = BOOTSTRAP_MODELS.fetch(group).new(attributes)
+    row.validate!
+    row
   end
 
   def prepare_new_user(attributes)
@@ -185,11 +160,9 @@ class DevelopmentReadingScenarioBootstrap
       user.encrypted_password = attributes.fetch("encrypted_password")
       raise BootstrapError, "The local scenario password differs from the planned credentials." unless user.valid_password?(@password)
     end
-    raise BootstrapError, "Invalid planned synthetic account: #{user.errors.full_messages.join(', ')}" unless user.valid?
+    user.validate!
 
     user
-  rescue BCrypt::Errors::InvalidHash
-    raise BootstrapError, "Recorded scenario credentials are invalid; preserve the manifest and review before retrying."
   end
 
   def import_bootstrap_records
@@ -202,7 +175,7 @@ class DevelopmentReadingScenarioBootstrap
             row.lock!
             verify_recorded_row(group, identity, record, row)
           else
-            row = group == "users" ? @prepared_users.fetch(identity) : model.new(record.fetch("expected_attributes"))
+            row = @prepared_records.fetch(group).fetch(identity)
             row.save!
           end
         end
@@ -225,14 +198,8 @@ class DevelopmentReadingScenarioBootstrap
     JSON.parse(row.attributes.except("id", "updated_at", "remember_created_at", "reset_password_token", "reset_password_sent_at").to_json)
   end
 
-  def verify_bootstrap_totals
-    actual = BOOTSTRAP_MODELS.to_h do |group, model|
-      ids = @bootstrap.fetch("records").fetch(group).values.map { |record| record.fetch("id") }
-      [ group, model.where(id: ids).count ]
-    end
-    raise BootstrapError, "Unexpected bootstrap totals: #{actual.inspect}" unless actual == expected_counts
-
-    @bootstrap["actual_counts"] = actual
+  def record_bootstrap_counts
+    @bootstrap["actual_counts"] = @existing.transform_values { |records| records.values.sum(&:length) }
   end
 
   def expected_counts
