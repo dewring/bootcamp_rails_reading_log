@@ -70,6 +70,7 @@ class OpenLibraryCatalogReplayTest < ActiveSupport::TestCase
     second = replay_catalog
 
     assert_equal recorded_ids(first), recorded_ids(second)
+    assert_equal first.dig("catalog", "actual_counts"), second.dig("catalog", "actual_counts")
     assert_equal books_before, Book.order(:id).map(&:attributes)
     assert_equal editions_before, BookEdition.order(:id).map(&:attributes)
     assert catalog_records(second).values.all? { |pair| pair.fetch("book").fetch("result") == "reused" }
@@ -243,7 +244,7 @@ class OpenLibraryCatalogReplayTest < ActiveSupport::TestCase
     write_snapshot
 
     assert_no_difference "Book.count" do
-      assert_raises(OpenLibraryCatalogReplay::ReplayError) { replay_catalog }
+      assert_raises(DevelopmentReadingScenarioManifest::ManifestError) { replay_catalog }
     end
     assert_equal before, @manifest_path.binread
   end
@@ -256,7 +257,7 @@ class OpenLibraryCatalogReplayTest < ActiveSupport::TestCase
 
     assert_no_difference "Book.count" do
       Rails.stub(:env, "development".inquiry) do
-        assert_raises(OpenLibraryCatalogReplay::ReplayError) { changed_date_replay.replay_catalog }
+        assert_raises(DevelopmentReadingScenarioManifest::ManifestError) { changed_date_replay.replay_catalog }
       end
     end
     assert_equal before, @manifest_path.binread
@@ -272,7 +273,7 @@ class OpenLibraryCatalogReplayTest < ActiveSupport::TestCase
       before = @manifest_path.binread
 
       assert_no_difference "Book.count" do
-        assert_raises(OpenLibraryCatalogReplay::ReplayError) { replay_catalog }
+        assert_raises(DevelopmentReadingScenarioManifest::ManifestError) { replay_catalog }
       end
       assert_equal before, @manifest_path.binread
     end
@@ -284,7 +285,7 @@ class OpenLibraryCatalogReplayTest < ActiveSupport::TestCase
     @manifest_path.write("not JSON")
 
     assert_no_difference [ "Book.count", "BookEdition.count" ] do
-      error = assert_raises(OpenLibraryCatalogReplay::ReplayError) { replay_catalog }
+      error = assert_raises(DevelopmentReadingScenarioManifest::ManifestError) { replay_catalog }
       assert_includes error.message, "manifest contains invalid JSON"
     end
 
@@ -339,7 +340,7 @@ class OpenLibraryCatalogReplayTest < ActiveSupport::TestCase
   test "non-development replay refuses before filesystem writes or HTTP requests" do
     [ "test", "production" ].each do |environment|
       Rails.stub(:env, environment.inquiry) do
-        assert_raises(OpenLibraryCatalogReplay::ReplayError) { @replay.replay_catalog }
+        assert_raises(DevelopmentReadingScenarioManifest::ManifestError) { @replay.replay_catalog }
       end
     end
 
@@ -353,7 +354,7 @@ class OpenLibraryCatalogReplayTest < ActiveSupport::TestCase
     File.open(@lock_path, File::RDWR | File::CREAT, 0o600) do |lock|
       assert lock.flock(File::LOCK_EX | File::LOCK_NB)
       assert_no_difference [ "Book.count", "BookEdition.count" ] do
-        error = assert_raises(OpenLibraryCatalogReplay::ReplayError) { replay_catalog }
+        error = assert_raises(DevelopmentReadingScenarioManifest::ManifestError) { replay_catalog }
         assert_includes error.message, "already running"
       end
     end

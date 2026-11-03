@@ -64,13 +64,13 @@ class DevelopmentReadingScenarioCoverPreviewsRecoveryTest < ActiveSupport::TestC
 
   test "non-development and overlapping preparation are refused without enqueueing jobs or HTTP" do
     assert_not @paths.fetch(:manifest_path).exist?
-    assert_raises(OpenLibraryCatalogReplay::ReplayError) { @catalog.replay_catalog }
+    assert_raises(DevelopmentReadingScenarioManifest::ManifestError) { @catalog.replay_catalog }
     Rails.stub(:env, "production".inquiry) do
-      assert_raises(OpenLibraryCatalogReplay::ReplayError) { @catalog.replay_catalog }
+      assert_raises(DevelopmentReadingScenarioManifest::ManifestError) { @catalog.replay_catalog }
     end
     File.open(@paths.fetch(:lock_path), File::RDWR | File::CREAT, 0o600) do |lock|
       lock.flock(File::LOCK_EX | File::LOCK_NB)
-      assert_raises(OpenLibraryCatalogReplay::ReplayError) { prepare_previews }
+      assert_raises(DevelopmentReadingScenarioManifest::ManifestError) { prepare_previews }
     end
 
     assert_empty cover_jobs

@@ -41,8 +41,6 @@ class DevelopmentReadingScenarioActivity
   private
 
   def with_reading_context
-    raise ActivityError, "Scenario reading writes are only available in development" unless Rails.env.development?
-
     @scenario_manifest.with_exclusive_access do
       catalog = OpenLibraryCatalogPreflight.new(snapshot_path: @snapshot_path).preflight_catalog
       @plan = DevelopmentReadingScenarioPlan.new(catalog: catalog, as_of: @as_of).build_baseline
@@ -51,8 +49,6 @@ class DevelopmentReadingScenarioActivity
       @inventory = Inventory.new(plan: @plan, manifest: @manifest, references: @references)
       yield
     end
-  rescue DevelopmentReadingScenarioManifest::ManifestError => error
-    raise ActivityError, error.message
   end
 
   def record_reading_totals
@@ -92,11 +88,7 @@ class DevelopmentReadingScenarioActivity
         if row
           row.lock!
         else
-          library_identity = "#{entry.fetch('reader')}/#{entry.fetch('work_key')}"
-          library = @inventory.library_matches.fetch(library_identity)
-          library.lock!
-          row = ReadingSessionRecorder.new(@references.books.fetch(entry.fetch("work_key")), @references.users.fetch(entry.fetch("reader")), entry.fetch("attributes").merge("book_edition_id" => @references.edition_ids.fetch(entry.fetch("work_key")))).record
-          raise ActiveRecord::RecordInvalid, row unless row.persisted?
+          row = record_planned_session(entry)
         end
       end
       @inventory.remember_session(identity, row, imported: result == "imported")
@@ -104,6 +96,18 @@ class DevelopmentReadingScenarioActivity
     rescue ActiveRecord::RecordInvalid => error
       record_reading_failure(record, identity, error)
     end
+  end
+
+  def record_planned_session(entry)
+    library_identity = "#{entry.fetch('reader')}/#{entry.fetch('work_key')}"
+    @inventory.library_matches.fetch(library_identity).lock!
+    book = @references.books.fetch(entry.fetch("work_key"))
+    user = @references.users.fetch(entry.fetch("reader"))
+    attributes = entry.fetch("attributes").merge("book_edition_id" => @references.edition_ids.fetch(entry.fetch("work_key")))
+    session = ReadingSessionRecorder.new(book, user, attributes).record
+    raise ActiveRecord::RecordInvalid, session unless session.persisted?
+
+    session
   end
 
   def record_reading_failure(record, identity, error)

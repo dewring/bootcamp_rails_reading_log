@@ -117,11 +117,11 @@ class DevelopmentReadingScenarioTickTest < ActiveSupport::TestCase
         end
       end
       Rails.stub(:env, "production".inquiry) do
-        assert_raises(DevelopmentReadingScenarioTick::TickError) { @tick.advance_scenario(tick: "tick1") }
+        assert_raises(DevelopmentReadingScenarioManifest::ManifestError) { @tick.advance_scenario(tick: "tick1") }
       end
       File.open(@paths.fetch(:lock_path), File::RDWR) do |lock|
         lock.flock(File::LOCK_EX | File::LOCK_NB)
-        error = assert_raises(DevelopmentReadingScenarioTick::TickError) { advance }
+        error = assert_raises(DevelopmentReadingScenarioManifest::ManifestError) { advance }
         assert_includes error.message, "already running"
       end
     end
@@ -130,12 +130,37 @@ class DevelopmentReadingScenarioTickTest < ActiveSupport::TestCase
     assert_not_requested :any, /https?:/
   end
 
+  test "scenario services preserve the original catalog error and diagnostic report without writes" do
+    failure = OpenLibraryCatalogPreflight::PreflightError.new("Captured catalog is unavailable", report: { "snapshot" => "missing" })
+    preflight = Object.new
+    preflight.define_singleton_method(:preflight_catalog) { raise failure }
+    saved = @paths.fetch(:manifest_path).read
+    operations = [
+      -> { @tick.advance_scenario(tick: "tick1") },
+      -> { DevelopmentReadingScenarioActivity.new(**@paths).replay_reading },
+      -> { DevelopmentReadingScenarioCommunity.new(**@paths).replay_community },
+      -> { OpenLibraryCatalogReplay.new(**@paths).replay_catalog }
+    ]
+
+    OpenLibraryCatalogPreflight.stub(:new, preflight) do
+      assert_no_difference [ "Book.count", "ReadingSession.count", "ClubMessage.count", "Review.count" ] do
+        operations.each do |operation|
+          error = assert_raises(OpenLibraryCatalogPreflight::PreflightError) { in_development { operation.call } }
+          assert_same failure, error
+          assert_equal({ "snapshot" => "missing" }, error.report)
+          assert_includes error.backtrace.first, __FILE__
+        end
+      end
+    end
+    assert_equal saved, @paths.fetch(:manifest_path).read
+  end
+
   test "a changed baseline review stops the tick before intent or activity is saved" do
     review_id = @baseline.dig("community", "records", "reviews").values.last.fetch("id")
     Review.find(review_id).update!(body: "A reader revised the review")
     saved = @paths.fetch(:manifest_path).read
     assert_no_difference [ "ReadingSession.count", "ClubMessage.count" ] do
-      error = assert_raises(DevelopmentReadingScenarioTick::TickError) { advance }
+      error = assert_raises(DevelopmentReadingScenarioCommunity::CommunityError) { advance }
       assert_includes error.message, review_id.to_s
     end
     assert_equal saved, @paths.fetch(:manifest_path).read

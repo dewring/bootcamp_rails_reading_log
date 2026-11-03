@@ -188,7 +188,7 @@ class DevelopmentReadingScenarioActivityTest < ActiveSupport::TestCase
 
   test "non-development replay refuses before creating reading rows" do
     assert_no_difference [ "UserBook.count", "ReadingSession.count" ] do
-      assert_raises(DevelopmentReadingScenarioActivity::ActivityError) { @activity.replay_reading }
+      assert_raises(DevelopmentReadingScenarioManifest::ManifestError) { @activity.replay_reading }
     end
   end
 

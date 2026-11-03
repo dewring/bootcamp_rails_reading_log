@@ -102,7 +102,7 @@ class DevelopmentReadingScenarioTickRecoveryTest < ActiveSupport::TestCase
       notes: "Synthetic journal. Follow-up reading: I revisited a passage and compared it with my earlier notes.")
     saved = @paths.fetch(:manifest_path).read
     assert_no_difference [ "ReadingSession.count", "ClubMessage.count" ] do
-      error = assert_raises(DevelopmentReadingScenarioTick::TickError) { advance }
+      error = assert_raises(DevelopmentReadingScenarioActivity::ActivityError) { advance }
       assert_includes error.message, "Unrecorded"
     end
     assert_equal saved, @paths.fetch(:manifest_path).read

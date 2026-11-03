@@ -31,7 +31,6 @@ class DevelopmentReadingScenarioTick
   private
 
   def with_tick_context(name)
-    raise TickError, "Scenario ticks are only available in development" unless Rails.env.development?
     raise TickError, "Supported named tick: #{Plan::NAME}." unless name == Plan::NAME
 
     @scenario_manifest.with_exclusive_access do
@@ -53,10 +52,6 @@ class DevelopmentReadingScenarioTick
       @books = @references.books.values.index_by(&:id)
       yield
     end
-  rescue DevelopmentReadingScenarioManifest::ManifestError, OpenLibraryCatalogPreflight::PreflightError,
-    DevelopmentReadingScenarioBootstrap::BootstrapError, OpenLibraryCatalogReplay::ReplayError,
-    DevelopmentReadingScenarioActivity::ActivityError, DevelopmentReadingScenarioCommunity::CommunityError => error
-    raise TickError, error.message
   end
 
   def import_sessions
@@ -67,12 +62,7 @@ class DevelopmentReadingScenarioTick
         if row
           row.lock!
         else
-          library_id = record.fetch("library_identity")
-          library_record = @manifest.fetch("reading").fetch("records").fetch("user_books").fetch(library_id)
-          UserBook.lock.find(library_record.fetch("id"))
-          attributes = record.fetch("expected_attributes")
-          row = ReadingSessionRecorder.new(@books.fetch(attributes.fetch("book_id")), @users.fetch(attributes.fetch("user_id")), attributes.except("user_id", "book_id")).record
-          raise ActiveRecord::RecordInvalid, row unless row.persisted?
+          row = record_planned_session(record)
         end
       end
       @inventory.checkpoint_saved_record("reading_sessions", identity, row, result)
@@ -80,6 +70,18 @@ class DevelopmentReadingScenarioTick
     rescue ActiveRecord::RecordInvalid => error
       record_failure(record, identity, error)
     end
+  end
+
+  def record_planned_session(record)
+    library_record = @manifest.fetch("reading").fetch("records").fetch("user_books").fetch(record.fetch("library_identity"))
+    UserBook.lock.find(library_record.fetch("id"))
+    attributes = record.fetch("expected_attributes")
+    book = @books.fetch(attributes.fetch("book_id"))
+    user = @users.fetch(attributes.fetch("user_id"))
+    session = ReadingSessionRecorder.new(book, user, attributes.except("user_id", "book_id")).record
+    raise ActiveRecord::RecordInvalid, session unless session.persisted?
+
+    session
   end
 
   def import_posts

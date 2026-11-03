@@ -32,8 +32,6 @@ class DevelopmentReadingScenarioCommunity
   private
 
   def with_community_context
-    raise CommunityError, "Scenario community writes are only available in development" unless Rails.env.development?
-
     @scenario_manifest.with_exclusive_access do
       catalog = OpenLibraryCatalogPreflight.new(snapshot_path: @snapshot_path).preflight_catalog
       @plan = DevelopmentReadingScenarioPlan.new(catalog: catalog, as_of: @as_of).build_baseline
@@ -45,8 +43,6 @@ class DevelopmentReadingScenarioCommunity
       verify_inventory
       yield
     end
-  rescue DevelopmentReadingScenarioManifest::ManifestError, DevelopmentReadingScenarioActivity::ActivityError => error
-    raise CommunityError, error.message
   end
 
   def load_references
@@ -175,7 +171,7 @@ class DevelopmentReadingScenarioCommunity
         if club
           club.lock!
         else
-          club = BookClubCreator.new(book_club: BookClub.new(record.fetch("expected_attributes")), owner: @users.fetch(record.fetch("owner_id"))).create_club(validation_context: :public_creation)
+          club = create_planned_club(record)
         end
       end
       @matches.fetch("book_clubs")[identity] = club
@@ -188,6 +184,12 @@ class DevelopmentReadingScenarioCommunity
     rescue ActiveRecord::RecordInvalid => error
       record_failure(record, identity, error)
     end
+  end
+
+  def create_planned_club(record)
+    club = BookClub.new(record.fetch("expected_attributes"))
+    owner = @users.fetch(record.fetch("owner_id"))
+    BookClubCreator.new(book_club: club, owner: owner).create_club(validation_context: :public_creation)
   end
 
   def import_records(group)

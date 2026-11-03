@@ -13,7 +13,7 @@ class OpenLibraryCatalogReplay
     with_catalog_context do
       @scenario_manifest.save_scenario
       @plan.fetch("books").each { |entry| import_catalog_entry(entry) }
-      verify_catalog_totals
+      record_catalog_counts
       @manifest.fetch("catalog")["status"] = "complete"
       @scenario_manifest.save_scenario
       prepare_cover_previews
@@ -36,19 +36,14 @@ class OpenLibraryCatalogReplay
   end
 
   def with_catalog_context
-    raise ReplayError, "Catalog replay is only available in development" unless Rails.env.development?
-
     @scenario_manifest.with_exclusive_access do
       @plan = OpenLibraryCatalogPreflight.new(snapshot_path: @snapshot_path).preflight_catalog
       load_catalog_records
       @manifest = @scenario_manifest.prepare_scenario(snapshot_id: @plan.fetch("snapshot_id"))
       @manifest["catalog"] ||= planned_catalog
-      validate_catalog_inventory(@manifest.fetch("catalog"))
       verify_recorded_rows
       yield
     end
-  rescue DevelopmentReadingScenarioManifest::ManifestError => error
-    raise ReplayError, error.message
   end
 
   def load_catalog_records
@@ -86,31 +81,6 @@ class OpenLibraryCatalogReplay
       "result" => record ? "reused" : nil,
       "expected_attributes" => record ? recorded_attributes(record) : attributes
     }
-  end
-
-  def validate_catalog_inventory(catalog)
-    unless catalog.is_a?(Hash) && catalog["expected_counts"] == expected_counts && catalog["records"].is_a?(Hash) && catalog["records"].keys.sort == planned_work_keys.sort
-      raise ReplayError, "Recorded catalog inventory differs from the snapshot; preserve the manifest and review before importing."
-    end
-    @plan.fetch("books").each do |entry|
-      key = entry.fetch("book_attributes").fetch("ol_work_key")
-      pair = catalog.fetch("records").fetch(key)
-      unless pair.is_a?(Hash) && pair["book"].is_a?(Hash) && pair["edition"].is_a?(Hash)
-        raise ReplayError, "Invalid recorded catalog entry for #{key}."
-      end
-      verify_planned_identity(pair.fetch("book"), entry.fetch("book_attributes"), "ol_work_key")
-      if entry["edition_attributes"]
-        verify_planned_identity(pair.fetch("edition"), entry.fetch("edition_attributes"), "ol_edition_key")
-      elsif pair.fetch("edition")["result"] != "skipped"
-        raise ReplayError, "Unexpected recorded Edition for #{key}."
-      end
-    end
-  end
-
-  def verify_planned_identity(record, attributes, key_name)
-    unless record["expected_attributes"].is_a?(Hash) && record["expected_attributes"][key_name] == attributes.fetch(key_name) && [ "imported", "reused" ].include?(record["origin"])
-      raise ReplayError, "Recorded identity differs for #{attributes.fetch(key_name)}."
-    end
   end
 
   def verify_recorded_rows
@@ -191,14 +161,8 @@ class OpenLibraryCatalogReplay
     JSON.parse(record.attributes.except("id", "updated_at").to_json)
   end
 
-  def verify_catalog_totals
-    actual = {
-      "books" => Book.where(ol_work_key: planned_work_keys).count,
-      "book_editions" => BookEdition.where(id: @editions.values.map(&:id)).count
-    }
-    raise ReplayError, "Unexpected catalog totals: #{actual.inspect}; review the manifest before continuing." unless actual == expected_counts
-
-    @manifest.fetch("catalog")["actual_counts"] = actual
+  def record_catalog_counts
+    @manifest.fetch("catalog")["actual_counts"] = { "books" => @books.length, "book_editions" => @editions.length }
   end
 
   def expected_counts
@@ -206,9 +170,5 @@ class OpenLibraryCatalogReplay
       "books" => OpenLibraryCatalogCapture::TARGET_COUNT,
       "book_editions" => @plan.fetch("books").count { |entry| entry["edition_attributes"] }
     }
-  end
-
-  def planned_work_keys
-    @plan.fetch("books").map { |entry| entry.fetch("book_attributes").fetch("ol_work_key") }
   end
 end

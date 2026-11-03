@@ -188,7 +188,7 @@ class DevelopmentReadingScenarioCommunityTest < ActiveSupport::TestCase
 
   test "non-development replay refuses before community writes" do
     assert_no_difference [ "BookClub.count", "BookClubMembership.count", "ClubMessage.count", "Review.count" ] do
-      assert_raises(DevelopmentReadingScenarioCommunity::CommunityError) { @community.replay_community }
+      assert_raises(DevelopmentReadingScenarioManifest::ManifestError) { @community.replay_community }
     end
   end
 
