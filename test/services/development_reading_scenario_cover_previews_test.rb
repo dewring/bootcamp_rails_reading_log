@@ -4,7 +4,7 @@ require_relative "../support/development_reading_scenario_cover_preview_context"
 class DevelopmentReadingScenarioCoverPreviewsTest < ActiveSupport::TestCase
   include DevelopmentReadingScenarioCoverPreviewContext
 
-  test "explicit setup queues at most twelve source-backed previews without HTTP and retains one missing cover" do
+  test "catalog import automatically queues at most twelve source-backed covers without HTTP and retains one missing cover" do
     result = prepare_previews
     report = result.fetch("cover_previews")
     assert_equal 12, cover_jobs.length
@@ -33,7 +33,8 @@ class DevelopmentReadingScenarioCoverPreviewsTest < ActiveSupport::TestCase
   end
 
   test "an existing preview is reused without replacing its image or queueing another download" do
-    book = Book.find_by!(ol_work_key: @docs.first.fetch("key"))
+    doc = @docs.first
+    book = Book.create!(ol_work_key: doc.fetch("key"), title: doc.fetch("title"), author: doc.fetch("author_name").first, total_pages: 1000)
     book.cover_image.attach(io: File.open(file_fixture("cover_test.jpg")), filename: "existing.jpg", content_type: "image/jpeg")
     blob_id = book.cover_image.blob.id
     clear_enqueued_jobs
@@ -74,7 +75,7 @@ class DevelopmentReadingScenarioCoverPreviewsTest < ActiveSupport::TestCase
     stub_cover_downloads
     stub_request(:get, "https://covers.openlibrary.org/b/id/#{unavailable.fetch('cover_id')}-M.jpg").to_return(status: 404)
     perform_enqueued_jobs(only: CoverAttachJob)
-    report = in_development { @previews.reconcile_previews }.fetch("cover_previews")
+    report = prepare_previews.fetch("cover_previews")
 
     assert_equal({ "attached" => 11, "queued" => 1 }, report.fetch("actual_counts").fetch("statuses"))
     assert_not report.fetch("records").values.first.key?("job_status")
@@ -90,7 +91,7 @@ class DevelopmentReadingScenarioCoverPreviewsTest < ActiveSupport::TestCase
     stub_cover_downloads
     stub_request(:get, "https://covers.openlibrary.org/b/id/#{retrying.fetch('cover_id')}-M.jpg").to_raise(SocketError)
     perform_enqueued_jobs(only: CoverAttachJob)
-    report = in_development { @previews.reconcile_previews }.fetch("cover_previews")
+    report = prepare_previews.fetch("cover_previews")
 
     assert_equal "queued", report.fetch("records").values.first.fetch("status")
     assert_equal 1, cover_jobs.length

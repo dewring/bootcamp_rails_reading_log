@@ -16,6 +16,7 @@ class OpenLibraryCatalogReplay
       verify_catalog_totals
       @manifest.fetch("catalog")["status"] = "complete"
       @scenario_manifest.save_scenario
+      prepare_cover_previews
       @manifest.deep_dup
     end
   end
@@ -25,6 +26,14 @@ class OpenLibraryCatalogReplay
   end
 
   private
+
+  def prepare_cover_previews
+    books = Book.where(id: @books.values.map(&:id)).with_attached_cover_image.index_by(&:ol_work_key)
+    DevelopmentReadingScenarioCoverPreviews.new(
+      snapshot: JSON.parse(@snapshot_path.read), books: books,
+      manifest: @manifest, scenario_manifest: @scenario_manifest
+    ).prepare_previews
+  end
 
   def with_catalog_context
     raise ReplayError, "Catalog replay is only available in development" unless Rails.env.development?

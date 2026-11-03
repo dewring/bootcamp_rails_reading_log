@@ -1,4 +1,5 @@
 require "test_helper"
+require "rake"
 require_relative "../support/development_reading_scenario_tick_context"
 
 class DevelopmentReadingScenarioTickTest < ActiveSupport::TestCase
@@ -29,6 +30,30 @@ class DevelopmentReadingScenarioTickTest < ActiveSupport::TestCase
     posts = ClubMessage.where(id: tick_ids(result).fetch("club_messages").values)
     assert posts.all? { |post| post.parent_id.nil? && !post.body.include?("tick1") && !post.body.include?("@example.test") && !post.body.include?("/works/") }
     assert_not_requested :any, /https?:/
+  end
+
+  test "the reading simulation command runs without a tick argument and repeating it adds no activity" do
+    Rake.with_application do
+      Rake::Task.define_task(:environment)
+      load Rails.root.join("lib/tasks/development_scenario.rake")
+      DevelopmentReadingScenarioTick.stub(:new, @tick) do
+        command = Rake::Task["development_scenario:simulate_reading"]
+        command.reenable
+        output = nil
+        assert_difference "ReadingSession.count", 3 do
+          assert_difference "ClubMessage.count", 2 do
+            output, = capture_io { in_development { command.invoke } }
+          end
+        end
+        assert_includes output, "Reading simulation complete"
+
+        command.reenable
+        assert_no_difference [ "ReadingSession.count", "ClubMessage.count" ] do
+          capture_io { in_development { command.invoke } }
+        end
+        assert_not_requested :any, /https?:/
+      end
+    end
   end
 
   test "repeating a fully saved tick changes no rows jobs broadcasts or manifest contents" do

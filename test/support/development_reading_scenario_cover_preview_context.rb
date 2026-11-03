@@ -37,9 +37,8 @@ module DevelopmentReadingScenarioCoverPreviewContext
       .to_return(status: 200, body: { docs: @docs }.to_json)
     in_development do
       OpenLibraryCatalogCapture.new(snapshot_path: @paths.fetch(:snapshot_path), lock_path: @directory.join("capture.lock"), contact_email: "contact@example.test").capture_catalog
-      OpenLibraryCatalogReplay.new(**@paths).replay_catalog
     end
-    @previews = DevelopmentReadingScenarioCoverPreviews.new(**@paths)
+    @catalog = OpenLibraryCatalogReplay.new(**@paths)
     WebMock.reset!
     clear_enqueued_jobs
   end
@@ -65,7 +64,7 @@ module DevelopmentReadingScenarioCoverPreviewContext
   end
 
   def prepare_previews
-    in_development { @previews.prepare_previews }
+    in_development { @catalog.replay_catalog }
   end
 
   def cover_jobs

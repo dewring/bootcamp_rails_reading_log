@@ -1,60 +1,14 @@
 namespace :development_scenario do
-  desc "Explicitly enqueue at most 12 captured cover previews and retain a missing-cover case (development only)"
-  task prepare_cover_previews: :environment do
-    report = DevelopmentReadingScenarioCoverPreviews.new.prepare_previews.fetch("cover_previews")
-    $stdout.write("Preview setup: #{report.fetch('actual_counts').to_json}\n")
-    $stdout.write("Missing-cover case: #{report.fetch('missing_case').to_json}\n")
-    $stdout.write("Source cover IDs do not guarantee downloads. Run the worker, then development_scenario:reconcile_cover_previews.\n")
-  rescue DevelopmentReadingScenarioCoverPreviews::PreviewError => error
-    abort error.message
-  end
-
-  desc "Report selected cover attachments without inspecting queue jobs (development only)"
-  task reconcile_cover_previews: :environment do
-    report = DevelopmentReadingScenarioCoverPreviews.new.reconcile_previews.fetch("cover_previews")
-    $stdout.write("Preview results: #{report.fetch('actual_counts').to_json}\n")
-    report.fetch("records").each { |key, record| $stdout.write("#{key}: #{record.slice('status', 'cover_attached').to_json}\n") }
-    $stdout.write("Queued means the request was submitted; inspect the normal worker logs for retries or failures.\n")
-  rescue DevelopmentReadingScenarioCoverPreviews::PreviewError => error
-    abort error.message
-  end
-
-  desc "Advance named tick1 once: three sessions and two top-level posts (development only)"
-  task :advance_scenario, [ :tick ] => :environment do |_task, arguments|
-    manifest = DevelopmentReadingScenarioTick.new.advance_scenario(tick: arguments[:tick])
-    tick = manifest.fetch("ticks").fetch(arguments[:tick])
+  desc "Simulate reading activity once: three sessions and two top-level posts (development only)"
+  task simulate_reading: :environment do
+    name = DevelopmentReadingScenarioTick::Plan::NAME
+    manifest = DevelopmentReadingScenarioTick.new.advance_scenario(tick: name)
+    tick = manifest.fetch("ticks").fetch(name)
     $stdout.write("Baseline activity: #{tick.fetch('baseline_counts').to_json}\n")
-    $stdout.write("#{tick.fetch('name')}: #{tick.fetch('status')}; scenario counts: #{tick.fetch('scenario_counts').to_json}\n")
+    $stdout.write("Reading simulation #{tick.fetch('status')}; scenario counts: #{tick.fetch('scenario_counts').to_json}\n")
     $stdout.write("Run the development worker to process normal background jobs.\n")
   rescue DevelopmentReadingScenarioTick::TickError => error
     abort error.message
-  end
-
-  desc "Preview the deterministic reading scenario baseline inventory without writing records (development only)"
-  task plan_baseline: :environment do
-    catalog = OpenLibraryCatalogPreflight.new.preflight_catalog
-    plan = DevelopmentReadingScenarioPlan.new(catalog: catalog).build_baseline
-    $stdout.write("Baseline plan: #{plan.fetch('counts').to_json}\n")
-    $stdout.write("Seed: #{plan.fetch('seed')}; as_of: #{plan.fetch('as_of')}\n")
-    $stdout.write("No database records were changed.\n")
-  rescue OpenLibraryCatalogPreflight::PreflightError => error
-    $stderr.write("#{error.message}\n")
-    $stderr.write("#{JSON.pretty_generate(error.report.fetch('conflicts', []))}\n")
-    abort "Baseline planning stopped."
-  end
-
-  desc "Inspect the saved catalog and report identity collisions without writing records (development only)"
-  task preflight_catalog: :environment do
-    report = OpenLibraryCatalogPreflight.new.preflight_catalog
-    books = report.fetch("books")
-    $stdout.write("Snapshot ID: #{report.fetch('snapshot_id')}\n")
-    $stdout.write("Works checked: #{books.length}; existing Works to reuse: #{books.count { |book| book.fetch('book_status') == 'reused' }}\n")
-    $stdout.write("Works without representative Editions: #{books.count { |book| book.fetch('edition_status') == 'skipped' }}\n")
-    $stdout.write("Preflight passed. No database records were changed.\n")
-  rescue OpenLibraryCatalogPreflight::PreflightError => error
-    $stderr.write("#{error.message}\n")
-    $stderr.write("#{JSON.pretty_generate(error.report.fetch('conflicts', []))}\n")
-    abort "Catalog preflight failed."
   end
 
   desc "Capture 100 Open Library Works for offline development seed replay (development only)"
