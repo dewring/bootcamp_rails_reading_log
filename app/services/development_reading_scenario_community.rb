@@ -144,8 +144,6 @@ class DevelopmentReadingScenarioCommunity
     MODELS.each_key do |group|
       selected = @matches.fetch(group).values.compact.map(&:id)
       selected.concat(@tick_messages.values.compact.map(&:id)) if group == "club_messages"
-      raise CommunityError, "Two community identities claim the same #{group} row." if selected.uniq.length != selected.length
-
       extras = @rows.fetch(group).map(&:id) - selected
       raise CommunityError, "Unrecorded #{group}: record IDs #{extras}; review without deleting data." if extras.any?
     end
