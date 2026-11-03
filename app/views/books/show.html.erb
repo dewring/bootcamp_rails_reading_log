@@ -5,12 +5,11 @@
   description = @book.description.to_s
   main_description = description.gsub(/\(\[source\]\(.*?\)\)/, "").strip
   source_match = description.match(/\(\[source\]\((.*?)\)\)/)
-  edition_for_details = @book_editions.find { |edition| edition.publish_year.present? || edition.language.present? } || @book_editions.first
   publication_details = [
-    ("Published #{edition_for_details.publish_year}" if edition_for_details&.publish_year.present?),
+    ("Published #{@edition_for_details.publish_year}" if @edition_for_details&.publish_year.present?),
     ("#{@book.total_pages} pages" if @book.total_pages.present?)
   ].compact.join(" · ")
-  language_details = [edition_for_details&.language, @book.subjects&.first].compact_blank.join(" · ")
+  language_details = [@edition_for_details&.language, @book.subjects&.first].compact_blank.join(" · ")
 %>
 
 <main class="book-detail-page">
@@ -251,7 +250,7 @@
   </section>
 
   <% if @book_editions.any? %>
-    <section class="book-detail-editions" aria-labelledby="book-detail-editions-title">
+    <section id="book-detail-editions" class="book-detail-editions" aria-labelledby="book-detail-editions-title">
       <div class="book-detail-section-heading">
         <div>
           <h2 id="book-detail-editions-title">Other editions</h2>
@@ -279,6 +278,7 @@
           <% end %>
         <% end %>
       </div>
+      <%== @editions_pagy.series_nav if @editions_pagy.last > 1 %>
     </section>
   <% end %>
 </main>

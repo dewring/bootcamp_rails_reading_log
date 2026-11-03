@@ -189,6 +189,85 @@ class BookControllerTest < ActionDispatch::IntegrationTest
     assert_equal with_cover, editions.first
     assert_includes editions, without_cover
   end
+
+  test "a book without editions hides the editions section" do
+    book = Book.create!(title: "No Editions", author: "An Author")
+
+    get book_path(book)
+
+    assert_response :success
+    assert_select "section.book-detail-editions", count: 0
+  end
+
+  test "exactly six editions are displayed without pagination links" do
+    book = Book.create!(title: "Six Editions", author: "An Author")
+    6.times do |index|
+      book.book_editions.create!(ol_edition_key: "/books/SIX#{index}M")
+    end
+
+    get book_path(book)
+
+    assert_response :success
+    assert_select ".book-detail-edition-card", count: 6
+    assert_select "section.book-detail-editions nav", count: 0
+  end
+
+  test "the seventh edition appears on the second page with cover editions first" do
+    book = Book.create!(title: "Seven Editions", author: "An Author")
+    editions = 7.times.map do |index|
+      book.book_editions.create!(ol_edition_key: "/books/SEVEN#{index}M")
+    end
+    editions.last.cover_image.attach(fixture_file_upload("cover_test.jpg", "image/jpeg"))
+
+    get book_path(book)
+
+    assert_response :success
+    first_page_links = css_select(".book-detail-edition-card").map { |link| link["href"] }
+    assert_equal [ editions.last, *editions.first(5) ].map { |edition| "https://openlibrary.org#{edition.ol_edition_key}" }, first_page_links
+    assert_select "section.book-detail-editions nav a[href='#{book_path(book, editions_page: 2)}#book-detail-editions']"
+
+    get book_path(book), params: { editions_page: 2 }
+
+    assert_response :success
+    assert_select ".book-detail-edition-card", count: 1
+    assert_select ".book-detail-edition-card[href='https://openlibrary.org#{editions[5].ol_edition_key}']"
+    assert_select "section.book-detail-editions nav a[href='#{book_path(book, editions_page: 1)}#book-detail-editions']"
+  end
+
+  test "thirteen editions can be visited across three pages without omissions or duplicates" do
+    book = Book.create!(title: "Thirteen Editions", author: "An Author")
+    editions = 13.times.map do |index|
+      book.book_editions.create!(ol_edition_key: "/books/THIRTEEN#{index}M")
+    end
+    visited_links = []
+
+    [ 6, 6, 1 ].each_with_index do |count, index|
+      get book_path(book), params: { editions_page: index + 1 }
+
+      assert_response :success
+      assert_select ".book-detail-edition-card", count: count
+      visited_links.concat(css_select(".book-detail-edition-card").map { |link| link["href"] })
+    end
+
+    assert_equal editions.map { |edition| "https://openlibrary.org#{edition.ol_edition_key}" }, visited_links
+  end
+
+  test "publication year and language stay visible across edition pages when supplied by the seventh edition" do
+    book = Book.create!(title: "Stable Edition Details", author: "An Author")
+    6.times do |index|
+      book.book_editions.create!(ol_edition_key: "/books/DETAILS#{index}M")
+    end
+    book.book_editions.create!(ol_edition_key: "/books/DETAILS6M", publish_year: 2001, language: "eng")
+
+    [ 1, 2 ].each do |page|
+      get book_path(book), params: { editions_page: page }
+
+      assert_response :success
+      assert_select ".book-detail-facts p", text: /Published 2001/
+      assert_select ".book-detail-facts p", text: "eng"
+    end
+  end
+
   test "most_recent_session redirects to dashboard when sessions exist" do
     sign_in users(:leika)
     get most_recent_session_book_path(books(:refactoring))
