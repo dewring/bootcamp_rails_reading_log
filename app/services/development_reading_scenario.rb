@@ -31,10 +31,6 @@ class DevelopmentReadingScenario
       @scenario_manifest.save_scenario
       @manifest.deep_dup
     end
-  rescue DevelopmentReadingScenarioManifest::ManifestError, OpenLibraryCatalogPreflight::PreflightError,
-    DevelopmentReadingScenarioBootstrap::BootstrapError, OpenLibraryCatalogReplay::ReplayError,
-    DevelopmentReadingScenarioActivity::ActivityError, DevelopmentReadingScenarioCommunity::CommunityError => error
-    raise ScenarioError, error.message
   end
 
   private

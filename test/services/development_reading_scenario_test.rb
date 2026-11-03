@@ -95,7 +95,7 @@ class DevelopmentReadingScenarioTest < ActiveSupport::TestCase
     user.update!(first_name: "Changed by the reader")
 
     assert_no_difference model_counts do
-      error = assert_raises(DevelopmentReadingScenario::ScenarioError) { seed }
+      error = assert_raises(DevelopmentReadingScenarioBootstrap::BootstrapError) { seed }
       assert_includes error.message, user.id.to_s
       assert_includes error.message, "changed"
     end
@@ -110,7 +110,7 @@ class DevelopmentReadingScenarioTest < ActiveSupport::TestCase
     book.update!(total_pages: pages)
 
     assert_no_difference model_counts do
-      error = assert_raises(DevelopmentReadingScenario::ScenarioError) { seed }
+      error = assert_raises(OpenLibraryCatalogReplay::ReplayError) { seed }
       assert_includes error.message, book.id.to_s
       assert_includes error.message, "changed"
     end
@@ -155,7 +155,7 @@ class DevelopmentReadingScenarioTest < ActiveSupport::TestCase
     existing = User.create!(first_name: "Real", last_name: "Reader", nickname: "existing_reader", email: "reader30@example.test", password: "existing-test-password")
     attributes = existing.attributes
     assert_no_difference model_counts do
-      error = assert_raises(DevelopmentReadingScenario::ScenarioError) { seed }
+      error = assert_raises(DevelopmentReadingScenarioBootstrap::BootstrapError) { seed }
       assert_includes error.message, existing.id.to_s
     end
     assert_equal attributes, existing.reload.attributes
@@ -165,7 +165,7 @@ class DevelopmentReadingScenarioTest < ActiveSupport::TestCase
   test "missing credentials fail before catalog or account writes" do
     scenario = DevelopmentReadingScenario.new(**@paths, password: nil)
     assert_no_difference model_counts do
-      error = assert_raises(DevelopmentReadingScenario::ScenarioError) { in_development { scenario.seed_baseline } }
+      error = assert_raises(DevelopmentReadingScenarioBootstrap::BootstrapError) { in_development { scenario.seed_baseline } }
       assert_includes error.message, "DEVELOPMENT_SCENARIO_PASSWORD"
     end
     assert_not @paths.fetch(:manifest_path).exist?
@@ -198,7 +198,7 @@ class DevelopmentReadingScenarioTest < ActiveSupport::TestCase
     saved = @paths.fetch(:manifest_path).read
     queue = enqueued_jobs.dup
     assert_no_difference model_counts do
-      error = assert_raises(DevelopmentReadingScenario::ScenarioError) { seed }
+      error = assert_raises(DevelopmentReadingScenarioCommunity::CommunityError) { seed }
       assert_includes error.message, review_id.to_s
       assert_includes error.message, "changed"
     end
@@ -211,7 +211,7 @@ class DevelopmentReadingScenarioTest < ActiveSupport::TestCase
     File.open(@paths.fetch(:lock_path), File::RDWR | File::CREAT, 0o600) do |lock|
       lock.flock(File::LOCK_EX | File::LOCK_NB)
       assert_no_difference model_counts do
-        error = assert_raises(DevelopmentReadingScenario::ScenarioError) { seed }
+        error = assert_raises(DevelopmentReadingScenarioManifest::ManifestError) { seed }
         assert_includes error.message, "already running"
       end
     end
@@ -221,10 +221,25 @@ class DevelopmentReadingScenarioTest < ActiveSupport::TestCase
   test "a missing snapshot does not trigger capture or fall back to static books" do
     File.rename(@paths.fetch(:snapshot_path), @directory.join("original.json"))
     assert_no_difference model_counts do
-      error = assert_raises(DevelopmentReadingScenario::ScenarioError) { seed }
+      error = assert_raises(OpenLibraryCatalogPreflight::PreflightError) { seed }
       assert_includes error.message, "Snapshot is missing"
     end
     assert_not_requested :any, /https?:/
+  end
+
+  test "baseline errors retain the original exception object diagnostic report and origin" do
+    expected = OpenLibraryCatalogPreflight::PreflightError.new("Unable to read captured catalog", report: { "source" => "catalog snapshot" })
+    preflight = Object.new
+    preflight.define_singleton_method(:preflight_catalog) { raise expected }
+
+    OpenLibraryCatalogPreflight.stub(:new, preflight) do
+      assert_no_difference model_counts do
+        actual = assert_raises(OpenLibraryCatalogPreflight::PreflightError) { seed }
+        assert_same expected, actual
+        assert_equal({ "source" => "catalog snapshot" }, actual.report)
+        assert_includes actual.backtrace.first, __FILE__
+      end
+    end
   end
 
   test "the seed entry point refuses non-development environments before writes or HTTP" do
