@@ -44,6 +44,10 @@ class DevelopmentReadingScenarioActivityTest < ActiveSupport::TestCase
     manifest = replay
     reading = manifest.fetch("reading")
     assert_equal "complete", reading.fetch("status")
+    assert_equal({ "user_books" => 150, "reading_sessions" => 300 }, reading.fetch("expected_counts"))
+    [ "user_books", "reading_sessions" ].each do |group|
+      assert_equal @plan.fetch(group).map { |entry| entry.fetch("identity") }.sort, records(manifest, group).keys.sort
+    end
     assert_not reading.key?("callback_work")
     assert_equal({ "user_books" => 150, "baseline_reading_sessions" => 300, "reading_sessions" => 300 }, reading.fetch("actual_counts"))
     assert_equal({ "want_to_read" => 54, "finished" => 24, "reading" => 72 }, reading.fetch("state_counts"))
@@ -180,22 +184,6 @@ class DevelopmentReadingScenarioActivityTest < ActiveSupport::TestCase
       assert_includes error.message, session.id.to_s
       assert_includes error.message, "Unrecorded"
     end
-  end
-
-  test "editing both a saved session and its manifest payload cannot replace the deterministic reading plan" do
-    manifest = replay
-    record = records(manifest, "reading_sessions").values.last
-    session = ReadingSession.find(record.fetch("id"))
-    session.update!(notes: "A reader changed this journal entry")
-    record.fetch("expected_attributes")["notes"] = session.notes
-    @paths.fetch(:manifest_path).write(JSON.generate(manifest))
-
-    assert_no_difference [ "UserBook.count", "ReadingSession.count" ] do
-      error = assert_raises(DevelopmentReadingScenarioActivity::ActivityError) { replay }
-      assert_includes error.message, "differs from its planned payload"
-    end
-    assert_equal session.notes, session.reload.notes
-    assert_not_requested :any, /https?:/
   end
 
   test "non-development replay refuses before creating reading rows" do

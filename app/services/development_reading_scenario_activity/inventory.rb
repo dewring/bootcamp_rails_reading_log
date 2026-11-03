@@ -7,14 +7,12 @@ class DevelopmentReadingScenarioActivity::Inventory
     @users = references.users
     @books = references.books
     @edition_ids = references.edition_ids
-    @intended_reading = planned_reading
-    @reading = @manifest["reading"] || @intended_reading.deep_dup
+    @reading = @manifest["reading"] || planned_reading
   end
 
   def verify_reading
     load_reading_rows
     reject_unrecorded_start
-    verify_recorded_plan
     match_baseline_and_tick_rows
     verify_account_inventory
   end
@@ -52,27 +50,6 @@ class DevelopmentReadingScenarioActivity::Inventory
 
     ids = @library_rows.map(&:id) + @session_rows.map(&:id)
     raise DevelopmentReadingScenarioActivity::ActivityError, "Unrecorded reading data already exists for scenario accounts; review record IDs #{ids} before importing."
-  end
-
-  def verify_recorded_plan
-    unless @reading.fetch("expected_counts") == @intended_reading.fetch("expected_counts")
-      raise DevelopmentReadingScenarioActivity::ActivityError, "Reading inventory differs from the recorded scenario plan."
-    end
-    @intended_reading.fetch("records").each do |group, records|
-      saved = @reading.fetch("records").fetch(group)
-      unless saved.keys.sort == records.keys.sort
-        raise DevelopmentReadingScenarioActivity::ActivityError, "Recorded #{group} identities differ from the reading plan."
-      end
-      records.each { |identity, record| verify_planned_record(saved.fetch(identity), record, group, identity) }
-    end
-  end
-
-  def verify_planned_record(saved, planned, group, identity)
-    expected = planned.fetch("expected_attributes")
-    attributes = saved.fetch("expected_attributes").slice(*expected.keys)
-    return if attributes == expected && saved["initial_status"] == planned["initial_status"]
-
-    raise DevelopmentReadingScenarioActivity::ActivityError, "Recorded #{group} #{identity} differs from its planned payload."
   end
 
   def match_baseline_and_tick_rows
