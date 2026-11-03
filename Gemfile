@@ -33,9 +33,14 @@ gem "noticed", "~> 3.0"
 # ~> x.y.z means ">= x.y.z and < x.(y+1).0"
 
 # Security Updates (Bundler Audit)
+gem "addressable", "~> 2.9.1"
+gem "rack", "~> 3.2.8"
 gem "mail", "~> 2.9.1"
 gem "css_parser", ">= 3.3.0"
 gem "crass", ">= 1.0.8"
+gem "loofah", ">= 2.25.3"
+gem "nokogiri", ">= 1.19.5"
+gem "rails-html-sanitizer", ">= 1.7.2"
 gem "net-ssh", "~> 7.3.5", require: false
 
 

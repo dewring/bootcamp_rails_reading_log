@@ -1,6 +1,94 @@
 require "test_helper"
 
 class OpenLibraryClientTest < ActiveSupport::TestCase
+  test "catalog capture requests explicit readinglog fields and preserves the raw response" do
+    body = '{"docs":[{"key":"/works/OL82563W","title":"Harry Potter"}],"numFound":1000}'
+    request = stub_request(:get, "https://openlibrary.org/search.json")
+      .with(
+        query: {
+          q: "readinglog_count:[1 TO *]", sort: "readinglog", page: 1, limit: 100,
+          fields: "key,title,subtitle,author_key,author_name,first_publish_year,edition_count,cover_i,subject,language,number_of_pages_median,readinglog_count,want_to_read_count,currently_reading_count,already_read_count,ratings_count,work.description,editions,editions.key,editions.work_key,editions.title,editions.isbn,editions.publisher,editions.publish_date,editions.publish_year,editions.language,editions.format,editions.cover_i"
+        },
+        headers: { "User-Agent" => "BookNook (contact@example.test)" }
+      )
+      .to_return(status: 200, body: body, headers: { "Content-Type" => "application/json" })
+
+    response = Rails.stub(:env, "development".inquiry) do
+      OpenLibraryClient.new.fetch_catalog_page(page: 1, contact_email: "contact@example.test")
+    end
+
+    assert_equal 200, response.status
+    assert_equal body, response.body
+    assert_equal "application/json", response.headers["content-type"]
+    assert_requested request, times: 1
+  end
+
+  test "catalog capture preserves rejection status and retry headers without retrying" do
+    request = stub_request(:get, "https://openlibrary.org/search.json")
+      .with(query: hash_including(page: "3"))
+      .to_return(status: 429, body: "Slow down", headers: { "Retry-After" => "2" })
+
+    response = Rails.stub(:env, "development".inquiry) do
+      OpenLibraryClient.new.fetch_catalog_page(page: 3, contact_email: "contact@example.test")
+    end
+
+    assert_equal 429, response.status
+    assert_equal "Slow down", response.body
+    assert_equal "2", response.headers["retry-after"]
+    assert_requested request, times: 1
+  end
+
+  test "catalog capture exposes timeout instead of returning an empty catalog" do
+    request = stub_request(:get, "https://openlibrary.org/search.json")
+      .with(query: hash_including(page: "1"))
+      .to_raise(Faraday::TimeoutError)
+
+    Rails.stub(:env, "development".inquiry) do
+      assert_raises(Faraday::TimeoutError) do
+        OpenLibraryClient.new.fetch_catalog_page(page: 1, contact_email: "contact@example.test")
+      end
+    end
+
+    assert_requested request, times: 1
+  end
+
+  test "catalog capture refuses non-development environments before any HTTP request" do
+    [ "test", "production" ].each do |environment|
+      Rails.stub(:env, environment.inquiry) do
+        error = assert_raises(RuntimeError) do
+          OpenLibraryClient.new.fetch_catalog_page(page: 1, contact_email: "contact@example.test")
+        end
+        assert_equal "Catalog capture is only available in development", error.message
+      end
+    end
+
+    assert_not_requested :get, /openlibrary\.org/
+  end
+
+  test "catalog capture rejects missing malformed and header-injection contact addresses before HTTP" do
+    Rails.stub(:env, "development".inquiry) do
+      [ nil, "", "not-an-email", "contact@example.test\r\nX-Extra: injected" ].each do |contact|
+        assert_raises(ArgumentError) do
+          OpenLibraryClient.new.fetch_catalog_page(page: 1, contact_email: contact)
+        end
+      end
+    end
+
+    assert_not_requested :get, /openlibrary\.org/
+  end
+
+  test "catalog capture rejects pages outside the bounded range before HTTP" do
+    Rails.stub(:env, "development".inquiry) do
+      [ 0, 4, "1", nil ].each do |page|
+        assert_raises(ArgumentError) do
+          OpenLibraryClient.new.fetch_catalog_page(page: page, contact_email: "contact@example.test")
+        end
+      end
+    end
+
+    assert_not_requested :get, /openlibrary\.org/
+  end
+
   test "search returns docs array" do
     stub_request(:get, "https://openlibrary.org/search.json")
       .with(query: { q: "Harry Potter", page: 1, limit: 10 })

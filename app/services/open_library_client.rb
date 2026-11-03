@@ -1,6 +1,15 @@
 class OpenLibraryClient
   include SemanticLogger::Loggable
   BASE_URL = "https://openlibrary.org"
+  CATALOG_QUERY = "readinglog_count:[1 TO *]".freeze
+  CATALOG_FIELDS = [
+    "key", "title", "subtitle", "author_key", "author_name", "first_publish_year",
+    "edition_count", "cover_i", "subject", "language", "number_of_pages_median",
+    "readinglog_count", "want_to_read_count", "currently_reading_count", "already_read_count",
+    "ratings_count", "work.description", "editions", "editions.key", "editions.work_key",
+    "editions.title", "editions.isbn", "editions.publisher", "editions.publish_date",
+    "editions.publish_year", "editions.language", "editions.format", "editions.cover_i"
+  ].freeze
 
   def initialize
     @conn = Faraday.new(url: BASE_URL) do |f|
@@ -8,6 +17,27 @@ class OpenLibraryClient
       f.options.open_timeout = 15
     end
   end
+
+  # One HTTP attempt only: the catalog capture service owns pacing, retries and JSON validation.
+  # Preserve status, headers and raw body so failed capture cannot become an empty success.
+  def fetch_catalog_page(page:, contact_email: ENV["OPEN_LIBRARY_CONTACT_EMAIL"])
+    raise "Catalog capture is only available in development" unless Rails.env.development?
+    unless page.is_a?(Integer) && (1..3).cover?(page)
+      raise ArgumentError, "Catalog capture page must be an integer from 1 through 3"
+    end
+    unless contact_email.is_a?(String) && URI::MailTo::EMAIL_REGEXP.match?(contact_email)
+      raise ArgumentError, "Set OPEN_LIBRARY_CONTACT_EMAIL to a reachable contact address before capture"
+    end
+
+    @conn.get("/search.json", {
+      q: CATALOG_QUERY,
+      sort: "readinglog",
+      page: page,
+      limit: 100,
+      fields: CATALOG_FIELDS.join(",")
+    }, { "User-Agent" => "BookNook (#{contact_email})" })
+  end
+
   def search(query, page: 1, limit: 10)
     logger.measure_info(
       "Searching in Open Library",

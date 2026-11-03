@@ -6,18 +6,8 @@ class ReadingSessionsController < ApplicationController
   def index
     authorize ReadingSession
     @reading_sessions = policy_scope(ReadingSession)
-    @finished_books = current_user.user_books
-      .where(status: "finished")
-      .includes(book: { cover_image_attachment: :blob })
-      .order(updated_at: :desc)
-      .to_a
-    @badges = Badge.order(:id)
-    @earned_badge_ids = current_user.user_badges
-      .where(badge_id: @badges.select(:id))
-      .pluck(:badge_id)
-
     respond_to do |format|
-      format.html
+      format.html { load_history_summary }
       format.json { render json: @reading_sessions }
     end
   end
@@ -84,6 +74,18 @@ class ReadingSessionsController < ApplicationController
   end
 
   private
+
+  def load_history_summary
+    @finished_books = current_user.user_books
+      .where(status: "finished")
+      .includes(book: { cover_image_attachment: :blob })
+      .order(updated_at: :desc)
+      .to_a
+    @badges = Badge.order(:id)
+    @earned_badge_ids = current_user.user_badges
+      .where(badge_id: @badges.select(:id))
+      .pluck(:badge_id)
+  end
 
   def set_book
     @book = Book.find(params[:book_id])

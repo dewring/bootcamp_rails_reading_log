@@ -6,8 +6,8 @@ class Book < ApplicationRecord
   serialize :subjects, coder: JSON
 
   # 2. Normalizations
-  normalizes :title, with: ->(v) { v.titleize }
-  normalizes :author, with: ->(v) { v.titleize }
+  normalizes :title, with: ->(v) { v.strip }
+  normalizes :author, with: ->(v) { v.strip }
 
   # 3. Validations
   validates :author, presence: true
