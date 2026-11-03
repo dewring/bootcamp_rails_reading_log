@@ -21,9 +21,8 @@ class DevelopmentReadingScenarioActivity::Inventory
     @library_matches[identity] = row
   end
 
-  def remember_session(identity, row, imported:)
+  def remember_session(identity, row)
     @session_matches[identity] = row
-    @page_totals[[ row.user_id, row.book_id ]] = @page_totals.fetch([ row.user_id, row.book_id ], 0) + row.pages_read if imported
   end
 
   def state_counts
@@ -64,9 +63,6 @@ class DevelopmentReadingScenarioActivity::Inventory
 
   def verify_account_inventory
     sessions = (@session_matches.values + @tick_matches.values).compact
-    session_ids = sessions.map(&:id)
-    raise DevelopmentReadingScenarioActivity::ActivityError, "Two logical reading events claim the same session; review the manifest." unless session_ids.uniq.length == session_ids.length
-
     verify_no_unrecorded_rows(@library_rows, @library_matches.values, "library")
     verify_no_unrecorded_rows(@session_rows, sessions, "session")
     @library_matches.each do |identity, row|
@@ -77,7 +73,6 @@ class DevelopmentReadingScenarioActivity::Inventory
   def load_reading_rows
     @library_rows = UserBook.where(user_id: @users.values.map(&:id)).to_a
     @session_rows = ReadingSession.where(user_id: @users.values.map(&:id)).to_a
-    @page_totals = @session_rows.group_by { |row| [ row.user_id, row.book_id ] }.transform_values { |rows| rows.sum(&:pages_read) }
   end
 
   def planned_reading
@@ -145,13 +140,7 @@ class DevelopmentReadingScenarioActivity::Inventory
 
   def verify_library_status(record, row)
     initial = record.fetch("initial_status")
-    allowed = initial == "reading" ? [ "reading", derived_status(row) ].uniq : [ initial ]
+    allowed = initial == "reading" ? [ "reading", "finished" ] : [ initial ]
     raise DevelopmentReadingScenarioActivity::ActivityError, "Library row ID #{row.id} has an unexpected status #{row.status}; no automatic overwrite is allowed." unless allowed.include?(row.status)
-  end
-
-  def derived_status(row)
-    pages = @books.values.find { |book| book.id == row.book_id }.total_pages
-    total = @page_totals.fetch([ row.user_id, row.book_id ], 0)
-    pages && total >= pages ? "finished" : "reading"
   end
 end

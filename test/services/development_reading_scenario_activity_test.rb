@@ -91,6 +91,26 @@ class DevelopmentReadingScenarioActivityTest < ActiveSupport::TestCase
     assert_operator final.dig("reading", "state_counts", "finished"), :>, 24
   end
 
+  test "replay preserves manual completion of a reading book before its page total is reached" do
+    manifest = replay
+    entry = records(manifest, "user_books").values.find do |record|
+      next false unless record.fetch("initial_status") == "reading"
+
+      book = Book.find(record.fetch("expected_attributes").fetch("book_id"))
+      book.total_pages == 1000
+    end
+    shelf = UserBook.find(entry.fetch("id"))
+    assert_operator shelf.user.reading_sessions.where(book: shelf.book).sum(:pages_read), :<, shelf.book.total_pages
+    shelf.update!(status: "finished")
+    jobs = enqueued_jobs.dup
+
+    assert_no_difference [ "UserBook.count", "ReadingSession.count" ] do
+      replay
+    end
+    assert_equal "finished", shelf.reload.status
+    assert_equal jobs, enqueued_jobs
+  end
+
   test "validation failure records its reason and can resume after the failure is resolved" do
     invalid = ReadingSession.new
     invalid.errors.add(:pages_read, "must be greater than 0")

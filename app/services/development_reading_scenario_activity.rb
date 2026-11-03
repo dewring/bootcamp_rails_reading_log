@@ -91,7 +91,7 @@ class DevelopmentReadingScenarioActivity
           row = record_planned_session(entry)
         end
       end
-      @inventory.remember_session(identity, row, imported: result == "imported")
+      @inventory.remember_session(identity, row)
       record_saved_reading(record, row, result)
     rescue ActiveRecord::RecordInvalid => error
       record_reading_failure(record, identity, error)
