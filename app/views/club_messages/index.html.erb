@@ -1,4 +1,5 @@
 <% turbo_exempts_page_from_cache %>
+<%= turbo_stream_from @book_club, :discussion_current_pick %>
 <% can_post_message = policy(@book_club).post_message? %>
 <% can_moderate_messages = current_user.admin? || policy(@book_club).manage? %>
 <div id="club_discussion_<%= @book_club.id %>" class="club-discussion-page" data-controller="club-discussion"
