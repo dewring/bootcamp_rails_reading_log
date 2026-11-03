@@ -103,23 +103,32 @@ class DevelopmentReadingScenarioActivity::Inventory
   end
 
   def match_rows(records, rows, library: false)
-    by_id = rows.index_by(&:id)
+    rows_by_id = rows.index_by(&:id)
     records.to_h do |identity, record|
-      expected = record.fetch("expected_attributes")
-      if record["id"]
-        row = by_id[record.fetch("id")]
-        raise DevelopmentReadingScenarioActivity::ActivityError, "Recorded #{identity} (ID #{record.fetch('id')}) is missing; no automatic recreation is allowed." unless row
-
-        verify_reading_row(record, row, identity, library: library)
+      row = if record["id"]
+        find_saved_reading_record(identity, record, rows_by_id, library: library)
       else
-        matches = rows.select { |candidate| snapshot_attributes(candidate, library: library).slice(*expected.keys) == expected }
-        if matches.length > 1
-          raise DevelopmentReadingScenarioActivity::ActivityError, "Ambiguous reading payload #{identity}: record IDs #{matches.map(&:id)}; no records were changed."
-        end
-        row = matches.first
+        find_interrupted_reading_record(identity, record, rows, library: library)
       end
       [ identity, row ]
     end
+  end
+
+  def find_saved_reading_record(identity, record, rows_by_id, library:)
+    row = rows_by_id[record.fetch("id")]
+    raise DevelopmentReadingScenarioActivity::ActivityError, "Recorded #{identity} (ID #{record.fetch('id')}) is missing; no automatic recreation is allowed." unless row
+
+    verify_reading_row(record, row, identity, library: library)
+    row
+  end
+
+  def find_interrupted_reading_record(identity, record, rows, library:)
+    expected = record.fetch("expected_attributes")
+    matches = rows.select { |candidate| snapshot_attributes(candidate, library: library).slice(*expected.keys) == expected }
+    if matches.length > 1
+      raise DevelopmentReadingScenarioActivity::ActivityError, "Ambiguous reading payload #{identity}: record IDs #{matches.map(&:id)}; no records were changed."
+    end
+    matches.first
   end
 
   def verify_reading_row(record, row, identity, library: false)
