@@ -24,7 +24,8 @@ class OpenLibraryCatalogPreflightTest < ActiveSupport::TestCase
         "language" => [ "eng" ], "format" => [ "Paperback" ]
       } ] }
     )
-    @preflight = OpenLibraryCatalogPreflight.new(snapshot_path: @snapshot_path)
+    @manifest_path = @directory.join("manifest.json")
+    @preflight = OpenLibraryCatalogPreflight.new(snapshot_path: @snapshot_path, manifest_path: @manifest_path)
   end
 
   teardown do
@@ -309,7 +310,85 @@ class OpenLibraryCatalogPreflightTest < ActiveSupport::TestCase
     assert_not_requested :any, /https?:/
   end
 
+  test "a reviewed keyed identity reuses its existing metadata and preserves a reviewed legacy duplicate" do
+    book = create_selected_book(author: "Gabriel García Márquez.", total_pages: 123)
+    legacy = Book.create!(title: @docs.first.fetch("title"), author: "Gabriel García Márquez")
+    write_review(book, preserved: [ legacy ])
+    before = [ book.attributes, legacy.attributes ]
+
+    assert_no_difference [ "Book.count", "BookEdition.count" ] do
+      result = preflight_catalog.fetch("books").first
+      assert_equal book.id, result.fetch("existing_book_id")
+      assert_equal "reused", result.fetch("book_status")
+    end
+
+    assert_equal before, [ book.reload.attributes, legacy.reload.attributes ]
+    assert_not_requested :any, /https?:/
+  end
+
+  test "a reviewed identity does not authorize later changes to the keyed book" do
+    book = create_selected_book(author: "Reviewed author.")
+    write_review(book)
+    book.update!(author: "A later unrelated author")
+
+    error = assert_read_only_failure
+
+    assert_includes error.report.fetch("conflicts").map { |entry| entry.fetch("reason") }, "conflicting_work_identity"
+  end
+
+  test "reviewed identities from another database or snapshot do not authorize reuse" do
+    book = create_selected_book(author: "Reviewed author.")
+
+    [ "database", "snapshot_id" ].each do |field|
+      write_review(book)
+      manifest = JSON.parse(@manifest_path.read)
+      manifest[field] = "another-#{field}"
+      @manifest_path.write(manifest.to_json)
+
+      assert_read_only_failure
+    end
+  end
+
+  test "a review does not authorize a different source identity or a different target record" do
+    book = create_selected_book(author: "Reviewed author.")
+
+    [ "source", "target" ].each do |field|
+      write_review(book)
+      manifest = JSON.parse(@manifest_path.read)
+      manifest.dig("catalog", "reviewed_identities", @docs.first.fetch("key"), field)["title"] = "Another title"
+      @manifest_path.write(manifest.to_json)
+
+      assert_read_only_failure
+    end
+  end
+
+  test "reviewing one legacy duplicate does not hide a newly added legacy collision" do
+    book = create_selected_book
+    legacy = Book.create!(title: @docs.first.fetch("title"), author: "Gabriel García Márquez")
+    write_review(book, preserved: [ legacy ])
+    unreviewed = Book.create!(title: legacy.title, author: legacy.author)
+
+    error = assert_read_only_failure
+
+    conflict = error.report.fetch("conflicts").find { |entry| entry.fetch("reason") == "legacy_unkeyed_book" }
+    assert_equal [ unreviewed.id ], conflict.fetch("record_ids")
+  end
+
   private
+
+  def write_review(book, preserved: [])
+    snapshot = write_snapshot
+    source = @docs.first
+    @manifest_path.write({
+      "snapshot_id" => snapshot.fetch("snapshot_id"),
+      "database" => ActiveRecord::Base.connection_db_config.database,
+      "catalog" => { "reviewed_identities" => { source.fetch("key") => {
+        "source" => { "ol_work_key" => source.fetch("key"), "title" => source.fetch("title"), "author" => source.fetch("author_name").first },
+        "target" => book.attributes.slice("id", "ol_work_key", "title", "author"),
+        "preserved_legacy_books" => preserved.map { |row| row.attributes.slice("id", "ol_work_key", "title", "author") }
+      } } }
+    }.to_json)
+  end
 
   def write_snapshot
     stub_request(:get, "https://openlibrary.org/search.json")
