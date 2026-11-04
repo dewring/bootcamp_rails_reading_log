@@ -20,6 +20,9 @@ class User < ApplicationRecord
   has_many :books, through: :user_books
   has_many :reading_sessions
   has_many :reviews, dependent: :destroy
+  has_many :reactions, dependent: :destroy
+  has_many :review_reactions, dependent: :destroy
+  has_many :club_message_reactions, dependent: :destroy
   has_many :user_challenges, dependent: :destroy
   has_many :challenges, through: :user_challenges
   has_many :webhook_endpoints, dependent: :destroy

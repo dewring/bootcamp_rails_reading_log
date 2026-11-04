@@ -3,6 +3,7 @@ class ClubMessage < ApplicationRecord
   belongs_to :user
   belongs_to :parent, class_name: "ClubMessage", optional: true, inverse_of: :replies
   has_many :replies, class_name: "ClubMessage", foreign_key: :parent_id, inverse_of: :parent, dependent: :destroy
+  has_many :reactions, class_name: "ClubMessageReaction", dependent: :destroy
 
   validates :body, presence: true, unless: :deleted?
   validates :body, length: { maximum: 1_000 }
@@ -32,6 +33,7 @@ class ClubMessage < ApplicationRecord
         remove_reply_from_discussion!
       else
         update!(body: "", deleted_at: Time.current) unless deleted?
+        reactions.destroy_all
         discussion_payload
       end
     end

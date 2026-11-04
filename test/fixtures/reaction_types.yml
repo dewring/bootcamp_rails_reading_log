@@ -1,0 +1,29 @@
+like:
+  key: like
+  label: Like
+  emoji: 👍
+  enabled: true
+
+dislike:
+  key: dislike
+  label: Dislike
+  emoji: 👎
+  enabled: true
+
+love:
+  key: love
+  label: Love
+  emoji: ❤️
+  enabled: true
+
+laugh:
+  key: laugh
+  label: Laugh
+  emoji: 😂
+  enabled: true
+
+wow:
+  key: wow
+  label: Wow
+  emoji: 😮
+  enabled: true

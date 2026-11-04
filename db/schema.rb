@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_21_020000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_03_010001) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -148,6 +148,17 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_21_020000) do
     t.datetime "updated_at", null: false
   end
 
+  create_table "club_message_reactions", force: :cascade do |t|
+    t.bigint "club_message_id", null: false
+    t.datetime "created_at", null: false
+    t.string "kind", null: false
+    t.datetime "updated_at", null: false
+    t.bigint "user_id", null: false
+    t.index ["club_message_id"], name: "index_club_message_reactions_on_club_message_id"
+    t.index ["kind"], name: "index_club_message_reactions_on_kind"
+    t.index ["user_id", "club_message_id"], name: "index_club_message_reactions_on_user_id_and_club_message_id", unique: true
+  end
+
   create_table "club_messages", force: :cascade do |t|
     t.text "body", null: false
     t.bigint "book_club_id", null: false
@@ -194,6 +205,30 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_21_020000) do
     t.index ["recipient_type", "recipient_id"], name: "index_noticed_notifications_on_recipient"
   end
 
+  create_table "reaction_types", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.string "emoji", null: false
+    t.boolean "enabled", default: true, null: false
+    t.string "key", null: false
+    t.string "label", null: false
+    t.datetime "updated_at", null: false
+    t.index ["key"], name: "index_reaction_types_on_key", unique: true
+    t.check_constraint "length(btrim(emoji::text)) > 0", name: "reaction_types_emoji_present"
+    t.check_constraint "length(btrim(key::text)) > 0", name: "reaction_types_key_present"
+    t.check_constraint "length(btrim(label::text)) > 0", name: "reaction_types_label_present"
+  end
+
+  create_table "reactions", force: :cascade do |t|
+    t.bigint "book_id", null: false
+    t.datetime "created_at", null: false
+    t.string "kind", null: false
+    t.datetime "updated_at", null: false
+    t.bigint "user_id", null: false
+    t.index ["book_id"], name: "index_reactions_on_book_id"
+    t.index ["kind"], name: "index_reactions_on_kind"
+    t.index ["user_id", "book_id"], name: "index_reactions_on_user_id_and_book_id", unique: true
+  end
+
   create_table "reading_metrics", force: :cascade do |t|
     t.integer "books_finished", default: 0
     t.integer "books_in_progress", default: 0
@@ -221,6 +256,17 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_21_020000) do
     t.index ["book_id"], name: "index_reading_sessions_on_book_id"
     t.index ["user_id", "book_id"], name: "index_reading_sessions_on_user_id_and_book_id"
     t.index ["user_id", "read_on"], name: "index_reading_sessions_on_user_id_and_read_on"
+  end
+
+  create_table "review_reactions", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.string "kind", null: false
+    t.bigint "review_id", null: false
+    t.datetime "updated_at", null: false
+    t.bigint "user_id", null: false
+    t.index ["kind"], name: "index_review_reactions_on_kind"
+    t.index ["review_id"], name: "index_review_reactions_on_review_id"
+    t.index ["user_id", "review_id"], name: "index_review_reactions_on_user_id_and_review_id", unique: true
   end
 
   create_table "reviews", force: :cascade do |t|
@@ -309,13 +355,22 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_21_020000) do
   add_foreign_key "book_editions", "books"
   add_foreign_key "book_genres", "books"
   add_foreign_key "book_genres", "genres"
+  add_foreign_key "club_message_reactions", "club_messages"
+  add_foreign_key "club_message_reactions", "reaction_types", column: "kind", primary_key: "key", on_update: :restrict, on_delete: :restrict
+  add_foreign_key "club_message_reactions", "users"
   add_foreign_key "club_messages", "book_clubs"
   add_foreign_key "club_messages", "club_messages", column: "parent_id"
   add_foreign_key "club_messages", "users"
+  add_foreign_key "reactions", "books"
+  add_foreign_key "reactions", "reaction_types", column: "kind", primary_key: "key", on_update: :restrict, on_delete: :restrict
+  add_foreign_key "reactions", "users"
   add_foreign_key "reading_metrics", "users"
   add_foreign_key "reading_sessions", "book_editions"
   add_foreign_key "reading_sessions", "books"
   add_foreign_key "reading_sessions", "users"
+  add_foreign_key "review_reactions", "reaction_types", column: "kind", primary_key: "key", on_update: :restrict, on_delete: :restrict
+  add_foreign_key "review_reactions", "reviews"
+  add_foreign_key "review_reactions", "users"
   add_foreign_key "reviews", "books"
   add_foreign_key "reviews", "users"
   add_foreign_key "user_badges", "badges"
