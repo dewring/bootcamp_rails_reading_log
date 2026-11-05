@@ -1,3 +1,4 @@
+<% turbo_exempts_page_from_cache %>
 <%
   ratings = @reviews.map(&:rating).compact
   average_rating = ratings.any? ? format("%.1f", ratings.sum.to_f / ratings.size) : "0.0"
@@ -87,6 +88,7 @@
           <p class="book-detail-admin-note">Admin view · Edit action visible</p>
         <% end %>
       </div>
+      <%= render "reactions/panel", target: @book, types: @reaction_types, counts: @book_reaction_counts, selected: @book_reaction, errors: [] %>
     </div>
   </section>
 
@@ -175,7 +177,7 @@
     <% else %>
       <div class="book-detail-review-grid">
         <% @reviews.each do |review| %>
-          <article class="book-detail-review-card">
+          <article id="<%= dom_id(review) %>" class="book-detail-review-card">
             <div class="book-detail-review-header">
               <div class="book-detail-reviewer">
                 <%= render "users/avatar", user: review.user, variant: :review %>
@@ -189,6 +191,8 @@
               <% end %>
             </div>
             <p><%= review.body %></p>
+            <% counts = @reaction_types.to_h { |type| [ type.key, @review_reaction_counts.fetch([ review.id, type.key ], 0) ] } %>
+            <%= render "reactions/panel", target: review, types: @reaction_types, counts: counts, selected: @review_reaction_selections[review.id], errors: [] %>
           </article>
         <% end %>
       </div>

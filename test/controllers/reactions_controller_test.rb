@@ -156,13 +156,16 @@ class ReactionsControllerTest < ActionDispatch::IntegrationTest
       get path
       assert_response :success
       assert_select "[data-reaction-kind='celebrate']", text: "🎉 Celebrate: 0"
+      assert_select "button[aria-pressed='false']", text: "🎉 Celebrate"
       put path, params: { kind: "celebrate" }, as: :turbo_stream
       assert_response :success
       assert_select "[data-reaction-kind='celebrate']", text: "🎉 Celebrate: 1"
       assert_select "[data-reaction-selection]", text: "Your reaction: Celebrate"
+      assert_select "button[aria-pressed='true']", text: "🎉 Celebrate"
       delete path, as: :turbo_stream
       assert_response :success
       assert_select "[data-reaction-kind='celebrate']", text: "🎉 Celebrate: 0"
+      assert_select "button[aria-pressed='true']", count: 0
     end
   end
 

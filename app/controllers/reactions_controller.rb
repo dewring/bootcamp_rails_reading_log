@@ -40,10 +40,8 @@ class ReactionsController < ApplicationController
   def render_panel(status: :ok, errors: [])
     response.headers["Cache-Control"] = "no-store"
     counts = @reaction_target.reactions.eligible.group(:kind).count
-    selected = policy_scope(@reaction_target.reactions).includes(:reaction_type).first
-    types = ReactionType.order(:id).select do |type|
-      type.enabled? || counts.key?(type.key) || selected&.kind == type.key
-    end
+    selected = policy_scope(@reaction_target.reactions).first
+    types = ReactionType.order(:id).to_a
     panel = { target: @reaction_target, types: types, counts: counts, selected: selected, errors: errors }
 
     respond_to do |format|
