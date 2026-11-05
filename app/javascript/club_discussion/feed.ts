@@ -1,5 +1,5 @@
 import { discussionVersion } from "./message_version"
-import { buildMessageElement, prepareMessageElement, type MessageElementOptions } from "./message_elements"
+import { buildMessageElement, prepareMessageElement, replaceReactionPanel, type MessageElementOptions } from "./message_elements"
 import DiscussionPagination from "./pagination"
 import type { DiscussionEvent, DiscussionHistory, DiscussionMessage } from "./types"
 
@@ -118,6 +118,8 @@ export default class DiscussionFeed {
       const existing = this.messagesTarget.querySelector<HTMLElement>(`#club_message_${message.id}`)
       const article = existing ?? this.buildMessageElement(message)
       if (existing) this.rememberMessageUpdate(message)
+      const panel = history.reaction_panels[String(message.id)]
+      if (!message.deleted && panel) replaceReactionPanel(article, message.id, panel)
       const controls = article.querySelector<HTMLElement>("[data-controller~='club-replies']")
       if (controls) controls.dataset.clubRepliesCountValue = String(message.replies_count ?? 0)
       const position = this.messagesTarget.children[index] ?? null

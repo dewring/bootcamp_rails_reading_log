@@ -40,7 +40,7 @@ test("disconnect releases the recovery timeout even when the transport ignores c
 
   expect(vi.getTimerCount()).toBe(0)
   expect(recovery.isRecovering).toBe(false)
-  response.resolve(new Response(JSON.stringify({ messages: [], total_posts: 0, pagination_html: "" })))
+  response.resolve(new Response(JSON.stringify({ messages: [], reaction_panels: {}, total_posts: 0, pagination_html: "" })))
   await work
   expect(root.dataset.connectionState).toBe("offline")
 })

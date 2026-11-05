@@ -35,6 +35,7 @@ export type DiscussionSubscription = {
 
 export interface DiscussionHistory {
   messages: DiscussionMessage[]
+  reaction_panels: Record<string, string>
   total_posts: number
   pagination_html: string
 }

@@ -305,11 +305,13 @@ test("a deleted post without replies disappears and updates the visible post tot
   expect(postIds()).toEqual(["1"])
 })
 
-test("a deleted post disappears after the final reply is deleted while earlier deletion events cannot restore it", async () => {
+test("a retained deleted post loses its reaction panel and disappears after its final reply is deleted", async () => {
   const editor = await mountDeletablePost()
+  expect(editor.article.querySelector("#reaction_panel_club_message_2")).not.toBeNull()
   const retained = deletionEvent(2)
   requests[0].callbacks.received({ ...retained, total_posts: 2 })
   expect(editor.article.isConnected).toBe(true)
+  expect(editor.article.querySelector("#reaction_panel_club_message_2")).toBeNull()
   const empty = { ...retained.message, replies_count: 0, updated_at: "2026-10-21T12:01:00Z" }
   requests[0].callbacks.received({ type: "message.deleted", message: empty, total_posts: 1 })
   expect(editor.article.isConnected).toBe(false)
@@ -521,6 +523,7 @@ test("deleting a post removes the reply composer but preserves existing replies 
   expect(composer.body.value).toBe("")
   expect(composer.controls.querySelector("#club_message_8")).not.toBeNull()
   expect(composer.controls.querySelector("#club_message_8 [data-club-message-target='editButton']")).not.toBeNull()
+  expect(composer.controls.querySelector("#club_message_8 turbo-frame")?.getAttribute("src")).toBe("/book_clubs/17/club_messages/8/reaction")
 })
 
 test("a deleted reply is removed and cannot be restored by delayed history or creation events", async () => {

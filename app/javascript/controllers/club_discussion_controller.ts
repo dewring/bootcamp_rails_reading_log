@@ -1,7 +1,7 @@
 import { Controller } from "@hotwired/stimulus"
 import { cable } from "@hotwired/turbo-rails"
 import ClubPresence from "../club_discussion/presence"
-import DiscussionRecovery from "../club_discussion/recovery"
+import DiscussionRecovery, { discussionAccessDenied } from "../club_discussion/recovery"
 import DiscussionFeed from "../club_discussion/feed"
 import DiscussionComposer from "../club_discussion/composer"
 import type { DiscussionEvent, DiscussionMessage, DiscussionSubscription } from "../club_discussion/types"
@@ -215,6 +215,40 @@ export default class extends Controller {
 
   async postMessage(event: SubmitEvent) {
     await this.composer.postMessage(event)
+  }
+
+  reactionFrameMissing(event: CustomEvent<{ response: Response }>) {
+    const frame = event.target as HTMLElement
+    if (!frame.matches("turbo-frame.reaction-panel")) return
+
+    event.preventDefault()
+    if (discussionAccessDenied(event.detail.response)) {
+      this.endAccess()
+    } else if (event.detail.response.status === 404) {
+      frame.remove()
+    } else {
+      this.showReactionFrameError(frame)
+    }
+  }
+
+  reactionFrameError(event: Event) {
+    const frame = event.target as HTMLElement
+    if (frame.matches("turbo-frame.reaction-panel")) this.showReactionFrameError(frame)
+  }
+
+  async retryReactionFrame(event: Event) {
+    const frame = (event.currentTarget as HTMLElement).closest("turbo-frame") as HTMLElement & { reload(): Promise<void> }
+    try {
+      if (frame.hasAttribute("src")) await frame.reload()
+      else frame.setAttribute("src", frame.dataset.reactionUrl!)
+    } catch (error) {
+      console.error("Failed to reload discussion reactions", error)
+      if (frame.isConnected) this.showReactionFrameError(frame)
+    }
+  }
+
+  private showReactionFrameError(frame: HTMLElement) {
+    frame.innerHTML = '<p role="status">Reactions could not load. Your draft is still here.</p><button type="button" data-action="club-discussion#retryReactionFrame">Retry reactions</button>'
   }
 
   prepareMessageElement(article: HTMLElement, message: Pick<DiscussionMessage, "id" | "updated_at" | "deleted"> & { author: { id: number } }) {

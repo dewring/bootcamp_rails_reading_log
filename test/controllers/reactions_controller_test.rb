@@ -276,11 +276,14 @@ class ReactionsControllerTest < ActionDispatch::IntegrationTest
     reply = @club.club_messages.create!(parent: @message, user: @reader, body: "Retained reply")
     @message.remove_from_discussion!
     get @paths.last
-    assert_response :forbidden
+    assert_response :not_found
+    sign_in @reader
     put @paths.last, params: { kind: "like" }
-    assert_response :forbidden
+    assert_response :not_found
+    sign_in @reader
     delete @paths.last
-    assert_response :forbidden
+    assert_response :not_found
+    sign_in @reader
     put book_club_club_message_reaction_path(@club, reply), params: { kind: "love" }, as: :turbo_stream
     assert_response :success
     assert_equal "love", reply.reactions.sole.kind

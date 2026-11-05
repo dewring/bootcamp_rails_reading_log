@@ -133,7 +133,9 @@ export default class DiscussionRecovery {
 
   private validateHistory(history: DiscussionHistory) {
     if (!Array.isArray(history.messages) || !Number.isSafeInteger(history.total_posts) || history.total_posts < 0 ||
-      typeof history.pagination_html !== "string" || history.messages.some(message =>
+      typeof history.pagination_html !== "string" || !history.reaction_panels ||
+      typeof history.reaction_panels !== "object" || Array.isArray(history.reaction_panels) ||
+      Object.values(history.reaction_panels).some(panel => typeof panel !== "string") || history.messages.some(message =>
         !Number.isSafeInteger(message.id) || message.id <= 0 || message.parent_id !== null ||
         typeof message.body !== "string" || !message.author || typeof message.author.nickname !== "string" ||
         !Number.isSafeInteger(message.author.id) || !Number.isFinite(Date.parse(message.created_at)) ||

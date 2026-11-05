@@ -217,6 +217,7 @@ export default class extends Controller {
     if (this.hasDeleteButtonTarget) this.deleteButtonTarget.remove()
     const article = this.element as HTMLElement
     article.dataset.deleted = "true"
+    article.querySelector(`#reaction_panel_club_message_${message.id}`)?.remove()
     this.statusTarget.textContent = ""
     if (message.parent_id !== null || message.replies_count === 0) {
       this.element.remove()
