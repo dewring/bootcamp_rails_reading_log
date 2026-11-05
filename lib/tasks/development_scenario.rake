@@ -1,4 +1,13 @@
 namespace :development_scenario do
+  desc "Seed 160 owned book reactions from the prepared baseline (development only)"
+  task seed_reactions: :environment do
+    manifest = DevelopmentReadingScenarioReactions.new.seed_reactions
+    $stdout.write("Scenario-owned reactions: #{manifest.fetch('reactions').fetch('actual_counts').to_json}\n")
+    $stdout.write("Run the development worker to publish aggregate totals.\n")
+  rescue DevelopmentReadingScenarioReactions::ReactionsError, DevelopmentReadingScenarioManifest::ManifestError => error
+    abort error.message
+  end
+
   desc "Simulate reading activity once: three sessions and two top-level posts (development only)"
   task simulate_reading: :environment do
     name = DevelopmentReadingScenarioTick::Plan::NAME

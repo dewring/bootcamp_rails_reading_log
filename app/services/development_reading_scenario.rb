@@ -13,6 +13,14 @@ class DevelopmentReadingScenario
     @catalog = OpenLibraryCatalogReplay.new(**dependencies)
     @reading = DevelopmentReadingScenarioActivity.new(**dependencies)
     @community = DevelopmentReadingScenarioCommunity.new(**dependencies)
+    @reactions = DevelopmentReadingScenarioReactions.new(**dependencies)
+  end
+
+  def seed_scenario
+    @scenario_manifest.with_exclusive_access do
+      seed_baseline
+      @reactions.seed_reactions
+    end
   end
 
   def seed_baseline
