@@ -3,11 +3,7 @@
 <%= turbo_frame_tag dom_id(target, :reaction_panel), class: "reaction-panel", data: { reaction_url: reaction_selection_path(target) } do %>
   <section aria-labelledby="<%= dom_id(target, :reaction_heading) %>">
     <h3 id="<%= dom_id(target, :reaction_heading) %>">Reactions</h3>
-    <ul id="<%= dom_id(target, :reaction_counts) %>" class="reaction-counts" aria-live="polite" aria-atomic="true">
-      <% visible_types.each do |type| %>
-        <li data-reaction-kind="<%= type.key %>"><%= type.emoji %> <%= type.label %>: <%= counts.fetch(type.key, 0) %></li>
-      <% end %>
-    </ul>
+    <%= render "reactions/counts", target: target, types: types, counts: counts %>
     <p data-reaction-selection><%= selected_type ? "Your reaction: #{selected_type.label}" : "No reaction selected" %></p>
     <% if local_assigns.fetch(:can_react) { policy(selected || target.reactions.build(user: current_user)).create? } %>
       <div class="reaction-controls">

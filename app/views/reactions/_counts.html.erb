@@ -1,0 +1,7 @@
+<ul id="<%= dom_id(target, :reaction_counts) %>" class="reaction-counts" aria-live="polite" aria-atomic="true">
+  <% types.each do |type| %>
+    <% if type.enabled? || counts.fetch(type.key, 0).positive? %>
+      <li data-reaction-kind="<%= type.key %>"><%= type.emoji %> <%= type.label %>: <%= counts.fetch(type.key, 0) %></li>
+    <% end %>
+  <% end %>
+</ul>

@@ -6,6 +6,11 @@ import DiscussionFeed from "../club_discussion/feed"
 import DiscussionComposer from "../club_discussion/composer"
 import type { DiscussionEvent, DiscussionMessage, DiscussionSubscription } from "../club_discussion/types"
 
+interface ReactionFrame extends HTMLElement {
+  reload(): Promise<void>
+  loaded: Promise<void>
+}
+
 export default class extends Controller {
   static targets = ["content", "status", "connectionStatus", "retry", "messages", "emptyState", "paginationSummary", "pagination", "body", "submit", "composerStatus", "replyControls", "editor", "deleteButton", "onlineMembers", "presenceStatus", "typingStatus", "typingIndicator"]
   static values = { bookClubId: Number, page: Number, totalPosts: Number, paginationUrl: String, currentUserId: Number, canPost: Boolean, canModerate: Boolean }
@@ -144,6 +149,8 @@ export default class extends Controller {
             this.endAccess()
           } else if (event.type === "presence.snapshot" || event.type === "presence.unavailable" || event.type === "typing.started") {
             this.presence?.receiveEvent(event)
+          } else if (event.type === "reactions.updated") {
+            this.feed.updateReactionCounts(event)
           } else if ((event.type === "message.deleted" || event.type === "reply.deleted") && event.message) {
             this.feed.rememberMessageUpdate(event.message, event.total_posts)
           } else if (event.type === "delete.saved" || event.type === "delete.rejected") {
@@ -211,6 +218,8 @@ export default class extends Controller {
     if (!history || this.recovery !== recovery || !this.cableConnected || !this.element.isConnected) return
 
     this.feed.pagination.refreshAfterRecovery(history.total_posts)
+    const frames = this.element.querySelectorAll<ReactionFrame>(".club-discussion-reply turbo-frame.reaction-panel")
+    await Promise.all(Array.from(frames, frame => this.refreshReactionFrame(frame)))
   }
 
   async postMessage(event: SubmitEvent) {
@@ -232,15 +241,14 @@ export default class extends Controller {
   }
 
   reactionFrameError(event: Event) {
-    const frame = event.target as HTMLElement
-    if (frame.matches("turbo-frame.reaction-panel")) this.showReactionFrameError(frame)
+    const frame = (event.target as HTMLElement).closest<HTMLElement>("turbo-frame.reaction-panel")
+    if (frame) this.showReactionFrameError(frame)
   }
 
   async retryReactionFrame(event: Event) {
-    const frame = (event.currentTarget as HTMLElement).closest("turbo-frame") as HTMLElement & { reload(): Promise<void> }
+    const frame = (event.currentTarget as HTMLElement).closest("turbo-frame") as ReactionFrame
     try {
-      if (frame.hasAttribute("src")) await frame.reload()
-      else frame.setAttribute("src", frame.dataset.reactionUrl!)
+      await this.refreshReactionFrame(frame)
     } catch (error) {
       console.error("Failed to reload discussion reactions", error)
       if (frame.isConnected) this.showReactionFrameError(frame)
@@ -248,7 +256,18 @@ export default class extends Controller {
   }
 
   private showReactionFrameError(frame: HTMLElement) {
-    frame.innerHTML = '<p role="status">Reactions could not load. Your draft is still here.</p><button type="button" data-action="club-discussion#retryReactionFrame">Retry reactions</button>'
+    frame.querySelector("[data-reaction-load-error]")?.remove()
+    const error = document.createElement("div")
+    error.dataset.reactionLoadError = ""
+    error.innerHTML = '<p role="status">Reactions could not load. Your draft is still here.</p><button type="button" data-action="club-discussion#retryReactionFrame">Retry reactions</button>'
+    frame.append(error)
+  }
+
+  private refreshReactionFrame(frame: ReactionFrame): Promise<void> {
+    if (frame.hasAttribute("src")) return frame.reload()
+
+    frame.setAttribute("src", frame.dataset.reactionUrl!)
+    return frame.loaded
   }
 
   prepareMessageElement(article: HTMLElement, message: Pick<DiscussionMessage, "id" | "updated_at" | "deleted"> & { author: { id: number } }) {

@@ -133,6 +133,10 @@ export default class DiscussionFeed {
 
   replayRecoveryEvents(events: DiscussionEvent[]) {
     for (const event of events) {
+      if (event.type === "reactions.updated") {
+        this.updateReactionCounts(event)
+        continue
+      }
       if (!event.message) continue
       const totalPosts = event.total_posts === undefined ? undefined : event.message.deleted
         ? Math.min(this.totalPostsValue, event.total_posts)
@@ -140,6 +144,18 @@ export default class DiscussionFeed {
       if (event.type === "message.created") this.displayCreatedMessage(event.message, totalPosts)
       else this.rememberMessageUpdate(event.message, totalPosts)
     }
+  }
+
+  updateReactionCounts(event: DiscussionEvent) {
+    if (this.options.bufferEvent(event)) return
+    if (!Number.isSafeInteger(event.message_id) || typeof event.counts_html !== "string") return
+
+    const counts = this.options.root.querySelector(`#reaction_counts_club_message_${event.message_id}`)
+    if (!counts) return
+
+    const template = document.createElement("template")
+    template.innerHTML = event.counts_html
+    counts.replaceWith(template.content)
   }
 
   rememberMessageUpdate(message: DiscussionMessage, totalPosts?: number) {

@@ -141,6 +141,54 @@ test("reconnect refreshes private post controls while preserving the post node a
   expect(element.querySelector<HTMLTextAreaElement>("[data-club-discussion-target='body']")!.value).toBe("My unsent draft")
 })
 
+test("a live count event replaces only totals while preserving private controls and drafts", async () => {
+  await connect()
+  read.resolve(snapshot([post(1)], 1, { "1": '<turbo-frame id="reaction_panel_club_message_1" class="reaction-panel"><ul id="reaction_counts_club_message_1"><li>Like: 1</li></ul><button aria-pressed="true">Like</button></turbo-frame>' }))
+  await vi.waitFor(() => expect(state()).toBe("live"))
+  const control = element.querySelector("button[aria-pressed='true']")
+  const frame = element.querySelector("#reaction_panel_club_message_1")
+
+  callbacks.received({ type: "reactions.updated", message_id: 1, counts_html: '<ul id="reaction_counts_club_message_1"><li>Like: 4</li></ul>' })
+
+  expect(element.querySelector("#reaction_counts_club_message_1")?.textContent).toBe("Like: 4")
+  expect(element.querySelector("#reaction_panel_club_message_1")).toBe(frame)
+  expect(element.querySelector("button[aria-pressed='true']")).toBe(control)
+  expect(element.querySelector<HTMLTextAreaElement>("[data-club-discussion-target='body']")!.value).toBe("My unsent draft")
+})
+
+test("live count events buffered during recovery override older snapshot counts", async () => {
+  await connect()
+  callbacks.received({ type: "reactions.updated", message_id: 1, counts_html: '<ul id="reaction_counts_club_message_1"><li>Like: 4</li></ul>' })
+  read.resolve(snapshot([post(1)], 1, { "1": '<turbo-frame id="reaction_panel_club_message_1" class="reaction-panel"><ul id="reaction_counts_club_message_1"><li>Like: 1</li></ul><button aria-pressed="true">Like</button></turbo-frame>' }))
+
+  await vi.waitFor(() => expect(state()).toBe("live"))
+
+  expect(element.querySelector("#reaction_counts_club_message_1")?.textContent).toBe("Like: 4")
+  expect(element.querySelector("button[aria-pressed='true']")?.textContent).toBe("Like")
+})
+
+test("recovery refreshes already loaded reply frames through their authorized GET URLs without replacing drafts", async () => {
+  const reply = document.createElement("article")
+  reply.className = "club-discussion-reply"
+  reply.innerHTML = '<turbo-frame id="reaction_panel_club_message_8" class="reaction-panel" data-reaction-url="/book_clubs/17/club_messages/8/reaction"></turbo-frame><textarea>Unsent reply edit</textarea>'
+  element.querySelector("#club_message_1")!.append(reply)
+  const frame = reply.querySelector("turbo-frame") as HTMLElement & { loaded: Promise<void>; reload: ReturnType<typeof vi.fn> }
+  frame.loaded = Promise.resolve()
+  frame.reload = vi.fn().mockResolvedValue(undefined)
+  await connect()
+  await finish([post(1)])
+  await vi.waitFor(() => expect(frame.getAttribute("src")).toBe("/book_clubs/17/club_messages/8/reaction"))
+
+  callbacks.disconnected({ willAttemptReconnect: true })
+  read = Promise.withResolvers<Response>()
+  http.mockReturnValue(read.promise)
+  await connect()
+  await finish([post(1)])
+
+  await vi.waitFor(() => expect(frame.reload).toHaveBeenCalledOnce())
+  expect(reply.querySelector("textarea")!.value).toBe("Unsent reply edit")
+})
+
 test("a reaction frame server error preserves drafts and its Retry reloads only that frame", async () => {
   const frame = element.querySelector("turbo-frame") as HTMLElement & { reload: ReturnType<typeof vi.fn> }
   frame.reload = vi.fn().mockResolvedValue(undefined)
@@ -197,6 +245,31 @@ test("a reaction GET for removed content removes its frame without discarding th
 
   expect(element.querySelector("turbo-frame")).toBeNull()
   expect(element.querySelector<HTMLTextAreaElement>("[data-club-discussion-target='body']")!.value).toBe("My unsent draft")
+})
+
+test("a throttled reaction write preserves existing private controls and offers a read-only refresh", () => {
+  const frame = element.querySelector("turbo-frame")!
+  frame.innerHTML = '<button aria-pressed="true">Like</button>'
+  const selected = frame.querySelector("button")
+  const event = new CustomEvent("turbo:frame-missing", { bubbles: true, cancelable: true, detail: { response: new Response("Too many requests", { status: 429 }) } })
+
+  frame.dispatchEvent(event)
+
+  expect(event.defaultPrevented).toBe(true)
+  expect(frame.querySelector("button[aria-pressed='true']")).toBe(selected)
+  expect(frame.querySelector("button[data-action='club-discussion#retryReactionFrame']")).not.toBeNull()
+  expect(perform).not.toHaveBeenCalled()
+  expect(element.querySelector<HTMLTextAreaElement>("[data-club-discussion-target='body']")!.value).toBe("My unsent draft")
+})
+
+test("a reaction form network failure keeps its private controls and offers a GET refresh", () => {
+  const frame = element.querySelector("turbo-frame")!
+  frame.innerHTML = '<form><button aria-pressed="true">Like</button></form>'
+  frame.querySelector("form")!.dispatchEvent(new CustomEvent("turbo:fetch-request-error", { bubbles: true }))
+
+  expect(frame.querySelector("button[aria-pressed='true']")).not.toBeNull()
+  expect(frame.querySelector("[data-reaction-load-error]")?.textContent).toContain("Reactions could not load")
+  expect(perform).not.toHaveBeenCalled()
 })
 
 test("snapshot 39 40 42 and overlapping events 42 41 43 appear once each newest first", async () => {

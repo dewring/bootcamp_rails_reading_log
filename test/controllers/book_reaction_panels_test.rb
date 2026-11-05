@@ -142,6 +142,23 @@ class BookReactionPanelsTest < ActionDispatch::IntegrationTest
     assert_select ".book-detail-review-card button[aria-pressed='true']", count: 3
   end
 
+  test "a book stream refresh batches private panels and replaces only reaction frames" do
+    @book.reactions.create!(user: @reader, kind: "like")
+    @review.reactions.create!(user: @reader, kind: "love")
+    sign_in @reader
+
+    queries = review_reaction_queries { get book_path(@book), as: :turbo_stream }
+
+    assert_response :success
+    assert_equal "text/vnd.turbo-stream.html", response.media_type
+    assert_equal "no-store", response.headers["Cache-Control"]
+    assert_equal 2, queries.length
+    assert_select "turbo-stream[action='replace']", count: 2
+    assert_select "turbo-stream[target='reaction_panel_book_#{@book.id}'] button[aria-pressed='true']", text: "👍 Like"
+    assert_select "turbo-stream[target='reaction_panel_review_#{@review.id}'] button[aria-pressed='true']", text: "❤️ Love"
+    assert_select "textarea, .book-detail-review-composer, main", count: 0
+  end
+
   private
 
   def review_reaction_queries

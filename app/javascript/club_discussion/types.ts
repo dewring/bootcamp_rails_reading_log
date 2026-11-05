@@ -17,6 +17,8 @@ export interface DiscussionMember {
 
 export interface DiscussionEvent {
   type: string
+  message_id?: number
+  counts_html?: string
   message?: DiscussionMessage
   total_posts?: number
   request_id?: string

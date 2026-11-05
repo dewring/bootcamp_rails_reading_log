@@ -41,12 +41,15 @@ class BooksController < ApplicationController
     authorize @book
     response.headers["Cache-Control"] = "no-store"
 
-    @book_editions = Rails.cache.fetch("book:#{@book.id}:editions:list", expires_in: 1.day) do
-      editions = @book.book_editions.includes(:cover_image_attachment).to_a
-      with_cover, without_cover = editions.partition { |edition| edition.cover_image.attached? }
-      with_cover + without_cover
+    @reviews = policy_scope(@book.reviews).order(created_at: :desc)
+    unless request.format.turbo_stream?
+      @book_editions = Rails.cache.fetch("book:#{@book.id}:editions:list", expires_in: 1.day) do
+        editions = @book.book_editions.includes(:cover_image_attachment).to_a
+        with_cover, without_cover = editions.partition { |edition| edition.cover_image.attached? }
+        with_cover + without_cover
+      end
+      @reviews = @reviews.includes(:user)
     end
-    @reviews = policy_scope(@book.reviews).includes(:user).order(created_at: :desc)
     load_reaction_panels
   end
 
