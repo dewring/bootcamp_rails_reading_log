@@ -109,6 +109,27 @@ class ReactionSelectionConcurrencyTest < ActiveSupport::TestCase
     end
   end
 
+  test "disabling a kind does not wait for a pending selection and rejects subsequent new selections" do
+    type = reaction_types(:like)
+    with_pending_selection(@book) do
+      ReactionType.transaction(requires_new: true) do
+        ReactionType.connection.execute("SET LOCAL lock_timeout = '250ms'")
+        type.update!(enabled: false)
+      end
+
+      assert_not type.reload.enabled?
+    end
+
+    original = @book.reactions.sole
+    assert_equal "like", original.kind
+    assert_raises(ActiveRecord::RecordInvalid) do
+      ReactionSelection.new(user: @reader, target: @review).select_kind(kind: "like")
+    end
+    assert_empty @review.reactions.reload
+  ensure
+    type&.update!(enabled: true)
+  end
+
   test "a shared target lock blocks post deletion until the selection commits" do
     with_pending_selection(@message) do
       assert_raises(ActiveRecord::LockWaitTimeout) do

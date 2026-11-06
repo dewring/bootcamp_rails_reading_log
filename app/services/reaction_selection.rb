@@ -45,9 +45,7 @@ class ReactionSelection
     return reaction if reaction.persisted? && reaction.kind == kind
 
     reaction.kind = kind
-    # Hold the catalog row while validating/saving so a concurrent disable
-    # cannot turn a new selection into a disabled choice before commit.
-    type = ReactionType.lock("FOR SHARE").find_by(key: reaction.kind)
+    type = ReactionType.find_by(key: reaction.kind)
     reaction.reaction_type = type if type
     reaction.save!
     reaction
