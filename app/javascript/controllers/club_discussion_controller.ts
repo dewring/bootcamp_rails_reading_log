@@ -219,7 +219,7 @@ export default class extends Controller {
 
     this.feed.pagination.refreshAfterRecovery(history.total_posts)
     const frames = this.element.querySelectorAll<ReactionFrame>(".club-discussion-reply turbo-frame.reaction-panel")
-    await Promise.all(Array.from(frames, frame => this.refreshReactionFrame(frame)))
+    await Promise.all(Array.from(frames, frame => this.reloadReactionFrame(frame)))
   }
 
   async postMessage(event: SubmitEvent) {
@@ -248,7 +248,7 @@ export default class extends Controller {
   async retryReactionFrame(event: Event) {
     const frame = (event.currentTarget as HTMLElement).closest("turbo-frame") as ReactionFrame
     try {
-      await this.refreshReactionFrame(frame)
+      await this.reloadReactionFrame(frame)
     } catch (error) {
       console.error("Failed to reload discussion reactions", error)
       if (frame.isConnected) this.showReactionFrameError(frame)
@@ -263,7 +263,7 @@ export default class extends Controller {
     frame.append(error)
   }
 
-  private refreshReactionFrame(frame: ReactionFrame): Promise<void> {
+  private reloadReactionFrame(frame: ReactionFrame): Promise<void> {
     if (frame.hasAttribute("src")) return frame.reload()
 
     frame.setAttribute("src", frame.dataset.reactionUrl!)

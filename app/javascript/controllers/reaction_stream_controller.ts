@@ -3,7 +3,7 @@ import { cable } from "@hotwired/turbo-rails"
 import { renderStreamMessage } from "@hotwired/turbo"
 
 type Subscription = { unsubscribe(): void }
-interface RefreshAttempt {
+interface PanelRecoveryAttempt {
   request: AbortController
   events: string[]
   timeout?: ReturnType<typeof setTimeout>
@@ -15,7 +15,7 @@ export default class extends Controller {
   declare readonly refreshUrlValue: string
 
   private subscription?: Promise<Subscription | undefined>
-  private refresh?: RefreshAttempt
+  private recovery?: PanelRecoveryAttempt
 
   connect() {
     const pending: Promise<Subscription | undefined> = cable.subscribeTo<string>(
@@ -24,7 +24,7 @@ export default class extends Controller {
         received: message => {
           if (this.subscription !== pending) return
 
-          if (this.refresh) this.refresh.events.push(message)
+          if (this.recovery) this.recovery.events.push(message)
           else renderStreamMessage(message)
         },
         connected: () => {
@@ -36,7 +36,7 @@ export default class extends Controller {
           this.recoverPanelsAfterConnection().catch(error => console.error("Failed to recover book reactions", error))
         },
         disconnected: () => {
-          if (this.subscription === pending) this.cancelRefresh()
+          if (this.subscription === pending) this.cancelRecovery()
         },
         rejected: () => {
           if (this.subscription === pending) this.showStatus("Live reactions could not connect. Refresh the page to try again.")
@@ -51,7 +51,7 @@ export default class extends Controller {
   }
 
   disconnect() {
-    this.cancelRefresh()
+    this.cancelRecovery()
     const pending = this.subscription
     this.subscription = undefined
     pending?.then(subscription => subscription?.unsubscribe())
@@ -76,43 +76,43 @@ export default class extends Controller {
   }
 
   private async recoverPanelsAfterConnection() {
-    this.cancelRefresh()
-    const refresh: RefreshAttempt = { request: new AbortController(), events: [] }
-    this.refresh = refresh
-    refresh.timeout = setTimeout(() => refresh.request.abort(), 10_000)
+    this.cancelRecovery()
+    const recovery: PanelRecoveryAttempt = { request: new AbortController(), events: [] }
+    this.recovery = recovery
+    recovery.timeout = setTimeout(() => recovery.request.abort(), 10_000)
     try {
       const response = await fetch(this.refreshUrlValue, {
         headers: { Accept: "text/vnd.turbo-stream.html" }, credentials: "same-origin",
-        cache: "no-store", signal: refresh.request.signal
+        cache: "no-store", signal: recovery.request.signal
       })
-      if (!response.ok) throw new Error(`Book reaction refresh returned ${response.status}`)
+      if (!response.ok) throw new Error(`Book reaction recovery returned ${response.status}`)
 
       const html = await response.text()
-      if (this.refresh !== refresh || !this.element.isConnected) return
+      if (this.recovery !== recovery || !this.element.isConnected) return
 
       renderStreamMessage(html)
       this.showStatus("")
     } catch (error) {
-      if (this.refresh === refresh) {
-        console.error("Failed to refresh book reactions", error)
+      if (this.recovery === recovery) {
+        console.error("Failed to recover book reactions", error)
         this.showStatus("Reactions could not refresh. Your draft is still here. Refresh the page to try again.")
       }
     } finally {
-      clearTimeout(refresh.timeout)
-      if (this.refresh === refresh) {
-        for (const message of refresh.events) renderStreamMessage(message)
-        this.refresh = undefined
+      clearTimeout(recovery.timeout)
+      if (this.recovery === recovery) {
+        for (const message of recovery.events) renderStreamMessage(message)
+        this.recovery = undefined
       }
     }
   }
 
-  private cancelRefresh() {
-    const refresh = this.refresh
-    this.refresh = undefined
-    clearTimeout(refresh?.timeout)
-    refresh?.request.abort()
+  private cancelRecovery() {
+    const recovery = this.recovery
+    this.recovery = undefined
+    clearTimeout(recovery?.timeout)
+    recovery?.request.abort()
     if (this.element.isConnected) {
-      for (const message of refresh?.events ?? []) renderStreamMessage(message)
+      for (const message of recovery?.events ?? []) renderStreamMessage(message)
     }
   }
 

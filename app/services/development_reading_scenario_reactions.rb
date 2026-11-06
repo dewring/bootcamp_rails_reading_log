@@ -82,7 +82,9 @@ class DevelopmentReadingScenarioReactions
     end
     missing = ANCHORS.values.map { |anchor| anchor.fetch("work_key") } - @book_ids.keys
     raise ReactionsError, "Required reaction anchors are missing from the manifest: #{missing.join(', ')}" if missing.any?
-    unless @book_ids.fetch(ANCHORS.fetch("tie_c").fetch("work_key")) < @book_ids.fetch(ANCHORS.fetch("tie_d").fetch("work_key"))
+    tie_c_id = @book_ids.fetch(ANCHORS.fetch("tie_c").fetch("work_key"))
+    tie_d_id = @book_ids.fetch(ANCHORS.fetch("tie_d").fetch("work_key"))
+    unless tie_c_id < tie_d_id
       raise ReactionsError, "Reaction anchors require tie_c.id < tie_d.id; preserve the books and review their identities."
     end
   end
