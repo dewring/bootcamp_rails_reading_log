@@ -1,4 +1,4 @@
-<ul id="<%= dom_id(target, :reaction_counts) %>" class="reaction-counts" hidden data-reaction-picker-target="counts">
+<ul id="<%= dom_id(target, :reaction_counts) %>" hidden data-reaction-picker-target="counts">
   <% types.each do |type| %>
     <% if type.enabled? || counts.fetch(type.key, 0).positive? %>
       <li data-reaction-kind="<%= type.key %>" data-count="<%= counts.fetch(type.key, 0) %>"><%= type.emoji %> <%= type.label %>: <%= counts.fetch(type.key, 0) %></li>
