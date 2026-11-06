@@ -130,7 +130,7 @@ class BooksController < ApplicationController
   def load_reaction_panels
     @reaction_types = ReactionType.order(:id).to_a
     @book_reaction_counts = @book.reactions.eligible.group(:kind).count
-    @book_reaction = current_user && @book.reactions.find_by(user: current_user)
+    @book_reaction = current_user ? @book.reactions.find_by(user: current_user) : nil
     review_ids = @reviews.map(&:id)
     @review_reaction_counts = ReviewReaction.eligible.where(review_id: review_ids).group(:review_id, :kind).count
     @review_reaction_selections = current_user ? ReviewReaction.where(review_id: review_ids, user: current_user).index_by(&:review_id) : {}
