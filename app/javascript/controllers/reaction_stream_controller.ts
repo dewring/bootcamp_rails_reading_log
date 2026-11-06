@@ -30,8 +30,10 @@ export default class extends Controller {
         connected: () => {
           if (this.subscription !== pending) return
 
-          // Recover private panels after confirmation while buffering live counts.
-          this.refreshPanels().catch(error => console.error("Failed to refresh book reactions", error))
+          // Cable delivers live counts. Read once after connection to recover
+          // missed updates and private selections; this is not periodic polling.
+          // Buffer incoming counts until the snapshot has rendered.
+          this.recoverPanelsAfterConnection().catch(error => console.error("Failed to recover book reactions", error))
         },
         disconnected: () => {
           if (this.subscription === pending) this.cancelRefresh()
@@ -73,7 +75,7 @@ export default class extends Controller {
     }
   }
 
-  private async refreshPanels() {
+  private async recoverPanelsAfterConnection() {
     this.cancelRefresh()
     const refresh: RefreshAttempt = { request: new AbortController(), events: [] }
     this.refresh = refresh

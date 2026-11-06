@@ -74,6 +74,19 @@ test("one signed public book subscription refreshes every panel through one unca
   expect(element.querySelector("textarea")!.value).toBe("Unsent review draft")
 })
 
+test("a live connection does not poll and receives later totals through Cable", async () => {
+  await live()
+  vi.useFakeTimers()
+
+  await vi.advanceTimersByTimeAsync(60_000)
+  expect(http).toHaveBeenCalledOnce()
+
+  callbacks.received("Updated aggregate counts")
+
+  expect(renderStreamMessage).toHaveBeenLastCalledWith("Updated aggregate counts")
+  expect(http).toHaveBeenCalledOnce()
+})
+
 test("live aggregate streams render without reloading private controls or making another request", async () => {
   await live()
   const control = document.createElement("button")
