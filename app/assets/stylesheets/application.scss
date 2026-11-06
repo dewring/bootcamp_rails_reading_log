@@ -9949,6 +9949,9 @@ h2 {
   form { margin: 0; }
 
   [hidden] { display: none !important; }
+
+  // Keep Turbo's accessible busy state without Pico inserting an extra line.
+  &[aria-busy="true"]::before { display: none; }
 }
 
 .reaction-sr-only {
