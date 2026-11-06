@@ -23,9 +23,9 @@ class DiscussionReactionPanelsTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     assert_select "#club_message_#{@post.id} turbo-frame#reaction_panel_club_message_#{@post.id}:not([src])" do
-      assert_select "button[aria-pressed='true']", text: "👍 Like", count: 1
+      assert_select "button[aria-pressed='true']", text: "👍 1", count: 1
       assert_select "[data-reaction-kind='wow']", text: "😮 Wow: 1"
-      assert_select "form[action='#{book_club_club_message_reaction_path(@club, @post)}']", count: 6
+      assert_select "form[action='#{book_club_club_message_reaction_path(@club, @post)}']", count: 10
     end
     assert_select "#reaction_panel_club_message_#{@reply.id}", count: 0
   end
@@ -39,7 +39,7 @@ class DiscussionReactionPanelsTest < ActionDispatch::IntegrationTest
     panels = response.parsed_body.fetch("reaction_panels")
     assert_equal [ @post.id.to_s ], panels.keys
     panel = Nokogiri::HTML.fragment(panels.fetch(@post.id.to_s))
-    assert_equal [ "👍 Like" ], panel.css("button[aria-pressed='true']").map { |button| button.text.squish }
+    assert_equal [ "👍 1" ], panel.css("button[aria-pressed='true']").map { |button| button.text.squish }
     shared_payload = response.parsed_body.fetch("messages")
 
     sign_out @reader
@@ -48,7 +48,7 @@ class DiscussionReactionPanelsTest < ActionDispatch::IntegrationTest
 
     assert_equal shared_payload, response.parsed_body.fetch("messages")
     other_panel = Nokogiri::HTML.fragment(response.parsed_body.fetch("reaction_panels").fetch(@post.id.to_s))
-    assert_equal [ "😮 Wow" ], other_panel.css("button[aria-pressed='true']").map { |button| button.text.squish }
+    assert_equal [ "😮 1" ], other_panel.css("button[aria-pressed='true']").map { |button| button.text.squish }
   end
 
   test "reply history batches private panels separately from shared reply payloads" do
@@ -60,7 +60,7 @@ class DiscussionReactionPanelsTest < ActionDispatch::IntegrationTest
     panels = response.parsed_body.fetch("reaction_panels")
     assert_equal [ @reply.id.to_s ], panels.keys
     panel = Nokogiri::HTML.fragment(panels.fetch(@reply.id.to_s))
-    assert_equal [ "❤️ Love" ], panel.css("button[aria-pressed='true']").map { |button| button.text.squish }
+    assert_equal [ "❤️ 1" ], panel.css("button[aria-pressed='true']").map { |button| button.text.squish }
     assert_equal "😂 Laugh: 1", panel.at_css("[data-reaction-kind='laugh']").text
   end
 

@@ -41,21 +41,21 @@ class BookReactionPanelsTest < ActionDispatch::IntegrationTest
     assert_equal "no-store", response.headers["Cache-Control"]
     assert_select "meta[name='turbo-cache-control'][content='no-cache']"
     assert_select "#reaction_panel_book_#{@book.id}" do
-      assert_select "form[action='#{book_reaction_path(@book)}'][method='post']", count: 6
-      assert_select "button[aria-pressed='true']", text: "👍 Like", count: 1
+      assert_select "form[action='#{book_reaction_path(@book)}'][method='post']", count: 10
+      assert_select "button[aria-pressed='true']", text: "👍 1", count: 1
       assert_select "button[aria-pressed='false']", count: 4
-      assert_select "button[type='submit']:not([disabled])", text: "Clear", count: 1
-      assert_select "input[name='_method'][value='put']", count: 5
-      assert_select "input[name='_method'][value='delete']", count: 1
+      assert_select "summary[aria-label='Add a Reaction']", count: 1
+      assert_select "input[name='_method'][value='put']", count: 8
+      assert_select "input[name='_method'][value='delete']", count: 2
     end
-    assert_select "#reaction_panel_review_#{@review.id} button[aria-pressed='true']", text: "❤️ Love", count: 1
+    assert_select "#reaction_panel_review_#{@review.id} button[aria-pressed='true']", text: "❤️ 1", count: 1
 
     sign_out @reader
     sign_in @other
     get book_path(@book)
 
-    assert_select "#reaction_panel_book_#{@book.id} button[aria-pressed='true']", text: "😮 Wow", count: 1
-    assert_select "#reaction_panel_review_#{@review.id} button[aria-pressed='true']", text: "😂 Laugh", count: 1
+    assert_select "#reaction_panel_book_#{@book.id} button[aria-pressed='true']", text: "😮 1", count: 1
+    assert_select "#reaction_panel_review_#{@review.id} button[aria-pressed='true']", text: "😂 1", count: 1
   end
 
   test "native HTML forms select switch and clear without requiring JavaScript" do
@@ -66,18 +66,18 @@ class BookReactionPanelsTest < ActionDispatch::IntegrationTest
       assert_response :see_other
       follow_redirect!
       assert_response :success
-      assert_select "form[action='#{path}'] button[aria-pressed='true']", text: "👍 Like"
+      assert_select "form[action='#{path}'] button[aria-pressed='true']", text: "👍 1"
 
       post path, params: { _method: "put", kind: "love" }
       assert_response :see_other
       follow_redirect!
-      assert_select "form[action='#{path}'] button[aria-pressed='true']", text: "❤️ Love"
+      assert_select "form[action='#{path}'] button[aria-pressed='true']", text: "❤️ 1"
 
       post path, params: { _method: "delete" }
       assert_response :see_other
       follow_redirect!
       assert_select "form[action='#{path}'] button[aria-pressed='true']", count: 0
-      assert_select "form[action='#{path}'] button[disabled]", text: "Clear"
+      assert_select "form[action='#{path}'] input[value='delete']", count: 0
     end
   end
 
@@ -102,8 +102,8 @@ class BookReactionPanelsTest < ActionDispatch::IntegrationTest
 
     assert_select "#reaction_panel_book_#{@book.id}" do
       assert_select "[data-reaction-kind='like']", text: "👍 Like: 1"
-      assert_select "button[aria-pressed='true'][disabled]", text: "👍 Like"
-      assert_select "button:not([disabled])", text: "Clear"
+      assert_select "button[aria-pressed='true']:not([disabled])", text: "👍 1"
+      assert_select "[data-kind='like'] input[name='_method'][value='delete']"
       assert_select "[data-reaction-kind='wow']", count: 0
     end
     assert_select "#reaction_panel_review_#{@review.id} [data-reaction-kind='like']", count: 0
@@ -118,8 +118,8 @@ class BookReactionPanelsTest < ActionDispatch::IntegrationTest
 
     get book_path(@book)
 
-    assert_select "#reaction_panel_book_#{@book.id} button[aria-pressed='false']", text: "🙌🏽 Celebration"
-    assert_select "#reaction_panel_review_#{@review.id} button[aria-pressed='true']", text: "🙌🏽 Celebration"
+    assert_select "#reaction_panel_book_#{@book.id} .reaction-choice[aria-label='Celebration']", text: "🙌🏽"
+    assert_select "#reaction_panel_review_#{@review.id} button[aria-pressed='true']", text: "🙌🏽 1"
     assert_select "#reaction_panel_review_#{@review.id} [data-reaction-kind='celebrate']", text: "🙌🏽 Celebration: 1"
     assert_equal before, reaction.reload.attributes
   end
@@ -154,8 +154,8 @@ class BookReactionPanelsTest < ActionDispatch::IntegrationTest
     assert_equal "no-store", response.headers["Cache-Control"]
     assert_equal 2, queries.length
     assert_select "turbo-stream[action='replace']", count: 2
-    assert_select "turbo-stream[target='reaction_panel_book_#{@book.id}'] button[aria-pressed='true']", text: "👍 Like"
-    assert_select "turbo-stream[target='reaction_panel_review_#{@review.id}'] button[aria-pressed='true']", text: "❤️ Love"
+    assert_select "turbo-stream[target='reaction_panel_book_#{@book.id}'] button[aria-pressed='true']", text: "👍 1"
+    assert_select "turbo-stream[target='reaction_panel_review_#{@review.id}'] button[aria-pressed='true']", text: "❤️ 1"
     assert_select "textarea, .book-detail-review-composer, main", count: 0
   end
 
