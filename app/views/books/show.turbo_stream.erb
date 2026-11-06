@@ -1,0 +1,7 @@
+<%= turbo_stream.replace dom_id(@book, :reaction_panel), partial: "reactions/panel",
+      locals: { target: @book, types: @reaction_types, counts: @book_reaction_counts, selected: @book_reaction, errors: [] } %>
+<% @reviews.each do |review| %>
+  <% counts = @reaction_types.to_h { |type| [ type.key, @review_reaction_counts.fetch([ review.id, type.key ], 0) ] } %>
+  <%= turbo_stream.replace dom_id(review, :reaction_panel), partial: "reactions/panel",
+        locals: { target: review, types: @reaction_types, counts: counts, selected: @review_reaction_selections[review.id], errors: [] } %>
+<% end %>

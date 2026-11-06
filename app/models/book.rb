@@ -20,6 +20,7 @@ class Book < ApplicationRecord
   has_many :book_genres, dependent: :destroy
   has_many :genres, through: :book_genres
   has_many :reviews, dependent: :destroy
+  has_many :reactions, dependent: :destroy
   has_many :book_editions, dependent: :destroy
   has_many :book_clubs, foreign_key: :current_book_id
 

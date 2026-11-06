@@ -12,8 +12,10 @@ class OpenLibraryCatalogPreflight
     end
   end
 
-  def initialize(snapshot_path: Rails.root.join("db/seeds/open_library_catalog.json"))
+  def initialize(snapshot_path: Rails.root.join("db/seeds/open_library_catalog.json"),
+    manifest_path: DevelopmentReadingScenarioManifest::DEFAULT_PATH)
     @snapshot_path = Pathname.new(snapshot_path)
+    @manifest_path = Pathname.new(manifest_path)
   end
 
   def preflight_catalog
@@ -22,6 +24,7 @@ class OpenLibraryCatalogPreflight
     @snapshot = JSON.parse(@snapshot_path.read)
     @conflicts = []
     validate_provenance
+    load_reviewed_identities
     @entries = selected_documents.map { |key, doc| catalog_entry(key, doc) }
     inspect_existing_records
     report = { "snapshot_id" => @snapshot.fetch("snapshot_id"), "books" => @entries, "conflicts" => @conflicts }
@@ -36,6 +39,40 @@ class OpenLibraryCatalogPreflight
   end
 
   private
+
+  def load_reviewed_identities
+    @reviewed_identities = {}
+    return unless @manifest_path.exist?
+
+    manifest = JSON.parse(@manifest_path.read)
+    return unless manifest["snapshot_id"] == @snapshot.fetch("snapshot_id") &&
+      manifest["database"] == ActiveRecord::Base.connection_db_config.database
+
+    @reviewed_identities = manifest.dig("catalog", "reviewed_identities") || {}
+  rescue JSON::ParserError
+    raise DevelopmentReadingScenarioManifest::ManifestError, "The reading scenario manifest contains invalid JSON; preserve it and inspect the failure before replaying."
+  end
+
+  def reviewed_identity(attributes)
+    review = @reviewed_identities[attributes.fetch("ol_work_key")]
+    return unless review && review.fetch("source") == attributes.slice("ol_work_key", "title", "author")
+
+    review
+  end
+
+  def reviewed_book?(book, attributes)
+    expected = reviewed_identity(attributes)&.fetch("target")
+    expected && expected.keys.sort == [ "author", "id", "ol_work_key", "title" ] &&
+      book.attributes.slice(*expected.keys) == expected
+  end
+
+  def reviewed_preserved_book?(book, attributes)
+    preserved = reviewed_identity(attributes)&.fetch("preserved_legacy_books", []) || []
+    preserved.any? do |expected|
+      expected.keys.sort == [ "author", "id", "ol_work_key", "title" ] &&
+        book.attributes.slice(*expected.keys) == expected
+    end
+  end
 
   def validate_provenance
     invalid_snapshot("unsupported snapshot") unless @snapshot.is_a?(Hash) && @snapshot["version"] == 1
@@ -171,7 +208,7 @@ class OpenLibraryCatalogPreflight
     key = attributes.fetch("ol_work_key")
     keyed = @existing_books.select { |book| normalized_work_key(book.ol_work_key) == key }
     matching = @existing_books.select { |book| same_title_and_author?(book, attributes) }
-    unkeyed = matching.select { |book| book.ol_work_key.blank? }
+    unkeyed = matching.select { |book| book.ol_work_key.blank? && !reviewed_preserved_book?(book, attributes) }
     other_keyed = matching.reject { |book| book.ol_work_key.blank? || @selected_work_keys.include?(normalized_work_key(book.ol_work_key)) }
     add_conflict("legacy_unkeyed_book", work_key: key, record_ids: unkeyed.map(&:id)) if unkeyed.any?
     add_conflict("different_work_key", work_key: key, record_ids: other_keyed.map(&:id)) if other_keyed.any?
@@ -204,6 +241,8 @@ class OpenLibraryCatalogPreflight
   end
 
   def same_title_and_author?(book, attributes)
+    return true if reviewed_book?(book, attributes)
+
     comparable_text(attributes.fetch("title")).include?(book.title.strip.downcase) &&
       comparable_text(attributes.fetch("author")).include?(book.author.strip.downcase)
   end

@@ -1,0 +1,22 @@
+/* Pico CSS v2.1.1 loading rules, MIT license.
+ * Source: https://cdn.jsdelivr.net/npm/@picocss/pico@2.1.1/css/pico.css
+ * Kept locally so layout tests do not request external stylesheets. */
+[aria-busy=true]:not(input, select, textarea, html, form) {
+  white-space: nowrap;
+}
+[aria-busy=true]:not(input, select, textarea, html, form)::before {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  background-image: var(--pico-icon-loading);
+  background-size: 1em auto;
+  background-repeat: no-repeat;
+  content: "";
+  vertical-align: -0.125em;
+}
+[aria-busy=true]:not(input, select, textarea, html, form):not(:empty)::before {
+  margin-inline-end: calc(var(--pico-spacing) * 0.5);
+}
+[aria-busy=true]:not(input, select, textarea, html, form):empty {
+  text-align: center;
+}

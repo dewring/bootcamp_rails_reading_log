@@ -17,6 +17,8 @@ export interface DiscussionMember {
 
 export interface DiscussionEvent {
   type: string
+  message_id?: number
+  counts_html?: string
   message?: DiscussionMessage
   total_posts?: number
   request_id?: string
@@ -35,6 +37,7 @@ export type DiscussionSubscription = {
 
 export interface DiscussionHistory {
   messages: DiscussionMessage[]
+  reaction_panels: Record<string, string>
   total_posts: number
   pagination_html: string
 }

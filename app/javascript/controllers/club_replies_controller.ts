@@ -2,9 +2,11 @@ import { buildUserAvatar } from "../helpers/user_avatar"
 import { Controller } from "@hotwired/stimulus"
 import type ClubDiscussionController from "./club_discussion_controller"
 import type { DiscussionEvent, DiscussionMessage } from "../club_discussion/types"
+import { replaceReactionPanel } from "../club_discussion/message_elements"
 
 interface ReplyHistory {
   replies: DiscussionMessage[]
+  reaction_panels: Record<string, string>
   pagination: { next_page: number | null }
 }
 
@@ -108,7 +110,7 @@ export default class extends Controller {
 
       const history: ReplyHistory = await response.json()
       if (this.request !== request || !this.element.isConnected) return
-      for (const reply of history.replies) this.displayReply(reply)
+      for (const reply of history.replies) this.displayReply(reply, history.reaction_panels[String(reply.id)])
       this.loaded = true
       this.nextPage = history.pagination.next_page
       this.moreTarget.hidden = this.nextPage === null
@@ -265,7 +267,7 @@ export default class extends Controller {
     this.cancelTarget.disabled = posting
   }
 
-  private displayReply(reply: DiscussionMessage) {
+  private displayReply(reply: DiscussionMessage, reactionPanel?: string) {
     if (reply.parent_id !== this.postIdValue || !Number.isSafeInteger(reply.id) || reply.id <= 0) return
     if (this.displayedIds.has(reply.id)) return
 
@@ -294,6 +296,7 @@ export default class extends Controller {
     body.className = "club-discussion-reply-body"
     article.append(header, body)
     if (this.hasClubDiscussionOutlet) this.clubDiscussionOutlet.prepareMessageElement(article, reply)
+    if (reactionPanel) replaceReactionPanel(article, reply.id, reactionPanel)
     article.dataset.replyId = String(reply.id)
     const newerReply = Array.from(this.listTarget.children).find(element => Number((element as HTMLElement).dataset.replyId) > reply.id)
     if (newerReply) {

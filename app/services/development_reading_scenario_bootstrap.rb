@@ -33,7 +33,7 @@ class DevelopmentReadingScenarioBootstrap
 
   def with_bootstrap_context
     @scenario_manifest.with_exclusive_access do
-      catalog = OpenLibraryCatalogPreflight.new(snapshot_path: @snapshot_path).preflight_catalog
+      catalog = OpenLibraryCatalogPreflight.new(snapshot_path: @snapshot_path, manifest_path: @scenario_manifest.path).preflight_catalog
       @plan = DevelopmentReadingScenarioPlan.new(catalog: catalog, as_of: @as_of).build_baseline
       @manifest = @scenario_manifest.prepare_scenario(snapshot_id: catalog.fetch("snapshot_id"))
       @prepared_records = BOOTSTRAP_MODELS.transform_values { {} }

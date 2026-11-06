@@ -23,6 +23,14 @@ export function prepareMessageElement(article: HTMLElement, message: Pick<Discus
   article.dataset.clubMessageClubDiscussionOutlet = `#${options.rootId}`
   article.dataset.action = "club-discussion:edit@document->club-message#receiveEdit club-discussion:delete@document->club-message#receiveDelete club-discussion:connection-ended@document->club-message#connectionEnded turbo:before-cache@document->club-message#beforeCache"
   body.dataset.clubMessageTarget = "body"
+  if (!message.deleted && !article.querySelector(`#reaction_panel_club_message_${message.id}`)) {
+    const frame = document.createElement("turbo-frame")
+    frame.id = `reaction_panel_club_message_${message.id}`
+    frame.className = "reaction-panel"
+    frame.dataset.reactionUrl = `/book_clubs/${options.bookClubId}/club_messages/${message.id}/reaction`
+    frame.setAttribute("src", frame.dataset.reactionUrl)
+    article.append(frame)
+  }
   if (!message.deleted && options.canPost && message.author.id === options.currentUserId && options.editor) {
     if (!article.querySelector("[data-club-message-target='form']")) article.append(options.editor.content.cloneNode(true))
   }
@@ -40,6 +48,15 @@ export function prepareMessageElement(article: HTMLElement, message: Pick<Discus
     if (editor) editor.append(status)
     else article.append(status)
   }
+}
+
+export function replaceReactionPanel(article: HTMLElement, messageId: number, html: string) {
+  // This is private HTML rendered by the authorized Rails history endpoint.
+  const template = document.createElement("template")
+  template.innerHTML = html
+  const existing = article.querySelector(`#reaction_panel_club_message_${messageId}`)
+  if (existing) existing.replaceWith(template.content)
+  else article.append(template.content)
 }
 
 export function buildMessageElement(message: DiscussionMessage, options: MessageElementOptions) {

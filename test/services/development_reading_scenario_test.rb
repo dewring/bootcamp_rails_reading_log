@@ -15,7 +15,8 @@ class DevelopmentReadingScenarioTest < ActiveSupport::TestCase
     @paths = { snapshot_path: @directory.join("catalog.json"), manifest_path: @directory.join("manifest.json"), lock_path: @directory.join("scenario.lock") }
     @scenario = DevelopmentReadingScenario.new(**@paths, password: "synthetic-scenario-test-password")
     docs = Array.new(100) do |index|
-      { "key" => "/works/OL#{205_000 + index}W", "title" => "Baseline source #{index}", "author_name" => [ "Source Author" ], "number_of_pages_median" => 1000 }
+      key = DevelopmentReadingScenarioReactions::ANCHORS.values.map { |anchor| anchor.fetch("work_key") }[index] || "/works/OL#{205_000 + index}W"
+      { "key" => key, "title" => "Baseline source #{index}", "author_name" => [ "Source Author" ], "number_of_pages_median" => 1000 }
     end
     stub_request(:get, "https://openlibrary.org/search.json").with(query: hash_including(page: "1"))
       .to_return(status: 200, body: { docs: docs }.to_json)
@@ -50,11 +51,13 @@ class DevelopmentReadingScenarioTest < ActiveSupport::TestCase
     assert_equal baseline.fetch("expected_counts"), baseline.fetch("actual_counts")
     assert_equal "complete", baseline.fetch("status")
     assert_includes output, "complete"
+    assert_equal DevelopmentReadingScenarioReactions::COUNTS, manifest.dig("reactions", "actual_counts")
     assert_not manifest.fetch("reading").key?("callback_work")
     assert_not_empty enqueued_jobs
     assert_equal 12, manifest.dig("bootstrap", "actual_counts", "genres")
     assert_equal 5, manifest.dig("bootstrap", "actual_counts", "badges")
     actors = manifest.dig("bootstrap", "records", "users").values.map { |record| record.fetch("id") }
+    assert_equal 160, Reaction.where(user_id: actors).count
     assert_equal 28, ReadingSession.where(user_id: actors).distinct.count(:read_on)
     assert_equal 3, UserBook.where(user_id: actors).distinct.count(:status)
     assert_equal 0, WebhookEndpoint.where(user_id: actors).count
@@ -87,6 +90,41 @@ class DevelopmentReadingScenarioTest < ActiveSupport::TestCase
     assert_equal 300, observed.fetch(:before_community)
     assert_equal 4, BookClub.where.not(id: @initial_clubs).count
     assert_not_requested :any, /https?:/
+  end
+
+  test "the complete scenario seeds reactions only after the Day 1 reading and community records" do
+    factory = Reaction.method(:create!)
+    observed = nil
+    create = ->(attributes) {
+      observed ||= {
+        users: User.where.not(id: @initial_users).count,
+        books: Book.where.not(id: @initial_books).count,
+        sessions: ReadingSession.where.not(user_id: @initial_users).count,
+        posts: ClubMessage.where(user_id: User.where.not(id: @initial_users).select(:id)).count
+      }
+      factory.call(attributes)
+    }
+
+    result = Reaction.stub(:create!, create) { in_development { @scenario.seed_scenario } }
+
+    assert_equal({ users: 31, books: 100, sessions: 300, posts: 80 }, observed)
+    assert_equal DevelopmentReadingScenarioReactions::COUNTS, result.dig("reactions", "actual_counts")
+    assert_not_requested :any, /https?:/
+  end
+
+  test "reaction seeding after the existing tick preserves 303 sessions and 82 posts" do
+    seed
+    in_development { DevelopmentReadingScenarioTick.new(**@paths).advance_scenario(tick: "tick1") }
+    sessions = ReadingSession.order(:id).map(&:attributes)
+    posts = ClubMessage.order(:id).map(&:attributes)
+
+    result = in_development { @scenario.seed_scenario }
+
+    assert_equal 303, result.dig("baseline", "actual_counts", "reading_sessions")
+    assert_equal 82, result.dig("baseline", "actual_counts", "club_messages")
+    assert_equal sessions, ReadingSession.order(:id).map(&:attributes)
+    assert_equal posts, ClubMessage.order(:id).map(&:attributes)
+    assert_equal DevelopmentReadingScenarioReactions::COUNTS, result.dig("reactions", "actual_counts")
   end
 
   test "baseline preflight rejects an edited synthetic user before any phase writes" do

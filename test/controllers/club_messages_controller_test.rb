@@ -56,7 +56,7 @@ class ClubMessagesControllerTest < ActionDispatch::IntegrationTest
     snapshot = response.parsed_body
     assert_equal visible_posts.last(10).reverse.map(&:id), snapshot.fetch("messages").map { |message| message.fetch("id") }
     assert_equal 60, snapshot.fetch("total_posts")
-    assert_equal [ "messages", "pagination_html", "total_posts" ], snapshot.keys.sort
+    assert_equal [ "messages", "pagination_html", "reaction_panels", "total_posts" ], snapshot.keys.sort
 
     get book_club_club_messages_path(@book_club), params: { page: 3 }, as: :json
 
@@ -571,7 +571,7 @@ class ClubMessagesControllerTest < ActionDispatch::IntegrationTest
     assert_select "meta[name='turbo-cache-control'][content='no-cache']"
     assert_select "[data-controller='club-discussion'][data-club-discussion-book-club-id-value='#{@book_club.id}']" do
       assert_select "[data-club-discussion-page-value='1'][data-club-discussion-total-posts-value='1']"
-      assert_select "[data-action='turbo:before-cache@document->club-discussion#beforeCache']"
+      assert_select "[data-action~='turbo:before-cache@document->club-discussion#beforeCache']"
       assert_select "[data-club-discussion-target='content'] #club_message_#{@message.id}"
       assert_select "[data-club-discussion-target='messages'] article[data-message-id='#{@message.id}']"
       assert_select "[data-club-discussion-target='emptyState'][hidden]"

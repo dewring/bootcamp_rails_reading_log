@@ -1,0 +1,62 @@
+<% selected_type = types.find { |type| type.key == selected.kind } if selected %>
+<% can_react = local_assigns.fetch(:can_react) { policy(selected || target.reactions.build(user: current_user)).create? } %>
+<%= turbo_frame_tag dom_id(target, :reaction_panel), class: "reaction-panel", data: { reaction_url: reaction_selection_path(target) } do %>
+  <section aria-labelledby="<%= dom_id(target, :reaction_heading) %>" data-controller="reaction-picker"
+           data-action="click@document->reaction-picker#closeOutside keydown.esc@document->reaction-picker#close">
+    <h3 id="<%= dom_id(target, :reaction_heading) %>" class="reaction-sr-only">Reactions</h3>
+    <%= render "reactions/counts", target: target, types: types, counts: counts %>
+    <p class="reaction-sr-only" data-reaction-selection><%= selected_type ? "Your reaction: #{selected_type.label}" : "No reaction selected" %></p>
+    <div class="reaction-row">
+      <ul class="reaction-pills" aria-label="Reaction totals" aria-live="polite">
+        <% types.each do |type| %>
+          <% chosen = selected&.kind == type.key %>
+          <% count = counts.fetch(type.key, 0) %>
+          <li data-reaction-picker-target="pill" data-kind="<%= type.key %>" data-label="<%= type.label %>"
+              data-selected="<%= chosen %>" <%= "hidden" unless count.positive? || chosen %>>
+            <% if can_react %>
+              <%= button_to reaction_selection_path(target), method: chosen ? :delete : :put,
+                    params: chosen ? {} : { kind: type.key }, class: "reaction-pill",
+                    disabled: !type.enabled? && !chosen, aria: { pressed: chosen, label: "#{type.label}: #{count}" } do %>
+                <span aria-hidden="true"><%= type.emoji %></span>
+                <span data-reaction-pill-count><%= count %></span>
+              <% end %>
+            <% else %>
+              <span class="reaction-pill" aria-label="<%= type.label %>: <%= count %>">
+                <span aria-hidden="true"><%= type.emoji %></span>
+                <span data-reaction-pill-count><%= count %></span>
+              </span>
+            <% end %>
+          </li>
+        <% end %>
+      </ul>
+      <% if can_react %>
+        <details class="reaction-picker" data-reaction-picker-target="picker">
+          <summary class="reaction-add" aria-label="Add a Reaction">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M20.5 9a5.4 5.4 0 0 0-8.5-4.4A5.4 5.4 0 0 0 3.5 11c1.5 2.6 4.5 5 8.5 8l1.5-1.2" />
+              <path d="M18 12v8m-4-4h8" />
+            </svg>
+            <span class="reaction-tooltip" aria-hidden="true">Add a Reaction</span>
+          </summary>
+          <div class="reaction-choices" aria-label="Choose a reaction">
+            <% types.select(&:enabled?).each do |type| %>
+              <% chosen = selected&.kind == type.key %>
+              <%= button_to reaction_selection_path(target), method: chosen ? :delete : :put,
+                    params: chosen ? {} : { kind: type.key }, class: "reaction-choice",
+                    title: type.label, aria: { label: chosen ? "Remove #{type.label}" : type.label } do %>
+                <span aria-hidden="true"><%= type.emoji %></span>
+              <% end %>
+            <% end %>
+          </div>
+        </details>
+      <% end %>
+    </div>
+    <% if errors.any? %>
+      <ul role="alert">
+        <% errors.each do |error| %>
+          <li><%= error %></li>
+        <% end %>
+      </ul>
+    <% end %>
+  </section>
+<% end %>

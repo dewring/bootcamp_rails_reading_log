@@ -1,4 +1,4 @@
-import type { DiscussionEvent, DiscussionHistory, DiscussionSubscription } from "./types"
+import type { DiscussionEvent, DiscussionHistory, DiscussionMessage, DiscussionSubscription } from "./types"
 
 interface RecoveryContext {
   connected: boolean
@@ -132,14 +132,33 @@ export default class DiscussionRecovery {
   }
 
   private validateHistory(history: DiscussionHistory) {
-    if (!Array.isArray(history.messages) || !Number.isSafeInteger(history.total_posts) || history.total_posts < 0 ||
-      typeof history.pagination_html !== "string" || history.messages.some(message =>
-        !Number.isSafeInteger(message.id) || message.id <= 0 || message.parent_id !== null ||
-        typeof message.body !== "string" || !message.author || typeof message.author.nickname !== "string" ||
-        !Number.isSafeInteger(message.author.id) || !Number.isFinite(Date.parse(message.created_at)) ||
-        !Number.isFinite(Date.parse(message.updated_at)))) {
+    if (!this.hasValidPageMetadata(history) || !this.hasValidReactionPanels(history.reaction_panels) ||
+      !this.hasValidMessages(history.messages)) {
       throw new Error("Discussion recovery returned an invalid page")
     }
+  }
+
+  private hasValidPageMetadata(history: DiscussionHistory) {
+    return Number.isSafeInteger(history.total_posts) && history.total_posts >= 0 &&
+      typeof history.pagination_html === "string"
+  }
+
+  private hasValidReactionPanels(panels: DiscussionHistory["reaction_panels"]) {
+    if (!panels || typeof panels !== "object" || Array.isArray(panels)) return false
+
+    return Object.values(panels).every(panel => typeof panel === "string")
+  }
+
+  private hasValidMessages(messages: DiscussionMessage[]) {
+    return Array.isArray(messages) && messages.every(message => this.isValidHistoryMessage(message))
+  }
+
+  private isValidHistoryMessage(message: DiscussionMessage) {
+    if (!Number.isSafeInteger(message.id) || message.id <= 0 || message.parent_id !== null) return false
+    if (typeof message.body !== "string" || !message.author) return false
+    if (typeof message.author.nickname !== "string" || !Number.isSafeInteger(message.author.id)) return false
+
+    return Number.isFinite(Date.parse(message.created_at)) && Number.isFinite(Date.parse(message.updated_at))
   }
 
   private showState(state: ConnectionState) {

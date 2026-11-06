@@ -37,9 +37,23 @@ afterEach(async () => {
 function history(ids: number[], nextPage: number | null = null) {
   return new Response(JSON.stringify({
     replies: ids.map(id => ({ id, parent_id: 7, body: `Answer ${id}`, author: { id: 1, nickname: "Reader" }, created_at: "2026-10-20T12:30:00Z", updated_at: "2026-10-20T12:30:00Z" })),
-    pagination: { next_page: nextPage }
+    pagination: { next_page: nextPage },
+    reaction_panels: {}
   }), { status: 200 })
 }
+
+test("reply history inserts the private panel separately from the shared reply body", async () => {
+  fetchHistory.mockResolvedValue(new Response(JSON.stringify({
+    replies: [{ id: 8, parent_id: 7, body: "Shared reply", author: { id: 1, nickname: "Reader" }, created_at: "2026-10-20T12:30:00Z", updated_at: "2026-10-20T12:30:00Z" }],
+    reaction_panels: { "8": '<turbo-frame id="reaction_panel_club_message_8" class="reaction-panel"><button aria-pressed="true">Love</button></turbo-frame>' },
+    pagination: { next_page: null }
+  })))
+
+  toggle.click()
+
+  await vi.waitFor(() => expect(panel.querySelector("#reaction_panel_club_message_8 button[aria-pressed='true']")?.textContent).toBe("Love"))
+  expect(panel.querySelector(".club-discussion-reply-body")!.textContent).toBe("Shared reply")
+})
 
 test("opening replies loads the first page and collapsing preserves the loaded replies", async () => {
   fetchHistory.mockResolvedValue(history([8, 9]))

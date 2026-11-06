@@ -1,4 +1,6 @@
 class ClubMessageRepliesController < ApplicationController
+  include DiscussionReactionPanels
+
   before_action :authenticate_user!
 
   def index
@@ -11,6 +13,7 @@ class ClubMessageRepliesController < ApplicationController
     response.headers["Cache-Control"] = "no-store"
     render json: {
       replies: messages.map(&:discussion_payload),
+      reaction_panels: render_message_reaction_panels(message_reaction_panel_locals(messages)),
       pagination: { page: pagy.page, next_page: pagy.next, last_page: pagy.last, total_count: pagy.count }
     }
   end
