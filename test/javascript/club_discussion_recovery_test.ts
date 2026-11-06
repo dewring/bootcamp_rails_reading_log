@@ -498,6 +498,35 @@ test("a malformed snapshot offers Retry without erasing existing posts or the dr
   expect(element.querySelector("textarea")!.value).toBe("My unsent draft")
 })
 
+test.each<[string, Record<string, unknown>]>([
+  ["a non-array message list", { messages: {} }],
+  ["a negative post count", { total_posts: -1 }],
+  ["a fractional post count", { total_posts: 1.5 }],
+  ["non-string pagination markup", { pagination_html: null }],
+  ["missing reaction panels", { reaction_panels: undefined }],
+  ["null reaction panels", { reaction_panels: null }],
+  ["an array of reaction panels", { reaction_panels: [] }],
+  ["a non-string reaction panel", { reaction_panels: { "1": 7 } }],
+  ["an invalid message ID", { messages: [post(0)] }],
+  ["a reply in post history", { messages: [post(2, { parent_id: 1 })] }],
+  ["a non-string message body", { messages: [{ ...post(2), body: 7 }] }],
+  ["a missing author", { messages: [{ ...post(2), author: null }] }],
+  ["an invalid author name", { messages: [{ ...post(2), author: { id: 7, nickname: null } }] }],
+  ["an invalid author ID", { messages: [{ ...post(2), author: { id: 1.5, nickname: "Reader" } }] }],
+  ["an invalid creation time", { messages: [post(2, { created_at: "invalid" })] }],
+  ["an invalid update time", { messages: [post(2, { updated_at: "invalid" })] }]
+])("recovery rejects %s and preserves existing posts and drafts", async (_description, invalidFields) => {
+  await connect()
+  const history = { messages: [post(2)], reaction_panels: {}, total_posts: 1, pagination_html: "", ...invalidFields }
+  read.resolve(new Response(JSON.stringify(history)))
+
+  await vi.waitFor(() => expect(state()).toBe("failed"))
+
+  expect(ids()).toEqual([1])
+  expect(element.querySelector("textarea")!.value).toBe("My unsent draft")
+  expect(element.querySelector<HTMLButtonElement>("[data-club-discussion-target='retry']")!.hidden).toBe(false)
+})
+
 test("a timed-out recovery offers Retry and does not automatically resend a post", async () => {
   vi.useFakeTimers()
   http.mockImplementation((_url, options) => new Promise((_resolve, reject) => {
