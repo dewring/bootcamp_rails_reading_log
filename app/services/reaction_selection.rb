@@ -9,6 +9,16 @@ class ReactionSelection
       Pundit.authorize(@user, reaction, reaction.persisted? ? :update? : :create?)
       save_selected_kind(reaction, kind)
     end
+  rescue ActiveRecord::RecordNotUnique
+    # A concurrent first selection won the unique reader/target pair.
+    raise unless @target.reactions.exists?(user_id: @user.id)
+
+    retry
+  rescue ActiveRecord::RecordInvalid => error
+    # The same collision can be caught by model validation before INSERT.
+    raise unless error.record.errors.of_kind?(:user_id, :taken)
+
+    retry
   end
 
   def clear_selection
@@ -22,13 +32,12 @@ class ReactionSelection
   private
 
   def with_locked_reaction
-    # Use the same lock order for every target. Reloading the user also makes
-    # account eligibility changes take effect before authorizing a write.
-    @user.with_lock do
-      @target.with_lock("FOR SHARE") do
-        reaction = @target.reactions.find_or_initialize_by(user: @user)
-        yield reaction
-      end
+    # Keep target deletion outside the write, without serializing the reader's
+    # other reactions. A savepoint lets creation collisions roll back safely.
+    @target.with_lock("FOR SHARE", requires_new: true) do
+      @user.reload
+      reaction = @target.reactions.lock.find_or_initialize_by(user: @user)
+      yield reaction
     end
   end
 
