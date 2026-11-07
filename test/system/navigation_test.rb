@@ -69,7 +69,7 @@ class NavigationSystemTest < ApplicationSystemTestCase
       controls = page.evaluate_script(<<~JS)
         Array.from(document.querySelectorAll('.nav-actions > li > button, .nav-actions .notification-trigger')).map(button => {
           const rect = button.getBoundingClientRect()
-          return { label: button.getAttribute('aria-label'), x: rect.x, y: rect.y, width: rect.width, height: rect.height }
+          return { label: button.getAttribute('aria-label'), rightOffset: document.documentElement.clientWidth - rect.right, y: rect.y, width: rect.width, height: rect.height }
         })
       JS
       assert_equal [ "Menu", "Notifications", "Account" ], controls.map { |control| control.fetch("label") }
@@ -89,7 +89,7 @@ class NavigationSystemTest < ApplicationSystemTestCase
       controls
     end
     geometries.first.zip(geometries.last).each do |public_control, admin_control|
-      [ "x", "y", "width", "height" ].each do |dimension|
+      [ "rightOffset", "y", "width", "height" ].each do |dimension|
         assert_in_delta public_control.fetch(dimension), admin_control.fetch(dimension), 0.5,
           "#{public_control.fetch('label')} #{dimension} differs between public and admin pages"
       end
