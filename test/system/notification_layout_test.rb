@@ -9,6 +9,7 @@ class NotificationLayoutTest < ApplicationSystemTestCase
   end
 
   teardown do
+    page.driver.browser.execute_cdp("Emulation.clearDeviceMetricsOverride")
     Warden.test_reset!
   end
 
@@ -32,14 +33,20 @@ class NotificationLayoutTest < ApplicationSystemTestCase
 
   def assert_notification_refresh_positions(path, controls_selector, width)
     page.current_window.resize_to(width, 1000)
+    page.driver.browser.execute_cdp("Emulation.setDeviceMetricsOverride", width: width, height: 1000, deviceScaleFactor: 1, mobile: false)
     visit path
-    page.execute_script(<<~JS, Rails.root.join("test/fixtures/stylesheets/pico_loading.css").read)
+    styles = [ "pico_navigation.css", "pico_loading.css" ].map do |name|
+      Rails.root.join("test/fixtures/stylesheets", name).read
+    end.join("\n")
+    page.execute_script(<<~JS, styles)
       const style = document.createElement("style")
+      style.id = "local-pico-rules"
       style.nonce = document.querySelector('meta[name="csp-nonce"]').content
       style.textContent = arguments[0]
-      document.head.append(style)
+      document.head.insertBefore(style, document.querySelector('link[data-turbo-track="reload"]'))
     JS
-    assert page.evaluate_script("document.head.lastElementChild.sheet !== null"), "Local Pico rules must load under CSP"
+    assert page.evaluate_script("document.getElementById('local-pico-rules').sheet !== null"), "Local Pico rules must load under CSP"
+    assert_equal width, page.evaluate_script("window.innerWidth")
     find("button[aria-label='Notifications']").hover
     assert_selector "#notifications_dropdown", visible: true
     page.execute_script(<<~JS, controls_selector)
