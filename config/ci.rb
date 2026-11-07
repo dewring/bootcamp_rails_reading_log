@@ -6,6 +6,9 @@ CI.run do
   step "Style: Ruby", "bin/rubocop"
   step "Check: TypeScript", "yarn typecheck"
   step "Test: JavaScript and TypeScript", "yarn test"
+  step "Build: Browser JavaScript", "yarn build"
+  step "Build: Browser CSS", "bin/rails dartsass:build"
+  step "Test: Browser", "bin/rails test:system"
 
   step "Security: Gem audit", "bin/bundler-audit"
   step "Security: Importmap vulnerability audit", "bin/importmap audit"

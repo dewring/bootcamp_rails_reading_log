@@ -1,7 +1,7 @@
 source "https://rubygems.org"
 
 # Bundle edge Rails instead: gem "rails", github: "rails/rails", branch: "main"
-gem "rails", "~> 8.1.3.1"
+gem "rails", "~> 8.1.4.1"
 # The modern asset pipeline for Rails [https://github.com/rails/propshaft]
 gem "propshaft"
 # Use the Puma web server [https://github.com/puma/puma]
@@ -94,6 +94,11 @@ group :development, :test do
 end
 
 gem "pg", "~> 1.5"
+
+group :test do
+  gem "capybara", "~> 3.40"
+  gem "selenium-webdriver", "~> 4.0"
+end
 
 group :development do
   # Use console on exceptions pages [https://github.com/rails/web-console]

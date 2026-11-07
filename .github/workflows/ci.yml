@@ -127,6 +127,17 @@ jobs:
         with:
           bundler-cache: true
 
+      - name: Set up Node for browser assets
+        uses: actions/setup-node@v7
+        with:
+          node-version: "24.18.0"
+
+      - name: Build browser test assets
+        run: |
+          yarn install --frozen-lockfile
+          yarn build
+          bin/rails dartsass:build
+
       - name: Run tests
         env:
           RAILS_ENV: test
@@ -137,3 +148,4 @@ jobs:
         run: |
           bin/rails db:test:prepare
           bin/rails test
+          bin/rails test:system

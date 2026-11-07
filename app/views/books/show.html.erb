@@ -1,3 +1,4 @@
+<% turbo_exempts_page_from_cache %>
 <%
   ratings = @reviews.map(&:rating).compact
   average_rating = ratings.any? ? format("%.1f", ratings.sum.to_f / ratings.size) : "0.0"
@@ -12,7 +13,11 @@
   language_details = [@edition_for_details&.language, @book.subjects&.first].compact_blank.join(" · ")
 %>
 
-<main class="book-detail-page">
+<main class="book-detail-page" data-controller="reaction-stream"
+      data-action="turbo:frame-missing->reaction-stream#frameMissing turbo:fetch-request-error->reaction-stream#frameError"
+      data-reaction-stream-refresh-url-value="<%= book_path(@book) %>"
+      data-reaction-stream-signed-stream-name-value="<%= Turbo::StreamsChannel.signed_stream_name("book_reactions_#{@book.id}") %>">
+  <p role="status" data-reaction-stream-status hidden></p>
   <nav class="book-detail-breadcrumb" aria-label="Breadcrumb">
     <%= link_to "Catalog", books_path %>
     <span aria-hidden="true">/</span>
@@ -30,7 +35,7 @@
 
     <div class="book-detail-intro">
       <h1 id="book-detail-title" class="book-detail-title"><%= @book.title %></h1>
-      <p class="book-detail-author">by <%= @book.author %></p>
+      <p class="book-detail-author"><%= @book.author %></p>
 
       <div class="book-detail-rating" aria-label="Average rating <%= average_rating %> out of 5">
         <span class="book-detail-stars" aria-hidden="true"><%= "★" * rounded_rating %><%= "☆" * (5 - rounded_rating) %></span>
@@ -86,6 +91,7 @@
           <p class="book-detail-admin-note">Admin view · Edit action visible</p>
         <% end %>
       </div>
+      <%= render "reactions/panel", target: @book, types: @reaction_types, counts: @book_reaction_counts, selected: @book_reaction, errors: [] %>
     </div>
   </section>
 
@@ -174,7 +180,7 @@
     <% else %>
       <div class="book-detail-review-grid">
         <% @reviews.each do |review| %>
-          <article class="book-detail-review-card">
+          <article id="<%= dom_id(review) %>" class="book-detail-review-card">
             <div class="book-detail-review-header">
               <div class="book-detail-reviewer">
                 <%= render "users/avatar", user: review.user, variant: :review %>
@@ -188,6 +194,8 @@
               <% end %>
             </div>
             <p><%= review.body %></p>
+            <% counts = @reaction_types.to_h { |type| [ type.key, @review_reaction_counts.fetch([ review.id, type.key ], 0) ] } %>
+            <%= render "reactions/panel", target: review, types: @reaction_types, counts: counts, selected: @review_reaction_selections[review.id], errors: [] %>
           </article>
         <% end %>
       </div>

@@ -1,5 +1,5 @@
 import { discussionVersion } from "./message_version"
-import { buildMessageElement, prepareMessageElement, type MessageElementOptions } from "./message_elements"
+import { buildMessageElement, prepareMessageElement, replaceReactionPanel, type MessageElementOptions } from "./message_elements"
 import DiscussionPagination from "./pagination"
 import type { DiscussionEvent, DiscussionHistory, DiscussionMessage } from "./types"
 
@@ -118,6 +118,8 @@ export default class DiscussionFeed {
       const existing = this.messagesTarget.querySelector<HTMLElement>(`#club_message_${message.id}`)
       const article = existing ?? this.buildMessageElement(message)
       if (existing) this.rememberMessageUpdate(message)
+      const panel = history.reaction_panels[String(message.id)]
+      if (!message.deleted && panel) replaceReactionPanel(article, message.id, panel)
       const controls = article.querySelector<HTMLElement>("[data-controller~='club-replies']")
       if (controls) controls.dataset.clubRepliesCountValue = String(message.replies_count ?? 0)
       const position = this.messagesTarget.children[index] ?? null
@@ -131,6 +133,10 @@ export default class DiscussionFeed {
 
   replayRecoveryEvents(events: DiscussionEvent[]) {
     for (const event of events) {
+      if (event.type === "reactions.updated") {
+        this.updateReactionCounts(event)
+        continue
+      }
       if (!event.message) continue
       const totalPosts = event.total_posts === undefined ? undefined : event.message.deleted
         ? Math.min(this.totalPostsValue, event.total_posts)
@@ -138,6 +144,18 @@ export default class DiscussionFeed {
       if (event.type === "message.created") this.displayCreatedMessage(event.message, totalPosts)
       else this.rememberMessageUpdate(event.message, totalPosts)
     }
+  }
+
+  updateReactionCounts(event: DiscussionEvent) {
+    if (this.options.bufferEvent(event)) return
+    if (!Number.isSafeInteger(event.message_id) || typeof event.counts_html !== "string") return
+
+    const counts = this.options.root.querySelector(`#reaction_counts_club_message_${event.message_id}`)
+    if (!counts) return
+
+    const template = document.createElement("template")
+    template.innerHTML = event.counts_html
+    counts.replaceWith(template.content)
   }
 
   rememberMessageUpdate(message: DiscussionMessage, totalPosts?: number) {

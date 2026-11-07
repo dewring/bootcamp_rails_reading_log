@@ -1,5 +1,14 @@
 Rails.application.routes.draw do
   devise_for :users, controllers: { registrations: "users/registrations" }
+  get "/books/:book_id/reaction", to: "book_reactions#show", as: :book_reaction
+  put "/books/:book_id/reaction", to: "book_reactions#update"
+  delete "/books/:book_id/reaction", to: "book_reactions#destroy"
+  get "/books/:book_id/reviews/:review_id/reaction", to: "review_reactions#show", as: :book_review_reaction
+  put "/books/:book_id/reviews/:review_id/reaction", to: "review_reactions#update"
+  delete "/books/:book_id/reviews/:review_id/reaction", to: "review_reactions#destroy"
+  get "/book_clubs/:book_club_id/club_messages/:club_message_id/reaction", to: "club_message_reactions#show", as: :book_club_club_message_reaction
+  put "/book_clubs/:book_club_id/club_messages/:club_message_id/reaction", to: "club_message_reactions#update"
+  delete "/book_clubs/:book_club_id/club_messages/:club_message_id/reaction", to: "club_message_reactions#destroy"
   resources :books, only: [ :index, :show ] do
     member do
       get :most_recent_session

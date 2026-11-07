@@ -32,8 +32,8 @@ function post(id: number, overrides: Partial<DiscussionMessage> = {}): Discussio
   }
 }
 
-function snapshot(posts: DiscussionMessage[], total = posts.length) {
-  return new Response(JSON.stringify({ messages: posts, total_posts: total, pagination_html: "" }))
+function snapshot(posts: DiscussionMessage[], total = posts.length, reactionPanels: Record<string, string> = {}) {
+  return new Response(JSON.stringify({ messages: posts, reaction_panels: reactionPanels, total_posts: total, pagination_html: "" }))
 }
 
 function ids() {
@@ -73,7 +73,7 @@ beforeEach(async () => {
   element.dataset.clubDiscussionPaginationUrlValue = "/book_clubs/17/club_messages"
   element.dataset.clubDiscussionCurrentUserIdValue = "7"
   element.dataset.clubDiscussionCanPostValue = "true"
-  element.dataset.action = "turbo:before-cache@document->club-discussion#beforeCache"
+  element.dataset.action = "turbo:before-cache@document->club-discussion#beforeCache turbo:frame-missing->club-discussion#reactionFrameMissing turbo:fetch-request-error->club-discussion#reactionFrameError"
   element.innerHTML = `
     <section data-club-discussion-target="content">
       <p role="status" data-club-discussion-target="connectionStatus"></p>
@@ -113,6 +113,163 @@ test("confirmed subscription requests the selected authorized page and becomes L
   expect(ids()).toEqual([2, 1])
   expect(element.querySelector("[data-club-discussion-target='connectionStatus']")!.textContent).toBe("Discussion live")
   expect(element.querySelector("textarea")!.value).toBe("My unsent draft")
+})
+
+test("reconnect refreshes private post controls while preserving the post node and all drafts", async () => {
+  const article = element.querySelector<HTMLElement>("#club_message_1")!
+  const edit = document.createElement("textarea")
+  edit.value = "Unsent edit"
+  const reply = document.createElement("textarea")
+  reply.value = "Unsent reply"
+  article.append(edit, reply)
+  await connect()
+  read.resolve(snapshot([post(1)], 1, { "1": '<turbo-frame id="reaction_panel_club_message_1" class="reaction-panel"><button aria-pressed="true">Like</button></turbo-frame>' }))
+  await vi.waitFor(() => expect(state()).toBe("live"))
+  expect(article.querySelector("button[aria-pressed='true']")?.textContent).toBe("Like")
+
+  callbacks.disconnected({ willAttemptReconnect: true })
+  read = Promise.withResolvers<Response>()
+  http.mockReturnValue(read.promise)
+  await connect()
+  read.resolve(snapshot([post(1)], 1, { "1": '<turbo-frame id="reaction_panel_club_message_1" class="reaction-panel"><button aria-pressed="true">Love</button></turbo-frame>' }))
+  await vi.waitFor(() => expect(state()).toBe("live"))
+
+  expect(element.querySelector("#club_message_1")).toBe(article)
+  expect(article.querySelector("button[aria-pressed='true']")?.textContent).toBe("Love")
+  expect(edit.value).toBe("Unsent edit")
+  expect(reply.value).toBe("Unsent reply")
+  expect(element.querySelector<HTMLTextAreaElement>("[data-club-discussion-target='body']")!.value).toBe("My unsent draft")
+})
+
+test("a live count event replaces only totals while preserving private controls and drafts", async () => {
+  await connect()
+  read.resolve(snapshot([post(1)], 1, { "1": '<turbo-frame id="reaction_panel_club_message_1" class="reaction-panel"><ul id="reaction_counts_club_message_1"><li>Like: 1</li></ul><button aria-pressed="true">Like</button></turbo-frame>' }))
+  await vi.waitFor(() => expect(state()).toBe("live"))
+  const control = element.querySelector("button[aria-pressed='true']")
+  const frame = element.querySelector("#reaction_panel_club_message_1")
+
+  callbacks.received({ type: "reactions.updated", message_id: 1, counts_html: '<ul id="reaction_counts_club_message_1"><li>Like: 4</li></ul>' })
+
+  expect(element.querySelector("#reaction_counts_club_message_1")?.textContent).toBe("Like: 4")
+  expect(element.querySelector("#reaction_panel_club_message_1")).toBe(frame)
+  expect(element.querySelector("button[aria-pressed='true']")).toBe(control)
+  expect(element.querySelector<HTMLTextAreaElement>("[data-club-discussion-target='body']")!.value).toBe("My unsent draft")
+})
+
+test("live count events buffered during recovery override older snapshot counts", async () => {
+  await connect()
+  callbacks.received({ type: "reactions.updated", message_id: 1, counts_html: '<ul id="reaction_counts_club_message_1"><li>Like: 4</li></ul>' })
+  read.resolve(snapshot([post(1)], 1, { "1": '<turbo-frame id="reaction_panel_club_message_1" class="reaction-panel"><ul id="reaction_counts_club_message_1"><li>Like: 1</li></ul><button aria-pressed="true">Like</button></turbo-frame>' }))
+
+  await vi.waitFor(() => expect(state()).toBe("live"))
+
+  expect(element.querySelector("#reaction_counts_club_message_1")?.textContent).toBe("Like: 4")
+  expect(element.querySelector("button[aria-pressed='true']")?.textContent).toBe("Like")
+})
+
+test("recovery refreshes already loaded reply frames through their authorized GET URLs without replacing drafts", async () => {
+  const reply = document.createElement("article")
+  reply.className = "club-discussion-reply"
+  reply.innerHTML = '<turbo-frame id="reaction_panel_club_message_8" class="reaction-panel" data-reaction-url="/book_clubs/17/club_messages/8/reaction"></turbo-frame><textarea>Unsent reply edit</textarea>'
+  element.querySelector("#club_message_1")!.append(reply)
+  const frame = reply.querySelector("turbo-frame") as HTMLElement & { loaded: Promise<void>; reload: ReturnType<typeof vi.fn> }
+  frame.loaded = Promise.resolve()
+  frame.reload = vi.fn().mockResolvedValue(undefined)
+  await connect()
+  await finish([post(1)])
+  await vi.waitFor(() => expect(frame.getAttribute("src")).toBe("/book_clubs/17/club_messages/8/reaction"))
+
+  callbacks.disconnected({ willAttemptReconnect: true })
+  read = Promise.withResolvers<Response>()
+  http.mockReturnValue(read.promise)
+  await connect()
+  await finish([post(1)])
+
+  await vi.waitFor(() => expect(frame.reload).toHaveBeenCalledOnce())
+  expect(reply.querySelector("textarea")!.value).toBe("Unsent reply edit")
+})
+
+test("a reaction frame server error preserves drafts and its Retry reloads only that frame", async () => {
+  const frame = element.querySelector("turbo-frame") as HTMLElement & { reload: ReturnType<typeof vi.fn> }
+  frame.reload = vi.fn().mockResolvedValue(undefined)
+  const event = new CustomEvent("turbo:frame-missing", { bubbles: true, cancelable: true, detail: { response: new Response("Unavailable", { status: 503 }) } })
+
+  frame.dispatchEvent(event)
+
+  expect(event.defaultPrevented).toBe(true)
+  expect(frame.querySelector("p[role='status']")?.textContent).toContain("Reactions could not load")
+  expect(element.querySelector<HTMLTextAreaElement>("[data-club-discussion-target='body']")!.value).toBe("My unsent draft")
+  await Promise.resolve()
+  frame.querySelector<HTMLButtonElement>("button")!.click()
+  await vi.waitFor(() => expect(frame.reload).toHaveBeenCalledOnce())
+  expect(http).not.toHaveBeenCalled()
+})
+
+test("a reaction frame network error shows retry and handles a rejected reload", async () => {
+  const frame = element.querySelector("turbo-frame") as HTMLElement & { reload: ReturnType<typeof vi.fn> }
+  frame.reload = vi.fn().mockRejectedValue(new Error("Network unavailable"))
+  frame.dispatchEvent(new CustomEvent("turbo:fetch-request-error", { bubbles: true }))
+  await Promise.resolve()
+
+  frame.querySelector<HTMLButtonElement>("button")!.click()
+
+  await vi.waitFor(() => expect(frame.reload).toHaveBeenCalledOnce())
+  expect(frame.textContent).toContain("Reactions could not load")
+  expect(element.querySelector<HTMLTextAreaElement>("[data-club-discussion-target='body']")!.value).toBe("My unsent draft")
+})
+
+test("retrying an initially server rendered panel loads its canonical GET URL without resubmitting a write", async () => {
+  const frame = element.querySelector("turbo-frame")!
+  frame.removeAttribute("src")
+  frame.dispatchEvent(new CustomEvent("turbo:frame-missing", { bubbles: true, cancelable: true, detail: { response: new Response("Unavailable", { status: 503 }) } }))
+  await Promise.resolve()
+
+  frame.querySelector<HTMLButtonElement>("button")!.click()
+
+  await vi.waitFor(() => expect(frame.getAttribute("src")).toBe("/book_clubs/17/club_messages/1/reaction"))
+  expect(perform).not.toHaveBeenCalled()
+  expect(element.querySelector<HTMLTextAreaElement>("[data-club-discussion-target='body']")!.value).toBe("My unsent draft")
+})
+
+test("a reaction GET denied after membership revocation ends private Discussion access", () => {
+  const frame = element.querySelector("turbo-frame")!
+  frame.dispatchEvent(new CustomEvent("turbo:frame-missing", { bubbles: true, cancelable: true, detail: { response: new Response("Forbidden", { status: 403 }) } }))
+
+  expect(element.querySelector("[data-club-discussion-target='content']")!.childElementCount).toBe(0)
+  expect(element.querySelector("[data-club-discussion-target='status']")!.textContent).toContain("Discussion access has ended")
+})
+
+test("a reaction GET for removed content removes its frame without discarding the composer draft", () => {
+  const frame = element.querySelector("turbo-frame")!
+  frame.dispatchEvent(new CustomEvent("turbo:frame-missing", { bubbles: true, cancelable: true, detail: { response: new Response("Not found", { status: 404 }) } }))
+
+  expect(element.querySelector("turbo-frame")).toBeNull()
+  expect(element.querySelector<HTMLTextAreaElement>("[data-club-discussion-target='body']")!.value).toBe("My unsent draft")
+})
+
+test("a throttled reaction write preserves existing private controls and offers a read-only refresh", () => {
+  const frame = element.querySelector("turbo-frame")!
+  frame.innerHTML = '<button aria-pressed="true">Like</button>'
+  const selected = frame.querySelector("button")
+  const event = new CustomEvent("turbo:frame-missing", { bubbles: true, cancelable: true, detail: { response: new Response("Too many requests", { status: 429 }) } })
+
+  frame.dispatchEvent(event)
+
+  expect(event.defaultPrevented).toBe(true)
+  expect(frame.querySelector("button[aria-pressed='true']")).toBe(selected)
+  expect(frame.querySelector("button[data-action='club-discussion#retryReactionFrame']")).not.toBeNull()
+  expect(perform).not.toHaveBeenCalled()
+  expect(element.querySelector<HTMLTextAreaElement>("[data-club-discussion-target='body']")!.value).toBe("My unsent draft")
+})
+
+test("a reaction form network failure keeps its private controls and offers a GET refresh", () => {
+  const frame = element.querySelector("turbo-frame")!
+  frame.innerHTML = '<form><button aria-pressed="true">Like</button></form>'
+  frame.querySelector("form")!.dispatchEvent(new CustomEvent("turbo:fetch-request-error", { bubbles: true }))
+
+  expect(frame.querySelector("button[aria-pressed='true']")).not.toBeNull()
+  expect(frame.querySelector("[data-reaction-load-error]")?.textContent).toContain("Reactions could not load")
+  expect(perform).not.toHaveBeenCalled()
 })
 
 test("snapshot 39 40 42 and overlapping events 42 41 43 appear once each newest first", async () => {
@@ -245,7 +402,7 @@ test("a stale JSON parse cannot paint after reconnect even when the HTTP respons
   http.mockReturnValue(read.promise)
   callbacks.connected()
   await finish([post(2), post(1)])
-  parsed.resolve({ messages: [post(99)], total_posts: 1, pagination_html: "" })
+  parsed.resolve({ messages: [post(99)], reaction_panels: {}, total_posts: 1, pagination_html: "" })
   await parsed.promise
   await Promise.resolve()
   expect(ids()).toEqual([2, 1])
@@ -339,6 +496,35 @@ test("a malformed snapshot offers Retry without erasing existing posts or the dr
   await vi.waitFor(() => expect(state()).toBe("failed"))
   expect(ids()).toEqual([1])
   expect(element.querySelector("textarea")!.value).toBe("My unsent draft")
+})
+
+test.each<[string, Record<string, unknown>]>([
+  ["a non-array message list", { messages: {} }],
+  ["a negative post count", { total_posts: -1 }],
+  ["a fractional post count", { total_posts: 1.5 }],
+  ["non-string pagination markup", { pagination_html: null }],
+  ["missing reaction panels", { reaction_panels: undefined }],
+  ["null reaction panels", { reaction_panels: null }],
+  ["an array of reaction panels", { reaction_panels: [] }],
+  ["a non-string reaction panel", { reaction_panels: { "1": 7 } }],
+  ["an invalid message ID", { messages: [post(0)] }],
+  ["a reply in post history", { messages: [post(2, { parent_id: 1 })] }],
+  ["a non-string message body", { messages: [{ ...post(2), body: 7 }] }],
+  ["a missing author", { messages: [{ ...post(2), author: null }] }],
+  ["an invalid author name", { messages: [{ ...post(2), author: { id: 7, nickname: null } }] }],
+  ["an invalid author ID", { messages: [{ ...post(2), author: { id: 1.5, nickname: "Reader" } }] }],
+  ["an invalid creation time", { messages: [post(2, { created_at: "invalid" })] }],
+  ["an invalid update time", { messages: [post(2, { updated_at: "invalid" })] }]
+])("recovery rejects %s and preserves existing posts and drafts", async (_description, invalidFields) => {
+  await connect()
+  const history = { messages: [post(2)], reaction_panels: {}, total_posts: 1, pagination_html: "", ...invalidFields }
+  read.resolve(new Response(JSON.stringify(history)))
+
+  await vi.waitFor(() => expect(state()).toBe("failed"))
+
+  expect(ids()).toEqual([1])
+  expect(element.querySelector("textarea")!.value).toBe("My unsent draft")
+  expect(element.querySelector<HTMLButtonElement>("[data-club-discussion-target='retry']")!.hidden).toBe(false)
 })
 
 test("a timed-out recovery offers Retry and does not automatically resend a post", async () => {

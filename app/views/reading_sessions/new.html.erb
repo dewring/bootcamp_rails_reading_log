@@ -1,7 +1,7 @@
 <div class="form-card">
   <div class="form-header">
     <h1>Log Reading Session</h1>
-    <p><%= @book.title %> by <%= @book.author %></p>
+    <p><%= @book.title %> · <%= @book.author %></p>
   </div>
 
   <%= form_with model: [@book, @reading_session], html: { class: "form" } do |f| %>

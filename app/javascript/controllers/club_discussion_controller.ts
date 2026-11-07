@@ -1,10 +1,15 @@
 import { Controller } from "@hotwired/stimulus"
 import { cable } from "@hotwired/turbo-rails"
 import ClubPresence from "../club_discussion/presence"
-import DiscussionRecovery from "../club_discussion/recovery"
+import DiscussionRecovery, { discussionAccessDenied } from "../club_discussion/recovery"
 import DiscussionFeed from "../club_discussion/feed"
 import DiscussionComposer from "../club_discussion/composer"
 import type { DiscussionEvent, DiscussionMessage, DiscussionSubscription } from "../club_discussion/types"
+
+interface ReactionFrame extends HTMLElement {
+  reload(): Promise<void>
+  loaded: Promise<void>
+}
 
 export default class extends Controller {
   static targets = ["content", "status", "connectionStatus", "retry", "messages", "emptyState", "paginationSummary", "pagination", "body", "submit", "composerStatus", "replyControls", "editor", "deleteButton", "onlineMembers", "presenceStatus", "typingStatus", "typingIndicator"]
@@ -144,6 +149,8 @@ export default class extends Controller {
             this.endAccess()
           } else if (event.type === "presence.snapshot" || event.type === "presence.unavailable" || event.type === "typing.started") {
             this.presence?.receiveEvent(event)
+          } else if (event.type === "reactions.updated") {
+            this.feed.updateReactionCounts(event)
           } else if ((event.type === "message.deleted" || event.type === "reply.deleted") && event.message) {
             this.feed.rememberMessageUpdate(event.message, event.total_posts)
           } else if (event.type === "delete.saved" || event.type === "delete.rejected") {
@@ -211,10 +218,56 @@ export default class extends Controller {
     if (!history || this.recovery !== recovery || !this.cableConnected || !this.element.isConnected) return
 
     this.feed.pagination.refreshAfterRecovery(history.total_posts)
+    const frames = this.element.querySelectorAll<ReactionFrame>(".club-discussion-reply turbo-frame.reaction-panel")
+    await Promise.all(Array.from(frames, frame => this.reloadReactionFrame(frame)))
   }
 
   async postMessage(event: SubmitEvent) {
     await this.composer.postMessage(event)
+  }
+
+  reactionFrameMissing(event: CustomEvent<{ response: Response }>) {
+    const frame = event.target as HTMLElement
+    if (!frame.matches("turbo-frame.reaction-panel")) return
+
+    event.preventDefault()
+    if (discussionAccessDenied(event.detail.response)) {
+      this.endAccess()
+    } else if (event.detail.response.status === 404) {
+      frame.remove()
+    } else {
+      this.showReactionFrameError(frame)
+    }
+  }
+
+  reactionFrameError(event: Event) {
+    const frame = (event.target as HTMLElement).closest<HTMLElement>("turbo-frame.reaction-panel")
+    if (frame) this.showReactionFrameError(frame)
+  }
+
+  async retryReactionFrame(event: Event) {
+    const frame = (event.currentTarget as HTMLElement).closest("turbo-frame") as ReactionFrame
+    try {
+      await this.reloadReactionFrame(frame)
+    } catch (error) {
+      console.error("Failed to reload discussion reactions", error)
+      if (frame.isConnected) this.showReactionFrameError(frame)
+    }
+  }
+
+  private showReactionFrameError(frame: HTMLElement) {
+    frame.querySelector("[data-reaction-load-error]")?.remove()
+    const error = document.createElement("div")
+    error.dataset.reactionLoadError = ""
+    error.innerHTML = '<p role="status">Reactions could not load. Your draft is still here.</p><button type="button" data-action="club-discussion#retryReactionFrame">Retry reactions</button>'
+    frame.append(error)
+  }
+
+  private reloadReactionFrame(frame: ReactionFrame): Promise<void> {
+    if (frame.hasAttribute("src")) return frame.reload()
+
+    frame.setAttribute("src", frame.dataset.reactionUrl!)
+    return frame.loaded
   }
 
   prepareMessageElement(article: HTMLElement, message: Pick<DiscussionMessage, "id" | "updated_at" | "deleted"> & { author: { id: number } }) {

@@ -39,15 +39,20 @@ class BooksController < ApplicationController
 
   def show
     authorize @book
+    response.headers["Cache-Control"] = "no-store"
 
-    editions = Rails.cache.fetch("book:#{@book.id}:editions:list", expires_in: 1.day) do
-      editions = @book.book_editions.includes(cover_image_attachment: :blob).order(:id).to_a
-      with_cover, without_cover = editions.partition { |edition| edition.cover_image.attached? }
-      with_cover + without_cover
+    @reviews = policy_scope(@book.reviews).order(created_at: :desc)
+    unless request.format.turbo_stream?
+      editions = Rails.cache.fetch("book:#{@book.id}:editions:list", expires_in: 1.day) do
+        editions = @book.book_editions.includes(cover_image_attachment: :blob).order(:id).to_a
+        with_cover, without_cover = editions.partition { |edition| edition.cover_image.attached? }
+        with_cover + without_cover
+      end
+      @edition_for_details = editions.find { |edition| edition.publish_year.present? || edition.language.present? } || editions.first
+      @editions_pagy, @book_editions = pagy(:offset, editions, limit: 6, page_key: "editions_page", fragment: "book-detail-editions")
+      @reviews = @reviews.includes(:user)
     end
-    @edition_for_details = editions.find { |edition| edition.publish_year.present? || edition.language.present? } || editions.first
-    @editions_pagy, @book_editions = pagy(:offset, editions, limit: 6, page_key: "editions_page", fragment: "book-detail-editions")
-    @reviews = policy_scope(@book.reviews).includes(:user).order(created_at: :desc)
+    load_reaction_panels
   end
 
   def most_recent_session
@@ -123,6 +128,15 @@ class BooksController < ApplicationController
   end
 
   private
+
+  def load_reaction_panels
+    @reaction_types = ReactionType.order(:id).to_a
+    @book_reaction_counts = @book.reactions.eligible.group(:kind).count
+    @book_reaction = current_user ? @book.reactions.find_by(user: current_user) : nil
+    review_ids = @reviews.map(&:id)
+    @review_reaction_counts = ReviewReaction.eligible.where(review_id: review_ids).group(:review_id, :kind).count
+    @review_reaction_selections = current_user ? ReviewReaction.where(review_id: review_ids, user: current_user).index_by(&:review_id) : {}
+  end
 
   # Open Library search results already carry the cover id, so attach it
   # synchronously here instead of waiting on BookMirrorJob's background

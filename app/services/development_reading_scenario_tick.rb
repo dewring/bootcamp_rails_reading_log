@@ -34,7 +34,7 @@ class DevelopmentReadingScenarioTick
     raise TickError, "Supported named tick: #{Plan::NAME}." unless name == Plan::NAME
 
     @scenario_manifest.with_exclusive_access do
-      catalog = OpenLibraryCatalogPreflight.new(snapshot_path: @snapshot_path).preflight_catalog
+      catalog = OpenLibraryCatalogPreflight.new(snapshot_path: @snapshot_path, manifest_path: @scenario_manifest.path).preflight_catalog
       @baseline = DevelopmentReadingScenarioPlan.new(catalog: catalog, as_of: @as_of).build_baseline
       @manifest = @scenario_manifest.prepare_scenario(snapshot_id: catalog.fetch("snapshot_id"))
       unless @manifest["baseline"] && @manifest.dig("community", "status") == "saved"

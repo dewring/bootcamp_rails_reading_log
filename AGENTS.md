@@ -38,6 +38,12 @@ current conversation take precedence.
 
 6. Use intention-revealing names. Avoid generic names such as `process`,
    `handle`, or `run` for domain-specific behavior.
+   Distinguish live delivery, connection recovery, and manual reload in
+   names and comments. When resources use different delivery paths because
+   their authorization requirements differ, explain that reason near the
+   relevant code. When choosing between return values, make both outcomes
+   clear; prefer an explicit conditional over boolean short-circuiting when
+   it improves readability.
 
 7. A generic public entry point such as `call` is never acceptable. Methods must describe their specific
    behavior.
@@ -77,6 +83,13 @@ current conversation take precedence.
 14. Add database-level constraints and indexes wherever the database can
     enforce them: foreign keys, `null: false` where required, uniqueness
     constraints, and indexes on foreign keys or frequently queried columns.
+    Use database uniqueness constraints to prevent duplicate creation and
+    handle expected concurrent creation conflicts. Keep explicit locks
+    scoped to the smallest resource needed for correctness, explain which
+    race each lock prevents, and test both conflicting operations and
+    independent operations that should proceed concurrently. Choose locking
+    strategies according to the required guarantees; do not assume either
+    optimistic or pessimistic locking is always appropriate.
 
 15. For polymorphic associations, use appropriate composite indexes and
     document constraints that cannot be enforced by a standard foreign key.

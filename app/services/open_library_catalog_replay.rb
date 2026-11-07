@@ -37,7 +37,7 @@ class OpenLibraryCatalogReplay
 
   def with_catalog_context
     @scenario_manifest.with_exclusive_access do
-      @plan = OpenLibraryCatalogPreflight.new(snapshot_path: @snapshot_path).preflight_catalog
+      @plan = OpenLibraryCatalogPreflight.new(snapshot_path: @snapshot_path, manifest_path: @scenario_manifest.path).preflight_catalog
       load_catalog_records
       @manifest = @scenario_manifest.prepare_scenario(snapshot_id: @plan.fetch("snapshot_id"))
       @manifest["catalog"] ||= planned_catalog

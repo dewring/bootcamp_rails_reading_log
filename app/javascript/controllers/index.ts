@@ -16,6 +16,8 @@ import FlashNotificationsController from "./flash_notifications_controller"
 import ClubRepliesController from "./club_replies_controller"
 import ClubMessageController from "./club_message_controller"
 import ClubDiscussionController from "./club_discussion_controller"
+import ReactionPickerController from "./reaction_picker_controller"
+import ReactionStreamController from "./reaction_stream_controller"
 
 application.register("search", SearchController)
 application.register("progress-bar", ProgressBarController)
@@ -32,6 +34,8 @@ application.register("select-dropdown", SelectDropdownController)
 application.register("club-book-search", ClubBookSearchController)
 application.register("flash-notifications", FlashNotificationsController)
 application.register("club-discussion", ClubDiscussionController)
+application.register("reaction-stream", ReactionStreamController)
+application.register("reaction-picker", ReactionPickerController)
 
 application.register("club-replies", ClubRepliesController)
 

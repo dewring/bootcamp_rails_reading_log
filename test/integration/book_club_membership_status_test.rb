@@ -133,6 +133,31 @@ class BookClubMembershipStatusTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "leaving preserves a post and rejoining restores its author name" do
+    club = BookClub.create!(name: "Shared circle", current_book: books(:refactoring))
+    member = users(:leika)
+    club.book_club_memberships.create!(user: member, role: "member")
+    message = club.club_messages.create!(user: member, body: "Keep my thought")
+    sign_out @admin
+    sign_in member
+
+    delete leave_book_club_path(club)
+    assert_redirected_to book_clubs_path
+    assert_not_includes club.leaderboard.map(&:id), member.id
+    assert_equal "Keep my thought", message.reload.body
+
+    sign_out member
+    sign_in @admin
+    get book_club_club_messages_path(club)
+    assert_select ".club-discussion-message-meta strong", text: "#{member.nickname} (former member)"
+
+    sign_out @admin
+    sign_in member
+    post join_book_club_path(club)
+    get book_club_club_messages_path(club)
+    assert_select ".club-discussion-message-meta strong", text: member.nickname
+  end
+
   private
 
   def assert_status_on_club_pages(club, expected_status, expected_sidebar_label)

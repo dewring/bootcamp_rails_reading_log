@@ -8,6 +8,8 @@ class DevelopmentReadingScenarioManifest
   DEFAULT_PATH = Rails.root.join("storage/development_scenarios/reading_scenario.json").freeze
   DEFAULT_LOCK_PATH = Rails.root.join("storage/development_scenarios/reading_scenario.lock").freeze
 
+  attr_reader :path
+
   def initialize(path: DEFAULT_PATH,
     lock_path: DEFAULT_LOCK_PATH,
     as_of: DevelopmentReadingScenarioPlan.default_reference_time)

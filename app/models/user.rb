@@ -11,6 +11,7 @@ class User < ApplicationRecord
   validates :role, inclusion: { in: [ "user", "admin" ] }
   validates :account_status, inclusion: { in: [ "active", "invited", "suspended" ] }
   before_update :activate_invited_account, if: :will_save_change_to_encrypted_password?
+  after_update_commit :refresh_reaction_totals, if: :reaction_eligibility_changed?
 
   scope :matching_member_text, ->(query) {
     where("concat_ws(' ', first_name, last_name, nickname, email) ILIKE ?", "%#{sanitize_sql_like(query)}%") if query.present?
@@ -20,6 +21,9 @@ class User < ApplicationRecord
   has_many :books, through: :user_books
   has_many :reading_sessions
   has_many :reviews, dependent: :destroy
+  has_many :reactions, dependent: :destroy
+  has_many :review_reactions, dependent: :destroy
+  has_many :club_message_reactions, dependent: :destroy
   has_many :user_challenges, dependent: :destroy
   has_many :challenges, through: :user_challenges
   has_many :webhook_endpoints, dependent: :destroy
@@ -49,6 +53,19 @@ class User < ApplicationRecord
   end
 
   private
+
+  def reaction_eligibility_changed?
+    saved_change_to_account_status? && saved_change_to_account_status.include?("active")
+  end
+
+  def refresh_reaction_totals
+    [ reactions, review_reactions, club_message_reactions ].each do |records|
+      target = records.klass.reflect_on_association(records.klass.reaction_target_name)
+      records.distinct.pluck(target.foreign_key).each do |id|
+        ReactionTotalsJob.perform_later(target.class_name, id)
+      end
+    end
+  end
 
   def activate_invited_account
     self.account_status = "active" if account_status == "invited"
