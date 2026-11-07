@@ -1,11 +1,1 @@
-<header class="admin-topbar">
-  <%= link_to root_path, class: "admin-brand", aria: { label: "BookNook home" } do %>
-    <span class="admin-brand-mark"><%= image_tag "admin-brand-mark.svg", alt: "" %></span>
-    <span>BookNook</span>
-  <% end %>
-  <div class="admin-topbar-context">
-    <span class="admin-topbar-rule" aria-hidden="true"></span>
-    <span class="admin-workspace-badge">ADMIN WORKSPACE</span>
-  </div>
-  <%= render "shared/navigation_actions", admin_layout: true %>
-</header>
+<%= render "shared/navigation", admin_layout: true %>

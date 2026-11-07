@@ -5,6 +5,7 @@
   --pico-font-size: 100%;
   --pico-line-height: 1.5;
   --pico-spacing: 1rem;
+  --pico-block-spacing-vertical: var(--pico-spacing);
   --pico-nav-element-spacing-vertical: 1rem;
   --pico-nav-element-spacing-horizontal: 0.5rem;
   --pico-nav-link-spacing-vertical: 0.5rem;

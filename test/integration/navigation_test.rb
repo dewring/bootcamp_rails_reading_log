@@ -39,15 +39,14 @@ class NavigationTest < ActionDispatch::IntegrationTest
 
   def assert_signed_in_navigation(menu_id, account_id, admin:)
     labels = [ "Catalog", "Challenges", "Book Clubs", "My Log", "Reviews", "History" ]
-    labels.push("Manage") if admin
-    assert_navigation_links(menu_id, labels, admin ? 2 : 1)
-    assert_navigation_links(account_id, [ "Settings", "Log Out" ], 1)
+    assert_navigation_links(menu_id, labels, 1)
+    assert_navigation_links(account_id, admin ? [ "Settings", "Manage", "Log Out" ] : [ "Settings", "Log Out" ], 1)
     assert_select ".nav-actions > li" do |controls|
       assert_equal [ "nav-menu", "notification-menu", "account-menu" ], controls.map { |control| control["class"] }
     end
     assert_select "##{account_id} a[href='#{destroy_user_session_path}'][data-turbo-method='delete']", count: 1
     assert_select "##{menu_id} > li:nth-child(4)[aria-hidden='true'] img[src*='dropdown-divider']", count: 1
-    assert_select "##{menu_id} > li:nth-child(8)[aria-hidden='true']", count: admin ? 1 : 0
+    assert_select "##{menu_id} > li:nth-child(8)[aria-hidden='true']", count: 0
   end
 
   def assert_navigation_links(id, labels, dividers)

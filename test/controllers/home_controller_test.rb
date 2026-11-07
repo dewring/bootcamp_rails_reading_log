@@ -43,13 +43,13 @@ class HomeControllerTest < ActionDispatch::IntegrationTest
     assert_select "ul#account_dropdown li a[href='#{destroy_user_session_path}']", text: "Log Out"
   end
 
-  test "admin navigation menu includes the management workspace" do
+  test "admin account menu includes the management workspace" do
     sign_in users(:admin)
 
     get root_path
 
     assert_response :success
-    assert_select "ul#nav_menu_dropdown li a[href='#{admin_root_path}']", text: "Manage", count: 1
+    assert_select "ul#account_dropdown li a[href='#{admin_root_path}']", text: "Manage", count: 1
     assert_select "li.account-dropdown-divider", count: 1
   end
 

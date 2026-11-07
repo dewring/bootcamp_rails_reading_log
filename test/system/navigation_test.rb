@@ -63,6 +63,7 @@ class NavigationSystemTest < ApplicationSystemTestCase
   def assert_shared_navigation(width)
     geometries = [ books_path, admin_root_path ].map do |path|
       prepare_navigation_page(path, width)
+      assert_in_delta width > 600 ? 73 : 65, find(".site-header").evaluate_script("this.getBoundingClientRect().height"), 0.5
       [ "Menu", "Notifications", "Account" ].each do |label|
         assert_selector "button[aria-label='#{label}']", visible: true
       end
@@ -79,19 +80,27 @@ class NavigationSystemTest < ApplicationSystemTestCase
       end
       find("button[aria-label='Menu']").hover
       assert_selector ".nav-dropdown", visible: true
-      assert_vertical_menu(".nav-dropdown", [ "Catalog", "Challenges", "Book Clubs", "My Log", "Reviews", "History", "Manage" ])
+      assert_vertical_menu(".nav-dropdown", [ "Catalog", "Challenges", "Book Clubs", "My Log", "Reviews", "History" ])
       find("button[aria-label='Account']").hover
       assert_selector ".account-dropdown", visible: true
       assert_no_selector ".nav-dropdown", visible: true
-      assert_vertical_menu(".account-dropdown", [ "Settings", "Log Out" ])
+      assert_vertical_menu(".account-dropdown", [ "Settings", "Manage", "Log Out" ])
       find("button[aria-label='Account']").send_keys(:escape)
       assert_no_selector ".account-dropdown", visible: true
-      controls
+      logo = page.evaluate_script(<<~JS)
+        Array.from(document.querySelectorAll('.nav-logo, .nav-logo-icon, .nav-logo-name')).map(element => {
+          const rect = element.getBoundingClientRect()
+          return { x: rect.x, y: rect.y, width: rect.width, height: rect.height }
+        })
+      JS
+      assert_equal 3, logo.size
+      controls.concat(logo)
     end
     geometries.first.zip(geometries.last).each do |public_control, admin_control|
-      [ "rightOffset", "y", "width", "height" ].each do |dimension|
+      dimensions = public_control.key?("label") ? [ "rightOffset", "y", "width", "height" ] : [ "x", "y", "width", "height" ]
+      dimensions.each do |dimension|
         assert_in_delta public_control.fetch(dimension), admin_control.fetch(dimension), 0.5,
-          "#{public_control.fetch('label')} #{dimension} differs between public and admin pages"
+          "#{public_control.fetch('label', 'Logo')} #{dimension} differs between public and admin pages"
       end
     end
   end

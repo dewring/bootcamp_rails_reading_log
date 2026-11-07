@@ -58,17 +58,7 @@
             <span>History</span>
           <% end %>
         </li>
-        <% if current_user.admin? %>
-          <li class="nav-dropdown-divider" aria-hidden="true">
-            <%= image_tag "dropdown-divider.svg", alt: "" %>
-          </li>
-          <li>
-            <%= link_to admin_root_path, class: "nav-dropdown-item" do %>
-              <%= image_tag "dropdown-grid.svg", class: "dropdown-item-icon", alt: "" %>
-              <span>Manage</span>
-            <% end %>
-          </li>
-        <% end %>
+
       <% end %>
     </ul>
   </li>
@@ -98,6 +88,14 @@
             <span>Settings</span>
           <% end %>
         </li>
+        <% if current_user.admin? %>
+          <li>
+            <%= link_to admin_root_path, class: "account-dropdown-item" do %>
+              <%= image_tag "dropdown-grid.svg", class: "dropdown-item-icon", alt: "" %>
+              <span>Manage</span>
+            <% end %>
+          </li>
+        <% end %>
         <li class="account-dropdown-divider" aria-hidden="true">
           <%= image_tag "dropdown-divider.svg", alt: "" %>
         </li>

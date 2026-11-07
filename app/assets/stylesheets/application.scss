@@ -115,6 +115,13 @@ main.container:has(> .my-log-page) {
   .flash-notifications { left: 16px; }
 }
 
+.site-header {
+  padding: 0;
+  position: sticky;
+  top: 0;
+  z-index: 40;
+}
+
 .nav-bar {
   background: #fff;
   border-bottom: 1px solid $gray-mid;
@@ -643,43 +650,6 @@ main.container:has(> .my-log-page) {
 .admin-page {
   min-height: 100vh;
   background: #f7f2ea;
-}
-
-.admin-topbar {
-  display: flex;
-  align-items: center;
-  height: 72px;
-  padding: 0 48px;
-  border-bottom: 1px solid #e9e1d8;
-  background: #fff;
-}
-
-.admin-brand {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  color: $ink !important;
-  font-family: "Fraunces", Georgia, serif;
-  font-size: 20px;
-  font-weight: 700;
-  letter-spacing: -0.03em;
-  text-decoration: none;
-}
-
-.admin-brand-mark {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 30px;
-  height: 30px;
-  border-radius: 8px;
-  background: $accent;
-
-  img {
-    display: block;
-    width: 19px;
-    height: 19px;
-  }
 }
 
 .admin-topbar-context {
@@ -1865,14 +1835,9 @@ main.container:has(> .my-log-page) {
 }
 
 @media (max-width: 600px) {
-  .nav-inner,
-  .admin-topbar {
+  .nav-inner {
     min-height: 64px;
     padding: 0 16px;
-  }
-
-  .admin-topbar {
-    height: 64px;
   }
 
   .admin-topbar-context {

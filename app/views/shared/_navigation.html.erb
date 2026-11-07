@@ -1,0 +1,24 @@
+<% admin_layout = local_assigns.fetch(:admin_layout, false) %>
+<header class="<%= class_names("site-header", "admin-topbar" => admin_layout) %>">
+  <nav class="nav-bar" data-controller="navbar">
+    <div class="container nav-inner">
+      <ul>
+        <li>
+          <a href="<%= root_path %>" class="nav-logo" aria-label="BookNook">
+            <span class="nav-logo-icon" aria-hidden="true">
+              <%= image_tag "book-open.svg", class: "nav-logo-icon-image", alt: "" %>
+            </span>
+            <span class="nav-logo-name">BookNook</span>
+          </a>
+        </li>
+        <% if admin_layout %>
+          <li class="admin-topbar-context">
+            <span class="admin-topbar-rule" aria-hidden="true"></span>
+            <span class="admin-workspace-badge">ADMIN WORKSPACE</span>
+          </li>
+        <% end %>
+      </ul>
+      <%= render "shared/navigation_actions", admin_layout: admin_layout %>
+    </div>
+  </nav>
+</header>

@@ -22,21 +22,7 @@
   </head>
 
   <body class="<%= "auth-page" if devise_controller? && !user_signed_in? %>">
-    <nav class="nav-bar" data-controller="navbar">
-      <div class="container nav-inner">
-        <ul>
-          <li>
-            <a href="<%= root_path %>" class="nav-logo" aria-label="BookNook">
-              <span class="nav-logo-icon" aria-hidden="true">
-                <%= image_tag "book-open.svg", class: "nav-logo-icon-image", alt: "" %>
-              </span>
-              <span class="nav-logo-name">BookNook</span>
-            </a>
-          </li>
-        </ul>
-        <%= render "shared/navigation_actions" %>
-      </div>
-    </nav>
+    <%= render "shared/navigation" %>
 
     <%= render "shared/flash_messages" %>
     <main class="container <%= "home-main" if controller_name == "home" %>">
