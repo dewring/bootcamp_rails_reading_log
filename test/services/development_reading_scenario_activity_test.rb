@@ -1,17 +1,12 @@
 require "test_helper"
 require "tmpdir"
-require_relative "../support/development_reading_scenario_setup"
 
 class DevelopmentReadingScenarioActivityTest < ActiveSupport::TestCase
   include ActiveJob::TestHelper
-  include DevelopmentReadingScenarioSetup
   self.use_transactional_tests = false
 
   setup do
     @initial_user_ids = User.pluck(:id)
-    @initial_book_ids = Book.pluck(:id)
-    @initial_genres = Genre.all.map(&:attributes)
-    @initial_badges = Badge.all.map(&:attributes)
     @directory = Pathname.new(Dir.mktmpdir("booknook-reading-"))
     @paths = { snapshot_path: @directory.join("catalog.json"), manifest_path: @directory.join("manifest.json"), lock_path: @directory.join("scenario.lock") }
     @activity = DevelopmentReadingScenarioActivity.new(**@paths)
@@ -22,10 +17,8 @@ class DevelopmentReadingScenarioActivityTest < ActiveSupport::TestCase
       .to_return(status: 200, body: { docs: docs }.to_json)
     in_development do
       OpenLibraryCatalogCapture.new(snapshot_path: @paths.fetch(:snapshot_path), lock_path: @directory.join("capture.lock"), contact_email: "contact@example.test").capture_catalog
-      prepare_scenario_data do |manifest|
-        DevelopmentReadingScenarioBootstrap.new(**@paths, manifest: manifest, password: "synthetic-scenario-test-password").bootstrap_scenario
-        OpenLibraryCatalogReplay.new(**@paths, manifest: manifest).replay_catalog
-      end
+      DevelopmentReadingScenarioBootstrap.new(**@paths, password: "synthetic-scenario-test-password").bootstrap_scenario
+      OpenLibraryCatalogReplay.new(**@paths).replay_catalog
       catalog = OpenLibraryCatalogPreflight.new(snapshot_path: @paths.fetch(:snapshot_path)).preflight_catalog
       @plan = DevelopmentReadingScenarioPlan.new(catalog: catalog).build_baseline
     end
@@ -34,14 +27,6 @@ class DevelopmentReadingScenarioActivityTest < ActiveSupport::TestCase
   end
 
   teardown do
-    actor_ids = User.where.not(id: @initial_user_ids).pluck(:id)
-    # Cleanup should not enqueue progress, badge, and challenge jobs for discarded records.
-    ReadingSession.where(user_id: actor_ids).delete_all
-    UserBook.where(user_id: actor_ids).delete_all
-    User.where(id: actor_ids).find_each(&:destroy!)
-    Book.where.not(id: @initial_book_ids).find_each(&:destroy!)
-    restore_shared_records(Genre, @initial_genres)
-    restore_shared_records(Badge, @initial_badges)
     FileUtils.remove_entry(@directory)
   end
 
@@ -245,14 +230,6 @@ class DevelopmentReadingScenarioActivityTest < ActiveSupport::TestCase
       original_rename.call(source, destination)
     }) do
       assert_raises(IOError) { replay }
-    end
-  end
-
-  def restore_shared_records(model, originals)
-    model.where.not(id: originals.map { |attributes| attributes.fetch("id") }).find_each(&:destroy!)
-    originals.each do |attributes|
-      existing = model.find_by(id: attributes.fetch("id"))
-      existing ? existing.update!(attributes.except("id")) : model.create!(attributes)
     end
   end
 end

@@ -29,8 +29,6 @@ class OpenLibraryCatalogReplayTest < ActiveSupport::TestCase
   end
 
   teardown do
-    # Remove only this test's newly created Books through normal model destruction.
-    Book.where.not(id: @initial_book_ids).find_each(&:destroy!)
     FileUtils.remove_entry(@directory)
   end
 

@@ -1,19 +1,14 @@
 require "test_helper"
 require "tmpdir"
-require_relative "../support/development_reading_scenario_setup"
 
 class DevelopmentReadingScenarioCommunityTest < ActiveSupport::TestCase
   include ActiveJob::TestHelper
-  include DevelopmentReadingScenarioSetup
   include ActionCable::TestHelper
   self.use_transactional_tests = false
 
   setup do
     @initial_user_ids = User.pluck(:id)
-    @initial_book_ids = Book.pluck(:id)
     @initial_club_ids = BookClub.pluck(:id)
-    @initial_genres = Genre.all.map(&:attributes)
-    @initial_badges = Badge.all.map(&:attributes)
     @directory = Pathname.new(Dir.mktmpdir("booknook-community-"))
     @paths = { snapshot_path: @directory.join("catalog.json"), manifest_path: @directory.join("manifest.json"), lock_path: @directory.join("scenario.lock") }
     @community = DevelopmentReadingScenarioCommunity.new(**@paths)
@@ -24,25 +19,14 @@ class DevelopmentReadingScenarioCommunityTest < ActiveSupport::TestCase
       .to_return(status: 200, body: { docs: docs }.to_json)
     in_development do
       OpenLibraryCatalogCapture.new(snapshot_path: @paths.fetch(:snapshot_path), lock_path: @directory.join("capture.lock"), contact_email: "contact@example.test").capture_catalog
-      prepare_scenario_data do |manifest|
-        DevelopmentReadingScenarioBootstrap.new(**@paths, manifest: manifest, password: "synthetic-scenario-test-password").bootstrap_scenario
-        OpenLibraryCatalogReplay.new(**@paths, manifest: manifest).replay_catalog
-        DevelopmentReadingScenarioActivity.new(**@paths, manifest: manifest).replay_reading
-      end
+      DevelopmentReadingScenarioBootstrap.new(**@paths, password: "synthetic-scenario-test-password").bootstrap_scenario
+      OpenLibraryCatalogReplay.new(**@paths).replay_catalog
+      DevelopmentReadingScenarioActivity.new(**@paths).replay_reading
     end
     WebMock.reset!
   end
 
   teardown do
-    BookClub.where.not(id: @initial_club_ids).find_each(&:destroy!)
-    actors = User.where.not(id: @initial_user_ids).pluck(:id)
-    # Cleanup should not enqueue progress, badge, and challenge jobs for discarded records.
-    ReadingSession.where(user_id: actors).delete_all
-    UserBook.where(user_id: actors).delete_all
-    User.where(id: actors).find_each(&:destroy!)
-    Book.where.not(id: @initial_book_ids).find_each(&:destroy!)
-    restore_shared_records(Genre, @initial_genres)
-    restore_shared_records(Badge, @initial_badges)
     FileUtils.remove_entry(@directory)
   end
 
@@ -248,14 +232,6 @@ class DevelopmentReadingScenarioCommunityTest < ActiveSupport::TestCase
       original.call(source, destination)
     }) do
       assert_raises(IOError) { replay }
-    end
-  end
-
-  def restore_shared_records(model, originals)
-    model.where.not(id: originals.map { |attributes| attributes.fetch("id") }).find_each(&:destroy!)
-    originals.each do |attributes|
-      existing = model.find_by(id: attributes.fetch("id"))
-      existing ? existing.update!(attributes.except("id")) : model.create!(attributes)
     end
   end
 end

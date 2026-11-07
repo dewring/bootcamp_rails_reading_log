@@ -7,9 +7,6 @@ class DevelopmentReadingScenarioBootstrapTest < ActiveSupport::TestCase
 
   setup do
     @initial_user_ids = User.pluck(:id)
-    @initial_book_ids = Book.pluck(:id)
-    @initial_genres = Genre.all.map(&:attributes)
-    @initial_badges = Badge.all.map(&:attributes)
     @directory = Pathname.new(Dir.mktmpdir("booknook-scenario-bootstrap-"))
     @snapshot_path = @directory.join("catalog.json")
     @manifest_path = @directory.join("state/reading_scenario.json")
@@ -22,10 +19,6 @@ class DevelopmentReadingScenarioBootstrapTest < ActiveSupport::TestCase
   end
 
   teardown do
-    User.where.not(id: @initial_user_ids).find_each(&:destroy!)
-    Book.where.not(id: @initial_book_ids).find_each(&:destroy!)
-    restore_shared_records(Genre, @initial_genres)
-    restore_shared_records(Badge, @initial_badges)
     FileUtils.remove_entry(@directory)
   end
 
@@ -417,14 +410,6 @@ class DevelopmentReadingScenarioBootstrapTest < ActiveSupport::TestCase
       original_rename.call(source, destination)
     }) do
       assert_raises(IOError) { bootstrap_scenario }
-    end
-  end
-
-  def restore_shared_records(model, originals)
-    model.where.not(id: originals.map { |attributes| attributes.fetch("id") }).find_each(&:destroy!)
-    originals.each do |attributes|
-      existing = model.find_by(id: attributes.fetch("id"))
-      existing ? existing.update!(attributes.except("id")) : model.create!(attributes)
     end
   end
 end
