@@ -44,10 +44,14 @@ class ClubMessage < ApplicationRecord
       body: body,
       deleted: deleted?,
       replies_count: replies_count,
-      author: { id: user_id, nickname: user.book_club_memberships.any? { |membership| membership.book_club_id == book_club_id } ? user.nickname : "#{user.nickname} (former member)", avatar_url: author_avatar_path },
+      author: { id: user_id, nickname: discussion_author_name, avatar_url: author_avatar_path },
       created_at: created_at.iso8601(6),
       updated_at: updated_at.iso8601(6)
     }
+  end
+
+  def discussion_author_name
+    user.book_club_memberships.any? { |membership| membership.book_club_id == book_club_id } ? user.nickname : "#{user.nickname} (former member)"
   end
 
   def replies_count
