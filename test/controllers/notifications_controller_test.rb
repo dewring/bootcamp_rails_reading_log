@@ -83,6 +83,29 @@ class NotificationsControllerTest < ActionDispatch::IntegrationTest
     assert_select "li##{dom_id(notification)} a", count: 0
   end
 
+  test "leader notifications open the leaderboard and retain text after club deletion" do
+    user = users(:leika)
+    event = BookClubLeaderNotifier.with(
+      record: @book_club, book_club_name: @book_club.name, book_title: "A Book", leader_names: [ "Mina" ]
+    ).deliver(user, enqueue_job: false)
+    notification = event.notifications.first
+    sign_in user
+
+    get notifications_path
+
+    assert_response :success
+    assert_select "li##{dom_id(notification)} a[href='#{book_club_leaderboard_path(@book_club)}']",
+      text: "Mina is now first in Sci-Fi Society for A Book."
+    assert_not notification.reload.read?
+
+    @book_club.destroy!
+    get notifications_path
+
+    assert_response :success
+    assert_select "li##{dom_id(notification)}", text: /Mina is now first in Sci-Fi Society for A Book\./
+    assert_select "li##{dom_id(notification)} a", count: 0
+  end
+
   test "a returning post author sees the saved reply notification with a discussion link" do
     recipient = users(:leika)
     author = users(:jaina)

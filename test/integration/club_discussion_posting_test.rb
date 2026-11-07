@@ -24,6 +24,7 @@ class ClubDiscussionPostingTest < ActiveSupport::TestCase
     executor.shutdown
     assert executor.wait_for_termination(5)
     @server.restart
+    Noticed::Event.where(record: @book_club).destroy_all
     @book_club.destroy!
     Rack::Attack.reset!
   end

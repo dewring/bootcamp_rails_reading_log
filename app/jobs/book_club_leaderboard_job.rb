@@ -7,5 +7,6 @@ class BookClubLeaderboardJob < ApplicationJob
 
     # Viewer-specific controls and labels must render in the authenticated request.
     Turbo::StreamsChannel.broadcast_refresh_to(book_club)
+    BookClubLeaderChangeRecorder.new(book_club_id: book_club.id).record_leader_change
   end
 end
