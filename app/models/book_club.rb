@@ -7,7 +7,7 @@ class BookClub < ApplicationRecord
   has_many :club_messages, dependent: :destroy
 
   after_commit :refresh_live_panels, on: :update
-  after_commit :notify_members_of_new_pick, on: :update
+  after_commit :notify_members_of_club_changes, on: :update
 
   validates :name, presence: true
   validates :description, presence: true, on: :public_creation
@@ -65,18 +65,40 @@ class BookClub < ApplicationRecord
 
   private
 
-  def notify_members_of_new_pick
-    return unless current_pick_changed_to_book?
+  def notify_members_of_club_changes
+    changes = saved_changes.slice("name", "current_book_id", "reading_deadline")
+    return if changes.empty?
 
+    recipients = current_members
+    return if recipients.empty?
+
+    notify_members_of_new_name(recipients) if changes.key?("name")
+    notify_members_of_new_pick(recipients) if changes.key?("current_book_id")
+    notify_members_of_reading_deadline(recipients) if changes.key?("reading_deadline")
+  end
+
+  def notify_members_of_new_name(recipients)
+    BookClubRenameNotifier.with(
+      record: self,
+      previous_name: saved_change_to_name.first,
+      book_club_name: name
+    ).deliver(recipients)
+  end
+
+  def notify_members_of_new_pick(recipients)
     BookClubPickNotifier.with(
       record: self,
       book_club_name: name,
-      book_title: current_book.title
-    ).deliver(current_members)
+      book_title: current_book&.title
+    ).deliver(recipients)
   end
 
-  def current_pick_changed_to_book?
-    saved_change_to_current_book_id? && current_book_id.present? && saved_change_to_current_book_id.first != current_book_id
+  def notify_members_of_reading_deadline(recipients)
+    BookClubDeadlineNotifier.with(
+      record: self,
+      book_club_name: name,
+      reading_deadline: reading_deadline&.iso8601
+    ).deliver(recipients)
   end
 
   def current_members

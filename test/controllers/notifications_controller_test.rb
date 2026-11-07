@@ -83,6 +83,31 @@ class NotificationsControllerTest < ActionDispatch::IntegrationTest
     assert_select "li##{dom_id(notification)} a", count: 0
   end
 
+  test "a returning member sees saved name and deadline notifications even after the club is deleted" do
+    user = users(:leika)
+    @book_club.book_club_memberships.create!(user: user, role: "owner")
+    @book_club.update!(name: "New circle", reading_deadline: Date.new(2026, 12, 15))
+    sign_in user
+
+    get notifications_path
+
+    assert_response :success
+    assert_select ".notification-content", text: /Sci-Fi Society was renamed to New circle\./
+    assert_select ".notification-content", text: /New circle set the reading deadline to December 15, 2026\./
+    assert_select ".notification-count", text: "2"
+    assert_select ".notification-content a[href='#{book_club_path(@book_club)}']", count: 2
+    assert_equal 2, user.notifications.unread.count
+
+    @book_club.destroy!
+    get notifications_path
+
+    assert_response :success
+    assert_select ".notification-content", text: /Sci-Fi Society was renamed to New circle\./
+    assert_select ".notification-content", text: /New circle set the reading deadline to December 15, 2026\./
+    assert_select ".notification-content a", count: 0
+    assert_equal 2, user.notifications.unread.count
+  end
+
   private
 
   def create_notification(recipient)

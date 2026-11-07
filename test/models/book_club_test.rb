@@ -105,16 +105,111 @@ class BookClubTest < ActiveSupport::TestCase
     assert_equal books(:pragmatic).title, event.params[:book_title]
   end
 
-  test "does not notify when the pick is unchanged, cleared, or only the deadline changes" do
+  test "unchanged club details and description changes do not create notifications" do
     book_club = BookClub.create!(name: "Sci-Fi Society", current_book: books(:refactoring))
     book_club.book_club_memberships.create!(user: users(:leika), role: "owner")
     clear_enqueued_jobs
 
     assert_no_difference("Noticed::Event.count") do
       book_club.update!(current_book: books(:refactoring))
-      book_club.update!(reading_deadline: Date.current + 7.days)
+      book_club.update!(name: book_club.name, reading_deadline: book_club.reading_deadline)
+      book_club.update!(description: "A new description")
+    end
+  end
+
+  test "renaming a club notifies the owner and current members with both names" do
+    book_club = BookClub.create!(name: "Old circle")
+    book_club.book_club_memberships.create!(user: users(:leika), role: "owner")
+    book_club.book_club_memberships.create!(user: users(:jaina), role: "member")
+
+    assert_difference "BookClubRenameNotifier.count", 1 do
+      book_club.update!(name: "New circle")
+    end
+
+    event = BookClubRenameNotifier.last
+    assert_equal [ users(:leika).id, users(:jaina).id ].sort, event.notifications.pluck(:recipient_id).sort
+    assert_equal "Old circle", event.params[:previous_name]
+    assert_equal "New circle", event.params[:book_club_name]
+    assert event.notifications.all?(&:unread?)
+  end
+
+  test "setting and clearing a deadline notifies current members with each saved value" do
+    book_club = BookClub.create!(name: "Deadline circle")
+    book_club.book_club_memberships.create!(user: users(:leika), role: "owner")
+
+    assert_difference "BookClubDeadlineNotifier.count", 2 do
+      book_club.update!(reading_deadline: Date.new(2026, 12, 15))
+      book_club.update!(reading_deadline: nil)
+    end
+
+    events = BookClubDeadlineNotifier.where(record: book_club).order(:id)
+    assert_equal [ "2026-12-15", nil ], events.map { |event| event.params[:reading_deadline] }
+    events.each do |event|
+      assert_equal [ users(:leika).id ], event.notifications.pluck(:recipient_id)
+    end
+  end
+
+  test "clearing the current pick notifies current members with an empty book snapshot" do
+    book_club = BookClub.create!(name: "Pick circle", current_book: books(:refactoring))
+    book_club.book_club_memberships.create!(user: users(:leika), role: "owner")
+
+    assert_difference "BookClubPickNotifier.count", 1 do
       book_club.update!(current_book: nil)
     end
+
+    event = BookClubPickNotifier.last
+    assert_nil event.params[:book_title]
+    assert_equal [ users(:leika).id ], event.notifications.pluck(:recipient_id)
+    assert_equal "Pick circle cleared its current pick.", event.notifications.first.message
+  end
+
+  test "changing name pick and deadline together creates one event for each field" do
+    book_club = BookClub.create!(name: "Old circle")
+    book_club.book_club_memberships.create!(user: users(:leika), role: "owner")
+
+    assert_difference "Noticed::Event.count", 3 do
+      book_club.update!(name: "New circle", current_book: books(:refactoring), reading_deadline: Date.new(2026, 12, 15))
+    end
+
+    events = Noticed::Event.where(record: book_club)
+    assert_equal [ "BookClubDeadlineNotifier", "BookClubPickNotifier", "BookClubRenameNotifier" ], events.pluck(:type).sort
+    assert events.all? { |event| event.params[:book_club_name] == "New circle" }
+    assert events.all? { |event| event.notifications.pluck(:recipient_id) == [ users(:leika).id ] }
+  end
+
+  test "club changes do not notify former members or nonmembers" do
+    book_club = BookClub.create!(name: "Members only")
+    book_club.book_club_memberships.create!(user: users(:leika), role: "owner")
+    former_membership = book_club.book_club_memberships.create!(user: users(:jaina), role: "member")
+    former_membership.destroy!
+
+    book_club.update!(name: "Current members only", reading_deadline: Date.new(2026, 12, 15))
+
+    Noticed::Event.where(record: book_club).each do |event|
+      assert_equal [ users(:leika).id ], event.notifications.pluck(:recipient_id)
+    end
+  end
+
+  test "club changes without members do not create empty notification events" do
+    book_club = BookClub.create!(name: "Empty circle")
+
+    assert_no_difference "Noticed::Event.count" do
+      book_club.update!(name: "Renamed empty circle", reading_deadline: Date.new(2026, 12, 15))
+    end
+  end
+
+  test "rolled back club detail changes do not create notification events" do
+    book_club = BookClub.create!(name: "Rollback circle")
+    book_club.book_club_memberships.create!(user: users(:leika), role: "owner")
+    clear_enqueued_jobs
+
+    assert_no_difference "Noticed::Event.count" do
+      BookClub.transaction do
+        book_club.update!(name: "Not committed", current_book: books(:refactoring), reading_deadline: Date.new(2026, 12, 15))
+        raise ActiveRecord::Rollback
+      end
+    end
+    assert_no_enqueued_jobs(only: Noticed::EventJob)
   end
 
   test "does not notify after a failed update" do
