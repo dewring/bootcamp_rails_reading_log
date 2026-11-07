@@ -7445,18 +7445,11 @@ h2 {
   }
 }
 
-.book-detail-status,
-.book-detail-admin-note {
+.book-detail-status {
   flex-basis: 100%;
   margin-bottom: 0;
   color: $text-muted;
   font-size: 13px;
-}
-
-.book-detail-admin-note {
-  font-size: 11px;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
 }
 
 .book-detail-information {

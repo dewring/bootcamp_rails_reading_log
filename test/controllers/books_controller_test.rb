@@ -67,6 +67,8 @@ class BookControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     assert_select "a.book-detail-button[href='#{admin_catalog_path(book_id: book.id)}']", text: "Edit"
+    assert_select ".book-detail-admin-note", count: 0
+    assert_not_includes response.body, "Admin view"
     assert_select "a[href='#{edit_admin_book_path(book)}']", count: 0
 
     get admin_catalog_path(book_id: book.id)
