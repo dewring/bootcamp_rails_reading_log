@@ -3,7 +3,9 @@ require "tmpdir"
 
 class DevelopmentReadingScenarioTest < ActiveSupport::TestCase
   include ActiveJob::TestHelper
-  self.use_transactional_tests = false
+  # Exercise real commits for the seed entry point and interrupted checkpoint recovery.
+  uses_transaction "test_the_seed_entry_point_creates_the_complete_offline_baseline_while_callbacks_remain_queued",
+    "test_the_complete_baseline_resumes_after_a_session_commit_preceding_its_checkpoint"
 
   setup do
     @initial_users = User.pluck(:id)

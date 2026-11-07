@@ -2,8 +2,9 @@ require "test_helper"
 require "tmpdir"
 
 class OpenLibraryCatalogReplayTest < ActiveSupport::TestCase
-  # These tests must commit before a simulated manifest failure, rather than only release savepoints.
-  self.use_transactional_tests = false
+  # Commit interruption and cache invalidation checks must cross a real transaction boundary.
+  uses_transaction "test_a_committed_subset_resumes_after_interruption_before_its_manifest_update_without_changing_IDs",
+    "test_normal_representative_Edition_commit_callbacks_still_invalidate_the_edition_list_cache"
 
   setup do
     @initial_book_ids = Book.pluck(:id)
