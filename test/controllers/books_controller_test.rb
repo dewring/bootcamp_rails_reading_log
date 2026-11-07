@@ -22,6 +22,43 @@ class BookControllerTest < ActionDispatch::IntegrationTest
     assert_select "section.book-detail-reviews"
   end
 
+  test "book details show only six subjects and genres while retaining all stored values" do
+    subjects = 8.times.map { |index| "Subject #{index + 1}" }
+    book = Book.create!(title: "Many Categories", author: "An Author", subjects: subjects)
+    genres = Genre::GENRES.first(8).map { |name| Genre.find_or_create_by!(name: name) }
+    book.genres.concat(genres)
+
+    get book_path(book)
+
+    assert_response :success
+    assert_equal subjects.first(6), css_select(".book-detail-subjects span").map(&:text)
+    assert_equal book.genres.order(:id).limit(6).pluck(:name), css_select(".book-detail-genres span").map(&:text)
+    assert_equal subjects, book.reload.subjects
+    assert_equal genres.map(&:id).sort, book.genre_ids.sort
+  end
+
+  test "book details display every subject and genre when there are exactly six" do
+    subjects = 6.times.map { |index| "Subject #{index + 1}" }
+    book = Book.create!(title: "Six Categories", author: "An Author", subjects: subjects)
+    genres = Genre::GENRES.first(6).map { |name| Genre.find_or_create_by!(name: name) }
+    book.genres.concat(genres)
+
+    get book_path(book)
+
+    assert_response :success
+    assert_equal subjects, css_select(".book-detail-subjects span").map(&:text)
+    assert_equal genres.map(&:name).sort, css_select(".book-detail-genres span").map(&:text).sort
+  end
+
+  test "book details omit category groups when subjects and genres are empty" do
+    book = Book.create!(title: "No Categories", author: "An Author", subjects: [])
+
+    get book_path(book)
+
+    assert_response :success
+    assert_select ".book-detail-subjects, .book-detail-genres", count: 0
+  end
+
   test "admin book detail edit opens that book in the catalog workspace" do
     sign_in users(:admin)
     book = books(:pragmatic)

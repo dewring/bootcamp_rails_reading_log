@@ -108,7 +108,7 @@
       <% end %>
       <% if @book.subjects.present? %>
         <div class="book-detail-subjects" aria-label="Subjects">
-          <% @book.subjects.each do |subject| %>
+          <% @book.subjects.first(6).each do |subject| %>
             <span><%= subject %></span>
           <% end %>
         </div>
@@ -119,7 +119,7 @@
       <h2 id="book-detail-facts-title">Genres &amp; details</h2>
       <% if @book.genres.any? %>
         <div class="book-detail-genres" aria-label="Genres">
-          <% @book.genres.each do |genre| %>
+          <% @book.genres.first(6).each do |genre| %>
             <span><%= genre.name %></span>
           <% end %>
         </div>
