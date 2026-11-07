@@ -5,7 +5,6 @@ class BookClub < ApplicationRecord
   has_many :book_club_memberships, dependent: :destroy
   has_many :users, through: :book_club_memberships
   has_many :club_messages, dependent: :destroy
-  has_one :leaderboard_snapshot, class_name: "BookClubLeaderboardSnapshot", dependent: :destroy
 
   after_commit :refresh_live_panels, on: :update
   after_commit :notify_members_of_club_changes, on: :update

@@ -26,7 +26,7 @@ class BookClubLeaderboardJobTest < ActiveJob::TestCase
     end
   end
 
-  test "a committed reading update changes leaders once while continuing to refresh the leaderboard" do
+  test "a reading update refreshes the leaderboard without creating notifications" do
     book = Book.create!(title: "Job leaderboard book", author: "An Author")
     club = BookClub.create!(name: "Job leaderboard circle", current_book: book)
     club.book_club_memberships.create!(user: users(:leika), role: "owner")
@@ -39,19 +39,11 @@ class BookClubLeaderboardJobTest < ActiveJob::TestCase
       ReadingSession.create!(user: users(:jaina), book: book, read_on: Date.current, pages_read: 20)
     end
 
-    streams = nil
-    assert_difference "BookClubLeaderNotifier.count", 1 do
-      assert_enqueued_with(job: Noticed::EventJob) do
-        streams = capture_turbo_stream_broadcasts(club) { BookClubLeaderboardJob.perform_now(club.id) }
-      end
+    assert_no_difference [ "Noticed::Event.count", "Noticed::Notification.count" ] do
+      streams = capture_turbo_stream_broadcasts(club) { BookClubLeaderboardJob.perform_now(club.id) }
+      assert_equal [ "refresh" ], streams.map { |stream| stream["action"] }
     end
-    assert_equal [ "refresh" ], streams.map { |stream| stream["action"] }
-    assert_equal [ users(:jaina).nickname ], BookClubLeaderNotifier.last.params[:leader_names]
-
-    clear_enqueued_jobs
-    assert_no_difference "BookClubLeaderNotifier.count" do
-      BookClubLeaderboardJob.perform_now(club.id)
-    end
+    assert_equal users(:jaina).id, club.leaderboard.first.id
     assert_no_enqueued_jobs(only: Noticed::EventJob)
   end
 end

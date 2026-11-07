@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_07_010000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_07_020000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -72,16 +72,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_07_010000) do
     t.datetime "updated_at", null: false
     t.index ["badge_type"], name: "index_badges_on_badge_type", unique: true
     t.index ["name"], name: "index_badges_on_name", unique: true
-  end
-
-  create_table "book_club_leaderboard_snapshots", force: :cascade do |t|
-    t.bigint "book_club_id", null: false
-    t.bigint "current_book_id"
-    t.bigint "leader_user_ids", default: [], null: false, comment: "Historical IDs for set comparison, not a live user association; former or deleted readers remain until the next snapshot.", array: true
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
-    t.index ["book_club_id"], name: "index_book_club_leaderboard_snapshots_on_book_club_id", unique: true
-    t.index ["current_book_id"], name: "index_book_club_leaderboard_snapshots_on_current_book_id"
   end
 
   create_table "book_club_memberships", force: :cascade do |t|
@@ -359,8 +349,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_07_010000) do
 
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
-  add_foreign_key "book_club_leaderboard_snapshots", "book_clubs", on_delete: :cascade
-  add_foreign_key "book_club_leaderboard_snapshots", "books", column: "current_book_id", on_delete: :nullify
   add_foreign_key "book_club_memberships", "book_clubs"
   add_foreign_key "book_club_memberships", "users"
   add_foreign_key "book_clubs", "books", column: "current_book_id"
