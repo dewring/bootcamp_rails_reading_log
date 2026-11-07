@@ -3,8 +3,14 @@ require "tmpdir"
 
 class DevelopmentReadingScenarioCommunityTest < ActiveSupport::TestCase
   include ActiveJob::TestHelper
+
+  # Recovery and commit-callback checks need real commits; other tests use fixture rollbacks.
+  uses_transaction "test_a_club_and_owner_committed_before_checkpoint_resume_together_without_duplicate_owners",
+    "test_a_message_committed_before_checkpoint_resumes_without_repeating_its_broadcast",
+    "test_ambiguous_committed_messages_stop_replay_and_report_both_candidate_IDs",
+    "test_a_review_committed_before_checkpoint_resumes_with_the_original_ID",
+    "test_a_failed_message_save_preserves_the_invalid_model_and_checkpoints_the_failure_for_retry"
   include ActionCable::TestHelper
-  self.use_transactional_tests = false
 
   setup do
     @initial_user_ids = User.pluck(:id)

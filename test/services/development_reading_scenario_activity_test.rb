@@ -3,7 +3,11 @@ require "tmpdir"
 
 class DevelopmentReadingScenarioActivityTest < ActiveSupport::TestCase
   include ActiveJob::TestHelper
-  self.use_transactional_tests = false
+
+  # Recovery and commit-callback checks need real commits; other tests use fixture rollbacks.
+  uses_transaction "test_validation_failure_records_its_reason_and_can_resume_after_the_failure_is_resolved",
+    "test_a_session_committed_before_checkpoint_resumes_without_inserting_or_enqueueing_it_twice",
+    "test_ambiguous_committed_sessions_are_reported_without_choosing_or_deleting_either_row"
 
   setup do
     @initial_user_ids = User.pluck(:id)

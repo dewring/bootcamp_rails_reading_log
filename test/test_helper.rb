@@ -14,7 +14,7 @@ class ActiveSupport::TestCase
 
   teardown do
     # Committed tests reload fixtures next time; truncate this worker's tables without model callbacks.
-    unless use_transactional_tests
+    if !use_transactional_tests || self.class.uses_transaction?(name)
       ActiveRecord::Base.connection_pool.with_connection do |connection|
         connection.truncate_tables(*connection.tables)
       end
