@@ -46,7 +46,9 @@ module DevelopmentReadingScenarioCoverPreviewContext
   def clean_preview_context
     BookClub.where.not(id: @initial_clubs).find_each(&:destroy!)
     actors = User.where.not(id: @initial_users).pluck(:id)
-    ReadingSession.where(user_id: actors).find_each(&:destroy!)
+    # Cleanup should not enqueue progress, badge, and challenge jobs for discarded records.
+    ReadingSession.where(user_id: actors).delete_all
+    UserBook.where(user_id: actors).delete_all
     User.where(id: actors).find_each(&:destroy!)
     Book.where.not(id: @initial_books).find_each(&:destroy!)
     [ [ Genre, @initial_genres ], [ Badge, @initial_badges ] ].each do |model, originals|

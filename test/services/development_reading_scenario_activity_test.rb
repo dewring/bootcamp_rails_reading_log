@@ -35,7 +35,9 @@ class DevelopmentReadingScenarioActivityTest < ActiveSupport::TestCase
 
   teardown do
     actor_ids = User.where.not(id: @initial_user_ids).pluck(:id)
-    ReadingSession.where(user_id: actor_ids).find_each(&:destroy!)
+    # Cleanup should not enqueue progress, badge, and challenge jobs for discarded records.
+    ReadingSession.where(user_id: actor_ids).delete_all
+    UserBook.where(user_id: actor_ids).delete_all
     User.where(id: actor_ids).find_each(&:destroy!)
     Book.where.not(id: @initial_book_ids).find_each(&:destroy!)
     restore_shared_records(Genre, @initial_genres)
