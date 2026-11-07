@@ -4,15 +4,10 @@ class BookReactionPanelsTest < ActionDispatch::IntegrationTest
   include Devise::Test::IntegrationHelpers
 
   setup do
-    Rack::Attack.reset!
     @book = books(:refactoring)
     @review = reviews(:review1)
     @reader = users(:leika)
     @other = users(:jaina)
-  end
-
-  teardown do
-    Rack::Attack.reset!
   end
 
   test "guests see book and review totals without reaction forms or another readers pressed state" do

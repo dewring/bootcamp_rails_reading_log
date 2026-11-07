@@ -2,8 +2,14 @@ require "test_helper"
 
 class RackAttackTest < ActionDispatch::IntegrationTest
   setup do
+    Rack::Attack.enabled = true
     Rack::Attack.reset!
     @user = users(:leika)
+  end
+
+  teardown do
+    Rack::Attack.enabled = false
+    Rack::Attack.reset!
   end
 
   test "throttles sign-in attempts after 5 requests in 20 seconds" do

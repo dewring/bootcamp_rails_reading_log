@@ -20,5 +20,6 @@ class ActiveSupport::TestCase
       end
     end
   end
+  Rack::Attack.enabled = false
   Rack::Attack.cache.store = ActiveSupport::Cache::MemoryStore.new
 end

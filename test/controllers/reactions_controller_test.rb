@@ -4,7 +4,6 @@ class ReactionsControllerTest < ActionDispatch::IntegrationTest
   include Devise::Test::IntegrationHelpers
 
   setup do
-    Rack::Attack.reset!
     @reader = users(:leika)
     @other = users(:jaina)
     @book = books(:refactoring)
@@ -15,10 +14,6 @@ class ReactionsControllerTest < ActionDispatch::IntegrationTest
     @targets = [ @book, @review, @message ]
     @paths = [ book_reaction_path(@book), book_review_reaction_path(@book, @review), book_club_club_message_reaction_path(@club, @message) ]
     @redirects = [ book_path(@book), book_path(@book, anchor: "review_#{@review.id}"), book_club_club_messages_path(@club, anchor: "club_message_#{@message.id}") ]
-  end
-
-  teardown do
-    Rack::Attack.reset!
   end
 
   test "authorized refresh returns an uncached frame for each concrete target" do
