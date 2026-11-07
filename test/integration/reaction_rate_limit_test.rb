@@ -4,6 +4,8 @@ class ReactionRateLimitTest < ActionDispatch::IntegrationTest
   include Devise::Test::IntegrationHelpers
 
   setup do
+    # Keep the request sequence inside one throttle window on every runner.
+    travel_to Time.current.beginning_of_minute
     Rack::Attack.reset!
     @reader = users(:leika)
     @club = BookClub.create!(name: "Rate limit discussion")
