@@ -104,10 +104,7 @@ jobs:
           POSTGRES_PASSWORD: 1234
         ports:
           - 5432:5432
-        # Keep committed test data for the job without flushing writes to runner storage.
-        options: >-
-          --tmpfs /var/lib/postgresql:rw,size=1g
-          --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
       redis:
         image: redis:7-alpine
         ports:
@@ -148,8 +145,6 @@ jobs:
           PGUSER: postgres
           PGPASSWORD: 1234
           REDIS_URL: redis://localhost:6379/1
-          # Scenario tests write and fsync a checkpoint for each imported record.
-          TMPDIR: /dev/shm
         run: |
           bin/rails db:test:prepare
           bin/rails test --verbose
