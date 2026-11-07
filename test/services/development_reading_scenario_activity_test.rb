@@ -3,13 +3,14 @@ require "tmpdir"
 
 class DevelopmentReadingScenarioActivityTest < ActiveSupport::TestCase
   include ActiveJob::TestHelper
-  self.use_transactional_tests = false
+
+  # Recovery and commit-callback checks need real commits; other tests use fixture rollbacks.
+  uses_transaction "test_validation_failure_records_its_reason_and_can_resume_after_the_failure_is_resolved",
+    "test_a_session_committed_before_checkpoint_resumes_without_inserting_or_enqueueing_it_twice",
+    "test_ambiguous_committed_sessions_are_reported_without_choosing_or_deleting_either_row"
 
   setup do
     @initial_user_ids = User.pluck(:id)
-    @initial_book_ids = Book.pluck(:id)
-    @initial_genres = Genre.all.map(&:attributes)
-    @initial_badges = Badge.all.map(&:attributes)
     @directory = Pathname.new(Dir.mktmpdir("booknook-reading-"))
     @paths = { snapshot_path: @directory.join("catalog.json"), manifest_path: @directory.join("manifest.json"), lock_path: @directory.join("scenario.lock") }
     @activity = DevelopmentReadingScenarioActivity.new(**@paths)
@@ -30,12 +31,6 @@ class DevelopmentReadingScenarioActivityTest < ActiveSupport::TestCase
   end
 
   teardown do
-    actor_ids = User.where.not(id: @initial_user_ids).pluck(:id)
-    ReadingSession.where(user_id: actor_ids).find_each(&:destroy!)
-    User.where(id: actor_ids).find_each(&:destroy!)
-    Book.where.not(id: @initial_book_ids).find_each(&:destroy!)
-    restore_shared_records(Genre, @initial_genres)
-    restore_shared_records(Badge, @initial_badges)
     FileUtils.remove_entry(@directory)
   end
 
@@ -239,14 +234,6 @@ class DevelopmentReadingScenarioActivityTest < ActiveSupport::TestCase
       original_rename.call(source, destination)
     }) do
       assert_raises(IOError) { replay }
-    end
-  end
-
-  def restore_shared_records(model, originals)
-    model.where.not(id: originals.map { |attributes| attributes.fetch("id") }).find_each(&:destroy!)
-    originals.each do |attributes|
-      existing = model.find_by(id: attributes.fetch("id"))
-      existing ? existing.update!(attributes.except("id")) : model.create!(attributes)
     end
   end
 end

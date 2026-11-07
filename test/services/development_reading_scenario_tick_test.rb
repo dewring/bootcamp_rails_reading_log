@@ -4,6 +4,10 @@ require_relative "../support/development_reading_scenario_tick_context"
 
 class DevelopmentReadingScenarioTickTest < ActiveSupport::TestCase
   include DevelopmentReadingScenarioTickContext
+  self.use_transactional_tests = true
+
+  # Recovery and commit-callback checks need real commits; other tests use fixture rollbacks.
+  uses_transaction "test_tick1_adds_exactly_three_dated_sessions_and_two_top-level_posts_with_normal_callbacks"
 
   test "tick1 adds exactly three dated sessions and two top-level posts with normal callbacks" do
     jobs = [ "BookProgressJob", "BadgeAwardJob", "ChallengeProgressJob", "BookClubLeaderboardJob" ].to_h { |name| [ name, queue_count(name) ] }

@@ -9,6 +9,9 @@ Rails.application.configure do
   # While tests run files are not watched, reloading is not necessary.
   config.enable_reloading = false
 
+  # Large scenario imports do not need SQL and job payloads formatted for every record.
+  config.log_level = ENV.fetch("RAILS_LOG_LEVEL", "warn")
+
   # Pretty console output for test runs, same reasoning as development.
   # (`format =` is deprecated in rails_semantic_logger 5.0 — appenders block replaces it.)
   # config.rails_semantic_logger.appenders do |appenders|

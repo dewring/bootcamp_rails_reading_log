@@ -3,15 +3,18 @@ require "tmpdir"
 
 class DevelopmentReadingScenarioCommunityTest < ActiveSupport::TestCase
   include ActiveJob::TestHelper
+
+  # Recovery and commit-callback checks need real commits; other tests use fixture rollbacks.
+  uses_transaction "test_a_club_and_owner_committed_before_checkpoint_resume_together_without_duplicate_owners",
+    "test_a_message_committed_before_checkpoint_resumes_without_repeating_its_broadcast",
+    "test_ambiguous_committed_messages_stop_replay_and_report_both_candidate_IDs",
+    "test_a_review_committed_before_checkpoint_resumes_with_the_original_ID",
+    "test_a_failed_message_save_preserves_the_invalid_model_and_checkpoints_the_failure_for_retry"
   include ActionCable::TestHelper
-  self.use_transactional_tests = false
 
   setup do
     @initial_user_ids = User.pluck(:id)
-    @initial_book_ids = Book.pluck(:id)
     @initial_club_ids = BookClub.pluck(:id)
-    @initial_genres = Genre.all.map(&:attributes)
-    @initial_badges = Badge.all.map(&:attributes)
     @directory = Pathname.new(Dir.mktmpdir("booknook-community-"))
     @paths = { snapshot_path: @directory.join("catalog.json"), manifest_path: @directory.join("manifest.json"), lock_path: @directory.join("scenario.lock") }
     @community = DevelopmentReadingScenarioCommunity.new(**@paths)
@@ -30,13 +33,6 @@ class DevelopmentReadingScenarioCommunityTest < ActiveSupport::TestCase
   end
 
   teardown do
-    BookClub.where.not(id: @initial_club_ids).find_each(&:destroy!)
-    actors = User.where.not(id: @initial_user_ids).pluck(:id)
-    ReadingSession.where(user_id: actors).find_each(&:destroy!)
-    User.where(id: actors).find_each(&:destroy!)
-    Book.where.not(id: @initial_book_ids).find_each(&:destroy!)
-    restore_shared_records(Genre, @initial_genres)
-    restore_shared_records(Badge, @initial_badges)
     FileUtils.remove_entry(@directory)
   end
 
@@ -242,14 +238,6 @@ class DevelopmentReadingScenarioCommunityTest < ActiveSupport::TestCase
       original.call(source, destination)
     }) do
       assert_raises(IOError) { replay }
-    end
-  end
-
-  def restore_shared_records(model, originals)
-    model.where.not(id: originals.map { |attributes| attributes.fetch("id") }).find_each(&:destroy!)
-    originals.each do |attributes|
-      existing = model.find_by(id: attributes.fetch("id"))
-      existing ? existing.update!(attributes.except("id")) : model.create!(attributes)
     end
   end
 end
