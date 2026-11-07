@@ -1,6 +1,6 @@
 <% active_section = local_assigns.fetch(:active_section, :my_log) %>
 
-<aside class="my-log-sidebar" aria-label="Personal library navigation">
+<aside class="my-log-sidebar" aria-label="<%= active_section == :settings ? "Settings navigation" : "Personal library navigation" %>">
   <div>
     <div class="my-log-profile">
       <%= render "users/avatar", user: current_user, variant: :sidebar %>
@@ -8,30 +8,33 @@
       <span><%= current_user.email %></span>
     </div>
 
-    <nav class="my-log-navigation" aria-label="My Log">
-      <%= link_to dashboard_path,
-            class: [ "my-log-navigation-item", ("my-log-navigation-item--active" if active_section == :my_log) ],
-            aria: (active_section == :my_log ? { current: "page" } : {}) do %>
-        <%= image_tag "dropdown-book-open.svg", alt: "" %>
-        <span>My Log</span>
-      <% end %>
-      <%= link_to reviews_path,
-            class: [ "my-log-navigation-item", ("my-log-navigation-item--active" if active_section == :reviews) ],
-            aria: (active_section == :reviews ? { current: "page" } : {}) do %>
-        <%= image_tag "dropdown-star.svg", alt: "" %>
-        <span>Reviews</span>
-      <% end %>
-      <%= link_to reading_sessions_path,
-            class: [ "my-log-navigation-item", ("my-log-navigation-item--active" if active_section == :history) ],
-            aria: (active_section == :history ? { current: "page" } : {}) do %>
-        <%= image_tag "dropdown-history.svg", alt: "" %>
-        <span>History</span>
-      <% end %>
-      <%= link_to edit_user_registration_path,
-            class: [ "my-log-navigation-item", ("my-log-navigation-item--active" if active_section == :settings) ],
-            aria: (active_section == :settings ? { current: "page" } : {}) do %>
-        <%= image_tag "dropdown-settings.svg", alt: "" %>
-        <span>Settings</span>
+    <nav class="my-log-navigation" aria-label="<%= active_section == :settings ? "Settings" : "My Log" %>">
+      <% if active_section == :settings %>
+        <%= link_to edit_user_registration_path,
+              class: "my-log-navigation-item my-log-navigation-item--active",
+              aria: { current: "page" } do %>
+          <%= image_tag "dropdown-settings.svg", alt: "" %>
+          <span>Settings</span>
+        <% end %>
+      <% else %>
+        <%= link_to dashboard_path,
+              class: [ "my-log-navigation-item", ("my-log-navigation-item--active" if active_section == :my_log) ],
+              aria: (active_section == :my_log ? { current: "page" } : {}) do %>
+          <%= image_tag "dropdown-book-open.svg", alt: "" %>
+          <span>My Log</span>
+        <% end %>
+        <%= link_to reviews_path,
+              class: [ "my-log-navigation-item", ("my-log-navigation-item--active" if active_section == :reviews) ],
+              aria: (active_section == :reviews ? { current: "page" } : {}) do %>
+          <%= image_tag "dropdown-star.svg", alt: "" %>
+          <span>Reviews</span>
+        <% end %>
+        <%= link_to reading_sessions_path,
+              class: [ "my-log-navigation-item", ("my-log-navigation-item--active" if active_section == :history) ],
+              aria: (active_section == :history ? { current: "page" } : {}) do %>
+          <%= image_tag "dropdown-history.svg", alt: "" %>
+          <span>History</span>
+        <% end %>
       <% end %>
     </nav>
   </div>
