@@ -1,4 +1,5 @@
 require "tmpdir"
+require_relative "development_reading_scenario_setup"
 
 module DevelopmentReadingScenarioTickContext
   extend ActiveSupport::Concern
@@ -6,6 +7,7 @@ module DevelopmentReadingScenarioTickContext
   included do
     include ActiveJob::TestHelper
     include ActionCable::TestHelper
+    include DevelopmentReadingScenarioSetup
     self.use_transactional_tests = false
     setup :prepare_tick_context
     teardown :clean_tick_context
@@ -32,8 +34,12 @@ module DevelopmentReadingScenarioTickContext
       .to_return(status: 200, body: { docs: docs }.to_json)
     in_development do
       OpenLibraryCatalogCapture.new(snapshot_path: @paths.fetch(:snapshot_path), lock_path: @directory.join("capture.lock"), contact_email: "contact@example.test").capture_catalog
-      @seed = DevelopmentReadingScenario.new(**@paths, password: "synthetic-scenario-test-password")
-      @baseline = @seed.seed_baseline
+      @baseline = prepare_scenario_data do |manifest|
+        @seed = DevelopmentReadingScenarioManifest.stub(:new, manifest) do
+          DevelopmentReadingScenario.new(**@paths, password: "synthetic-scenario-test-password")
+        end
+        @seed.seed_baseline
+      end
     end
     WebMock.reset!
     @tick = DevelopmentReadingScenarioTick.new(**@paths)

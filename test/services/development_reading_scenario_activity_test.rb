@@ -1,8 +1,10 @@
 require "test_helper"
 require "tmpdir"
+require_relative "../support/development_reading_scenario_setup"
 
 class DevelopmentReadingScenarioActivityTest < ActiveSupport::TestCase
   include ActiveJob::TestHelper
+  include DevelopmentReadingScenarioSetup
   self.use_transactional_tests = false
 
   setup do
@@ -20,8 +22,10 @@ class DevelopmentReadingScenarioActivityTest < ActiveSupport::TestCase
       .to_return(status: 200, body: { docs: docs }.to_json)
     in_development do
       OpenLibraryCatalogCapture.new(snapshot_path: @paths.fetch(:snapshot_path), lock_path: @directory.join("capture.lock"), contact_email: "contact@example.test").capture_catalog
-      DevelopmentReadingScenarioBootstrap.new(**@paths, password: "synthetic-scenario-test-password").bootstrap_scenario
-      OpenLibraryCatalogReplay.new(**@paths).replay_catalog
+      prepare_scenario_data do |manifest|
+        DevelopmentReadingScenarioBootstrap.new(**@paths, manifest: manifest, password: "synthetic-scenario-test-password").bootstrap_scenario
+        OpenLibraryCatalogReplay.new(**@paths, manifest: manifest).replay_catalog
+      end
       catalog = OpenLibraryCatalogPreflight.new(snapshot_path: @paths.fetch(:snapshot_path)).preflight_catalog
       @plan = DevelopmentReadingScenarioPlan.new(catalog: catalog).build_baseline
     end
