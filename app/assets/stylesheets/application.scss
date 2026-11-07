@@ -253,7 +253,7 @@ main.container:has(> .my-log-page) {
     gap: 4px !important;
     width: 220px;
     min-width: 220px;
-    height: 150px;
+    height: auto;
     margin: 0;
     padding: 8px;
     box-sizing: border-box;
@@ -4335,6 +4335,11 @@ main.container:has(> .book-clubs-page) {
 
   form {
     display: contents;
+  }
+
+  .book-club-action {
+    width: 100px;
+    box-sizing: border-box;
   }
 }
 

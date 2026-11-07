@@ -36,7 +36,7 @@
 
     <div class="book-detail-intro">
       <h1 id="book-detail-title" class="book-detail-title"><%= @book.title %></h1>
-      <p class="book-detail-author">by <%= @book.author %></p>
+      <p class="book-detail-author"><%= @book.author %></p>
 
       <div class="book-detail-rating" aria-label="Average rating <%= average_rating %> out of 5">
         <span class="book-detail-stars" aria-hidden="true"><%= "★" * rounded_rating %><%= "☆" * (5 - rounded_rating) %></span>
