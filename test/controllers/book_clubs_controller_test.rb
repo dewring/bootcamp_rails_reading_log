@@ -13,7 +13,7 @@ class BookClubsControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     assert_select "turbo-frame##{frame_id}[target='_top']" do
-      assert_select "a[href='#{book_club_path(club)}'][data-turbo-frame='#{frame_id}']", text: /Refresh/
+      assert_select "a", text: /Refresh/, count: 0
       assert_select "turbo-cable-stream-source, form", count: 0
     end
     assert_select "turbo-cable-stream-source", count: 1

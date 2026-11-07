@@ -1,5 +1,5 @@
 <% variant = local_assigns.fetch(:variant, :overview) %>
-<article id="<%= dom_id(book_club, :current_pick) %>" class="<%= class_names("book-club-current-pick-card", "book-club-current-pick-card--discussion" => variant == :discussion, "book-club-current-pick-card--refreshable" => local_assigns[:refresh_path].present?) %>">
+<article id="<%= dom_id(book_club, :current_pick) %>" class="<%= class_names("book-club-current-pick-card", "book-club-current-pick-card--discussion" => variant == :discussion) %>">
   <% if book_club.current_book %>
     <div class="book-club-current-pick-cover">
       <% if book_club.current_book.cover_image.attached? %>
@@ -9,23 +9,24 @@
         <%= image_tag "book-open.svg", alt: "", class: "book-club-current-pick-placeholder" %>
       <% end %>
     </div>
-    <div class="book-club-current-pick-information">
+  <% end %>
+  <div class="<%= book_club.current_book ? "book-club-current-pick-information" : "book-club-current-pick-empty" %>">
+    <% if book_club.current_book %>
       <% if variant == :discussion %>
         <span class="book-club-current-pick-label">Current Pick</span>
       <% end %>
       <h2><%= link_to book_club.current_book.title, book_club.current_book %></h2>
       <p><%= book_club.current_book.author %><% if variant == :discussion && book_club.current_book.total_pages.present? %> · <%= pluralize(book_club.current_book.total_pages, "page") %><% end %></p>
-    </div>
-  <% else %>
-    <div class="book-club-current-pick-empty">
+    <% else %>
       <h2>Current pick</h2>
       <p>No current pick yet.</p>
-    </div>
-  <% end %>
-  <% if local_assigns[:refresh_path].present? %>
-    <%= link_to refresh_path, class: "book-club-current-pick-refresh", aria: { label: "Refresh current pick" }, data: { turbo_frame: frame_id, turbo_prefetch: false } do %>
-      <span aria-hidden="true">↻</span>
-      <span>Refresh</span>
     <% end %>
-  <% end %>
+    <p class="book-club-current-pick-deadline">
+      <% if book_club.reading_deadline %>
+        Reading deadline: <time datetime="<%= book_club.reading_deadline.iso8601 %>"><%= book_club.reading_deadline.to_fs(:long) %></time>
+      <% else %>
+        No reading deadline
+      <% end %>
+    </p>
+  </div>
 </article>

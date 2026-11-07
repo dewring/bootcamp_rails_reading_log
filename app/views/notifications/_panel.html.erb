@@ -33,8 +33,9 @@
             <li id="<%= dom_id(notification) %>" class="<%= "notification-unread" if notification.unread? %>">
               <span class="notification-indicator" aria-hidden="true"></span>
               <div class="notification-content">
-                <% if notification.record.present? %>
-                  <%= link_to notification.message, book_club_path(notification.record) %>
+                <% notification_url = notification.url %>
+                <% if notification_url.present? %>
+                  <%= link_to notification.message, notification_url %>
                 <% else %>
                   <span><%= notification.message %></span>
                 <% end %>

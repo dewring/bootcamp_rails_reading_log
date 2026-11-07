@@ -324,21 +324,22 @@ class ClubMessagesControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     assert_select "turbo-frame##{frame_id}[target='_top']" do
-      assert_select "a[href='#{book_club_club_messages_path(@book_club)}'][data-turbo-frame='#{frame_id}'][data-turbo-prefetch='false']", text: /Refresh/
-      assert_select "article.book-club-current-pick-card--refreshable a.book-club-current-pick-refresh[aria-label='Refresh current pick']" do
-        assert_select "span[aria-hidden='true']", text: "↻"
-        assert_select "span:not([aria-hidden])", text: "Refresh"
-      end
+      assert_select "a", text: /Refresh/, count: 0
+      assert_select ".book-club-current-pick-deadline", text: "No reading deadline"
       assert_select "[data-controller='club-discussion'], form, turbo-cable-stream-source", count: 0
     end
     assert_select "[data-controller='club-discussion']", count: 1
     assert_select "form[data-action='submit->club-discussion#postMessage']", count: 1
+    signed_stream = Turbo::StreamsChannel.signed_stream_name([ @book_club, :discussion_current_pick ])
+    assert_select "turbo-cable-stream-source[signed-stream-name='#{signed_stream}']", count: 1
+    assert_select "turbo-cable-stream-source", count: 1
 
-    @book_club.update!(current_book: books(:refactoring))
+    @book_club.update!(current_book: books(:refactoring), reading_deadline: Date.new(2026, 12, 15))
     get book_club_club_messages_path(@book_club), headers: { "Turbo-Frame" => frame_id }
 
     assert_response :success
     assert_select "turbo-frame##{frame_id} h2 a", text: books(:refactoring).title
+    assert_select "turbo-frame##{frame_id} time[datetime='2026-12-15']", text: "December 15, 2026"
   end
 
   test "current pick frame refresh denies a former discussion member" do

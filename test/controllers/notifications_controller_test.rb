@@ -83,6 +83,56 @@ class NotificationsControllerTest < ActionDispatch::IntegrationTest
     assert_select "li##{dom_id(notification)} a", count: 0
   end
 
+  test "a returning post author sees the saved reply notification with a discussion link" do
+    recipient = users(:leika)
+    author = users(:jaina)
+    @book_club.book_club_memberships.create!(user: recipient, role: "owner")
+    @book_club.book_club_memberships.create!(user: author, role: "member")
+    post = @book_club.club_messages.create!(user: recipient, body: "A discussion question")
+    post.replies.create!(book_club: @book_club, user: author, body: "An answer")
+    notification = BookClubReplyNotifier.last.notifications.first
+    sign_in recipient
+
+    get notifications_path
+
+    assert_response :success
+    assert_select "li##{dom_id(notification)} a[href='#{book_club_club_messages_path(@book_club)}']",
+      text: "#{author.nickname} replied to your discussion in Sci-Fi Society."
+    assert_not notification.reload.read?
+
+    @book_club.destroy!
+    get notifications_path
+
+    assert_response :success
+    assert_select "li##{dom_id(notification)}", text: /#{Regexp.escape(author.nickname)} replied to your discussion in Sci-Fi Society\./
+    assert_select "li##{dom_id(notification)} a", count: 0
+  end
+
+  test "a returning member sees saved name and deadline notifications even after the club is deleted" do
+    user = users(:leika)
+    @book_club.book_club_memberships.create!(user: user, role: "owner")
+    @book_club.update!(name: "New circle", reading_deadline: Date.new(2026, 12, 15))
+    sign_in user
+
+    get notifications_path
+
+    assert_response :success
+    assert_select ".notification-content", text: /Sci-Fi Society was renamed to New circle\./
+    assert_select ".notification-content", text: /New circle set the reading deadline to December 15, 2026\./
+    assert_select ".notification-count", text: "2"
+    assert_select ".notification-content a[href='#{book_club_path(@book_club)}']", count: 2
+    assert_equal 2, user.notifications.unread.count
+
+    @book_club.destroy!
+    get notifications_path
+
+    assert_response :success
+    assert_select ".notification-content", text: /Sci-Fi Society was renamed to New circle\./
+    assert_select ".notification-content", text: /New circle set the reading deadline to December 15, 2026\./
+    assert_select ".notification-content a", count: 0
+    assert_equal 2, user.notifications.unread.count
+  end
+
   private
 
   def create_notification(recipient)
