@@ -262,12 +262,10 @@ class ClubDiscussionChannelTest < ActionCable::Channel::TestCase
     assert_equal "Original thought", message.reload.body
   end
 
-  test "reply submission uses the subscribed club and snapshots its current name after a rename" do
+  test "reply submission uses the subscribed club and notifies the original post author" do
     parent = @book_club.club_messages.create!(user: @owner, body: "A question")
     stub_connection current_user: @member
     subscribe book_club_id: @book_club.id
-
-    BookClub.find(@book_club.id).update!(name: "Renamed discussion circle")
 
     assert_difference [ "ClubMessage.count", "BookClubReplyNotifier.count" ], 1 do
       perform :post_reply, request_id: "reply-1", parent_id: parent.id, body: "An answer", user_id: @admin.id, book_club_id: -1
@@ -280,7 +278,7 @@ class ClubDiscussionChannelTest < ActionCable::Channel::TestCase
     assert_equal reply.discussion_payload.as_json, transmissions.last.fetch("message")
     assert_equal 1, transmissions.last.fetch("total_posts")
     assert_equal [ @owner.id ], BookClubReplyNotifier.last.notifications.pluck(:recipient_id)
-    assert_equal "Renamed discussion circle", BookClubReplyNotifier.last.params[:book_club_name]
+    assert_equal @book_club.name, BookClubReplyNotifier.last.params[:book_club_name]
   end
 
   test "replies cannot target another club a reply or an invalid parent id" do

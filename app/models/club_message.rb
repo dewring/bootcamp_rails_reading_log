@@ -69,15 +69,11 @@ class ClubMessage < ApplicationRecord
     return unless parent_id
     return if parent.user_id == user_id
 
-    # A long-lived Cable connection may retain the club's name from subscription time.
-    club = BookClub.find_by(id: book_club_id)
-    return unless club
-
-    return unless club.book_club_memberships.exists?(user_id: parent.user_id)
+    return unless book_club.book_club_memberships.exists?(user_id: parent.user_id)
 
     BookClubReplyNotifier.with(
-      record: club,
-      book_club_name: club.name,
+      record: book_club,
+      book_club_name: book_club.name,
       reply_author_name: user.nickname
     ).deliver(parent.user)
   end

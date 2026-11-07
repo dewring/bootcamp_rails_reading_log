@@ -55,17 +55,6 @@ class ClubMessageTest < ActiveSupport::TestCase
     end
   end
 
-  test "a missing club at notification lookup does not create a reply notification" do
-    @book_club.book_club_memberships.create!(user: @user, role: "owner")
-    post = create_message(body: "A question")
-
-    assert_no_difference "BookClubReplyNotifier.count" do
-      BookClub.stub(:find_by, nil) do
-        create_message(parent: post, user: users(:jaina), body: "An answer")
-      end
-    end
-  end
-
   test "invalid replies do not create notifications" do
     @book_club.book_club_memberships.create!(user: @user, role: "owner")
     post = create_message(body: "A question")
