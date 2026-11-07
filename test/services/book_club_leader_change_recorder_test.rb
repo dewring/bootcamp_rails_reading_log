@@ -81,8 +81,10 @@ class BookClubLeaderChangeRecorderTest < ActiveSupport::TestCase
     ReadingSession.create!(user: @member, book: @book, read_on: Date.current, pages_read: 20)
     event = record_change
     notification = event.notifications.find_by!(recipient: @owner)
-    notification.mark_as_read!
-    read_at = notification.read_at
+    travel_to(Time.utc(2026, 11, 7, 12).change(nsec: 123456789), with_usec: true) do
+      notification.mark_as_read!
+    end
+    read_at = notification.reload.read_at
     clear_enqueued_jobs
 
     assert_no_difference [ "Noticed::Event.count", "Noticed::Notification.count" ] do

@@ -34,8 +34,10 @@ class BookClubLeaderNotifierTest < ActiveSupport::TestCase
 
   test "leader delivery retries do not duplicate notifications or reset read state" do
     notification = create_event([ "Mina" ]).notifications.first
-    notification.mark_as_read!
-    read_at = notification.read_at
+    travel_to(Time.utc(2026, 11, 7, 12).change(nsec: 123456789), with_usec: true) do
+      notification.mark_as_read!
+    end
+    read_at = notification.reload.read_at
     broadcasts = []
 
     assert_no_difference [ "Noticed::Event.count", "Noticed::Notification.count" ] do
