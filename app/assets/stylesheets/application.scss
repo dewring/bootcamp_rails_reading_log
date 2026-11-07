@@ -436,6 +436,11 @@ main.container:has(> .my-log-page) {
   position: relative;
 }
 
+#notifications_frame {
+  // Keep the accessible busy state without Pico shifting navigation controls.
+  &[aria-busy="true"]::before { display: none; }
+}
+
 .notification-trigger {
   position: relative;
 }
