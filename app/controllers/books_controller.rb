@@ -43,11 +43,13 @@ class BooksController < ApplicationController
 
     @reviews = policy_scope(@book.reviews).order(created_at: :desc)
     unless request.format.turbo_stream?
-      @book_editions = Rails.cache.fetch("book:#{@book.id}:editions:list", expires_in: 1.day) do
-        editions = @book.book_editions.includes(:cover_image_attachment).to_a
+      editions = Rails.cache.fetch("book:#{@book.id}:editions:list", expires_in: 1.day) do
+        editions = @book.book_editions.includes(cover_image_attachment: :blob).order(:id).to_a
         with_cover, without_cover = editions.partition { |edition| edition.cover_image.attached? }
         with_cover + without_cover
       end
+      @edition_for_details = editions.find { |edition| edition.publish_year.present? || edition.language.present? } || editions.first
+      @editions_pagy, @book_editions = pagy(:offset, editions, limit: 6, page_key: "editions_page", fragment: "book-detail-editions")
       @reviews = @reviews.includes(:user)
     end
     load_reaction_panels

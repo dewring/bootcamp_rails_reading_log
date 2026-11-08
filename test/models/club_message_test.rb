@@ -8,6 +8,87 @@ class ClubMessageTest < ActiveSupport::TestCase
     @user = users(:leika)
   end
 
+  test "a reply notifies only the original post author who is still a member" do
+    @book_club.book_club_memberships.create!(user: @user, role: "owner")
+    @book_club.book_club_memberships.create!(user: users(:jaina), role: "member")
+    post = create_message(body: "A question")
+
+    assert_difference "BookClubReplyNotifier.count", 1 do
+      create_message(parent: post, user: users(:jaina), body: "An answer")
+    end
+
+    event = BookClubReplyNotifier.last
+    assert_equal @book_club, event.record
+    assert_equal [ @user.id ], event.notifications.pluck(:recipient_id)
+    assert_equal @book_club.name, event.params[:book_club_name]
+    assert_equal users(:jaina).nickname, event.params[:reply_author_name]
+    assert event.notifications.first.unread?
+  end
+
+  test "top level posts and self replies do not create reply notifications" do
+    @book_club.book_club_memberships.create!(user: @user, role: "owner")
+
+    assert_no_difference "BookClubReplyNotifier.count" do
+      post = create_message(body: "My question")
+      create_message(parent: post, body: "My own answer")
+    end
+  end
+
+  test "replies do not notify an original author who left the club" do
+    membership = @book_club.book_club_memberships.create!(user: @user, role: "member")
+    post = create_message(body: "A question before leaving")
+    membership.destroy!
+
+    assert_no_difference "BookClubReplyNotifier.count" do
+      create_message(parent: post, user: users(:jaina), body: "A later answer")
+    end
+  end
+
+  test "editing or saving an existing reply does not create another notification" do
+    @book_club.book_club_memberships.create!(user: @user, role: "owner")
+    post = create_message(body: "A question")
+    reply = create_message(parent: post, user: users(:jaina), body: "An answer")
+
+    assert_no_difference "BookClubReplyNotifier.count" do
+      reply.update!(body: "A revised answer")
+      reply.save!
+    end
+  end
+
+  test "invalid replies do not create notifications" do
+    @book_club.book_club_memberships.create!(user: @user, role: "owner")
+    post = create_message(body: "A question")
+
+    assert_no_difference "BookClubReplyNotifier.count" do
+      assert_not build_message(parent: post, user: users(:jaina), body: " ").save
+    end
+  end
+
+  test "reply notifications wait until the reply transaction commits" do
+    @book_club.book_club_memberships.create!(user: @user, role: "owner")
+    post = create_message(body: "A question")
+    initial_count = BookClubReplyNotifier.count
+
+    assert_difference "BookClubReplyNotifier.count", 1 do
+      ClubMessage.transaction(requires_new: true) do
+        create_message(parent: post, user: users(:jaina), body: "A committed answer")
+        assert_equal initial_count, BookClubReplyNotifier.count
+      end
+    end
+  end
+
+  test "rolled back replies do not create notifications" do
+    @book_club.book_club_memberships.create!(user: @user, role: "owner")
+    post = create_message(body: "A question")
+
+    assert_no_difference "BookClubReplyNotifier.count" do
+      ClubMessage.transaction(requires_new: true) do
+        create_message(parent: post, user: users(:jaina), body: "A rolled back answer")
+        raise ActiveRecord::Rollback
+      end
+    end
+  end
+
   test "discussion payload includes the author's uploaded avatar path" do
     @user.avatar.attach(io: File.open(file_fixture("cover_test.jpg")), filename: "avatar.jpg", content_type: "image/jpeg")
     message = create_message(body: "A thought")

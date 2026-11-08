@@ -43,6 +43,15 @@ class BookClubPickNotifierTest < ActiveSupport::TestCase
     assert_includes message, "1 unread"
   end
 
+  test "cleared pick notifications retain their message after a later pick is selected" do
+    event = BookClubPickNotifier.with(
+      record: @book_club, book_club_name: "Sci-Fi Society", book_title: nil
+    ).deliver(@user, enqueue_job: false)
+    @book_club.update!(current_book: books(:refactoring))
+
+    assert_equal "Sci-Fi Society cleared its current pick.", event.notifications.first.reload.message
+  end
+
   test "delivery retries do not create another event or notification" do
     event = BookClubPickNotifier.with(
       record: @book_club,

@@ -72,7 +72,7 @@ class BookClubLeaderboardsControllerTest < ActionDispatch::IntegrationTest
     get path
 
     assert_response :success
-    assert_select "a[href='#{path}'][data-turbo-frame='#{frame_id}'][data-turbo-prefetch='false']", text: "↻ Refresh leaderboard"
+    assert_select "a", text: /Refresh leaderboard/, count: 0
     assert_select "turbo-frame##{frame_id}[target='_top']" do
       assert_select ".book-club-ranking-row", count: 2
       assert_select "turbo-cable-stream-source", count: 0

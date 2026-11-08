@@ -21,7 +21,7 @@ class HomeControllerTest < ActionDispatch::IntegrationTest
     assert_select "li.account-menu[data-action*='mouseenter->account-dropdown#enter'][data-action*='mouseleave->account-dropdown#leave']"
     assert_select "ul#nav_menu_dropdown[hidden] li a[href='#{books_path}']", text: "Catalog"
     assert_select "ul#account_dropdown[hidden] li a", count: 2
-    assert_select "ul#account_dropdown li a[href='#{new_user_session_path}']", text: "Log In"
+    assert_select "ul#account_dropdown li a[href='#{new_user_session_path}']", text: "Sign In"
     assert_select "ul#account_dropdown li a[href='#{new_user_registration_path}']", text: "Sign Up"
   end
 
@@ -35,10 +35,10 @@ class HomeControllerTest < ActionDispatch::IntegrationTest
     assert_select "li#notifications_panel[data-action*='mouseenter->notification-dropdown#enter'][data-action*='mouseleave->notification-dropdown#leave']"
     assert_select "button.notification-trigger[aria-expanded='false']"
     assert_select "button.nav-account-trigger[aria-label='Account'][aria-expanded='false'] img.account-icon"
-    assert_select "ul#account_dropdown[hidden] li a", count: 5
-    assert_select "ul#account_dropdown li a[href='#{dashboard_path}']", text: "My Log"
-    assert_select "ul#account_dropdown li a[href='#{reviews_path}']", text: "Reviews"
-    assert_select "ul#account_dropdown li a[href='#{reading_sessions_path}']", text: "History"
+    assert_select "ul#account_dropdown[hidden] li a", count: 2
+    assert_select "ul#nav_menu_dropdown li a[href='#{dashboard_path}']", text: "My Log"
+    assert_select "ul#nav_menu_dropdown li a[href='#{reviews_path}']", text: "Reviews"
+    assert_select "ul#nav_menu_dropdown li a[href='#{reading_sessions_path}']", text: "History"
     assert_select "ul#account_dropdown li a[href='#{edit_user_registration_path}']", text: "Settings"
     assert_select "ul#account_dropdown li a[href='#{destroy_user_session_path}']", text: "Log Out"
   end

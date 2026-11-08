@@ -21,6 +21,7 @@ class ClubMessage < ApplicationRecord
   }
 
   after_create_commit :broadcast_created_message
+  after_create_commit :notify_post_author_of_reply
   after_update_commit :broadcast_updated_message, if: -> { saved_change_to_body? || saved_change_to_deleted_at? }
 
   def deleted?
@@ -63,6 +64,19 @@ class ClubMessage < ApplicationRecord
   end
 
   private
+
+  def notify_post_author_of_reply
+    return unless parent_id
+    return if parent.user_id == user_id
+
+    return unless book_club.book_club_memberships.exists?(user_id: parent.user_id)
+
+    BookClubReplyNotifier.with(
+      record: book_club,
+      book_club_name: book_club.name,
+      reply_author_name: user.nickname
+    ).deliver(parent.user)
+  end
 
   def author_avatar_path
     return unless user.avatar.attached?
