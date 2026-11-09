@@ -16,40 +16,12 @@ class HomeControllerTest < ActionDispatch::IntegrationTest
       get root_path
 
       assert_response :success
-      assert_equal as_of, assigns(:trending_as_of)
       assert_equal [ candidates.last.id, *candidates.first(7).map(&:id) ], assigns(:trending_books).map(&:id)
       assert_equal [ 2, 1, 1, 1, 1, 1, 1, 1 ], assigns(:trending_books).map(&:trending_score)
       assert_equal [ 1, 2, 2, 2, 2, 2, 2, 2 ], assigns(:trending_books).map(&:trending_rank)
-      assert_select ".home-trending .home-trending-card", count: 8
-      assert_select ".home-trending .home-trending-rank", text: "Rank 2", count: 7
-      assert_select ".home-trending .home-trending-score", text: "7-day reactions: 2", count: 1
       assert_select ".home-trending .home-view-all, .home-trending nav, .home-trending button", count: 0
       assert_select ".home-trending a.book-card", count: 8
       assert_select ".home-trending turbo-cable-stream-source", count: 0
-      assert_select ".home-trending-window time[datetime='#{as_of.iso8601(6)}']", count: 1
-    end
-  end
-
-  test "trending totals include old reactions but exclude inactive accounts" do
-    as_of = Time.zone.local(2026, 11, 9, 12)
-    book = books(:refactoring)
-    Reaction.create!(book: book, user: users(:leika), kind: "dislike", updated_at: as_of - 1.day)
-    Reaction.create!(book: book, user: users(:jaina), kind: "love", updated_at: as_of - 10.days)
-    Reaction.create!(book: book, user: users(:admin), kind: "wow", updated_at: as_of - 1.day)
-    users(:admin).update!(account_status: "suspended")
-
-    travel_to(as_of) do
-      get root_path
-
-      assert_response :success
-      assert_equal [ 1 ], assigns(:trending_books).map(&:trending_score)
-      assert_equal({ [ book.id, "dislike" ] => 1, [ book.id, "love" ] => 1 }, assigns(:trending_reaction_counts))
-      assert_equal ReactionType.order(:id).pluck(:key), assigns(:trending_reaction_types).map(&:key)
-      assert_select ".home-trending .home-trending-score", text: "7-day reactions: 1"
-      assert_select ".home-trending .home-trending-totals-label", text: "All-date reactions"
-      assert_select ".home-trending [data-kind='love'] .reaction-pill[aria-label='Love: 1']"
-      assert_select ".home-trending [data-kind='dislike'] .reaction-pill[aria-label='Dislike: 1']"
-      assert_select ".home-trending [data-kind='wow'][hidden]"
     end
   end
 
@@ -72,19 +44,6 @@ class HomeControllerTest < ActionDispatch::IntegrationTest
       assert book.cover_image.blob.association(:variant_records).loaded?
     end
     assert_not_requested :any, /openlibrary\.org/
-  end
-
-  test "trending displays catalog labels for additional and disabled reaction types" do
-    type = ReactionType.create!(key: "curious", label: "Curious", emoji: "🤔", enabled: true)
-    book = books(:refactoring)
-    Reaction.create!(book: book, user: users(:leika), kind: type.key, updated_at: 1.hour.ago)
-    type.update!(enabled: false, label: "Interested")
-
-    get root_path
-
-    assert_response :success
-    assert_select ".home-trending .home-trending-score", text: "7-day reactions: 1"
-    assert_select ".home-trending [data-kind='curious'] .reaction-pill[aria-label='Interested: 1']"
   end
 
   test "trending empty state offers the ordinary catalog without substituting unrelated books" do
@@ -128,9 +87,32 @@ class HomeControllerTest < ActionDispatch::IntegrationTest
 
     travel_to(as_of + 1.second) do
       get root_path
-      assert_equal as_of + 1.second, assigns(:trending_as_of)
       assert_empty assigns(:trending_books)
-      assert_empty assigns(:trending_reaction_counts)
+    end
+  end
+
+  test "trending precedes the other shelves and shows only the existing book card content" do
+    book = books(:refactoring)
+    Reaction.create!(book: book, user: users(:leika), kind: "dislike", updated_at: 1.hour.ago)
+
+    [ nil, users(:jaina) ].each do |viewer|
+      sign_in viewer if viewer
+      get root_path
+
+      assert_response :success
+      assert_select "section.home-section > header > h2" do |headings|
+        assert_equal [ "Trending", "Most Read", "New Books" ], headings.map(&:text)
+      end
+      assert_select ".home-trending .book-row > a.book-card[href='#{book_path(book)}']", count: 1
+      assert_select ".home-trending .book-title", text: book.title
+      assert_select ".home-trending .book-author", text: book.author
+      assert_select ".home-trending > p, .home-trending time, .home-trending .reaction-panel, .home-trending turbo-cable-stream-source, .home-trending .home-view-all", count: 0
+      assert_select ".home-trending .book-row > :not(a.book-card)", count: 0
+      assert_select ".home-trending" do |sections|
+        [ "Rank ", "7-day reactions", "All-date reactions", "Each active reader", "7-day window" ].each do |removed_text|
+          assert_not_includes sections.first.text, removed_text
+        end
+      end
     end
   end
 
@@ -172,21 +154,6 @@ class HomeControllerTest < ActionDispatch::IntegrationTest
     assert_select "ul#nav_menu_dropdown li a[href='#{reading_sessions_path}']", text: "History"
     assert_select "ul#account_dropdown li a[href='#{edit_user_registration_path}']", text: "Settings"
     assert_select "ul#account_dropdown li a[href='#{destroy_user_session_path}']", text: "Log Out"
-  end
-
-  test "signed-in trending cards subscribe to the existing public book count streams" do
-    book = books(:refactoring)
-    Reaction.create!(book: book, user: users(:leika), kind: "dislike", updated_at: 1.hour.ago)
-    sign_in users(:jaina)
-
-    get root_path
-
-    assert_response :success
-    assert_select ".home-trending turbo-cable-stream-source" do |sources|
-      assert_equal 1, sources.length
-      assert_equal "book_reactions_#{book.id}", Turbo::StreamsChannel.verified_stream_name(sources.first["signed-stream-name"])
-    end
-    assert_select ".home-trending-window", text: /All-date totals update live/
   end
 
   test "admin account menu includes the management workspace" do

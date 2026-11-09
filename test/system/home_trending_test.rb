@@ -12,7 +12,7 @@ class HomeTrendingTest < ApplicationSystemTestCase
     Warden.test_reset!
   end
 
-  test "rendering count broadcasts preserves ranks and card order until a new page load on desktop and mobile" do
+  test "plain trending cards precede other shelves and keep their order until a new page load on desktop and mobile" do
     first = Book.create!(title: "Trending leader", author: "Test author")
     others = 2.times.map { |index| Book.create!(title: "Trending peer #{index}", author: "Test author") }
     [ first, *others ].each do |book|
@@ -24,28 +24,19 @@ class HomeTrendingTest < ApplicationSystemTestCase
 
     within ".home-trending" do
       assert_text "Trending"
-      assert_selector ".home-trending-card", count: 3
-      assert_selector ".home-trending-rank", text: "Rank 2", count: 2
+      assert_selector ".book-card", count: 3
+      assert_no_selector ".reaction-panel, .home-trending-rank, .home-trending-score, time"
       assert_no_link "View All"
       assert_no_button "Refresh"
     end
-    original_ids = all(".home-trending-card").map { |card| card[:id] }
+    assert_equal [ "Trending", "Most Read", "New Books" ], all("section.home-section > header > h2").map(&:text)
+    original_links = all(".home-trending .book-card").map { |card| card[:href] }
+    assert_equal first.title, find(".home-trending .book-card:first-child .book-title").text
     first.reactions.destroy_all
-    streams = capture_turbo_stream_broadcasts("book_reactions_#{first.id}") do
-      ReactionTotalsJob.perform_now("Book", first.id)
-    end
-    page.execute_script("document.body.insertAdjacentHTML('beforeend', arguments[0])", streams.first.to_html)
-
-    within "#trending_book_#{first.id}" do
-      assert_no_selector ".reaction-pills [data-kind='love']:not([hidden])"
-      assert_no_selector ".reaction-pills [data-kind='dislike']:not([hidden])"
-      assert_text "Rank 1"
-      assert_text "7-day reactions: 2"
-    end
-    assert_equal original_ids, all(".home-trending-card").map { |card| card[:id] }
+    assert_equal original_links, all(".home-trending .book-card").map { |card| card[:href] }
 
     page.current_window.resize_to(390, 844)
-    assert_selector ".home-trending-card", count: 3
+    assert_selector ".home-trending .book-card", count: 3
     page.execute_script(<<~JS)
       const row = document.querySelector('.home-trending .book-row')
       row.scrollLeft = row.scrollWidth
@@ -63,8 +54,10 @@ class HomeTrendingTest < ApplicationSystemTestCase
 
     visit root_path
 
-    assert_no_selector "#trending_book_#{first.id}"
-    assert_selector ".home-trending-rank", text: "Rank 1", count: 2
+    within ".home-trending" do
+      assert_no_link first.title
+      assert_selector ".book-card", count: 2
+    end
   ensure
     page.current_window.resize_to(1400, 1000)
   end

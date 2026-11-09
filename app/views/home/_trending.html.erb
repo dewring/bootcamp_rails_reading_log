@@ -2,13 +2,6 @@
   <header class="home-section-header">
     <h2 id="home-trending-title">Trending</h2>
   </header>
-  <p class="home-trending-description">Each active reader's current reaction counts as one point, regardless of type.</p>
-  <p class="home-trending-window">
-    7-day window: <time datetime="<%= (@trending_as_of - 7.days).iso8601(6) %>"><%= (@trending_as_of - 7.days).strftime("%b %-d, %Y %H:%M:%S %Z") %></time> (included)
-    to <time datetime="<%= @trending_as_of.iso8601(6) %>"><%= @trending_as_of.strftime("%b %-d, %Y %H:%M:%S %Z") %></time> (excluded).
-    Scores and ranks are calculated when this page loads.
-    <%= current_user ? "All-date totals update live." : "All-date totals are from this page load; sign in for live totals." %>
-  </p>
   <% if @trending_books.empty? %>
     <p class="empty-state">No books have qualifying reactions in the last seven days.</p>
     <%= link_to "Browse the ordinary book catalog", books_path %>
@@ -16,18 +9,7 @@
     <div class="home-carousel-track">
       <div class="book-row">
         <% @trending_books.each do |book| %>
-          <div class="home-trending-card" id="<%= dom_id(book, :trending) %>">
-            <p class="home-trending-rank">Rank <%= book.trending_rank %></p>
-            <%= render "home/book_card", book: book %>
-            <p class="home-trending-score">7-day reactions: <%= book.trending_score %></p>
-            <p class="home-trending-totals-label">All-date reactions</p>
-            <% counts = @trending_reaction_types.to_h { |type| [ type.key, @trending_reaction_counts.fetch([ book.id, type.key ], 0) ] } %>
-            <%# Cable requires a signed-in session. Guests receive the same public totals through HTML. %>
-            <%# Existing count streams replace only totals, leaving rank and card order mounted. %>
-            <%= turbo_stream_from "book_reactions_#{book.id}" if current_user %>
-            <%= render "reactions/panel", target: book, types: @trending_reaction_types,
-                  counts: counts, selected: nil, errors: [], can_react: false %>
-          </div>
+          <%= render "home/book_card", book: book %>
         <% end %>
       </div>
     </div>

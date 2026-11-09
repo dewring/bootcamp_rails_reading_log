@@ -9,15 +9,6 @@ class HomeController < ApplicationController
     end
     @new_books = books.includes([ :cover_image_attachment ]).order(created_at: :desc).limit(8).to_a
     @featured_book = @new_books.first || @most_read.first
-    load_trending_books(books)
-  end
-
-  private
-
-  def load_trending_books(books)
-    @trending_as_of = Time.current
-    @trending_books = books.trending(as_of: @trending_as_of).with_attached_cover_image.limit(8).to_a
-    @trending_reaction_types = ReactionType.order(:id).to_a
-    @trending_reaction_counts = Reaction.eligible.where(book_id: @trending_books.map(&:id)).group(:book_id, :kind).count
+    @trending_books = books.trending(as_of: Time.current).with_attached_cover_image.limit(8).to_a
   end
 end
