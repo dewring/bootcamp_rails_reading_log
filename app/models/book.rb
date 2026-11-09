@@ -42,9 +42,9 @@ class Book < ApplicationRecord
       .group(:id)
       .select(Arel.sql(<<~SQL.squish))
         books.*,
-        COUNT(DISTINCT reactions.user_id) AS trending_score,
+        COUNT(reactions.user_id) AS trending_score,
         MAX(reactions.updated_at) AS latest_reaction_at,
-        RANK() OVER (ORDER BY COUNT(DISTINCT reactions.user_id) DESC) AS trending_rank
+        RANK() OVER (ORDER BY COUNT(reactions.user_id) DESC) AS trending_rank
       SQL
       # Recency and ID arrange tied cards without breaking their shared rank.
       .reorder(Arel.sql("trending_score DESC, latest_reaction_at DESC, books.id ASC"))
