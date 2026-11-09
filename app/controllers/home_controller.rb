@@ -16,7 +16,7 @@ class HomeController < ApplicationController
 
   def load_trending_books(books)
     @trending_as_of = Time.current
-    @trending_books = books.trending(as_of: @trending_as_of).limit(8).to_a
+    @trending_books = books.trending(as_of: @trending_as_of).with_attached_cover_image.limit(8).to_a
     @trending_reaction_types = ReactionType.order(:id).to_a
     @trending_reaction_counts = Reaction.eligible.where(book_id: @trending_books.map(&:id)).group(:book_id, :kind).count
   end

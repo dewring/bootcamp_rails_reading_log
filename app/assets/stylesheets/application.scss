@@ -4768,6 +4768,31 @@ main.container:has(> .book-clubs-page) {
   overflow: hidden;
 }
 
+.home-trending-description,
+.home-trending-window {
+  margin: 0 0 0.75rem;
+  font-size: 0.875rem;
+}
+
+.home-trending-card {
+  flex: 0 0 160px;
+  width: 160px;
+  text-align: center;
+
+  .home-trending-rank { font-weight: 700; }
+
+  .home-trending-rank,
+  .home-trending-score,
+  .home-trending-totals-label { margin: 0.5rem 0; }
+
+  .home-trending-score,
+  .home-trending-totals-label { font-size: 0.875rem; }
+
+  .reaction-panel { margin-block: 0.5rem; }
+  .reaction-row,
+  .reaction-pills { justify-content: center; }
+}
+
 .book-row {
   display: flex;
   justify-content: flex-start;
