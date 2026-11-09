@@ -3,6 +3,61 @@ require "test_helper"
 class HomeControllerTest < ActionDispatch::IntegrationTest
   include Devise::Test::IntegrationHelpers
 
+  test "anonymous homepage loads eight trending books ordered by score and recency with shared ranks" do
+    as_of = Time.zone.local(2026, 11, 9, 12)
+    candidates = 9.times.map do |index|
+      book = Book.create!(title: "Trending #{index}", author: "Test author")
+      Reaction.create!(book: book, user: users(:leika), kind: "dislike", updated_at: as_of - (index + 1).hours)
+      book
+    end
+    Reaction.create!(book: candidates.last, user: users(:jaina), kind: "love", updated_at: as_of - 1.day)
+
+    travel_to(as_of) do
+      get root_path
+
+      assert_response :success
+      assert_equal as_of, assigns(:trending_as_of)
+      assert_equal [ candidates.last.id, *candidates.first(7).map(&:id) ], assigns(:trending_books).map(&:id)
+      assert_equal [ 2, 1, 1, 1, 1, 1, 1, 1 ], assigns(:trending_books).map(&:trending_score)
+      assert_equal [ 1, 2, 2, 2, 2, 2, 2, 2 ], assigns(:trending_books).map(&:trending_rank)
+    end
+  end
+
+  test "trending totals include old reactions but exclude inactive accounts" do
+    as_of = Time.zone.local(2026, 11, 9, 12)
+    book = books(:refactoring)
+    Reaction.create!(book: book, user: users(:leika), kind: "dislike", updated_at: as_of - 1.day)
+    Reaction.create!(book: book, user: users(:jaina), kind: "love", updated_at: as_of - 10.days)
+    Reaction.create!(book: book, user: users(:admin), kind: "wow", updated_at: as_of - 1.day)
+    users(:admin).update!(account_status: "suspended")
+
+    travel_to(as_of) do
+      get root_path
+
+      assert_response :success
+      assert_equal [ 1 ], assigns(:trending_books).map(&:trending_score)
+      assert_equal({ [ book.id, "dislike" ] => 1, [ book.id, "love" ] => 1 }, assigns(:trending_reaction_counts))
+      assert_equal ReactionType.order(:id).pluck(:key), assigns(:trending_reaction_types).map(&:key)
+    end
+  end
+
+  test "a new homepage request recalculates the trending cutoff and candidates" do
+    as_of = Time.zone.local(2026, 11, 9, 12)
+    Reaction.create!(book: books(:refactoring), user: users(:leika), kind: "like", updated_at: as_of - 7.days)
+
+    travel_to(as_of) do
+      get root_path
+      assert_equal [ books(:refactoring).id ], assigns(:trending_books).map(&:id)
+    end
+
+    travel_to(as_of + 1.second) do
+      get root_path
+      assert_equal as_of + 1.second, assigns(:trending_as_of)
+      assert_empty assigns(:trending_books)
+      assert_empty assigns(:trending_reaction_counts)
+    end
+  end
+
   test "homepage loads successfully" do
     get root_path
 
