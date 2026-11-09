@@ -1,5 +1,6 @@
 require "test_helper"
 require "tmpdir"
+require "timeout"
 
 class DevelopmentReadingScenarioTest < ActiveSupport::TestCase
   include ActiveJob::TestHelper
@@ -63,6 +64,88 @@ class DevelopmentReadingScenarioTest < ActiveSupport::TestCase
     assert_equal 0, WebhookEndpoint.where(user_id: actors).count
     assert_equal 0, enqueued_jobs.count { |job| job.fetch("job_class") == "CoverAttachJob" }
     assert_not_requested :any, /https?:/
+  end
+
+  [ 300, 303 ].each do |session_count|
+    test "refreshing an old_hit reaction preserves #{session_count} scenario sessions and their progress meaning" do
+      in_development do
+        @scenario.seed_scenario
+        DevelopmentReadingScenarioTick.new(**@paths).advance_scenario(tick: "tick1") if session_count == 303
+        service = DevelopmentReadingScenarioReactions.new(**@paths)
+        before_manifest = JSON.parse(@paths.fetch(:manifest_path).read)
+        actors = before_manifest.dig("bootstrap", "records", "users").values.map { |record| record.fetch("id") }
+        assert_equal session_count, ReadingSession.where(user_id: actors).count
+        private_models = [ ReadingSession, UserBook, ClubMessage ]
+        before_rows = private_models.to_h { |model| [ model.name, model.order(:id).map(&:attributes) ] }
+        book_id = before_manifest.dig("reactions", "anchors", "old_hit", "book_id")
+        as_of = Time.iso8601(before_manifest.fetch("as_of")).in_time_zone
+        assert_equal 2, Book.where(id: book_id).trending(as_of: as_of).sole.trending_score
+
+        service.refresh_old_hit_reaction
+        refreshed = service.refresh_old_hit_reaction
+
+        assert_equal 3, Book.where(id: book_id).trending(as_of: as_of).sole.trending_score
+        assert_equal session_count, ReadingSession.where(user_id: actors).count
+        assert_equal before_rows, private_models.to_h { |model| [ model.name, model.order(:id).map(&:attributes) ] }
+        private_sections = [ "reading", "community", "baseline", "ticks" ]
+        assert_equal before_manifest.slice(*private_sections), refreshed.slice(*private_sections)
+        replayed = @scenario.seed_scenario
+        assert_equal before_manifest.dig("baseline", "actual_counts"), replayed.dig("baseline", "actual_counts")
+        assert_equal before_rows, private_models.to_h { |model| [ model.name, model.order(:id).map(&:attributes) ] }
+        assert_not_requested :any, /https?:/
+      end
+    end
+  end
+
+  test "a pending reaction refresh blocks conflicting edits while another reader on the same book can react" do
+    ready = Queue.new
+    release = Queue.new
+    worker = nil
+    pause_update = ->(reaction) do
+      if Thread.current[:pause_old_hit_refresh]
+        ready.push(reaction.id)
+        release.pop
+      end
+    end
+    in_development do
+      manifest = @scenario.seed_scenario
+      book_id = manifest.dig("reactions", "anchors", "old_hit", "book_id")
+      independent = Reaction.create!(book_id: book_id, user: users(:leika), kind: "like")
+      Reaction.set_callback(:update, :before, pause_update)
+      worker = Thread.new do
+        Thread.current[:pause_old_hit_refresh] = true
+        ActiveRecord::Base.connection_pool.with_connection do
+          DevelopmentReadingScenarioReactions.new(**@paths).refresh_old_hit_reaction
+        end
+      rescue StandardError => error
+        ready.push(error)
+        raise
+      ensure
+        Thread.current[:pause_old_hit_refresh] = nil
+      end
+      selected = Timeout.timeout(10) { ready.pop }
+      raise selected if selected.is_a?(Exception)
+
+      assert_raises(ActiveRecord::LockWaitTimeout) do
+        Reaction.transaction(requires_new: true) do
+          Reaction.connection.execute("SET LOCAL lock_timeout = '250ms'")
+          Reaction.find(selected).update_columns(kind: "wow")
+        end
+      end
+      Reaction.transaction(requires_new: true) do
+        Reaction.connection.execute("SET LOCAL lock_timeout = '250ms'")
+        ReactionSelection.new(user: users(:leika), target: Book.find(book_id)).select_kind(kind: "love")
+      end
+      assert_equal "love", independent.reload.kind
+      release.push(nil)
+      result = Timeout.timeout(10) { worker.value }
+      assert_equal "complete", result.dig("reactions", DevelopmentReadingScenarioReactions::REFRESH_ACTION, "status")
+      assert_not_equal "wow", Reaction.find(selected).kind
+    end
+  ensure
+    release&.push(nil)
+    worker&.join(10)
+    Reaction.skip_callback(:update, :before, pause_update) if pause_update
   end
 
   test "one baseline command saves users books and shelves before reading sessions and community records" do

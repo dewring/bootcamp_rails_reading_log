@@ -94,6 +94,128 @@ class DevelopmentReadingScenarioReactionsTest < ActiveSupport::TestCase
     assert_not_requested :any, /https?:/
   end
 
+  test "seeded anchors have hand-calculated all-kind scores and shared ranks" do
+    manifest = seed
+    as_of = Time.iso8601(manifest.fetch("as_of")).in_time_zone
+    anchors = manifest.fetch("reactions").fetch("anchors")
+    rows = Book.where(id: @book_ids.values).trending(as_of: as_of).to_a
+
+    # Dislikes are all ten days old: recent all-kind totals remain 12, 6, 6, 2.
+    assert_equal [ "new_burst", "tie_c", "tie_d", "old_hit" ].map { |name| anchors.fetch(name).fetch("book_id") }, rows.first(4).map(&:id)
+    assert_equal [ 12, 6, 6, 2 ], rows.first(4).map(&:trending_score)
+    assert_equal [ 1, 2, 2, 4 ], rows.first(4).map(&:trending_rank)
+    assert_not_includes rows.map(&:id), anchors.fetch("empty").fetch("book_id")
+    assert rows.drop(4).all? { |book| book.trending_score == 1 }
+  end
+
+  test "refreshing one old_hit reaction adds one recent contribution without creating rows or changing private activity" do
+    seed
+    before = owned_rows
+    private_rows = preserved_rows
+    clear_enqueued_jobs
+
+    result = refresh_old_hit
+
+    action = result.fetch("reactions").fetch(DevelopmentReadingScenarioReactions::REFRESH_ACTION)
+    assert_equal "complete", action.fetch("status")
+    after = owned_rows
+    changed_ids = after.keys.select { |id| before.fetch(id) != after.fetch(id) }
+    assert_equal [ action.fetch("reaction_id") ], changed_ids
+    row = Reaction.find(action.fetch("reaction_id"))
+    assert_equal before.fetch(row.id).except("updated_at"), row.attributes.except("updated_at")
+    assert_equal Time.iso8601(result.fetch("as_of")) - 1.day, row.updated_at
+    as_of = Time.iso8601(result.fetch("as_of")).in_time_zone
+    assert_equal 3, Book.where(id: anchor("old_hit").fetch("book_id")).trending(as_of: as_of).sole.trending_score
+    assert_equal private_rows, preserved_rows
+    assert_equal 160, owned_rows.length
+    assert_no_enqueued_jobs only: ReactionTotalsJob
+    assert_not_requested :any, /https?:/
+  end
+
+  test "repeating a completed refresh and replaying seeds preserve refreshed rows and action metadata" do
+    seed
+    first = refresh_old_hit
+    rows = owned_rows
+    saved = @paths.fetch(:manifest_path).read
+    clear_enqueued_jobs
+
+    travel_to(Time.iso8601(first.fetch("as_of")) + 2.days) do
+      assert_equal first, refresh_old_hit
+    end
+    assert_equal saved, @paths.fetch(:manifest_path).read
+    replayed = seed
+    assert_equal first.dig("reactions", DevelopmentReadingScenarioReactions::REFRESH_ACTION), replayed.dig("reactions", DevelopmentReadingScenarioReactions::REFRESH_ACTION)
+    assert_equal rows, owned_rows
+    assert_no_enqueued_jobs only: ReactionTotalsJob
+  end
+
+  test "an interrupted refresh resumes a committed timestamp without retouching it" do
+    seed
+    rename = File.method(:rename)
+    target_time = Time.iso8601(saved_manifest.fetch("as_of")) - 1.day
+    File.stub(:rename, ->(source, destination) {
+      changed = Reaction.where(book_id: anchor("old_hit").fetch("book_id"), updated_at: target_time).count == 3
+      raise IOError, "Interrupted after refresh commit" if Pathname.new(destination) == @paths.fetch(:manifest_path) && changed
+
+      rename.call(source, destination)
+    }) do
+      assert_raises(IOError) { refresh_old_hit }
+    end
+    assert_equal "pending", saved_manifest.dig("reactions", DevelopmentReadingScenarioReactions::REFRESH_ACTION, "status")
+    rows = owned_rows
+
+    result = refresh_old_hit
+
+    assert_equal "complete", result.dig("reactions", DevelopmentReadingScenarioReactions::REFRESH_ACTION, "status")
+    assert_equal rows, owned_rows
+  end
+
+  test "refresh intent saved before a failed database update can resume" do
+    seed
+    rows = owned_rows
+    allow_any_instance_of(Reaction).to receive(:update!).and_raise(ActiveRecord::StatementInvalid, "Interrupted before update")
+
+    assert_raises(ActiveRecord::StatementInvalid) { refresh_old_hit }
+    assert_equal rows, owned_rows
+    assert_equal "pending", saved_manifest.dig("reactions", DevelopmentReadingScenarioReactions::REFRESH_ACTION, "status")
+    RSpec::Mocks.space.reset_all
+
+    assert_equal "complete", refresh_old_hit.dig("reactions", DevelopmentReadingScenarioReactions::REFRESH_ACTION, "status")
+  end
+
+  test "a changed refresh plan or changed refreshed row is refused without overwriting it" do
+    seed
+    result = refresh_old_hit
+    action = result.fetch("reactions").fetch(DevelopmentReadingScenarioReactions::REFRESH_ACTION)
+    row = Reaction.find(action.fetch("reaction_id"))
+    row.update!(kind: "wow")
+    saved = @paths.fetch(:manifest_path).read
+
+    assert_raises(DevelopmentReadingScenarioReactions::ReactionsError) { refresh_old_hit }
+    assert_equal "wow", row.reload.kind
+    assert_equal saved, @paths.fetch(:manifest_path).read
+
+    action["updated_at"] = (Time.iso8601(action.fetch("updated_at")) + 1.hour).iso8601(6)
+    write_manifest(result)
+    error = assert_raises(DevelopmentReadingScenarioReactions::ReactionsError) { refresh_old_hit }
+    assert_includes error.message, "refresh plan changed"
+    assert_equal "wow", row.reload.kind
+  end
+
+  test "refresh requires completed reaction seeding and refuses production and overlapping operations" do
+    saved = @paths.fetch(:manifest_path).read
+    assert_raises(DevelopmentReadingScenarioReactions::ReactionsError) { refresh_old_hit }
+    assert_equal saved, @paths.fetch(:manifest_path).read
+    Rails.stub(:env, "production".inquiry) do
+      assert_raises(DevelopmentReadingScenarioManifest::ManifestError) { @service.refresh_old_hit_reaction }
+    end
+    File.open(@paths.fetch(:lock_path), File::RDWR) do |lock|
+      lock.flock(File::LOCK_EX | File::LOCK_NB)
+      assert_raises(DevelopmentReadingScenarioManifest::ManifestError) { refresh_old_hit }
+    end
+    assert_equal saved, @paths.fetch(:manifest_path).read
+  end
+
   test "an interrupted checkpoint resumes the committed reaction without changing it or repeating its callback" do
     rename = File.method(:rename)
     File.stub(:rename, ->(source, destination) {
@@ -270,6 +392,10 @@ class DevelopmentReadingScenarioReactionsTest < ActiveSupport::TestCase
 
   def seed
     in_development { @service.seed_reactions }
+  end
+
+  def refresh_old_hit
+    in_development { @service.refresh_old_hit_reaction }
   end
 
   def saved_manifest
