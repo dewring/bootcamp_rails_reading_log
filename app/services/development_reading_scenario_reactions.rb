@@ -9,6 +9,7 @@ class DevelopmentReadingScenarioReactions
     "empty" => { "work_key" => "/works/OL17590212W", "likes" => 0, "dislikes" => 0, "recent_likes" => 0 }
   }.freeze
   COUNTS = { "book_reactions" => 160, "likes" => 120, "dislikes" => 40 }.freeze
+  REFRESH_ACTION = "refresh_old_hit_reaction".freeze
 
   def initialize(snapshot_path: Rails.root.join("db/seeds/open_library_catalog.json"),
     manifest_path: DevelopmentReadingScenarioManifest::DEFAULT_PATH,
@@ -32,6 +33,24 @@ class DevelopmentReadingScenarioReactions
     end
   end
 
+  def refresh_old_hit_reaction
+    @scenario_manifest.with_exclusive_access do
+      prepare_reactions
+      unless @reactions["status"] == "complete"
+        raise ReactionsError, "Complete development_scenario:seed_reactions before refreshing an old_hit reaction."
+      end
+      action = @reactions[REFRESH_ACTION] ||= planned_old_hit_refresh
+      return @manifest.deep_dup if action.fetch("status") == "complete"
+
+      # Save intent before the database write so an interrupted update can resume.
+      @scenario_manifest.save_scenario
+      refresh_recorded_reaction(action)
+      action["status"] = "complete"
+      @scenario_manifest.save_scenario
+      @manifest.deep_dup
+    end
+  end
+
   private
 
   def prepare_reactions
@@ -45,6 +64,7 @@ class DevelopmentReadingScenarioReactions
     plan = planned_reactions
     @reactions = @manifest["reactions"] || plan
     verify_saved_plan(plan) if @manifest["reactions"]
+    verify_saved_refresh
     verify_inventory
   end
 
@@ -152,8 +172,56 @@ class DevelopmentReadingScenarioReactions
   end
 
   def verify_reaction(row, identity, record)
-    unless attributes_for(row) == record.fetch("expected_attributes")
+    unless expected_reaction_states(identity, record).include?(attributes_for(row))
       raise ReactionsError, "Recorded reaction #{identity} (ID #{row.id}) changed; no automatic overwrite is allowed."
+    end
+  end
+
+  def planned_old_hit_refresh
+    book_id = @reactions.fetch("anchors").fetch("old_hit").fetch("book_id")
+    identity, record = @reactions.fetch("records").sort.find do |_identity, entry|
+      attributes = entry.fetch("expected_attributes")
+      attributes.fetch("book_id") == book_id && Time.iso8601(attributes.fetch("updated_at")) < @as_of - 7.days
+    end
+    {
+      "identity" => identity, "reaction_id" => record.fetch("id"),
+      "original_updated_at" => record.fetch("expected_attributes").fetch("updated_at"),
+      "updated_at" => (@as_of - 1.day).iso8601(6), "status" => "pending"
+    }
+  end
+
+  def verify_saved_refresh
+    action = @reactions[REFRESH_ACTION]
+    return unless action
+    return if [ "pending", "complete" ].include?(action["status"]) && action.except("status") == planned_old_hit_refresh.except("status")
+
+    raise ReactionsError, "The recorded old_hit refresh plan changed; no automatic overwrite is allowed."
+  end
+
+  def expected_reaction_states(identity, record)
+    original = record.fetch("expected_attributes")
+    action = @reactions[REFRESH_ACTION]
+    return [ original ] unless action && action.fetch("identity") == identity
+
+    refreshed = original.merge("updated_at" => action.fetch("updated_at"))
+    if action.fetch("status") == "complete"
+      [ refreshed ]
+    else
+      # Pending intent permits either side of a database-commit/manifest-save interruption.
+      [ original, refreshed ]
+    end
+  end
+
+  def refresh_recorded_reaction(action)
+    identity = action.fetch("identity")
+    record = @reactions.fetch("records").fetch(identity)
+    row = @matches.fetch(identity)
+    # Lock only the selected reaction to prevent overwriting a concurrent edit after preflight.
+    row.with_lock do
+      verify_reaction(row, identity, record)
+      unless row.updated_at.utc.iso8601(6) == action.fetch("updated_at")
+        row.update!(updated_at: action.fetch("updated_at"))
+      end
     end
   end
 

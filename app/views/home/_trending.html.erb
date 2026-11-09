@@ -1,0 +1,17 @@
+<section class="home-section home-trending" aria-labelledby="home-trending-title">
+  <header class="home-section-header">
+    <h2 id="home-trending-title">Trending</h2>
+  </header>
+  <% if @trending_books.empty? %>
+    <p class="empty-state">No books have qualifying reactions in the last seven days.</p>
+    <%= link_to "Browse the ordinary book catalog", books_path %>
+  <% else %>
+    <div class="home-carousel-track">
+      <div class="book-row">
+        <% @trending_books.each do |book| %>
+          <%= render "home/book_card", book: book %>
+        <% end %>
+      </div>
+    </div>
+  <% end %>
+</section>
