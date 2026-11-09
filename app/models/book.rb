@@ -36,6 +36,20 @@ class Book < ApplicationRecord
       .order("COUNT(reading_sessions.id) DESC")
   }
 
+  scope :trending, ->(as_of:) {
+    joins(:reactions)
+      .merge(Reaction.eligible.where(updated_at: (as_of - 7.days)...as_of))
+      .group(:id)
+      .select(Arel.sql(<<~SQL.squish))
+        books.*,
+        COUNT(DISTINCT reactions.user_id) AS trending_score,
+        MAX(reactions.updated_at) AS latest_reaction_at,
+        RANK() OVER (ORDER BY COUNT(DISTINCT reactions.user_id) DESC) AS trending_rank
+      SQL
+      # Recency and ID arrange tied cards without breaking their shared rank.
+      .reorder(Arel.sql("trending_score DESC, latest_reaction_at DESC, books.id ASC"))
+  }
+
   scope :top_book_per_genre, -> {
     ranked = joins(:genres)
       .joins("LEFT JOIN reading_sessions ON reading_sessions.book_id = books.id")
