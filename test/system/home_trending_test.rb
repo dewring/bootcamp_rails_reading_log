@@ -12,7 +12,7 @@ class HomeTrendingTest < ApplicationSystemTestCase
     Warden.test_reset!
   end
 
-  test "live totals preserve ranks and card order until a new page load on desktop and mobile" do
+  test "rendering count broadcasts preserves ranks and card order until a new page load on desktop and mobile" do
     first = Book.create!(title: "Trending leader", author: "Test author")
     others = 2.times.map { |index| Book.create!(title: "Trending peer #{index}", author: "Test author") }
     [ first, *others ].each do |book|
@@ -46,7 +46,10 @@ class HomeTrendingTest < ApplicationSystemTestCase
 
     page.current_window.resize_to(390, 844)
     assert_selector ".home-trending-card", count: 3
-    page.execute_script("const row = document.querySelector('.home-trending .book-row'); row.scrollLeft = row.scrollWidth")
+    page.execute_script(<<~JS)
+      const row = document.querySelector('.home-trending .book-row')
+      row.scrollLeft = row.scrollWidth
+    JS
     assert page.evaluate_script(<<~JS), "The final Trending card must be reachable inside the horizontal row"
       (() => {
         const row = document.querySelector('.home-trending .book-row')

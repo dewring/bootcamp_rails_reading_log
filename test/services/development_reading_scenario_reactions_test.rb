@@ -173,12 +173,22 @@ class DevelopmentReadingScenarioReactionsTest < ActiveSupport::TestCase
   test "refresh intent saved before a failed database update can resume" do
     seed
     rows = owned_rows
-    allow_any_instance_of(Reaction).to receive(:update!).and_raise(ActiveRecord::StatementInvalid, "Interrupted before update")
+    manifest_path = @paths.fetch(:manifest_path)
+    interrupt_refresh = ->(reaction) do
+      action = JSON.parse(manifest_path.read).dig("reactions", DevelopmentReadingScenarioReactions::REFRESH_ACTION)
+      if action && reaction.id == action.fetch("reaction_id")
+        raise ActiveRecord::StatementInvalid, "Interrupted before update"
+      end
+    end
+    Reaction.set_callback(:update, :before, interrupt_refresh)
 
-    assert_raises(ActiveRecord::StatementInvalid) { refresh_old_hit }
+    begin
+      assert_raises(ActiveRecord::StatementInvalid) { refresh_old_hit }
+    ensure
+      Reaction.skip_callback(:update, :before, interrupt_refresh)
+    end
     assert_equal rows, owned_rows
     assert_equal "pending", saved_manifest.dig("reactions", DevelopmentReadingScenarioReactions::REFRESH_ACTION, "status")
-    RSpec::Mocks.space.reset_all
 
     assert_equal "complete", refresh_old_hit.dig("reactions", DevelopmentReadingScenarioReactions::REFRESH_ACTION, "status")
   end
