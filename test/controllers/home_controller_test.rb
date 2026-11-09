@@ -3,7 +3,16 @@ require "test_helper"
 class HomeControllerTest < ActionDispatch::IntegrationTest
   include Devise::Test::IntegrationHelpers
 
-  test "anonymous homepage loads eight trending books ordered by score and recency with shared ranks" do
+  setup do
+    @previous_cache = Rails.cache
+    Rails.cache = ActiveSupport::Cache::MemoryStore.new
+  end
+
+  teardown do
+    Rails.cache = @previous_cache
+  end
+
+  test "anonymous homepage loads eight trending books ordered by score and recency" do
     as_of = Time.zone.local(2026, 11, 9, 12)
     candidates = 9.times.map do |index|
       book = Book.create!(title: "Trending #{index}", author: "Test author")
@@ -17,8 +26,6 @@ class HomeControllerTest < ActionDispatch::IntegrationTest
 
       assert_response :success
       assert_equal [ candidates.last.id, *candidates.first(7).map(&:id) ], assigns(:trending_books).map(&:id)
-      assert_equal [ 2, 1, 1, 1, 1, 1, 1, 1 ], assigns(:trending_books).map(&:trending_score)
-      assert_equal [ 1, 2, 2, 2, 2, 2, 2, 2 ], assigns(:trending_books).map(&:trending_rank)
       assert_select ".home-trending .home-view-all, .home-trending nav, .home-trending button", count: 0
       assert_select ".home-trending a.book-card", count: 8
       assert_select ".home-trending turbo-cable-stream-source", count: 0
@@ -76,18 +83,105 @@ class HomeControllerTest < ActionDispatch::IntegrationTest
     assert_not_requested :any, /openlibrary\.org/
   end
 
-  test "a new homepage request recalculates the trending cutoff and candidates" do
+  test "trending reuses the ranking for thirty minutes then recalculates the cutoff and candidates" do
     as_of = Time.zone.local(2026, 11, 9, 12)
     Reaction.create!(book: books(:refactoring), user: users(:leika), kind: "like", updated_at: as_of - 7.days)
 
-    travel_to(as_of) do
-      get root_path
+    assert_trending_query_count(1) do
+      travel_to(as_of) { get root_path }
       assert_equal [ books(:refactoring).id ], assigns(:trending_books).map(&:id)
     end
 
-    travel_to(as_of + 1.second) do
-      get root_path
+    assert_trending_query_count(0) do
+      travel_to(as_of + 30.minutes - 1.second) { get root_path }
+      assert_equal [ books(:refactoring).id ], assigns(:trending_books).map(&:id)
+    end
+
+    assert_trending_query_count(1) do
+      travel_to(as_of + 30.minutes) { get root_path }
       assert_empty assigns(:trending_books)
+    end
+  end
+
+  test "new reactions change the cached ranking only after expiry" do
+    as_of = Time.zone.local(2026, 11, 9, 12)
+    first = books(:refactoring)
+    second = books(:pragmatic)
+    Reaction.create!(book: first, user: users(:leika), kind: "dislike", updated_at: as_of - 1.hour)
+    travel_to(as_of) { get root_path }
+    assert_equal [ first.id ], assigns(:trending_books).map(&:id)
+    Reaction.create!(book: second, user: users(:leika), kind: "love", updated_at: as_of + 1.minute)
+    Reaction.create!(book: second, user: users(:jaina), kind: "wow", updated_at: as_of + 1.minute)
+
+    assert_trending_query_count(0) do
+      travel_to(as_of + 2.minutes) { get root_path }
+      assert_equal [ first.id ], assigns(:trending_books).map(&:id)
+    end
+    assert_trending_query_count(1) do
+      travel_to(as_of + 30.minutes) { get root_path }
+      assert_equal [ second.id, first.id ], assigns(:trending_books).map(&:id)
+    end
+  end
+
+  test "an empty trending result is cached until expiry" do
+    as_of = Time.zone.local(2026, 11, 9, 12)
+    assert_trending_query_count(1) { travel_to(as_of) { get root_path } }
+    Reaction.create!(book: books(:refactoring), user: users(:leika), kind: "like", updated_at: as_of + 1.minute)
+
+    assert_trending_query_count(0) do
+      travel_to(as_of + 2.minutes) { get root_path }
+      assert_empty assigns(:trending_books)
+    end
+    assert_trending_query_count(1) do
+      travel_to(as_of + 30.minutes) { get root_path }
+      assert_equal [ books(:refactoring).id ], assigns(:trending_books).map(&:id)
+    end
+  end
+
+  test "cached trending IDs preserve order while current titles are loaded and deleted books are omitted" do
+    as_of = Time.zone.local(2026, 11, 9, 12)
+    first = Book.create!(title: "First cached book", author: "Test author")
+    second = Book.create!(title: "Second cached book", author: "Test author")
+    Reaction.create!(book: first, user: users(:leika), kind: "like", updated_at: as_of - 2.hours)
+    Reaction.create!(book: second, user: users(:leika), kind: "dislike", updated_at: as_of - 1.hour)
+    travel_to(as_of) { get root_path }
+    assert_equal [ second.id, first.id ], assigns(:trending_books).map(&:id)
+    second.update!(title: "Updated cached book")
+
+    assert_trending_query_count(0) do
+      travel_to(as_of + 1.minute) { get root_path }
+      assert_equal [ second.id, first.id ], assigns(:trending_books).map(&:id)
+      assert_select ".home-trending .book-title", text: "Updated cached book"
+    end
+    first.destroy!
+    assert_trending_query_count(0) do
+      travel_to(as_of + 2.minutes) { get root_path }
+      assert_equal [ second.id ], assigns(:trending_books).map(&:id)
+      assert_response :success
+    end
+  end
+
+  test "loading shared cached trending IDs still applies the book policy scope" do
+    as_of = Time.zone.local(2026, 11, 9, 12)
+    first = books(:refactoring)
+    second = books(:pragmatic)
+    Reaction.create!(book: first, user: users(:leika), kind: "like", updated_at: as_of - 2.hours)
+    Reaction.create!(book: second, user: users(:leika), kind: "dislike", updated_at: as_of - 1.hour)
+    restricted_scope = Minitest::Mock.new
+    restricted_scope.expect(:resolve, Book.where(id: first.id))
+
+    travel_to(as_of) do
+      assert_trending_query_count(1) { get root_path }
+      assert_equal [ second.id, first.id ], assigns(:trending_books).map(&:id)
+
+      BookPolicy::Scope.stub(:new, restricted_scope) do
+        assert_trending_query_count(0) { get root_path }
+        assert_equal [ first.id ], assigns(:trending_books).map(&:id)
+      end
+      restricted_scope.verify
+
+      assert_trending_query_count(0) { get root_path }
+      assert_equal [ second.id, first.id ], assigns(:trending_books).map(&:id)
     end
   end
 
@@ -192,5 +286,16 @@ class HomeControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     assert_select "img.book-cover"
+  end
+
+  private
+
+  def assert_trending_query_count(expected)
+    queries = []
+    subscriber = ->(_name, _start, _finish, _id, payload) do
+      queries.push(payload.fetch(:sql)) if payload.fetch(:sql).include?("AS trending_score")
+    end
+    ActiveSupport::Notifications.subscribed(subscriber, "sql.active_record") { yield }
+    assert_equal expected, queries.length, "Unexpected number of ranking queries: #{queries.inspect}"
   end
 end

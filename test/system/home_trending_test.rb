@@ -4,15 +4,18 @@ class HomeTrendingTest < ApplicationSystemTestCase
   include Warden::Test::Helpers
 
   setup do
+    @previous_cache = Rails.cache
+    Rails.cache = ActiveSupport::Cache::MemoryStore.new
     Warden.test_mode!
     login_as users(:leika), scope: :user
   end
 
   teardown do
     Warden.test_reset!
+    Rails.cache = @previous_cache
   end
 
-  test "plain trending cards precede other shelves and keep their order until a new page load on desktop and mobile" do
+  test "plain trending cards precede other shelves and retain cached order until expiry on desktop and mobile" do
     first = Book.create!(title: "Trending leader", author: "Test author")
     others = 2.times.map { |index| Book.create!(title: "Trending peer #{index}", author: "Test author") }
     [ first, *others ].each do |book|
@@ -53,10 +56,15 @@ class HomeTrendingTest < ApplicationSystemTestCase
     end
 
     visit root_path
+    assert_equal original_links, all(".home-trending .book-card").map { |card| card[:href] }
 
-    within ".home-trending" do
-      assert_no_link first.title
-      assert_selector ".book-card", count: 2
+    travel_to(Time.current + 30.minutes) do
+      visit root_path
+
+      within ".home-trending" do
+        assert_no_link first.title
+        assert_selector ".book-card", count: 2
+      end
     end
   ensure
     page.current_window.resize_to(1400, 1000)

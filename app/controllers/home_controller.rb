@@ -1,4 +1,6 @@
 class HomeController < ApplicationController
+  TRENDING_CACHE_DURATION = 30.minutes
+
   def index
     books = policy_scope(Book)
     book_most_read = books.most_read.includes([ :cover_image_attachment ])
@@ -9,6 +11,17 @@ class HomeController < ApplicationController
     end
     @new_books = books.includes([ :cover_image_attachment ]).order(created_at: :desc).limit(8).to_a
     @featured_book = @new_books.first || @most_read.first
-    @trending_books = books.trending(as_of: Time.current).with_attached_cover_image.limit(8).to_a
+    @trending_books = cached_trending_books(books)
+  end
+
+  private
+
+  def cached_trending_books(books)
+    # BookPolicy currently exposes the same public catalog to everyone, so share the ranked IDs.
+    # Reapply the policy scope when loading current book attributes and covers.
+    ids = Rails.cache.fetch("home#trending_books", expires_in: TRENDING_CACHE_DURATION) do
+      books.trending(as_of: Time.current).limit(8).map(&:id)
+    end
+    books.in_order_of(:id, ids).with_attached_cover_image.to_a
   end
 end
