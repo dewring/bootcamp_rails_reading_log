@@ -58,7 +58,7 @@ class HomeTrendingTest < ApplicationSystemTestCase
     visit root_path
     assert_equal original_links, all(".home-trending .book-card").map { |card| card[:href] }
 
-    travel_to(Time.current + 30.minutes) do
+    travel_to(Time.current + 30.minutes, with_usec: true) do
       visit root_path
 
       within ".home-trending" do
