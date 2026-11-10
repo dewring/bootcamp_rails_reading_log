@@ -16,6 +16,27 @@ class UserTest < ActiveSupport::TestCase
     assert @user.valid?
   end
 
+  test "Flipper identifies the same persisted user consistently and distinguishes other users" do
+    reader = users(:leika)
+
+    assert_equal "User;#{reader.id}", reader.flipper_id
+    assert_equal reader.flipper_id, User.find(reader.id).flipper_id
+    assert_not_equal reader.flipper_id, users(:jaina).flipper_id
+  end
+
+  test "a fixed Flipper actor percentage preserves assignment after user attributes change and reload" do
+    reader = users(:leika)
+    Flipper.add(:discovery_hero_trending_v1)
+    feature = Flipper[:discovery_hero_trending_v1]
+    feature.enable_percentage_of_actors(50)
+    assigned_to_treatment = feature.enabled?(reader)
+
+    reader.update!(nickname: "updated-flipper-reader")
+
+    assert_equal assigned_to_treatment, feature.enabled?(reader.reload)
+    assert_equal assigned_to_treatment, feature.enabled?(User.find(reader.id))
+  end
+
   test "first_name is required" do
     @user.first_name = ""
     assert_not @user.valid?
