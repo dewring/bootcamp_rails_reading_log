@@ -22,7 +22,6 @@ class User < ApplicationRecord
   has_many :reading_sessions
   has_many :reviews, dependent: :destroy
   has_many :reactions, dependent: :destroy
-  has_many :discovery_exposures, dependent: :destroy
   has_many :review_reactions, dependent: :destroy
   has_many :club_message_reactions, dependent: :destroy
   has_many :user_challenges, dependent: :destroy

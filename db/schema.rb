@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_10_232000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_10_234000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -173,23 +173,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_10_232000) do
     t.check_constraint "char_length(body) <= 1000", name: "club_messages_body_length"
     t.check_constraint "deleted_at IS NULL OR parent_id IS NULL AND body = ''::text", name: "club_messages_deleted_post_state"
     t.check_constraint "parent_id IS NULL OR parent_id <> id", name: "club_messages_parent_not_self"
-  end
-
-  create_table "discovery_exposures", force: :cascade do |t|
-    t.bigint "user_id", null: false
-    t.string "experiment_key", null: false
-    t.string "variant", null: false
-    t.bigint "shown_book_ids", null: false, array: true
-    t.datetime "exposed_at", null: false
-    t.datetime "converted_at"
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
-    t.index ["experiment_key", "variant"], name: "index_discovery_exposures_on_experiment_key_and_variant"
-    t.index ["user_id", "experiment_key"], name: "index_discovery_exposures_on_user_id_and_experiment_key", unique: true
-    t.check_constraint "cardinality(shown_book_ids) > 0", name: "discovery_exposures_books_present"
-    t.check_constraint "converted_at IS NULL OR converted_at >= exposed_at AND converted_at < (exposed_at + 'PT24H'::interval)", name: "discovery_exposures_conversion_window"
-    t.check_constraint "length(btrim(experiment_key::text)) > 0", name: "discovery_exposures_experiment_present"
-    t.check_constraint "variant::text = ANY (ARRAY['control'::character varying, 'treatment'::character varying]::text[])", name: "discovery_exposures_variant_allowed"
   end
 
   create_table "flipper_features", force: :cascade do |t|
@@ -394,7 +377,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_10_232000) do
   add_foreign_key "club_messages", "book_clubs"
   add_foreign_key "club_messages", "club_messages", column: "parent_id"
   add_foreign_key "club_messages", "users"
-  add_foreign_key "discovery_exposures", "users"
   add_foreign_key "reactions", "books"
   add_foreign_key "reactions", "reaction_types", column: "kind", primary_key: "key", on_update: :restrict, on_delete: :restrict
   add_foreign_key "reactions", "users"
