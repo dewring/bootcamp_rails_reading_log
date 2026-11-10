@@ -70,21 +70,4 @@
 
 @use "components/reactions" as components-reactions;
 
-.admin-page--members {
-  .admin-page-heading .admin-primary-button { min-height: 38px; margin: 0; padding: 10px 16px; border-radius: 999px; font-size: 12px; line-height: 18px; white-space: nowrap; }
-  .admin-member-heading { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
-  .admin-member-status { flex-shrink: 0; color: #52715a; font-size: 12px; font-weight: 700; line-height: 21px; }
-  .admin-member-status--invited { color: #8c693e; }
-  .admin-member-status--suspended { color: #d9383a; }
-  .admin-member-account { color: tokens.$text-muted; font-size: 12px; line-height: 17px; overflow-wrap: anywhere; }
-  .admin-member-activity { color: tokens.$text-muted; font-size: 11px; line-height: 17px; }
-  .admin-member-form { margin: 0; }
-  .admin-member-field-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 12px; }
-  .admin-member-status-field .admin-select-trigger { height: 42px; font-size: 14px; background: #fffefc; }
-  .admin-field label { font-size: 11px; line-height: 15px; text-transform: uppercase; }
-  .admin-field input, .admin-field select { width: 100%; min-width: 0; height: 42px; margin: 0; padding: 10px 12px; border: 1px solid tokens.$gray-mid; border-radius: 8px; background-color: #fffefc; color: tokens.$ink; font-size: 14px; line-height: 20px; }
-  .admin-field select { padding-right: 28px; }
-  .admin-member-form-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
-  .admin-member-form-actions .admin-primary-button, .admin-member-form-actions .admin-secondary-button { width: auto; height: 38px; min-height: 38px; margin: 0; padding: 10px 16px; border-radius: 999px; font-size: 12px; line-height: 18px; }
-  @media (max-width: 600px) { .admin-member-field-grid { grid-template-columns: minmax(0, 1fr); } .admin-page-heading { align-items: flex-start; flex-wrap: wrap; gap: 12px; } }
-}
+@use "features/admin/members" as features-admin-members;
