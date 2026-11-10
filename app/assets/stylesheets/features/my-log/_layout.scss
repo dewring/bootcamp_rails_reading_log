@@ -1,0 +1,188 @@
+@use "../../foundation/tokens";
+
+// ── My Log / Editorial library ────────────────────────────
+.my-log-page {
+  width: 100vw;
+  max-width: none;
+  margin: 0 0 0 calc(50% - 50vw);
+  background: #faf7f4;
+  color: tokens.$ink;
+}
+
+.my-log-body {
+  display: flex;
+  min-height: calc(100vh - 72px);
+}
+
+.my-log-sidebar {
+  display: flex;
+  flex: 0 0 280px;
+  flex-direction: column;
+  justify-content: space-between;
+  width: 280px;
+  padding: 36px 24px 28px;
+  border-right: 1px solid tokens.$gray-mid;
+  background: #f7f2ea;
+}
+
+.my-log-profile {
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  text-align: center;
+
+  strong {
+    color: tokens.$ink;
+    font-family: "Fraunces", Georgia, serif;
+    font-size: 20px;
+    line-height: 1.2;
+  }
+
+  > span {
+    margin-top: 6px;
+    color: tokens.$text-muted;
+    font-size: 12px;
+    line-height: 1.3;
+  }
+}
+
+.my-log-navigation {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 40px;
+}
+
+.my-log-navigation-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: 8px;
+  background: transparent;
+  color: tokens.$ink !important;
+  font-size: 14px;
+  font-weight: 500;
+  text-decoration: none;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.55);
+    color: tokens.$ink !important;
+  }
+
+  img {
+    display: block;
+    flex: 0 0 18px;
+    width: 18px;
+    height: 18px;
+  }
+
+  span {
+    background: transparent !important;
+  }
+
+  &--active {
+    background: #fdf1ef;
+    color: tokens.$accent !important;
+
+    &:hover {
+      background: #fdf1ef;
+      color: tokens.$accent !important;
+    }
+  }
+
+  &--logout {
+    padding-top: 20px;
+    border-top: 1px solid tokens.$gray-mid;
+    border-radius: 0;
+    color: #d95757 !important;
+
+    &:hover {
+      background: transparent;
+      color: #d95757 !important;
+    }
+  }
+}
+
+.my-log-main {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  gap: 34px;
+  overflow-x: hidden;
+  overflow-y: visible;
+  padding: 44px 52px 28px;
+}
+
+.my-log-intro {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  min-height: 100px;
+  gap: 32px;
+
+  h1 {
+    margin: 7px 0 5px;
+    color: tokens.$ink;
+    font-family: "Fraunces", Georgia, serif;
+    font-size: 42px;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    line-height: 1.05;
+  }
+
+  p {
+    margin: 0;
+    color: tokens.$text-muted;
+    font-size: 14px;
+    line-height: 1.4;
+  }
+}
+
+.my-log-eyebrow {
+  color: tokens.$accent !important;
+  font-size: 11px !important;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  line-height: 1.2 !important;
+  text-transform: uppercase;
+}
+
+.my-log-season-note > span {
+  color: tokens.$text-muted !important;
+  font-size: 11px !important;
+  font-weight: 400;
+  letter-spacing: 0.08em;
+  line-height: 1.2 !important;
+  text-transform: uppercase;
+}
+
+.my-log-season-note {
+  display: flex;
+  align-items: flex-end;
+  flex-direction: column;
+  flex: 0 0 auto;
+  gap: 5px;
+  padding-bottom: 1px;
+  text-align: right;
+
+  strong {
+    color: tokens.$ink;
+    font-family: "Fraunces", Georgia, serif;
+    font-size: 18px;
+    font-style: italic;
+    font-weight: 700;
+    line-height: 1.1;
+  }
+
+  i {
+    display: block;
+    width: 84px;
+    height: 2px;
+    margin-top: 5px;
+    background: tokens.$accent;
+  }
+}

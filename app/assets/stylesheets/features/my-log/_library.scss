@@ -1,0 +1,167 @@
+@use "../../foundation/tokens";
+
+.my-log-section {
+  min-width: 0;
+}
+
+.my-log-section-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  min-height: 52px;
+
+  h2 {
+    margin: 0;
+    color: tokens.$ink;
+    font-family: "Fraunces", Georgia, serif;
+    font-size: 26px;
+    font-weight: 700;
+    line-height: 1;
+  }
+
+  p {
+    margin: 7px 0 0;
+    color: tokens.$text-muted;
+    font-size: 12px;
+    line-height: 1.2;
+  }
+}
+
+.my-log-divider {
+  height: 1px;
+  margin-top: 20px;
+  background: tokens.$gray-mid;
+}
+
+.my-log-carousel {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-height: 274px;
+  margin-top: 20px;
+}
+
+.my-log-carousel-viewport {
+  width: 100%;
+  overflow: hidden;
+}
+
+.my-log-carousel-track {
+  display: flex;
+  gap: 20px;
+  width: max-content;
+  padding: 0 6px 4px;
+  transition: transform 180ms ease;
+}
+
+.my-log-book-card {
+  display: flex;
+  align-items: center;
+  flex: 0 0 160px;
+  flex-direction: column;
+  gap: 7px;
+  color: tokens.$ink !important;
+  text-align: center;
+  text-decoration: none;
+
+  &:hover {
+    color: tokens.$ink !important;
+
+    .my-log-book-cover {
+      transform: translateY(-3px);
+    }
+  }
+
+  strong {
+    display: -webkit-box;
+    max-width: 160px;
+    overflow: hidden;
+    color: tokens.$ink;
+    font-family: "Fraunces", Georgia, serif;
+    font-size: 16px;
+    font-weight: 700;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-height: 1.2;
+  }
+
+  span {
+    max-width: 160px;
+    overflow: hidden;
+    color: tokens.$text-muted;
+    font-size: 12px;
+    line-height: 1.2;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+.my-log-book-cover {
+  display: block;
+  width: 134px;
+  height: 197px;
+  border-radius: 8px;
+  background: #eee7e1;
+  box-shadow: 0 8px 18px rgba(44, 38, 35, 0.12);
+  object-fit: cover;
+  transition: transform 180ms ease;
+}
+
+.my-log-book-cover--empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: tokens.$text-muted;
+  font-size: 30px;
+}
+
+.my-log-carousel-arrow {
+  position: absolute;
+  top: 50%;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid tokens.$gray-mid;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 4px 10px rgba(44, 38, 35, 0.08);
+  transform: translateY(-50%);
+
+  &:hover {
+    border-color: tokens.$accent;
+    background: #fff;
+  }
+
+  &:disabled {
+    cursor: default;
+    opacity: 0.35;
+  }
+
+  img {
+    display: block;
+    width: 16px;
+    height: 16px;
+  }
+
+  &--previous {
+    left: -15px;
+  }
+
+  &--next {
+    right: -15px;
+  }
+}
+
+.my-log-empty-shelf {
+  margin: 30px 0 0;
+  color: tokens.$text-muted;
+  font-size: 14px;
+
+  a {
+    color: tokens.$accent;
+  }
+}
