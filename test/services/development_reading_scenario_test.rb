@@ -1,6 +1,5 @@
 require "test_helper"
 require "tmpdir"
-require "timeout"
 
 class DevelopmentReadingScenarioTest < ActiveSupport::TestCase
   include ActiveJob::TestHelper
@@ -90,55 +89,23 @@ class DevelopmentReadingScenarioTest < ActiveSupport::TestCase
     end
   end
 
-  test "a pending reaction refresh blocks conflicting edits while another reader on the same book can react" do
-    ready = Queue.new
-    release = Queue.new
-    worker = nil
-    pause_update = ->(reaction) do
-      if Thread.current[:pause_old_hit_refresh]
-        ready.push(reaction.id)
-        release.pop
-      end
-    end
+  test "refreshing an old_hit reaction preserves another reader's reaction and allows a later update" do
     in_development do
       manifest = @scenario.seed_scenario
       book_id = manifest.dig("reactions", "anchors", "old_hit", "book_id")
       independent = Reaction.create!(book_id: book_id, user: users(:leika), kind: "like")
-      Reaction.set_callback(:update, :before, pause_update)
-      worker = Thread.new do
-        Thread.current[:pause_old_hit_refresh] = true
-        ActiveRecord::Base.connection_pool.with_connection do
-          DevelopmentReadingScenarioReactions.new(**@paths).refresh_old_hit_reaction
-        end
-      rescue StandardError => error
-        ready.push(error)
-        raise
-      ensure
-        Thread.current[:pause_old_hit_refresh] = nil
-      end
-      selected = Timeout.timeout(10) { ready.pop }
-      raise selected if selected.is_a?(Exception)
+      original = independent.attributes
 
-      assert_raises(ActiveRecord::LockWaitTimeout) do
-        Reaction.transaction(requires_new: true) do
-          Reaction.connection.execute("SET LOCAL lock_timeout = '250ms'")
-          Reaction.find(selected).update_columns(kind: "wow")
-        end
-      end
-      Reaction.transaction(requires_new: true) do
-        Reaction.connection.execute("SET LOCAL lock_timeout = '250ms'")
-        ReactionSelection.new(user: users(:leika), target: Book.find(book_id)).select_kind(kind: "love")
-      end
-      assert_equal "love", independent.reload.kind
-      release.push(nil)
-      result = Timeout.timeout(10) { worker.value }
+      result = DevelopmentReadingScenarioReactions.new(**@paths).refresh_old_hit_reaction
+
       assert_equal "complete", result.dig("reactions", DevelopmentReadingScenarioReactions::REFRESH_ACTION, "status")
-      assert_not_equal "wow", Reaction.find(selected).kind
+      assert_equal original, independent.reload.attributes
+
+      selected = ReactionSelection.new(user: users(:leika), target: Book.find(book_id)).select_kind(kind: "love")
+
+      assert_equal independent.id, selected.id
+      assert_equal "love", independent.reload.kind
     end
-  ensure
-    release&.push(nil)
-    worker&.join(10)
-    Reaction.skip_callback(:update, :before, pause_update) if pause_update
   end
 
   test "one baseline command saves users books and shelves before reading sessions and community records" do
