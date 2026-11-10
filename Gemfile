@@ -107,3 +107,5 @@ group :development do
 end
 
 gem "flipper-active_record", "~> 1.4"
+
+gem "flipper-ui", "~> 1.4"
