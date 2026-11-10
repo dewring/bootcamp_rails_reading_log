@@ -1,0 +1,137 @@
+@use "../foundation/tokens";
+
+// ── Page hint ──────────────────────────────────────────────
+.page-hint {
+  font-size: 0.8rem;
+  color: tokens.$text-muted;
+  margin: -0.5rem 0 1.25rem;
+}
+
+// ── Search form ────────────────────────────────────────────
+.search-form {
+  --pico-form-element-spacing-vertical: 0px;
+  --pico-form-element-spacing-horizontal: 0.75rem;
+  display: flex;
+  align-items: stretch;
+  height: 38px;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+
+  input[type="text"],
+  input[type="search"],
+  select,
+  input[type="submit"] {
+    height: 100% !important;
+    min-height: unset !important;
+    max-height: 100% !important;
+    margin: 0 !important;
+    box-sizing: border-box !important;
+    font-size: 0.85rem !important;
+    border-radius: 6px !important;
+  }
+
+  input[type="text"],
+  input[type="search"] {
+    flex: 1;
+    border: 1px solid tokens.$gray-mid !important;
+    background: #fff !important;
+    color: tokens.$ink !important;
+    padding: 0 0.75rem !important;
+  }
+
+  select {
+    flex: 0 0 150px;
+    border: 1px solid tokens.$gray-mid !important;
+    background: #fff !important;
+    padding: 0 0.5rem !important;
+  }
+
+  input[type="submit"] {
+    flex: 0;
+    background: tokens.$accent !important;
+    border: none !important;
+    color: #fff !important;
+    font-weight: 600 !important;
+    padding: 0 1.25rem !important;
+    cursor: pointer;
+
+    &:hover { background: darken(tokens.$accent, 8%) !important; }
+  }
+
+  .btn-cta {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 0;
+    height: 100%;
+    box-sizing: border-box;
+    white-space: nowrap;
+  }
+
+  .search-dropdown {
+    position: relative;
+    flex: 0 0 auto;
+    height: 100%;
+  }
+}
+
+.search-dropdown-trigger {
+  cursor: default;
+  user-select: none;
+}
+
+// Invisible hit-area bridging the gap to the trigger above, so moving the
+// cursor down into the menu never leaves a hoverable element (which would
+// otherwise close the menu, a classic CSS-hover-dropdown dead zone).
+.search-dropdown-menu {
+  display: none;
+  position: absolute;
+  top: 100%;
+  right: 0;
+  padding-top: 0.35rem;
+  z-index: 20;
+}
+
+.search-dropdown-menu-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 200px;
+  background: #fff;
+  border: 1px solid tokens.$gray-mid;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(26, 34, 54, 0.12);
+  padding: 0.35rem;
+}
+
+.search-dropdown:hover .search-dropdown-menu,
+.search-dropdown:focus-within .search-dropdown-menu {
+  display: block;
+}
+
+.search-dropdown-item {
+  display: block;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.85rem;
+  color: tokens.$ink;
+  text-decoration: none;
+  border-radius: 6px;
+  white-space: nowrap;
+
+  &:hover { background: tokens.$gray-light; }
+}
+
+// ── Catalog header ─────────────────────────────────────────
+.catalog-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.catalog-header-actions {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+}

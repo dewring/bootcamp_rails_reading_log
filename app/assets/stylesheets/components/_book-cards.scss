@@ -1,0 +1,174 @@
+@use "../foundation/tokens";
+
+// ── Book list (Kyobo-style) ─────────────────────────────────
+.book-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.book-list-item {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 1.25rem 0;
+  border-bottom: 1px solid tokens.$gray-mid;
+
+  &:first-child { border-top: 1px solid tokens.$gray-mid; }
+}
+
+.book-list-cover {
+  flex: 0 0 72px;
+
+  a { display: block; }
+
+  .book-list-image {
+    width: 72px;
+    height: 100px;
+    object-fit: cover;
+    border-radius: 4px;
+    display: block;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+  }
+
+  .book-list-no-cover {
+    width: 72px;
+    height: 100px;
+    background: tokens.$gray-light;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    border: 1px solid tokens.$gray-mid;
+  }
+}
+
+.book-club-cover-image {
+  width: 104px;
+  height: 148px;
+  object-fit: cover;
+  border-radius: 4px;
+  display: block;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  margin-bottom: 0.75rem;
+}
+
+.book-list-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.book-list-genre {
+  margin: 0 0 0.3rem;
+
+  span {
+    font-size: 0.7rem;
+    color: tokens.$text-muted;
+    background: tokens.$gray-light;
+    padding: 0.15rem 0.5rem;
+    border-radius: 20px;
+    margin-right: 0.25rem;
+  }
+}
+
+.book-list-title {
+  font-size: 1rem;
+  font-weight: 700;
+  margin: 0 0 0.25rem;
+
+  a {
+    color: tokens.$ink;
+    text-decoration: none;
+    &:hover { color: tokens.$accent; }
+  }
+}
+
+.book-list-author {
+  font-size: 0.8rem;
+  color: tokens.$text-muted;
+  margin: 0;
+}
+
+.book-list-actions {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  align-items: stretch;
+  min-width: 120px;
+}
+
+.btn-cta-danger {
+  background: #fff;
+  color: #dc2626 !important;
+  border: 1px solid #fecaca;
+
+  &:hover { background: #fef2f2; }
+}
+
+// ── Book card ──────────────────────────────────────────────
+.books-grid article {
+  border: 1px solid tokens.$gray-mid;
+  border-radius: tokens.$radius;
+  overflow: hidden;
+  padding: 0;
+  transition: box-shadow 0.2s, transform 0.2s;
+  background: #fff;
+
+  &:hover {
+    box-shadow: 0 6px 24px rgba(26, 34, 54, 0.12);
+    transform: translateY(-3px);
+  }
+
+  img {
+    width: 100%;
+    height: 220px;
+    object-fit: cover;
+    display: block;
+  }
+
+  h3, p, footer {
+    padding: 0 0.75rem;
+  }
+
+  h3 {
+    font-size: 0.95rem;
+    font-weight: 700;
+    margin: 0.75rem 0 0.25rem;
+    color: tokens.$ink;
+
+    a {
+      color: tokens.$ink;
+      text-decoration: none;
+      &:hover { color: tokens.$accent; }
+    }
+  }
+
+  p small {
+    color: tokens.$text-muted;
+    font-size: 0.8rem;
+  }
+
+  footer {
+    padding: 0.5rem 0.75rem 0.75rem;
+    display: flex;
+    gap: 0.5rem;
+  }
+}
+
+.nav-dropdown-item > span,
+.account-dropdown-item > span {
+  display: inline;
+  margin: 0;
+  padding: 0 !important;
+  border-radius: 0;
+  background: transparent !important;
+  color: tokens.$ink !important;
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: normal;
+}
+
+.account-dropdown-item--danger > span {
+  color: #d9383a !important;
+}

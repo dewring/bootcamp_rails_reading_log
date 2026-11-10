@@ -1,0 +1,52 @@
+@use "../foundation/tokens";
+
+// ── Badges ─────────────────────────────────────────────────
+.badge-row {
+  display: flex;
+  gap: 1rem;
+  overflow-x: auto;
+  padding-bottom: 0.75rem;
+  margin-bottom: 1.5rem;
+  scrollbar-width: thin;
+  scrollbar-color: tokens.$gray-mid transparent;
+
+  &::-webkit-scrollbar {
+    height: 4px;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: tokens.$gray-mid;
+    border-radius: 4px;
+  }
+}
+
+.badge-card {
+  flex: 0 0 110px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 0.9rem 0.6rem;
+  border: 1px solid tokens.$gray-mid;
+  border-radius: tokens.$radius;
+  background: #fff;
+
+  .badge-icon {
+    flex-shrink: 0;
+    margin-bottom: 0.5rem;
+  }
+
+  .badge-title {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: tokens.$ink;
+    margin: 0 0 0.2rem;
+    line-height: 1.3;
+  }
+
+  .badge-desc {
+    font-size: 0.68rem;
+    color: tokens.$text-muted;
+    margin: 0;
+    line-height: 1.35;
+  }
+}
