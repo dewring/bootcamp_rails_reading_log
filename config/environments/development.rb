@@ -1,4 +1,5 @@
 require "active_support/core_ext/integer/time"
+require_relative "../../lib/development_log_filter"
 
 Rails.application.configure do
   # Settings specified here will take precedence over those in config/application.rb.
@@ -10,8 +11,8 @@ Rails.application.configure do
   # to read while developing. Hash payloads still show up, just not as a JSON string.
   # (`format =` is deprecated in rails_semantic_logger 5.0 — appenders block replaces it.)
   config.rails_semantic_logger.appenders do |appenders|
-    appenders.add(file_name: Rails.root.join("log", "development.log").to_s, formatter: :color)
-    appenders.add(io: $stdout, formatter: { color: { ap: { multiline: true, indent: 2 } } })
+    appenders.add(file_name: Rails.root.join("log", "development.log").to_s, formatter: :color, filter: DevelopmentLogFilter.method(:keep?))
+    appenders.add(io: $stdout, formatter: { color: { ap: { multiline: true, indent: 2 } } }, filter: DevelopmentLogFilter.method(:keep?))
   end
   config.log_tags = {}
   config.rails_semantic_logger.started = true
@@ -41,6 +42,8 @@ Rails.application.configure do
 
   # Store uploaded files on the ministack file system (see config/storage.yml for options). (supposed to be local)
   config.active_storage.service = :ministack
+  # Identify storage operations without filtering unrelated Rails messages.
+  config.active_storage.logger = SemanticLogger["ActiveStorage"]
 
   # Don't care if the mailer can't send.
   config.action_mailer.raise_delivery_errors = false
