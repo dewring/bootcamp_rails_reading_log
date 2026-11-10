@@ -17,11 +17,16 @@ class HomeController < ApplicationController
   private
 
   def cached_trending_books(books)
-    # BookPolicy currently exposes the same public catalog to everyone, so share the ranked IDs.
+    # BookPolicy currently exposes the same public catalog to everyone, so share ranking snapshots.
     # Reapply the policy scope when loading current book attributes and covers.
-    ids = Rails.cache.fetch("home#trending_books", expires_in: TRENDING_CACHE_DURATION) do
-      books.trending(as_of: Time.current).limit(8).map(&:id)
+    ranking = Rails.cache.fetch("home#trending_books/v2", expires_in: TRENDING_CACHE_DURATION) do
+      books.trending(as_of: Time.current).limit(8).map do |book|
+        { id: book.id, rank: book.trending_rank, reaction_count: book.trending_score }
+      end
     end
-    books.in_order_of(:id, ids).with_attached_cover_image.to_a
+    visible_books = books.in_order_of(:id, ranking.map { |entry| entry.fetch(:id) }).with_attached_cover_image.to_a
+    visible_ids = visible_books.map(&:id)
+    @trending_statistics = ranking.select { |entry| visible_ids.include?(entry.fetch(:id)) }.index_by { |entry| entry.fetch(:id) }
+    visible_books
   end
 end

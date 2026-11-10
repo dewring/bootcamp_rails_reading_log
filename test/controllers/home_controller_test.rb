@@ -138,6 +138,34 @@ class HomeControllerTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "cached trending statistics preserve shared ranks and seven day counts until expiry" do
+    as_of = Time.zone.local(2026, 11, 9, 12)
+    first = books(:refactoring)
+    second = books(:pragmatic)
+    Reaction.create!(book: first, user: users(:leika), kind: "like", updated_at: as_of - 2.hours)
+    Reaction.create!(book: second, user: users(:leika), kind: "love", updated_at: as_of - 1.hour)
+
+    travel_to(as_of) do
+      get root_path
+
+      assert_equal({ id: first.id, rank: 1, reaction_count: 1 }, assigns(:trending_statistics).fetch(first.id))
+      assert_equal({ id: second.id, rank: 1, reaction_count: 1 }, assigns(:trending_statistics).fetch(second.id))
+    end
+    Reaction.create!(book: second, user: users(:jaina), kind: "wow", updated_at: as_of + 1.minute)
+
+    travel_to(as_of + 2.minutes) do
+      assert_trending_query_count(0) { get root_path }
+      assert_equal 1, assigns(:trending_statistics).fetch(second.id).fetch(:reaction_count)
+      assert_equal 1, assigns(:trending_statistics).fetch(first.id).fetch(:rank)
+    end
+
+    travel_to(as_of + 30.minutes) do
+      assert_trending_query_count(1) { get root_path }
+      assert_equal({ id: second.id, rank: 1, reaction_count: 2 }, assigns(:trending_statistics).fetch(second.id))
+      assert_equal({ id: first.id, rank: 2, reaction_count: 1 }, assigns(:trending_statistics).fetch(first.id))
+    end
+  end
+
   test "cached trending IDs preserve order while current titles are loaded and deleted books are omitted" do
     as_of = Time.zone.local(2026, 11, 9, 12)
     first = Book.create!(title: "First cached book", author: "Test author")
@@ -177,6 +205,7 @@ class HomeControllerTest < ActionDispatch::IntegrationTest
       BookPolicy::Scope.stub(:new, restricted_scope) do
         assert_trending_query_count(0) { get root_path }
         assert_equal [ first.id ], assigns(:trending_books).map(&:id)
+        assert_equal [ first.id ], assigns(:trending_statistics).keys
       end
       restricted_scope.verify
 
