@@ -65,6 +65,7 @@ Rails.application.routes.draw do
 
   authenticate :user, ->(u) { u.admin? } do
     mount MissionControl::Jobs::Engine, at: "/jobs"
+    mount Flipper::UI.app, at: "/flipper"
   end
 
   get "dashboard", to: "dashboard#index", as: :dashboard
