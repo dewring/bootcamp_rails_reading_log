@@ -1,73 +1,38 @@
 // BookNook — warm reading-focused styles adapted from the Figma reference.
-
-@use "foundation/tokens";
+// Preserve this emission order: later modules override earlier shared rules.
 
 @use "foundation/theme";
-
 @use "foundation/base";
-
 @use "components/flash-notifications";
-
 @use "layout/navigation";
-
 @use "features/admin/workspace";
-
 @use "features/admin/catalog";
-
 @use "features/admin/community";
-
 @use "features/book-clubs/detail";
-
 @use "features/book-clubs/leaderboard";
-
 @use "features/book-clubs/layout-overrides";
-
-@use "components/actions" as components-actions;
-
-@use "components/page-controls" as components-page-controls;
-
-@use "features/book-clubs/browse" as features-book-clubs-browse;
-
-@use "components/isbn-scanner" as components-isbn-scanner;
-
-@use "components/book-cards" as components-book-cards;
-
-@use "features/home" as features-home;
-
-@use "components/badges" as components-badges;
-
-@use "foundation/content" as foundation-content;
-
-@use "features/my-log/dashboard" as features-my-log-dashboard;
-
-@use "features/books/show" as features-books-show;
-
-@use "features/auth" as features-auth;
-
-@use "features/admin/book-form" as features-admin-book-form;
-
-@use "components/reviews" as components-reviews;
-
-@use "features/catalog" as features-catalog;
-
-@use "components/pagination" as components-pagination;
-
-@use "features/challenges" as features-challenges;
-
-@use "features/books/detail" as features-books-detail;
-
-@use "features/my-log/layout" as features-my-log-layout;
-
-@use "features/my-log/reviews" as features-my-log-reviews;
-
-@use "features/settings" as features-settings;
-
-@use "features/my-log/library" as features-my-log-library;
-
-@use "features/my-log/history" as features-my-log-history;
-
-@use "features/my-log/journal" as features-my-log-journal;
-
-@use "components/reactions" as components-reactions;
-
-@use "features/admin/members" as features-admin-members;
+@use "components/actions";
+@use "components/page-controls";
+@use "features/book-clubs/browse";
+@use "components/isbn-scanner";
+@use "components/book-cards";
+@use "features/home";
+@use "components/badges";
+@use "foundation/content";
+@use "features/my-log/dashboard";
+@use "features/books/show";
+@use "features/auth";
+@use "features/admin/book-form";
+@use "components/reviews";
+@use "features/catalog" as public-catalog;
+@use "components/pagination";
+@use "features/challenges";
+@use "features/books/detail" as book-detail;
+@use "features/my-log/layout";
+@use "features/my-log/reviews" as my-log-reviews;
+@use "features/settings";
+@use "features/my-log/library";
+@use "features/my-log/history";
+@use "features/my-log/journal";
+@use "components/reactions";
+@use "features/admin/members";
