@@ -63,6 +63,25 @@ class DevelopmentLogFilterTest < Minitest::Test
     assert @appender.should_log?(log_entry("ActiveRecord::Base", :debug, nil))
   end
 
+  def test_successful_cache_reads_are_hidden_but_cache_misses_remain_visible
+    refute @appender.should_log?(log_entry("Rails", :info, "Cache [HIT] for key: book:180:editions:list"))
+    assert @appender.should_log?(log_entry("Rails", :info, "Cache [MISS] for key: book:180:editions:list"))
+  end
+
+  def test_cache_hit_warnings_and_exceptions_remain_visible
+    message = "Cache [HIT] for key: book:180:editions:list"
+    assert @appender.should_log?(log_entry("Rails", :warn, message))
+
+    log = log_entry("Rails", :info, message)
+    log.exception = IOError.new("Cache unavailable")
+
+    assert @appender.should_log?(log)
+  end
+
+  def test_other_loggers_can_report_cache_hits
+    assert @appender.should_log?(log_entry("BookProgressJob", :info, "Cache [HIT] for key: progress"))
+  end
+
   private
 
   def log_entry(name, level, message)

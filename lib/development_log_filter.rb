@@ -8,6 +8,9 @@ module DevelopmentLogFilter
     # Active Storage SQL shares the application's Active Record logger.
     return false if log.name == "ActiveRecord::Base" && log.message.to_s.start_with?("ActiveStorage::")
 
+    # Keep cache misses useful for diagnosis without repeating successful reads.
+    return false if log.name == "Rails" && log.message.to_s.start_with?("Cache [HIT] for key: ")
+
     true
   end
 end
