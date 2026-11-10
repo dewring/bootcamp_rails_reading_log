@@ -11,7 +11,7 @@ class DevelopmentLogFilterTest < Minitest::Test
       @output,
       level: :trace,
       formatter: :json,
-      filter: DevelopmentLogFilter.method(:keep?)
+      filter: DevelopmentLogFilter.method(:include_in_development_log?)
     )
   end
 

@@ -11,8 +11,8 @@ Rails.application.configure do
   # to read while developing. Hash payloads still show up, just not as a JSON string.
   # (`format =` is deprecated in rails_semantic_logger 5.0 — appenders block replaces it.)
   config.rails_semantic_logger.appenders do |appenders|
-    appenders.add(file_name: Rails.root.join("log", "development.log").to_s, formatter: :color, filter: DevelopmentLogFilter.method(:keep?))
-    appenders.add(io: $stdout, formatter: { color: { ap: { multiline: true, indent: 2 } } }, filter: DevelopmentLogFilter.method(:keep?))
+    appenders.add(file_name: Rails.root.join("log", "development.log").to_s, formatter: :color, filter: DevelopmentLogFilter.method(:include_in_development_log?))
+    appenders.add(io: $stdout, formatter: { color: { ap: { multiline: true, indent: 2 } } }, filter: DevelopmentLogFilter.method(:include_in_development_log?))
   end
   config.log_tags = {}
   config.rails_semantic_logger.started = true
