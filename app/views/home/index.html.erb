@@ -1,6 +1,9 @@
-<%= render "home/hero" %>
-
-<%= render "home/trending" %>
+<% if @hero_trending %>
+  <%= render "home/trending_hero" %>
+<% else %>
+  <%= render "home/hero" %>
+  <%= render "home/trending" %>
+<% end %>
 
 <%# Most Read %>
 <section class="home-section">

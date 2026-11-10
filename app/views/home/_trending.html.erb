@@ -9,7 +9,11 @@
     <div class="home-carousel-track">
       <div class="book-row">
         <% @trending_books.each do |book| %>
-          <%= render "home/book_card", book: book %>
+          <% if @discovery_running %>
+            <%= render "home/ranked_book_card", book: book, total_reactions: @trending_reaction_totals.fetch(book.id, 0) %>
+          <% else %>
+            <%= render "home/book_card", book: book %>
+          <% end %>
         <% end %>
       </div>
     </div>

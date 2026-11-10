@@ -1,0 +1,50 @@
+@use "../../foundation/tokens";
+
+.genre-pill {
+  --pico-color: #{tokens.$ink};
+  --pico-background-color: #{tokens.$gray-light};
+  --pico-text-decoration: none;
+  display: inline-block;
+  background: tokens.$gray-light;
+  color: tokens.$ink;
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 0.35rem 0.9rem;
+  border-radius: 20px;
+  text-decoration: none;
+  border: 1px solid tokens.$gray-mid;
+  transition: background 0.15s, color 0.15s;
+
+  &:hover {
+    --pico-color: #fff;
+    background: tokens.$accent;
+    color: #fff;
+    border-color: tokens.$accent;
+  }
+
+  &.genre-pill-active {
+    background: tokens.$accent;
+    color: #fff;
+    border-color: tokens.$accent;
+  }
+
+  &.genre-pill-reset {
+    --pico-color: #{tokens.$ink};
+    --pico-background-color: #f5c518;
+    background: #f5c518;
+    border-color: #e0b000;
+    color: tokens.$ink;
+
+    &:hover {
+      background: #e0b000;
+      color: tokens.$ink;
+    }
+  }
+}
+
+.genre-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 2rem;
+}

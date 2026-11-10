@@ -1,0 +1,7 @@
+<article class="trending-book-card">
+  <%= render "home/book_card", book: book %>
+  <span class="trending-rank" aria-label="Rank <%= @trending_statistics.fetch(book.id).fetch(:rank) %>"><%= @trending_statistics.fetch(book.id).fetch(:rank) %></span>
+  <% if local_assigns.key?(:total_reactions) %>
+    <p class="trending-total">Total reactions <span><%= total_reactions %></span></p>
+  <% end %>
+</article>

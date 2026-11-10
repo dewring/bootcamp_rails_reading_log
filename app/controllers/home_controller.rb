@@ -12,9 +12,22 @@ class HomeController < ApplicationController
     @new_books = books.includes([ :cover_image_attachment ]).order(created_at: :desc).limit(8).to_a
     @featured_book = @new_books.first || @most_read.first
     @trending_books = cached_trending_books(books)
+    prepare_discovery_presentation
   end
 
   private
+
+  def prepare_discovery_presentation
+    response.headers["Cache-Control"] = "no-store"
+    @discovery_running = current_user.present? && current_user.reload.account_status == "active" &&
+      Flipper.enabled?(:discovery_experiment_running_v1)
+    @hero_trending = @discovery_running && @trending_books.any? &&
+      Flipper.enabled?(:discovery_hero_trending_v1, current_user)
+    @hero_trending_books = @hero_trending ? @trending_books.first(4) : []
+    return unless @discovery_running && !@hero_trending
+
+    @trending_reaction_totals = Reaction.eligible.where(book_id: @trending_books.map(&:id)).group(:book_id).count
+  end
 
   def cached_trending_books(books)
     # BookPolicy currently exposes the same public catalog to everyone, so share ranking snapshots.

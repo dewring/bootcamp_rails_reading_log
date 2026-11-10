@@ -1,0 +1,12 @@
+<section class="home-hero home-trending-hero" aria-labelledby="home-hero-title">
+  <div class="home-hero-copy">
+    <h1 id="home-hero-title">New &amp; Trending</h1>
+    <p>Discover this week’s most-reacted-to books.</p>
+    <p class="trending-period">Top 4 · Last 7 days</p>
+  </div>
+  <div class="trending-hero-books">
+    <% @hero_trending_books.each do |book| %>
+      <%= render "home/ranked_book_card", book: book %>
+    <% end %>
+  </div>
+</section>
