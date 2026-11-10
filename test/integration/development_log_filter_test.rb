@@ -2,13 +2,15 @@ require_relative "../../config/boot"
 require "minitest/autorun"
 require "semantic_logger"
 require "stringio"
+require "json"
 require_relative "../../lib/development_log_filter"
 
 class DevelopmentLogFilterTest < Minitest::Test
   def setup
     @output = StringIO.new
-    @appender = SemanticLogger::Appender::IO.new(
-      @output,
+    @appenders = SemanticLogger::Appenders.new
+    @appender = @appenders.add(
+      io: @output,
       level: :trace,
       formatter: :json,
       filter: DevelopmentLogFilter.method(:include_in_development_log?)
@@ -25,10 +27,12 @@ class DevelopmentLogFilterTest < Minitest::Test
 
   def test_active_storage_queries_are_hidden_including_cached_queries
     [ "ActiveStorage::Attachment Load", "ActiveStorage::Blob Load", "ActiveStorage::VariantRecord Load" ].each do |message|
-      log = log_entry("ActiveRecord::Base", :debug, message)
-      log.payload = { sql: "SELECT ...", cached: true }
+      [ false, true ].each do |cached|
+        log = log_entry("ActiveRecord::Base", :debug, message)
+        log.payload = { sql: "SELECT ...", cached: cached }
 
-      refute @appender.should_log?(log)
+        refute @appender.should_log?(log), "Expected cached=#{cached} query to be hidden: #{message}"
+      end
     end
   end
 
@@ -39,9 +43,25 @@ class DevelopmentLogFilterTest < Minitest::Test
       log = log_entry(name, level, message)
 
       assert @appender.should_log?(log)
-      @appender.log(log)
+      @appenders.log(log)
       assert_includes @output.string, message
     end
+  end
+
+  def test_output_hides_routine_storage_and_cache_hits_while_preserving_diagnostic_messages
+    entries = [
+      log_entry("ActiveStorage", :info, "Downloaded file"),
+      log_entry("ActiveRecord::Base", :debug, "ActiveStorage::Blob Load"),
+      log_entry("Rails", :info, "Cache [HIT] for key: progress"),
+      log_entry("ActiveRecord::Base", :debug, "Book Load"),
+      log_entry("Rails", :info, "Cache [MISS] for key: progress"),
+      log_entry("ActiveStorage", :warn, "Storage unavailable")
+    ]
+    entries.each { |entry| @appenders.log(entry) }
+
+    messages = @output.string.lines.map { |line| JSON.parse(line).fetch("message") }
+
+    assert_equal [ "Book Load", "Cache [MISS] for key: progress", "Storage unavailable" ], messages
   end
 
   def test_storage_warnings_errors_and_fatal_messages_remain_visible
