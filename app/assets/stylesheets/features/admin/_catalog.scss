@@ -1,0 +1,359 @@
+@use "../../foundation/tokens";
+
+// Catalog content follows the Admin / Catalog Figma frame.
+// Keep these adjustments scoped to the content; preserve the shared admin shell.
+.admin-page--catalog {
+  background: #faf7f4;
+
+  .admin-main {
+    display: flex;
+    flex-direction: column;
+    padding: 30px 38px;
+    background: #faf7f4;
+  }
+
+  .admin-eyebrow {
+    color: tokens.$accent;
+    font-size: 11px;
+    line-height: 15px;
+    letter-spacing: normal;
+  }
+
+  .admin-page-heading {
+    flex-shrink: 0;
+    margin-bottom: 20px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid #eae3dc;
+  }
+
+  .admin-page-heading h1 {
+    margin: 4px 0;
+    font-size: 34px;
+    line-height: 42px;
+    letter-spacing: normal;
+  }
+
+  .admin-page-description {
+    font-size: 13px;
+    line-height: 17px;
+  }
+
+  .admin-primary-button {
+    min-height: 38px;
+    margin-bottom: 0;
+    border-radius: 999px;
+  }
+
+  .admin-page-heading .admin-primary-button {
+    width: 112px;
+    height: 38px;
+    line-height: 16px;
+  }
+
+  .admin-catalog-workspace {
+    flex: 1;
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  }
+
+  .admin-catalog-list-panel {
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .admin-catalog-detail-panel {
+    align-self: stretch;
+    padding: 23px;
+    border-color: #eae3dc;
+    border-radius: 18px;
+    box-shadow: none;
+  }
+
+  .admin-catalog-detail-heading h2 {
+    margin-top: 4px;
+    font-size: 26px;
+    line-height: 33px;
+    letter-spacing: normal;
+  }
+
+  .admin-catalog-sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .admin-catalog-list-heading {
+    display: block;
+    padding: 0;
+    border: 0;
+  }
+
+  .admin-catalog-search input[type="search"] {
+    width: 100%;
+    height: 38px;
+    padding: 9px 11px;
+    border-color: tokens.$gray-mid;
+    color: tokens.$ink;
+    font-size: 13px;
+    line-height: 17px;
+  }
+
+  .admin-catalog-filters {
+    gap: 7px;
+    padding: 0;
+    margin: 9px 0 12px;
+    border: 0;
+    flex-wrap: wrap;
+  }
+
+  .admin-catalog-filter,
+  .admin-catalog-genre-filter .admin-select-trigger {
+    width: auto;
+    min-height: 29px;
+    padding: 7px 11px;
+    border-color: tokens.$gray-mid;
+    color: tokens.$ink !important;
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 16px;
+    white-space: nowrap;
+  }
+
+  a.admin-catalog-filter { width: 88px; }
+  .admin-catalog-filter.is-active {
+    border-color: tokens.$gray-mid;
+    color: tokens.$accent !important;
+    font-weight: 700;
+  }
+
+  .admin-catalog-genre-filter .admin-select-trigger {
+    height: 32px;
+    min-width: 0;
+    max-width: 180px;
+    gap: 6px;
+
+    img { width: 8px; height: 8px; }
+  }
+
+  .admin-catalog-genre-filter .admin-select-menu {
+    right: auto;
+    width: 170px;
+    max-height: 280px;
+    overflow-y: auto;
+
+    .catalog-dropdown-option {
+      flex-shrink: 0;
+      padding: 7px 10px;
+      font-size: 12px;
+      line-height: 16px;
+    }
+  }
+
+  .admin-catalog-records { gap: 9px; }
+
+  .admin-catalog-record {
+    display: block;
+    position: relative;
+    padding: 16px;
+    margin: 0;
+    border: 1px solid tokens.$gray-mid;
+    border-radius: 12px;
+    background: #fff;
+    box-shadow: none;
+
+    &.is-selected {
+      border-color: tokens.$accent;
+      background: #fdf1ef;
+      box-shadow: none;
+    }
+  }
+
+  .admin-catalog-record-select { gap: 9px; }
+
+  .admin-catalog-record-topline {
+    line-height: 21px;
+
+    strong {
+      max-width: calc(100% - 74px);
+      font-family: "Fraunces", Georgia, serif;
+      font-size: 17px;
+    }
+  }
+
+  .admin-catalog-record-badge {
+    min-height: 0;
+    padding: 0;
+    border-radius: 0;
+    background: transparent;
+    color: #52715a;
+    font-size: 12px;
+    line-height: 15px;
+  }
+
+  .admin-catalog-record-author {
+    font-size: 12px;
+    line-height: 15px;
+  }
+
+  .admin-catalog-record-meta {
+    display: block;
+    padding-right: 128px;
+    color: tokens.$text-muted;
+    font-size: 11px;
+    line-height: 15px;
+  }
+
+  .admin-catalog-record-actions {
+    position: absolute;
+    right: 16px;
+    bottom: 16px;
+    line-height: 15px;
+  }
+
+  .admin-catalog-view-link,
+  .admin-catalog-delete {
+    width: auto;
+    height: auto;
+    min-height: 0;
+    padding: 0;
+    margin: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    color: tokens.$ink !important;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 15px;
+  }
+
+  .admin-catalog-delete { color: #d9383a !important; }
+
+  .admin-catalog-list-footer {
+    justify-content: center;
+    gap: 4px;
+    padding: 12px 0 0;
+    font-size: 12px;
+    line-height: 15px;
+  }
+
+  .admin-catalog-load-more {
+    color: tokens.$text-muted !important;
+    font-size: 12px;
+    font-weight: 400;
+  }
+
+  .admin-catalog-detail-intro {
+    margin: 4px 0 18px;
+    font-size: 13px;
+    line-height: 17px;
+  }
+
+  .admin-catalog-form { gap: 18px; }
+
+  .admin-catalog-field-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+    gap: 12px;
+  }
+
+  .admin-field {
+    gap: 6px;
+
+    label {
+      color: tokens.$text-muted;
+      font-size: 11px;
+      line-height: 15px;
+      text-transform: uppercase;
+    }
+
+    input {
+      height: 40px;
+      padding: 10px 12px;
+      border-color: tokens.$gray-mid;
+      background: #fffefc;
+      font-family: inherit;
+      font-size: 14px;
+      line-height: 1.4;
+      text-overflow: ellipsis;
+    }
+  }
+
+  .admin-catalog-extra-metadata {
+    margin: 0;
+    border: 0;
+
+    summary {
+      width: fit-content;
+      margin: 0;
+      color: tokens.$text-muted;
+      font-size: 12px;
+      line-height: 15px;
+      list-style: none;
+
+      &::-webkit-details-marker { display: none; }
+    }
+
+    &[open] summary { margin-bottom: 12px; }
+    .admin-catalog-genre-fieldset { margin-top: 12px; }
+    .admin-catalog-edition-meta { margin-top: 12px; }
+  }
+
+  .admin-catalog-field-grid .admin-field input[type="file"] {
+    height: 40px;
+    min-height: 40px;
+    padding: 6px;
+    overflow: hidden;
+    font-size: 13px;
+    line-height: 26px;
+
+    &::file-selector-button {
+      height: 26px;
+      margin: 0 8px 0 0;
+      padding: 4px 8px;
+      border: 1px solid tokens.$gray-mid;
+      border-radius: 5px;
+      background: #fdf1ef;
+      color: tokens.$ink;
+      font-family: inherit;
+      font-size: 13px;
+      line-height: 16px;
+    }
+  }
+
+  .admin-catalog-form-actions .admin-primary-button,
+  .admin-catalog-form-actions .admin-secondary-button {
+    width: auto;
+    height: 38px;
+    min-height: 38px;
+    margin: 0;
+    padding: 11px 16px;
+    font-family: inherit;
+    font-size: 14px;
+    line-height: 16px;
+  }
+
+  .admin-catalog-form-actions .admin-primary-button { width: 120px; }
+
+  @media (max-width: 1100px) {
+    .admin-main { padding: 30px 24px; }
+    .admin-catalog-workspace {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @media (max-width: 860px) {
+    .admin-catalog-workspace { grid-template-columns: minmax(0, 1fr); }
+  }
+
+  @media (max-width: 600px) {
+    .admin-main { padding: 26px 16px 40px; }
+    .admin-page-heading h1 { font-size: 30px; }
+    .admin-catalog-field-grid { grid-template-columns: minmax(0, 1fr); }
+  }
+}

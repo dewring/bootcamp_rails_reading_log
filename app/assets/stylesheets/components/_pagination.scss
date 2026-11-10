@@ -1,0 +1,76 @@
+@use "../foundation/tokens";
+
+// ── Pagination (Pagy series-nav) ────────────────────────────
+.pagy.series-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  width: auto;
+  margin: 1.5rem auto;
+  font-size: 0.9rem;
+
+  a {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.75rem;
+    height: 1.75rem;
+    padding: 0 0.3rem;
+    border-radius: 50%;
+    color: tokens.$text-muted;
+    text-decoration: none !important;
+    font-weight: 500;
+
+    &:hover {
+      background: tokens.$gray-light;
+      color: tokens.$accent;
+    }
+  }
+
+  a[aria-disabled="true"] {
+    cursor: default;
+
+    &:hover { background: none; color: tokens.$text-muted; }
+  }
+
+  // Current page: a filled, solid circle instead of plain colored text.
+  a[aria-current="page"] {
+    background: tokens.$accent;
+    color: #fff;
+    font-weight: 700;
+
+    &:hover { background: tokens.$accent; color: #fff; }
+  }
+
+  a[role="separator"] {
+    min-width: auto;
+    height: auto;
+    padding: 0 0.2rem;
+
+    &:hover { background: none; }
+  }
+
+  // Prev/next are always the first and last link in the nav (Pagy prepends
+  // previous_tag and appends next_tag around the numbered series), so they
+  // can be targeted structurally without any dedicated class from Pagy.
+  > a:first-child:not([aria-current="page"]),
+  > a:last-child:not([aria-current="page"]) {
+    border: 1px solid tokens.$gray-mid;
+    color: tokens.$ink;
+
+    &:hover {
+      background: #fff;
+      border-color: tokens.$accent;
+      color: tokens.$accent;
+    }
+  }
+
+  // Hide a disabled prev/next arrow entirely (e.g. no "previous" on page 1)
+  // instead of showing a grayed-out, unclickable circle.
+  > a:first-child[aria-disabled="true"]:not([aria-current="page"]),
+  > a:last-child[aria-disabled="true"]:not([aria-current="page"]) {
+    display: none;
+  }
+}

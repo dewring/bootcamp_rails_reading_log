@@ -1,0 +1,111 @@
+@use "../../foundation/tokens";
+
+// ── Dashboard ──────────────────────────────────────────────
+.dashboard-book {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.dashboard-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.status-select {
+  margin: 0 !important;
+  padding: 0.35rem 0.75rem !important;
+  font-size: 0.9rem !important;
+  width: fit-content !important;
+  min-width: 0 !important;
+  border: 1px solid tokens.$gray-mid !important;
+  border-radius: 6px !important;
+  background: #fff !important;
+  color: tokens.$ink !important;
+  height: 36px !important;
+}
+
+// Remove 버튼 (status select과 같은 크기)
+.btn-md {
+  font-size: 0.9rem !important;
+  padding: 0.35rem 0.9rem !important;
+  border-radius: 6px !important;
+  border: 1px solid tokens.$gray-mid !important;
+  background: #fff !important;
+  cursor: pointer;
+  width: auto !important;
+  margin: 0 !important;
+  display: inline-flex;
+  align-items: center;
+  height: 36px !important;
+  line-height: 1;
+  text-decoration: none;
+  color: tokens.$ink !important;
+
+  &:hover { background: tokens.$gray-light !important; }
+}
+
+.session-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0;
+  font-size: 0.75rem;
+  color: tokens.$text-muted;
+  border-bottom: 1px solid tokens.$gray-light;
+}
+
+.session-meta {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.session-meta-line {
+  flex-shrink: 0;
+}
+
+.session-note {
+  font-style: italic;
+  color: tokens.$ink;
+  background: tokens.$gray-light;
+  border-radius: 6px;
+  padding: 0.25rem 0.6rem;
+}
+
+.session-actions {
+  display: flex;
+  gap: 0.4rem;
+}
+
+// Edit / Delete 버튼 (더 작게)
+.btn-sm {
+  font-size: 0.72rem !important;
+  padding: 0.15rem 0.5rem !important;
+  border-radius: 4px !important;
+  border: 1px solid tokens.$gray-mid !important;
+  background: #fff !important;
+  cursor: pointer;
+  width: auto !important;
+  margin: 0 !important;
+  display: inline-flex;
+  align-items: center;
+  height: 26px !important;
+  line-height: 1;
+  text-decoration: none;
+  color: tokens.$ink !important;
+
+  &:hover { background: tokens.$gray-light !important; }
+}
+
+.btn-danger {
+  color: #dc2626 !important;
+  border-color: #fecaca !important;
+
+  &:hover { background: #fef2f2 !important; }
+}

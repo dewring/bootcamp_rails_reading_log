@@ -1,0 +1,33 @@
+@use "tokens";
+
+:root {
+  color-scheme: light;
+}
+
+// Override Pico's default blue primary so plain links/buttons that rely on
+// Pico's own styling (not our .btn-* classes) pick up the green theme too.
+// Pico defines these on `:root:not([data-theme=dark])`, which outranks a
+// plain `:root` selector on specificity alone — match it here so our rule
+// actually wins instead of silently losing to Pico's later in the cascade.
+:root:not([data-theme="dark"]),
+[data-theme="light"] {
+  --pico-primary: #{tokens.$accent};
+  --pico-primary-background: #{tokens.$accent};
+  --pico-primary-underline: #{rgba(231, 126, 120, 0.5)};
+  --pico-primary-hover: #{darken(tokens.$accent, 8%)};
+  --pico-primary-hover-background: #{darken(tokens.$accent, 8%)};
+  --pico-primary-focus: #{rgba(231, 126, 120, 0.375)};
+  --pico-primary-inverse: #fff;
+}
+
+@media only screen and (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    --pico-primary: #{tokens.$accent};
+    --pico-primary-background: #{tokens.$accent};
+    --pico-primary-underline: #{rgba(231, 126, 120, 0.5)};
+    --pico-primary-hover: #{darken(tokens.$accent, 8%)};
+    --pico-primary-hover-background: #{darken(tokens.$accent, 8%)};
+    --pico-primary-focus: #{rgba(231, 126, 120, 0.375)};
+    --pico-primary-inverse: #fff;
+  }
+}
