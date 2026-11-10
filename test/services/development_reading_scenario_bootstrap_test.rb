@@ -3,13 +3,18 @@ require "tmpdir"
 
 class DevelopmentReadingScenarioBootstrapTest < ActiveSupport::TestCase
   include ActiveJob::TestHelper
-  self.use_transactional_tests = false
+
+  # Recovery and commit-callback checks need real commits; other tests use fixture rollbacks.
+  uses_transaction "test_an_account_committed_before_its_manifest_update_resumes_only_with_its_original_planned_Devise_hash",
+    "test_changed_scenario_credentials_stop_resume_before_unfinished_users_are_created",
+    "test_the_wrong_local_password_cannot_resume_creation_of_unfinished_synthetic_accounts",
+    "test_a_missing_recorded_password_hash_refuses_resume_without_adopting_an_account_by_public_attributes",
+    "test_a_user_edited_after_preflight_is_rechecked_before_its_replay_checkpoint_without_overwriting_the_edit",
+    "test_an_invalid_pending_badge_stops_setup_before_any_records_or_checkpoint_are_written",
+    "test_an_account_save_failure_preserves_the_original_exception_and_remains_resumable"
 
   setup do
     @initial_user_ids = User.pluck(:id)
-    @initial_book_ids = Book.pluck(:id)
-    @initial_genres = Genre.all.map(&:attributes)
-    @initial_badges = Badge.all.map(&:attributes)
     @directory = Pathname.new(Dir.mktmpdir("booknook-scenario-bootstrap-"))
     @snapshot_path = @directory.join("catalog.json")
     @manifest_path = @directory.join("state/reading_scenario.json")
@@ -22,10 +27,6 @@ class DevelopmentReadingScenarioBootstrapTest < ActiveSupport::TestCase
   end
 
   teardown do
-    User.where.not(id: @initial_user_ids).find_each(&:destroy!)
-    Book.where.not(id: @initial_book_ids).find_each(&:destroy!)
-    restore_shared_records(Genre, @initial_genres)
-    restore_shared_records(Badge, @initial_badges)
     FileUtils.remove_entry(@directory)
   end
 
@@ -417,14 +418,6 @@ class DevelopmentReadingScenarioBootstrapTest < ActiveSupport::TestCase
       original_rename.call(source, destination)
     }) do
       assert_raises(IOError) { bootstrap_scenario }
-    end
-  end
-
-  def restore_shared_records(model, originals)
-    model.where.not(id: originals.map { |attributes| attributes.fetch("id") }).find_each(&:destroy!)
-    originals.each do |attributes|
-      existing = model.find_by(id: attributes.fetch("id"))
-      existing ? existing.update!(attributes.except("id")) : model.create!(attributes)
     end
   end
 end

@@ -4,14 +4,14 @@ require "timeout"
 
 class DevelopmentReadingScenarioTest < ActiveSupport::TestCase
   include ActiveJob::TestHelper
-  self.use_transactional_tests = false
+  # Exercise real commits for the seed entry point and interrupted checkpoint recovery.
+  uses_transaction "test_the_seed_entry_point_creates_the_complete_offline_baseline_while_callbacks_remain_queued",
+    "test_the_complete_baseline_resumes_after_a_session_commit_preceding_its_checkpoint"
 
   setup do
     @initial_users = User.pluck(:id)
     @initial_books = Book.pluck(:id)
     @initial_clubs = BookClub.pluck(:id)
-    @initial_genres = Genre.all.map(&:attributes)
-    @initial_badges = Badge.all.map(&:attributes)
     @directory = Pathname.new(Dir.mktmpdir("booknook-baseline-"))
     @paths = { snapshot_path: @directory.join("catalog.json"), manifest_path: @directory.join("manifest.json"), lock_path: @directory.join("scenario.lock") }
     @scenario = DevelopmentReadingScenario.new(**@paths, password: "synthetic-scenario-test-password")
@@ -29,13 +29,6 @@ class DevelopmentReadingScenarioTest < ActiveSupport::TestCase
   end
 
   teardown do
-    BookClub.where.not(id: @initial_clubs).find_each(&:destroy!)
-    actors = User.where.not(id: @initial_users).pluck(:id)
-    ReadingSession.where(user_id: actors).find_each(&:destroy!)
-    User.where(id: actors).find_each(&:destroy!)
-    Book.where.not(id: @initial_books).find_each(&:destroy!)
-    restore_shared_records(Genre, @initial_genres)
-    restore_shared_records(Badge, @initial_badges)
     FileUtils.remove_entry(@directory)
   end
 
@@ -403,14 +396,6 @@ class DevelopmentReadingScenarioTest < ActiveSupport::TestCase
         selected.transform_values { |record| record["id"] }
       end
       [ section, ids ]
-    end
-  end
-
-  def restore_shared_records(model, originals)
-    model.where.not(id: originals.map { |attributes| attributes.fetch("id") }).find_each(&:destroy!)
-    originals.each do |attributes|
-      existing = model.find_by(id: attributes.fetch("id"))
-      existing ? existing.update!(attributes.except("id")) : model.create!(attributes)
     end
   end
 end

@@ -17,11 +17,7 @@ module DevelopmentReadingScenarioCoverPreviewContext
   private
 
   def prepare_preview_context
-    @initial_users = User.pluck(:id)
     @initial_books = Book.pluck(:id)
-    @initial_clubs = BookClub.pluck(:id)
-    @initial_genres = Genre.all.map(&:attributes)
-    @initial_badges = Badge.all.map(&:attributes)
     @directory = Pathname.new(Dir.mktmpdir("booknook-previews-"))
     @docs = Array.new(100) do |index|
       { "key" => "/works/OL#{225_000 + index}W", "title" => "Cover source #{index}", "author_name" => [ "Source Author" ],
@@ -44,18 +40,6 @@ module DevelopmentReadingScenarioCoverPreviewContext
   end
 
   def clean_preview_context
-    BookClub.where.not(id: @initial_clubs).find_each(&:destroy!)
-    actors = User.where.not(id: @initial_users).pluck(:id)
-    ReadingSession.where(user_id: actors).find_each(&:destroy!)
-    User.where(id: actors).find_each(&:destroy!)
-    Book.where.not(id: @initial_books).find_each(&:destroy!)
-    [ [ Genre, @initial_genres ], [ Badge, @initial_badges ] ].each do |model, originals|
-      model.where.not(id: originals.map { |attributes| attributes.fetch("id") }).find_each(&:destroy!)
-      originals.each do |attributes|
-        row = model.find_by(id: attributes.fetch("id"))
-        row ? row.update!(attributes.except("id")) : model.create!(attributes)
-      end
-    end
     FileUtils.remove_entry(@directory)
   end
 
