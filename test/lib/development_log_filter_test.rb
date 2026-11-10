@@ -82,6 +82,33 @@ class DevelopmentLogFilterTest < Minitest::Test
     assert @appender.should_log?(log_entry("BookProgressJob", :info, "Cache [HIT] for key: progress"))
   end
 
+  def test_failed_storage_responses_remain_visible_at_info_level
+    [ 400, 404, 422, 500 ].each do |status|
+      log = log_entry("ActiveStorage::Blobs::RedirectController", :info, "Completed")
+      log.payload = { status: status }
+
+      assert @appender.should_log?(log)
+    end
+  end
+
+  def test_successful_storage_responses_and_redirects_remain_hidden
+    [ 200, 302 ].each do |status|
+      log = log_entry("ActiveStorage::Blobs::RedirectController", :info, "Completed")
+      log.payload = { status: status }
+
+      refute @appender.should_log?(log)
+    end
+  end
+
+  def test_storage_exceptions_in_structured_payloads_remain_visible
+    [ { exception: "ActiveStorage::FileNotFoundError" }, { exception_object: IOError.new("File missing") } ].each do |payload|
+      log = log_entry("ActiveStorage::Blobs::RedirectController", :info, "rescue_from handled exception")
+      log.payload = payload
+
+      assert @appender.should_log?(log)
+    end
+  end
+
   private
 
   def log_entry(name, level, message)
