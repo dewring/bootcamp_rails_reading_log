@@ -1,0 +1,12 @@
+@use "tokens";
+
+// ── Base ───────────────────────────────────────────────────
+body {
+  background: tokens.$gray-light;
+  color: tokens.$ink;
+}
+
+main.container:has(> .my-log-page) {
+  padding-top: 0;
+}
+
