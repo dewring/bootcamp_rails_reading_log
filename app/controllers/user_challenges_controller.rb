@@ -1,4 +1,6 @@
 class UserChallengesController < ApplicationController
+  rescue_from ActiveRecord::StaleObjectError, with: :challenge_update_conflicted
+
   before_action :authenticate_user!
   before_action :set_user_challenge, only: [ :destroy ]
 
@@ -26,6 +28,11 @@ class UserChallengesController < ApplicationController
   end
 
   private
+
+  def challenge_update_conflicted
+    flash[:alert] = "Your challenge was updated by another process. Please try again."
+    redirect_back(fallback_location: challenges_path)
+  end
 
   def set_user_challenge
     @user_challenge = current_user.user_challenges.find(params[:id])
