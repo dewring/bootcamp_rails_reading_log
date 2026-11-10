@@ -1,0 +1,51 @@
+// Load after detail and leaderboard to preserve the existing cascade.
+// These rules adjust shared Book Club layouts and the creation form.
+
+@media (max-width: 900px) {
+  .book-club-detail-page {
+    flex-direction: column;
+  }
+
+  .book-club-sidebar {
+    flex-basis: auto;
+    width: 100%;
+    gap: 20px;
+    padding: 22px;
+  }
+
+  .book-club-sidebar-account {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .book-club-overview-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 680px) {
+  .book-club-overview-content {
+    padding: 24px 20px;
+  }
+
+  .book-club-stat-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .book-club-current-pick-card,
+  .book-club-owner-controls {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .book-club-owner-controls form {
+    width: 100%;
+    min-width: 0;
+    grid-template-columns: 1fr;
+  }
+}
+
+.book-club-creation form {
+  grid-template-columns: minmax(0, 1fr);
+}
