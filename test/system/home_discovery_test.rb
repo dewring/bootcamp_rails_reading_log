@@ -68,6 +68,30 @@ class HomeDiscoveryTest < ApplicationSystemTestCase
     assert_current_path book_path(@books.first)
   end
 
+  test "both presentations allow keyboard users to tab to a trending book and open it with Enter" do
+    [ 0, 100 ].each do |percentage|
+      Flipper.enable_percentage_of_actors(:discovery_hero_trending_v1, percentage)
+      visit root_path
+      selector = percentage.zero? ? ".home-trending .book-card" : ".home-trending-hero .book-card"
+      assert_selector selector
+
+      # Start from the document, then use actual browser key presses through the
+      # navigation and hero links rather than focusing the book programmatically.
+      page.execute_script("document.activeElement.blur()")
+      30.times do
+        page.driver.browser.action.send_keys(:tab).perform
+        break if page.evaluate_script("document.activeElement.matches(#{selector.to_json})")
+      end
+      assert page.evaluate_script("document.activeElement.matches(#{selector.to_json})"),
+        "A Trending book link must be reachable with Tab"
+      expected_path = URI.parse(page.evaluate_script("document.activeElement.href")).path
+
+      page.driver.browser.action.send_keys(:enter).perform
+
+      assert_current_path expected_path
+    end
+  end
+
   test "returning from a book after the running switch is disabled shows the current default layout" do
     Flipper.enable_percentage_of_actors(:discovery_hero_trending_v1, 100)
     visit root_path
