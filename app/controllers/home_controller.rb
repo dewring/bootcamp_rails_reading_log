@@ -18,15 +18,23 @@ class HomeController < ApplicationController
   private
 
   def prepare_discovery_presentation
+    # The layout depends on the reader and current flags; do not reuse HTTP-cached HTML.
     response.headers["Cache-Control"] = "no-store"
-    experiment_running = current_user.present? && current_user.reload.account_status == "active" &&
-      Flipper.enabled?(:discovery_experiment_running_v1)
-    @hero_trending = experiment_running && @trending_books.any? &&
-      Flipper.enabled?(:discovery_hero_trending_v1, current_user)
-    @hero_trending_books = @hero_trending ? @trending_books.first(4) : []
-    return if @hero_trending
+    @hero_trending = hero_trending_for_current_user?
+    if @hero_trending
+      @hero_trending_books = @trending_books.first(4)
+    else
+      @trending_reaction_totals = Reaction.eligible.where(book_id: @trending_books.map(&:id)).group(:book_id).count
+    end
+  end
 
-    @trending_reaction_totals = Reaction.eligible.where(book_id: @trending_books.map(&:id)).group(:book_id).count
+  # Flags never replace authorization: only signed-in active readers enter the comparison.
+  def hero_trending_for_current_user?
+    return false unless current_user&.account_status == "active"
+    return false unless Flipper.enabled?(:discovery_experiment_running_v1)
+    return false if @trending_books.empty?
+
+    Flipper.enabled?(:discovery_hero_trending_v1, current_user)
   end
 
   def cached_trending_books(books)

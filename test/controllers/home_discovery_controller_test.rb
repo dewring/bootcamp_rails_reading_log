@@ -152,4 +152,47 @@ class HomeDiscoveryControllerTest < ActionDispatch::IntegrationTest
     assert_select ".home-trending .trending-book-card", count: 8
     assert_select ".home-trending-hero", count: 0
   end
+
+  test "a fifty percent actor gate preserves the same home presentation across repeated requests" do
+    sign_in @reader
+    Flipper.enable_percentage_of_actors(:discovery_hero_trending_v1, 50)
+    treatment = Flipper.enabled?(:discovery_hero_trending_v1, @reader)
+
+    3.times do
+      get root_path
+
+      assert_response :success
+      assert_select ".home-trending-hero", count: treatment ? 1 : 0
+      assert_select ".home-trending", count: treatment ? 0 : 1
+    end
+    assert_equal 50, Flipper[:discovery_hero_trending_v1].percentage_of_actors_value
+  end
+
+  test "a persisted account status change is read on the next request without reusing the signed in user object" do
+    sign_in @reader
+    Flipper.enable_percentage_of_actors(:discovery_hero_trending_v1, 100)
+    get root_path
+    assert_select ".home-trending-hero", count: 1
+
+    User.find(@reader.id).update!(account_status: "invited")
+    assert_equal "active", @reader.account_status
+    get root_path
+
+    assert_response :success
+    assert_select ".home-trending-hero", count: 0
+    assert_select ".home-trending .trending-book-card", count: 8
+  end
+
+  test "both home presentations disable HTTP caching and Turbo snapshot caching" do
+    sign_in @reader
+
+    [ 0, 100 ].each do |percentage|
+      Flipper.enable_percentage_of_actors(:discovery_hero_trending_v1, percentage)
+      get root_path
+
+      assert_response :success
+      assert_equal "no-store", response.headers["Cache-Control"]
+      assert_select "head meta[name='turbo-cache-control'][content='no-cache']", count: 1
+    end
+  end
 end

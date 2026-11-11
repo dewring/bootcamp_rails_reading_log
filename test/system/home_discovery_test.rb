@@ -67,4 +67,21 @@ class HomeDiscoveryTest < ApplicationSystemTestCase
     end
     assert_current_path book_path(@books.first)
   end
+
+  test "returning from a book after the running switch is disabled shows the current default layout" do
+    Flipper.enable_percentage_of_actors(:discovery_hero_trending_v1, 100)
+    visit root_path
+    assert_selector ".home-trending-hero", count: 1
+    within ".home-trending-hero" do
+      click_link @books.first.title
+    end
+    assert_current_path book_path(@books.first)
+
+    Flipper.disable(:discovery_experiment_running_v1)
+    page.go_back
+
+    assert_selector "h1", text: "Summer Reading Challenge — Join Now"
+    assert_no_selector ".home-trending-hero"
+    assert_selector ".home-trending .trending-total", count: 8
+  end
 end
