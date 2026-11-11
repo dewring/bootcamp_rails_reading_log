@@ -27,6 +27,7 @@ class DevelopmentReadingScenarioReactions
       @reactions.fetch("records").each { |identity, record| import_reaction(identity, record) }
       rows = @matches.values
       @reactions["actual_counts"] = { "book_reactions" => rows.length, "likes" => rows.count { |row| row.kind == "like" }, "dislikes" => rows.count { |row| row.kind == "dislike" } }
+      @reactions["current_counts"] = current_reader_reaction_counts
       @reactions["status"] = "complete"
       @scenario_manifest.save_scenario
       @manifest.deep_dup
@@ -48,6 +49,37 @@ class DevelopmentReadingScenarioReactions
       action["status"] = "complete"
       @scenario_manifest.save_scenario
       @manifest.deep_dup
+    end
+  end
+
+  def preview_discovery(as_of:)
+    @scenario_manifest.with_exclusive_access do
+      prepare_reactions
+      unless @reactions["status"] == "complete"
+        raise ReactionsError, "Complete development_scenario:seed_reactions before previewing discovery."
+      end
+      feature = Flipper[:discovery_hero_trending_v1]
+      unless feature.percentage_of_actors_value == 50
+        raise ReactionsError, "Configure discovery_hero_trending_v1 to 50% before previewing; no flags were changed."
+      end
+
+      assignments = { "control" => 0, "treatment" => 0 }
+      previous_memoization = Flipper.memoizing?
+      begin
+        Flipper.memoize = true
+        User.where(id: @reader_ids.values).each do |reader|
+          variant = feature.enabled?(reader) ? "treatment" : "control"
+          assignments[variant] += 1
+        end
+      ensure
+        Flipper.memoize = previous_memoization
+      end
+
+      {
+        "as_of" => as_of.iso8601(6), "percentage_of_actors" => 50, "actor_assignments" => assignments,
+        "baseline_counts" => @reactions.fetch("actual_counts"), "current_counts" => current_reader_reaction_counts,
+        "ranked_book_ids" => BookPolicy::Scope.new(nil, Book).resolve.trending(as_of: as_of).limit(8).map(&:id)
+      }
     end
   end
 
@@ -153,7 +185,8 @@ class DevelopmentReadingScenarioReactions
 
   def verify_inventory
     saved_ids = @reactions.fetch("records").values.filter_map { |record| record["id"] }
-    rows = Reaction.where(user_id: @reader_ids.values).or(Reaction.where(id: saved_ids)).to_a
+    demo_ids = @reactions.fetch("discovery_demo", {}).fetch("records", {}).values.map { |record| record.fetch("id") }
+    rows = Reaction.where(user_id: @reader_ids.values).or(Reaction.where(id: [ *saved_ids, *demo_ids ])).to_a
     if !@manifest["reactions"] && rows.any?
       raise ReactionsError, "Unrecorded synthetic-reader reactions already exist (IDs #{rows.map(&:id)}); no automatic takeover is allowed."
     end
@@ -167,8 +200,27 @@ class DevelopmentReadingScenarioReactions
       verify_reaction(row, identity, record) if row
       [ identity, row ]
     end
-    extra_ids = rows.map(&:id) - @matches.values.compact.map(&:id)
+    verify_discovery_demo(by_id, baseline_ids: saved_ids)
+    extra_ids = rows.map(&:id) - @matches.values.compact.map(&:id) - demo_ids
     raise ReactionsError, "Unrecorded synthetic-reader reactions: IDs #{extra_ids}; review without deleting data." if extra_ids.any?
+  end
+
+  def verify_discovery_demo(by_id, baseline_ids:)
+    @reactions.fetch("discovery_demo", {}).fetch("records", {}).each do |identity, record|
+      id = record.fetch("id")
+      if baseline_ids.include?(id) || !@reader_ids.value?(record.fetch("expected_attributes").fetch("user_id"))
+        raise ReactionsError, "Discovery demo records must be separate from the baseline and belong to synthetic readers."
+      end
+      row = by_id[id]
+      raise ReactionsError, "Discovery demo reaction #{id} is missing; no automatic recreation is allowed." unless row
+
+      verify_reaction(row, "discovery_demo/#{identity}", record)
+    end
+  end
+
+  def current_reader_reaction_counts
+    by_kind = Reaction.where(user_id: @reader_ids.values).group(:kind).count
+    { "book_reactions" => by_kind.values.sum, "by_kind" => by_kind }
   end
 
   def verify_reaction(row, identity, record)

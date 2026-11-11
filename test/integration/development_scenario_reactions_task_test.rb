@@ -10,7 +10,10 @@ class DevelopmentScenarioReactionsTaskTest < ActiveSupport::TestCase
 
   test "the development task delegates reaction seeding and prints owned counts" do
     seeder = Minitest::Mock.new
-    seeder.expect(:seed_reactions, { "reactions" => { "actual_counts" => DevelopmentReadingScenarioReactions::COUNTS } })
+    seeder.expect(:seed_reactions, { "reactions" => {
+      "actual_counts" => DevelopmentReadingScenarioReactions::COUNTS,
+      "current_counts" => { "book_reactions" => 160, "by_kind" => { "like" => 120, "dislike" => 40 } }
+    } })
 
     output, = capture_io do
       DevelopmentReadingScenarioReactions.stub(:new, seeder) { @task.invoke }
@@ -30,6 +33,53 @@ class DevelopmentScenarioReactionsTaskTest < ActiveSupport::TestCase
       end
       assert_includes error_output, "only available in development"
     end
+  end
+
+  test "discovery preview passes the supplied clock and prints actual cohort and current reaction counts" do
+    previous_time = ENV["DISCOVERY_AS_OF"]
+    as_of = Time.iso8601("2026-11-10T20:00:00Z")
+    ENV["DISCOVERY_AS_OF"] = as_of.iso8601
+    report = {
+      "actor_assignments" => { "control" => 17, "treatment" => 13 },
+      "baseline_counts" => { "book_reactions" => 160 }, "current_counts" => { "book_reactions" => 220 }
+    }
+    service = Minitest::Mock.new
+    service.expect(:preview_discovery, report) { |as_of:| as_of == Time.iso8601("2026-11-10T20:00:00Z") }
+
+    Rake.with_application do
+      Rake::Task.define_task(:environment)
+      load Rails.root.join("lib/tasks/development_scenario.rake")
+      output, = capture_io do
+        DevelopmentReadingScenarioReactions.stub(:new, service) do
+          Rake::Task["development_scenario:preview_discovery"].invoke
+        end
+      end
+      assert_includes output, '"control":17,"treatment":13'
+      assert_includes output, '"baseline_counts":{"book_reactions":160}'
+      assert_includes output, '"current_counts":{"book_reactions":220}'
+      service.verify
+    end
+  ensure
+    ENV["DISCOVERY_AS_OF"] = previous_time
+  end
+
+  test "discovery preview rejects missing and invalid clock input without writing reactions" do
+    previous_time = ENV["DISCOVERY_AS_OF"]
+
+    Rake.with_application do
+      Rake::Task.define_task(:environment)
+      load Rails.root.join("lib/tasks/development_scenario.rake")
+      [ nil, "not-a-time" ].each do |input|
+        ENV["DISCOVERY_AS_OF"] = input
+        task = Rake::Task["development_scenario:preview_discovery"]
+        task.reenable
+        assert_no_difference "Reaction.count" do
+          capture_io { assert_raises(SystemExit) { task.invoke } }
+        end
+      end
+    end
+  ensure
+    ENV["DISCOVERY_AS_OF"] = previous_time
   end
 
   test "the named refresh command delegates once and explains its fixed reference time" do
