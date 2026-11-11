@@ -19,12 +19,12 @@ class HomeController < ApplicationController
 
   def prepare_discovery_presentation
     response.headers["Cache-Control"] = "no-store"
-    @discovery_running = current_user.present? && current_user.reload.account_status == "active" &&
+    experiment_running = current_user.present? && current_user.reload.account_status == "active" &&
       Flipper.enabled?(:discovery_experiment_running_v1)
-    @hero_trending = @discovery_running && @trending_books.any? &&
+    @hero_trending = experiment_running && @trending_books.any? &&
       Flipper.enabled?(:discovery_hero_trending_v1, current_user)
     @hero_trending_books = @hero_trending ? @trending_books.first(4) : []
-    return unless @discovery_running && !@hero_trending
+    return if @hero_trending
 
     @trending_reaction_totals = Reaction.eligible.where(book_id: @trending_books.map(&:id)).group(:book_id).count
   end
@@ -37,7 +37,10 @@ class HomeController < ApplicationController
         { id: book.id, rank: book.trending_rank, reaction_count: book.trending_score }
       end
     end
-    visible_books = books.in_order_of(:id, ranking.map { |entry| entry.fetch(:id) }).with_attached_cover_image.to_a
+    # HTML needs cover metadata and variant records to generate URLs. The image
+    # request loads processed variant attachments separately, so omit those here.
+    visible_books = books.in_order_of(:id, ranking.map { |entry| entry.fetch(:id) })
+      .includes(cover_image_attachment: { blob: :variant_records }).to_a
     visible_ids = visible_books.map(&:id)
     @trending_statistics = ranking.select { |entry| visible_ids.include?(entry.fetch(:id)) }.index_by { |entry| entry.fetch(:id) }
     visible_books

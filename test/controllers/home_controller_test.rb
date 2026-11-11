@@ -53,6 +53,20 @@ class HomeControllerTest < ActionDispatch::IntegrationTest
     assert_not_requested :any, /openlibrary\.org/
   end
 
+  test "trending renders cached books again after their cover variant has been processed" do
+    book = Book.create!(title: "Processed trending cover", author: "Test author")
+    book.cover_image.attach(fixture_file_upload("cover_test.jpg", "image/jpeg"))
+    Reaction.create!(book: book, user: users(:leika), kind: "like", updated_at: 1.hour.ago)
+    get root_path
+    assert_response :success
+
+    book.cover_image.variant(resize_to_fill: [ 160, 240 ]).processed
+    get root_path
+
+    assert_response :success
+    assert_select ".home-trending img.book-cover", count: 1
+  end
+
   test "trending empty state offers the ordinary catalog without substituting unrelated books" do
     get root_path
 
@@ -214,7 +228,7 @@ class HomeControllerTest < ActionDispatch::IntegrationTest
     end
   end
 
-  test "trending precedes the other shelves and shows only the existing book card content" do
+  test "the default trending shelf precedes other shelves and shows ranks and total reactions for guests and readers" do
     book = books(:refactoring)
     Reaction.create!(book: book, user: users(:leika), kind: "dislike", updated_at: 1.hour.ago)
 
@@ -226,11 +240,13 @@ class HomeControllerTest < ActionDispatch::IntegrationTest
       assert_select "section.home-section > header > h2" do |headings|
         assert_equal [ "Trending", "Most Read", "New Books" ], headings.map(&:text)
       end
-      assert_select ".home-trending .book-row > a.book-card[href='#{book_path(book)}']", count: 1
+      assert_select ".home-trending .trending-book-card > a.book-card[href='#{book_path(book)}']", count: 1
       assert_select ".home-trending .book-title", text: book.title
       assert_select ".home-trending .book-author", text: book.author
       assert_select ".home-trending > p, .home-trending time, .home-trending .reaction-panel, .home-trending turbo-cable-stream-source, .home-trending .home-view-all", count: 0
-      assert_select ".home-trending .book-row > :not(a.book-card)", count: 0
+      assert_select ".home-trending .book-row > :not(article.trending-book-card)", count: 0
+      assert_select ".home-trending .trending-rank[aria-label='Rank 1']", count: 1
+      assert_select ".home-trending .trending-total", text: "Total reactions 1"
       assert_select ".home-trending" do |sections|
         [ "Rank ", "7-day reactions", "All-date reactions", "Each active reader", "7-day window" ].each do |removed_text|
           assert_not_includes sections.first.text, removed_text

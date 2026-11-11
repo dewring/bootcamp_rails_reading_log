@@ -59,7 +59,7 @@ class HomeDiscoveryControllerTest < ActionDispatch::IntegrationTest
     assert_equal "no-store", response.headers["Cache-Control"]
   end
 
-  test "turning the running switch off restores the original hero and cards even for a treatment actor" do
+  test "turning the running switch off restores the default hero and ranked cards even for a treatment actor" do
     sign_in @reader
     Flipper.enable_percentage_of_actors(:discovery_hero_trending_v1, 100)
     get root_path
@@ -70,20 +70,22 @@ class HomeDiscoveryControllerTest < ActionDispatch::IntegrationTest
 
     assert_select "h1", text: "Summer Reading Challenge — Join Now"
     assert_select ".home-trending a.book-card", count: 8
-    assert_select ".trending-book-card, .home-trending-hero", count: 0
+    assert_select ".home-trending .trending-rank, .home-trending .trending-total", count: 16
+    assert_select ".home-trending-hero", count: 0
   end
 
-  test "guests receive the original presentation despite enabled experiment flags" do
+  test "guests receive the default ranked presentation despite enabled experiment flags" do
     Flipper.enable_percentage_of_actors(:discovery_hero_trending_v1, 100)
 
     get root_path
 
     assert_response :success
     assert_select ".home-trending a.book-card", count: 8
-    assert_select ".trending-book-card, .home-trending-hero", count: 0
+    assert_select ".home-trending .trending-rank, .home-trending .trending-total", count: 16
+    assert_select ".home-trending-hero", count: 0
   end
 
-  test "a signed in user whose account becomes invited receives the original presentation" do
+  test "a signed in user whose account becomes invited receives the default ranked presentation" do
     sign_in @reader
     Flipper.enable_percentage_of_actors(:discovery_hero_trending_v1, 100)
 
@@ -91,7 +93,8 @@ class HomeDiscoveryControllerTest < ActionDispatch::IntegrationTest
     get root_path
 
     assert_response :success
-    assert_select ".home-trending-hero, .trending-book-card", count: 0
+    assert_select ".home-trending-hero", count: 0
+    assert_select ".home-trending .trending-rank, .home-trending .trending-total", count: 16
     assert_select "h1", text: "Summer Reading Challenge — Join Now"
   end
 
