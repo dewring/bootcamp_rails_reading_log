@@ -24,7 +24,19 @@ class HomeController < ApplicationController
     if @hero_trending
       @hero_trending_books = @trending_books.first(4)
     else
-      @trending_reaction_totals = Reaction.eligible.where(book_id: @trending_books.map(&:id)).group(:book_id).count
+      prepare_trending_reaction_summary
+    end
+  end
+
+  def prepare_trending_reaction_summary
+    types = ReactionType.all.index_by(&:key)
+    counts = Reaction.eligible.where(book_id: @trending_books.map(&:id)).group(:book_id, :kind)
+      .order(Arel.sql("MAX(reactions.updated_at) DESC"), :kind).count
+    @trending_reaction_emojis = counts.keys.group_by(&:first).transform_values do |keys|
+      keys.first(3).map { |_book_id, kind| types.fetch(kind) }
+    end
+    @trending_reaction_totals = counts.each_with_object(Hash.new(0)) do |((book_id, _kind), count), totals|
+      totals[book_id] += count
     end
   end
 

@@ -40,15 +40,38 @@
 
 .trending-total {
   display: inline-flex;
-  gap: 6px;
+  align-items: center;
+  gap: 5px;
+  max-width: 100%;
   margin: 12px 0 0;
-  padding: 4px 8px;
-  border: 1px solid tokens.$gray-mid;
-  border-radius: 5px;
-  background: #fff;
-  color: tokens.$text-muted;
-  font-size: 11px;
-  white-space: nowrap;
+  padding: 6px 7px;
+  border: 0;
+  border-radius: 100px;
+  background: #eff0f4;
+  color: tokens.$ink;
+  font-size: 12px;
+  line-height: 19px;
+}
+
+.trending-reaction-emojis {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  min-width: 0;
+  font-size: 17px;
+
+  > span {
+    display: inline-block;
+    width: 17px;
+    text-align: center;
+  }
+}
+
+.trending-reaction-count {
+  flex-shrink: 0;
+  font-weight: 700;
 }
 
 .home-trending-hero {

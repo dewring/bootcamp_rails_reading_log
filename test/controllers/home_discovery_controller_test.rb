@@ -34,7 +34,7 @@ class HomeDiscoveryControllerTest < ActionDispatch::IntegrationTest
     assert_select ".home-trending .trending-total", count: 8
     assert_select ".home-trending .trending-rank[aria-label='Rank 1']", count: 1
     assert_select ".home-trending .trending-rank[aria-label='Rank 2']", count: 7
-    assert_select ".home-trending .trending-total", text: "Total reactions 2", count: 1
+    assert_select ".home-trending .trending-total[aria-label='Total reactions 2']", count: 1
     assert_select ".home-trending .book-card" do |links|
       assert_equal @ranked_books.map { |book| book_path(book) }, links.map { |link| link["href"] }
     end
@@ -140,7 +140,68 @@ class HomeDiscoveryControllerTest < ActionDispatch::IntegrationTest
     assert_select ".home-trending .trending-book-card" do |cards|
       first_book = cards.find { |card| card.at_css("a")["href"] == book_path(@books.first) }
       assert_equal "Rank 2", first_book.at_css(".trending-rank")["aria-label"]
-      assert_equal "Total reactions 2", first_book.at_css(".trending-total").text.strip
+      assert_equal "Total reactions 2", first_book.at_css(".trending-total")["aria-label"]
+    end
+  end
+
+  test "control badges show the three most recently received distinct emoji and count all eligible reactions" do
+    ReactionType.create!(key: "sad", label: "Sad", emoji: "😢", enabled: true)
+    book = @books.first
+    types = [ "like", "dislike", "love", "laugh", "wow", "sad" ].map { |kind| ReactionType.find_by!(key: kind) }
+    types.each_with_index do |type, index|
+      reader = User.create!(first_name: "Badge", last_name: "Reader", nickname: "badge-reader-#{index}",
+        email: "badge-reader-#{index}@example.com", password: "password123")
+      Reaction.create!(user: reader, book: book, kind: type.key, updated_at: 8.days.ago + index.hours)
+    end
+    # Disabled types still describe historical reactions already present.
+    ReactionType.find_by!(key: "sad").update!(enabled: false)
+    Reaction.create!(user: users(:admin), book: book, kind: "wow")
+    users(:admin).update!(account_status: "suspended")
+
+    get root_path
+
+    assert_response :success
+    assert_select ".trending-book-card:has(a[href='#{book_path(book)}'])" do
+      assert_select ".trending-total[aria-label='Total reactions 7']", count: 1
+      assert_select ".trending-reaction-count", text: "7"
+      assert_select ".trending-reaction-emojis[aria-hidden='true'] > span" do |emoji|
+        assert_equal [ "like", "sad", "wow" ], emoji.map { |node| node["data-reaction-kind"] }
+        assert_equal [ "👍", "😢", "😮" ], emoji.map(&:text)
+        assert_equal 3, emoji.size
+      end
+      assert_select ".trending-total button, .trending-total a", count: 0
+    end
+  end
+
+  test "changing a reaction moves its new kind first without repeating kinds or refreshing the ranking" do
+    book = @books.first
+    reaction = Reaction.create!(user: users(:admin), book: book, kind: "love", updated_at: 2.hours.ago)
+    get root_path
+    cached_ranking = Rails.cache.read(Book::TRENDING_CACHE_KEY)
+
+    reaction.update!(kind: "wow")
+    get root_path
+
+    assert_equal cached_ranking, Rails.cache.read(Book::TRENDING_CACHE_KEY)
+    assert_select ".trending-book-card:has(a[href='#{book_path(book)}'])" do
+      assert_select ".trending-reaction-emojis > span" do |emoji|
+        assert_equal [ "wow", "like" ], emoji.map { |node| node["data-reaction-kind"] }
+      end
+      assert_select ".trending-reaction-count", text: "2"
+    end
+  end
+
+  test "a cached book with no remaining reactions shows zero without emoji" do
+    get root_path
+    book = @books.first
+    book.reactions.destroy_all
+
+    get root_path
+
+    assert_select ".trending-book-card:has(a[href='#{book_path(book)}'])" do
+      assert_select ".trending-total[aria-label='Total reactions 0']", count: 1
+      assert_select ".trending-reaction-count", text: "0"
+      assert_select "[data-reaction-kind]", count: 0
     end
   end
 

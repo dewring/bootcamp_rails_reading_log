@@ -60,7 +60,7 @@ class HomeTrendingCacheConcurrencyTest < ActionDispatch::IntegrationTest
     assert_equal 2, assigns(:trending_statistics).fetch(@second.id).fetch(:reaction_count)
     assert_select ".home-trending .trending-book-card" do |cards|
       card = cards.find { |entry| entry.at_css("a")["href"] == book_path(@second) }
-      assert_equal "Total reactions 1", card.at_css(".trending-total").text.strip
+      assert_equal "Total reactions 1", card.at_css(".trending-total")["aria-label"]
     end
 
     travel 31.minutes do

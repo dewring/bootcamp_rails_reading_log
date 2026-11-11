@@ -172,7 +172,7 @@ class HomeControllerTest < ActionDispatch::IntegrationTest
       assert_select ".home-trending .trending-book-card" do |cards|
         remaining = cards.find { |card| card.at_css("a")["href"] == book_path(second) }
         assert_equal "Rank 1", remaining.at_css(".trending-rank")["aria-label"]
-        assert_equal "Total reactions 1", remaining.at_css(".trending-total").text.strip
+        assert_equal "Total reactions 1", remaining.at_css(".trending-total")["aria-label"]
       end
       assert_equal 1, assigns(:trending_statistics).fetch(first.id).fetch(:rank)
       assert_equal 1, assigns(:trending_statistics).fetch(second.id).fetch(:rank)
@@ -301,7 +301,7 @@ class HomeControllerTest < ActionDispatch::IntegrationTest
       assert_select ".home-trending > p, .home-trending time, .home-trending .reaction-panel, .home-trending turbo-cable-stream-source, .home-trending .home-view-all", count: 0
       assert_select ".home-trending .book-row > :not(article.trending-book-card)", count: 0
       assert_select ".home-trending .trending-rank[aria-label='Rank 1']", count: 1
-      assert_select ".home-trending .trending-total", text: "Total reactions 1"
+      assert_select ".home-trending .trending-total[aria-label='Total reactions 1']"
       assert_select ".home-trending" do |sections|
         [ "Rank ", "7-day reactions", "All-date reactions", "Each active reader", "7-day window" ].each do |removed_text|
           assert_not_includes sections.first.text, removed_text

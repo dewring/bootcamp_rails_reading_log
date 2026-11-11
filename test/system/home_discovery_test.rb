@@ -43,6 +43,46 @@ class HomeDiscoveryTest < ApplicationSystemTestCase
     page.save_screenshot(File.join(Capybara.save_path, "issue145-control-desktop.png"))
   end
 
+  test "three recent emoji and the total across six kinds fit on desktop and mobile" do
+    ReactionType.create!(key: "sad", label: "Sad", emoji: "😢", enabled: true)
+    types = ReactionType.order(:id).to_a
+    types.each_with_index do |type, index|
+      reader = User.create!(first_name: "Badge", last_name: "Reader", nickname: "badge-reader-#{index}",
+        email: "badge-reader-#{index}@example.com", password: "password123")
+      @books.first.reactions.create!(user: reader, kind: type.key, updated_at: 1.hour.ago)
+    end
+
+    [ [ 1400, 1000 ], [ 390, 844 ] ].each do |width, height|
+      page.current_window.resize_to(width, height)
+      visit root_path
+      within ".home-trending .trending-book-card:first-child" do
+        assert_selector ".trending-total[aria-label='Total reactions 7']"
+        assert_selector ".trending-reaction-emojis > span", count: 3
+      end
+      # Exercise wrapping with a count wider than this fixture's total.
+      page.execute_script("document.querySelector('.trending-reaction-count').textContent = '123456'")
+      assert page.evaluate_script(<<~JS)
+        (() => {
+          const card = document.querySelector('.home-trending .trending-book-card')
+          const badge = card.querySelector('.trending-total')
+          const bounds = badge.getBoundingClientRect()
+          const cardBounds = card.getBoundingClientRect()
+          return bounds.left >= cardBounds.left - 1 && bounds.right <= cardBounds.right + 1 &&
+            Array.from(badge.querySelectorAll('[data-reaction-kind], .trending-reaction-count')).every(node => {
+              const rect = node.getBoundingClientRect()
+              return rect.left >= bounds.left && rect.right <= bounds.right &&
+                rect.top >= bounds.top && rect.bottom <= bounds.bottom
+            })
+        })()
+      JS
+      page.execute_script(<<~JS)
+        document.querySelector('.trending-reaction-count').textContent = '7'
+        document.querySelector('.home-trending').scrollIntoView()
+      JS
+      page.save_screenshot(File.join(Capybara.save_path, "reaction-summary-#{width}.png"))
+    end
+  end
+
   test "treatment books stack without horizontal overflow on mobile and open real book detail pages" do
     Flipper.enable_percentage_of_actors(:discovery_hero_trending_v1, 100)
     visit root_path
