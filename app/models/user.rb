@@ -59,6 +59,8 @@ class User < ApplicationRecord
   end
 
   def refresh_reaction_totals
+    # Account eligibility changes also alter which book reactions count in Trending.
+    Rails.cache.delete(Book::TRENDING_CACHE_KEY)
     [ reactions, review_reactions, club_message_reactions ].each do |records|
       target = records.klass.reflect_on_association(records.klass.reaction_target_name)
       records.distinct.pluck(target.foreign_key).each do |id|

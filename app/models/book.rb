@@ -1,4 +1,6 @@
 class Book < ApplicationRecord
+  TRENDING_CACHE_KEY = "home#trending_books/v2".freeze
+
   include Displayable
   include HasAttachedCoverImage
 
