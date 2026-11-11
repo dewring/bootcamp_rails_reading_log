@@ -207,6 +207,34 @@ class HomeControllerTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "account suspension updates totals but preserves ranking until expiry" do
+    as_of = Time.zone.local(2026, 11, 9, 12)
+    first = books(:refactoring)
+    second = books(:pragmatic)
+    [ first, second ].each do |book|
+      Reaction.create!(book: book, user: users(:leika), kind: "like", updated_at: as_of - 1.hour)
+    end
+    Reaction.create!(book: second, user: users(:jaina), kind: "love", updated_at: as_of - 1.hour)
+    travel_to(as_of) { get root_path }
+    assert_equal 2, assigns(:trending_statistics).fetch(second.id).fetch(:reaction_count)
+
+    users(:jaina).update!(account_status: "suspended")
+
+    travel_to(as_of + 2.minutes) do
+      assert_trending_query_count(0) { get root_path }
+      assert_equal 2, assigns(:trending_statistics).fetch(second.id).fetch(:reaction_count)
+      assert_equal 1, assigns(:trending_reaction_totals).fetch(second.id)
+      assert_equal 2, assigns(:trending_statistics).fetch(first.id).fetch(:rank)
+    end
+
+    travel_to(as_of + 30.minutes) do
+      assert_trending_query_count(1) { get root_path }
+      assert_equal 1, assigns(:trending_statistics).fetch(second.id).fetch(:reaction_count)
+      assert_equal 1, assigns(:trending_statistics).fetch(first.id).fetch(:rank)
+      assert_equal 1, assigns(:trending_statistics).fetch(second.id).fetch(:rank)
+    end
+  end
+
   test "cached trending IDs preserve order while current titles are loaded and deleted books are omitted" do
     as_of = Time.zone.local(2026, 11, 9, 12)
     first = Book.create!(title: "First cached book", author: "Test author")

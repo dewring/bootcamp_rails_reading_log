@@ -13,14 +13,6 @@ class TrendingCacheInvalidationTest < ActiveSupport::TestCase
     Rails.cache = @previous_cache
   end
 
-  test "expiring the ranking deletes its cache entry" do
-    Rails.cache.write(Book::TRENDING_CACHE_KEY, "cached ranking")
-
-    Book.expire_trending_cache
-
-    assert_nil Rails.cache.read(Book::TRENDING_CACHE_KEY)
-  end
-
   test "committed book reaction creation change deletion and timestamp refresh preserve the ranking" do
     Rails.cache.write(Book::TRENDING_CACHE_KEY, "cached ranking")
     reaction = @selection.select_kind(kind: "like")
@@ -70,11 +62,11 @@ class TrendingCacheInvalidationTest < ActiveSupport::TestCase
     end
   end
 
-  test "committed account eligibility changes invalidate the ranking but unrelated updates do not" do
+  test "account eligibility changes and unrelated updates preserve the ranking" do
     [ "suspended", "active", "invited" ].each do |status|
       Rails.cache.write(Book::TRENDING_CACHE_KEY, "cached ranking")
       @reader.update!(account_status: status)
-      assert_nil Rails.cache.read(Book::TRENDING_CACHE_KEY)
+      assert_equal "cached ranking", Rails.cache.read(Book::TRENDING_CACHE_KEY)
     end
 
     Rails.cache.write(Book::TRENDING_CACHE_KEY, "cached ranking")

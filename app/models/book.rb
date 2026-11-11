@@ -91,10 +91,6 @@ class Book < ApplicationRecord
   end
 
   # 7. Class methods
-  def self.expire_trending_cache
-    Rails.cache.delete(TRENDING_CACHE_KEY)
-  end
-
   def self.find_or_create_from_search_result(doc)
     return nil if doc["key"].blank?
 
