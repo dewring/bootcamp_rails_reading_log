@@ -11,6 +11,6 @@ class Reaction < ApplicationRecord
   private
 
   def expire_trending_ranking
-    Rails.cache.delete(Book::TRENDING_CACHE_KEY)
+    Book.expire_trending_cache
   end
 end

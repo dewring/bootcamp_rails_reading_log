@@ -13,6 +13,52 @@ class TrendingCacheInvalidationTest < ActiveSupport::TestCase
     Rails.cache = @previous_cache
   end
 
+  test "the ranking version is reused until invalidation and renewed if its cache entry is lost" do
+    version = Book.trending_cache_version
+    assert_equal version, Book.trending_cache_version
+
+    Book.expire_trending_cache
+    assert_not_equal version, Book.trending_cache_version
+
+    version = Book.trending_cache_version
+    Rails.cache.delete(Book::TRENDING_CACHE_VERSION_KEY)
+    assert_not_equal version, Book.trending_cache_version
+  end
+
+  test "initializing the ranking version cannot replace a concurrent invalidation" do
+    original_write = Rails.cache.method(:write)
+    committed_version = nil
+    interleaved_write = lambda do |name, value, **options|
+      if name == Book::TRENDING_CACHE_VERSION_KEY && options[:unless_exist]
+        # A commit advances the version after the initial cache miss, before SET NX.
+        Book.expire_trending_cache
+        committed_version = Rails.cache.read(Book::TRENDING_CACHE_VERSION_KEY)
+      end
+      original_write.call(name, value, **options)
+    end
+
+    version = Rails.cache.stub(:write, interleaved_write) { Book.trending_cache_version }
+
+    assert_not_nil committed_version
+    assert_equal committed_version, version
+    assert_equal committed_version, Book.trending_cache_version
+  end
+
+  test "only committed reaction changes advance the ranking version" do
+    version = Book.trending_cache_version
+    Reaction.transaction(requires_new: true) do
+      @selection.select_kind(kind: "like")
+      raise ActiveRecord::Rollback
+    end
+    assert_equal version, Book.trending_cache_version
+
+    @selection.select_kind(kind: "like")
+    assert_not_equal version, Book.trending_cache_version
+    version = Book.trending_cache_version
+    @selection.select_kind(kind: "like")
+    assert_equal version, Book.trending_cache_version
+  end
+
   test "committed book reaction creation change deletion and timestamp refresh invalidate the ranking" do
     Rails.cache.write(Book::TRENDING_CACHE_KEY, "cached ranking")
     reaction = @selection.select_kind(kind: "like")
