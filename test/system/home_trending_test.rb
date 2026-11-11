@@ -15,7 +15,7 @@ class HomeTrendingTest < ApplicationSystemTestCase
     Rails.cache = @previous_cache
   end
 
-  test "default ranked trending cards work on mobile and refresh after committed reaction deletion" do
+  test "default ranked trending cards work on mobile and retain deleted reactions in the ranking until expiry" do
     first = Book.create!(title: "Trending leader", author: "Test author")
     others = 2.times.map { |index| Book.create!(title: "Trending peer #{index}", author: "Test author") }
     [ first, *others ].each do |book|
@@ -58,7 +58,7 @@ class HomeTrendingTest < ApplicationSystemTestCase
     end
 
     visit root_path
-    assert_equal original_links.drop(1), all(".home-trending .book-card").map { |card| card[:href] }
+    assert_equal original_links, all(".home-trending .book-card").map { |card| card[:href] }
 
     travel_to(Time.current + 30.minutes, with_usec: true) do
       visit root_path

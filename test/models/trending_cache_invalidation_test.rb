@@ -21,22 +21,22 @@ class TrendingCacheInvalidationTest < ActiveSupport::TestCase
     assert_nil Rails.cache.read(Book::TRENDING_CACHE_KEY)
   end
 
-  test "committed book reaction creation change deletion and timestamp refresh invalidate the ranking" do
+  test "committed book reaction creation change deletion and timestamp refresh preserve the ranking" do
     Rails.cache.write(Book::TRENDING_CACHE_KEY, "cached ranking")
     reaction = @selection.select_kind(kind: "like")
-    assert_nil Rails.cache.read(Book::TRENDING_CACHE_KEY)
+    assert_equal "cached ranking", Rails.cache.read(Book::TRENDING_CACHE_KEY)
 
     Rails.cache.write(Book::TRENDING_CACHE_KEY, "cached ranking")
     @selection.select_kind(kind: "love")
-    assert_nil Rails.cache.read(Book::TRENDING_CACHE_KEY)
+    assert_equal "cached ranking", Rails.cache.read(Book::TRENDING_CACHE_KEY)
 
     Rails.cache.write(Book::TRENDING_CACHE_KEY, "cached ranking")
     reaction.reload.touch(time: 1.minute.from_now)
-    assert_nil Rails.cache.read(Book::TRENDING_CACHE_KEY)
+    assert_equal "cached ranking", Rails.cache.read(Book::TRENDING_CACHE_KEY)
 
     Rails.cache.write(Book::TRENDING_CACHE_KEY, "cached ranking")
     @selection.clear_selection
-    assert_nil Rails.cache.read(Book::TRENDING_CACHE_KEY)
+    assert_equal "cached ranking", Rails.cache.read(Book::TRENDING_CACHE_KEY)
   end
 
   test "same kind retries and absent clears preserve the ranking cache" do
