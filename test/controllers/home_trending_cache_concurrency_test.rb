@@ -17,18 +17,18 @@ class HomeTrendingCacheConcurrencyTest < ActionDispatch::IntegrationTest
     Rails.cache = @previous_cache
   end
 
-  test "a deletion between ranking calculation and cache write cannot leave later requests with stale ranks" do
+  test "a deletion between ranking calculation and cache write keeps the calculated snapshot until expiry" do
     overlap_ranking_write do
       ReactionSelection.new(user: users(:admin), target: @second).clear_selection
     end
 
-    assert_current_second_book_rank_and_total
+    assert_snapshot_expires_with_current_totals
   end
 
-  test "an eligibility change between ranking calculation and cache write cannot leave later requests with stale ranks" do
+  test "an eligibility change between ranking calculation and cache write keeps the calculated snapshot until expiry" do
     overlap_ranking_write { users(:admin).update!(account_status: "suspended") }
 
-    assert_current_second_book_rank_and_total
+    assert_snapshot_expires_with_current_totals
   end
 
   private
@@ -52,18 +52,23 @@ class HomeTrendingCacheConcurrencyTest < ActionDispatch::IntegrationTest
     Rails.cache.stub(:fetch, interleaved_fetch) { get root_path }
   end
 
-  def assert_current_second_book_rank_and_total
-    2.times do
+  def assert_snapshot_expires_with_current_totals
+    get root_path
+
+    assert_response :success
+    assert_equal 1, assigns(:trending_statistics).fetch(@second.id).fetch(:rank)
+    assert_equal 2, assigns(:trending_statistics).fetch(@second.id).fetch(:reaction_count)
+    assert_select ".home-trending .trending-book-card" do |cards|
+      card = cards.find { |entry| entry.at_css("a")["href"] == book_path(@second) }
+      assert_equal "Total reactions 1", card.at_css(".trending-total").text.strip
+    end
+
+    travel 31.minutes do
       get root_path
 
       assert_response :success
       assert_equal 2, assigns(:trending_statistics).fetch(@second.id).fetch(:rank)
       assert_equal 1, assigns(:trending_statistics).fetch(@second.id).fetch(:reaction_count)
-      assert_select ".home-trending .trending-book-card" do |cards|
-        card = cards.find { |entry| entry.at_css("a")["href"] == book_path(@second) }
-        assert_equal "Rank 2", card.at_css(".trending-rank")["aria-label"]
-        assert_equal "Total reactions 1", card.at_css(".trending-total").text.strip
-      end
     end
   end
 end

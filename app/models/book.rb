@@ -1,6 +1,5 @@
 class Book < ApplicationRecord
   TRENDING_CACHE_KEY = "home#trending_books/v3".freeze
-  TRENDING_CACHE_VERSION_KEY = "#{TRENDING_CACHE_KEY}/version".freeze
 
   include Displayable
   include HasAttachedCoverImage
@@ -92,18 +91,7 @@ class Book < ApplicationRecord
   end
 
   # 7. Class methods
-  def self.trending_cache_version
-    version = Rails.cache.read(TRENDING_CACHE_VERSION_KEY)
-    return version if version
-
-    # Atomic initialization cannot overwrite a version advanced by a concurrent commit.
-    Rails.cache.write(TRENDING_CACHE_VERSION_KEY, SecureRandom.uuid, unless_exist: true)
-    Rails.cache.read(TRENDING_CACHE_VERSION_KEY)
-  end
-
   def self.expire_trending_cache
-    # A late cache write retains its old version and cannot satisfy a later request.
-    Rails.cache.write(TRENDING_CACHE_VERSION_KEY, SecureRandom.uuid)
     Rails.cache.delete(TRENDING_CACHE_KEY)
   end
 
