@@ -1,0 +1,134 @@
+@use "../../foundation/tokens";
+
+.trending-book-card {
+  position: relative;
+  display: flex;
+  flex: 0 0 160px;
+  flex-direction: column;
+  align-items: center;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+
+  .book-card {
+    flex-basis: auto;
+  }
+}
+
+.trending-rank {
+  position: absolute;
+  top: 0;
+  left: 8px;
+  display: grid;
+  place-items: start center;
+  width: 28px;
+  height: 38px;
+  padding-top: 4px;
+  background: #e9b951;
+  color: tokens.$ink;
+  font-size: 16px;
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 80%, 0 100%);
+  pointer-events: none;
+}
+
+.home-trending .trending-book-card .book-card {
+  min-height: 306px;
+}
+
+.trending-total {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  max-width: 100%;
+  margin: 12px 0 0;
+  padding: 6px 7px;
+  border: 0;
+  border-radius: 100px;
+  background: #eff0f4;
+  color: tokens.$ink;
+  font-size: 12px;
+  line-height: 19px;
+}
+
+.trending-reaction-emojis {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  min-width: 0;
+  font-size: 17px;
+
+  > span {
+    display: inline-block;
+    width: 17px;
+    text-align: center;
+  }
+}
+
+.trending-reaction-count {
+  flex-shrink: 0;
+  font-weight: 700;
+}
+
+.home-trending-hero {
+  display: grid;
+  grid-template-columns: minmax(180px, 0.8fr) minmax(0, 3fr);
+  gap: 40px;
+  background: #f7f0e4;
+
+  .trending-period {
+    margin-top: 24px;
+    font-size: 12px;
+    text-transform: uppercase;
+  }
+}
+
+.trending-hero-books {
+  display: grid;
+  grid-template-columns: 1.15fr repeat(3, 1fr);
+  align-items: end;
+  gap: 24px;
+
+  .trending-book-card,
+  .book-card {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .book-card .book-cover {
+    width: 100% !important;
+    height: auto !important;
+    aspect-ratio: 2 / 3;
+  }
+
+  .book-card {
+    min-height: 0;
+  }
+}
+
+@media (max-width: 1100px) {
+  .home-trending-hero {
+    grid-template-columns: 1fr;
+    padding: 32px;
+  }
+}
+
+@media (max-width: 600px) {
+  .home-trending-hero {
+    padding: 24px;
+  }
+
+  .trending-hero-books {
+    grid-template-columns: 1fr;
+    justify-items: center;
+    gap: 32px;
+
+    .trending-book-card {
+      max-width: 230px;
+    }
+  }
+}

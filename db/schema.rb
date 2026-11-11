@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_07_020000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_10_234000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -173,6 +173,22 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_07_020000) do
     t.check_constraint "char_length(body) <= 1000", name: "club_messages_body_length"
     t.check_constraint "deleted_at IS NULL OR parent_id IS NULL AND body = ''::text", name: "club_messages_deleted_post_state"
     t.check_constraint "parent_id IS NULL OR parent_id <> id", name: "club_messages_parent_not_self"
+  end
+
+  create_table "flipper_features", force: :cascade do |t|
+    t.string "key", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["key"], name: "index_flipper_features_on_key", unique: true
+  end
+
+  create_table "flipper_gates", force: :cascade do |t|
+    t.string "feature_key", null: false
+    t.string "key", null: false
+    t.text "value"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["feature_key", "key", "value"], name: "index_flipper_gates_on_feature_key_and_key_and_value", unique: true
   end
 
   create_table "genres", force: :cascade do |t|

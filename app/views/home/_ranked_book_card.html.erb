@@ -1,0 +1,16 @@
+<article class="trending-book-card">
+  <%= render "home/book_card", book: book %>
+  <span class="trending-rank" aria-label="Rank <%= @trending_statistics.fetch(book.id).fetch(:rank) %>"><%= @trending_statistics.fetch(book.id).fetch(:rank) %></span>
+  <% if local_assigns.key?(:total_reactions) %>
+    <p class="trending-total" aria-label="Total reactions <%= total_reactions %>">
+      <% if total_reactions.positive? %>
+        <span class="trending-reaction-emojis" aria-hidden="true">
+          <% @trending_reaction_emojis.fetch(book.id).each do |type| %>
+            <span data-reaction-kind="<%= type.key %>"><%= type.emoji %></span>
+          <% end %>
+        </span>
+      <% end %>
+      <span class="trending-reaction-count" aria-hidden="true"><%= total_reactions %></span>
+    </p>
+  <% end %>
+</article>

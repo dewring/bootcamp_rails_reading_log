@@ -94,6 +94,92 @@ class DevelopmentReadingScenarioReactionsTest < ActiveSupport::TestCase
     assert_not_requested :any, /https?:/
   end
 
+  test "recorded discovery demo reactions survive baseline replay and current counts remain separate" do
+    seed
+    book = Book.create!(title: "Discovery demo book", author: "Demo author")
+    reaction = Reaction.create!(user_id: @reader_ids.first, book: book, kind: "love")
+    record_discovery_demo(reaction)
+    before = owned_rows
+    clear_enqueued_jobs
+
+    manifest = seed
+
+    assert_equal before, owned_rows
+    assert_equal 160, manifest.dig("reactions", "actual_counts", "book_reactions")
+    assert_equal({ "book_reactions" => 161, "by_kind" => { "like" => 120, "dislike" => 40, "love" => 1 } }, manifest.dig("reactions", "current_counts"))
+    assert_no_enqueued_jobs only: ReactionTotalsJob
+  end
+
+  test "changed or missing recorded discovery demo reactions stop replay without repair" do
+    seed
+    book = Book.create!(title: "Discovery demo book", author: "Demo author")
+    reaction = Reaction.create!(user_id: @reader_ids.first, book: book, kind: "love")
+    record_discovery_demo(reaction)
+    reaction.update!(kind: "laugh")
+    assert_seed_refuses_changes("changed")
+
+    reaction.destroy!
+    assert_seed_refuses_changes("missing")
+  end
+
+  test "discovery demo records cannot claim real readers or baseline reactions" do
+    seed
+    book = Book.create!(title: "Actual reader book", author: "Demo author")
+    actual_reaction = Reaction.create!(user: users(:leika), book: book, kind: "love")
+    record_discovery_demo(actual_reaction)
+    assert_seed_refuses_changes("belong to synthetic readers")
+
+    baseline = Reaction.find(record_ids(saved_manifest).values.first)
+    record_discovery_demo(baseline)
+    assert_seed_refuses_changes("separate from the baseline")
+  end
+
+  test "recording a demo does not permit extra unrecorded synthetic reactions" do
+    seed
+    book = Book.create!(title: "Discovery demo book", author: "Demo author")
+    reaction = Reaction.create!(user_id: @reader_ids.first, book: book, kind: "love")
+    record_discovery_demo(reaction)
+    Reaction.create!(user_id: @reader_ids.second, book: book, kind: "like")
+
+    assert_seed_refuses_changes("Unrecorded synthetic-reader reactions")
+  end
+
+  test "discovery preview uses real fifty percent actors and the supplied ranking time without writing reactions" do
+    manifest = seed
+    reference_time = Time.iso8601(manifest.fetch("as_of"))
+    Flipper.add(:discovery_hero_trending_v1)
+    Flipper.enable_percentage_of_actors(:discovery_hero_trending_v1, 50)
+    before = owned_rows
+    clear_enqueued_jobs
+
+    first = in_development { @service.preview_discovery(as_of: reference_time) }
+    later = in_development { @service.preview_discovery(as_of: reference_time + 8.days) }
+
+    assert_equal 30, first.fetch("actor_assignments").values.sum
+    assert_equal first.fetch("actor_assignments"), later.fetch("actor_assignments")
+    assert_equal 50, first.fetch("percentage_of_actors")
+    assert_equal reference_time.iso8601(6), first.fetch("as_of")
+    assert_equal anchor("new_burst").fetch("book_id"), first.fetch("ranked_book_ids").first
+    assert_empty later.fetch("ranked_book_ids")
+    assert_equal 160, first.dig("baseline_counts", "book_reactions")
+    assert_equal 160, first.dig("current_counts", "book_reactions")
+    assert_equal before, owned_rows
+    assert_equal 50, Flipper[:discovery_hero_trending_v1].percentage_of_actors_value
+    assert_no_enqueued_jobs only: ReactionTotalsJob
+  end
+
+  test "discovery preview refuses an unconfigured actor gate without changing it" do
+    manifest = seed
+    Flipper.add(:discovery_hero_trending_v1)
+
+    error = assert_raises(DevelopmentReadingScenarioReactions::ReactionsError) do
+      in_development { @service.preview_discovery(as_of: Time.iso8601(manifest.fetch("as_of"))) }
+    end
+
+    assert_includes error.message, "50%"
+    assert_equal 0, Flipper[:discovery_hero_trending_v1].percentage_of_actors_value
+  end
+
   test "seeded anchors have hand-calculated all-kind scores and shared ranks" do
     manifest = seed
     as_of = Time.iso8601(manifest.fetch("as_of")).in_time_zone
@@ -395,6 +481,16 @@ class DevelopmentReadingScenarioReactionsTest < ActiveSupport::TestCase
   end
 
   private
+
+  def record_discovery_demo(reaction)
+    manifest = saved_manifest
+    attributes = reaction.attributes.slice("user_id", "book_id", "kind").merge(
+      "created_at" => reaction.created_at.utc.iso8601(6), "updated_at" => reaction.updated_at.utc.iso8601(6))
+    manifest.fetch("reactions")["discovery_demo"] = {
+      "records" => { reaction.id.to_s => { "id" => reaction.id, "expected_attributes" => attributes } }
+    }
+    write_manifest(manifest)
+  end
 
   def in_development(&block)
     Rails.stub(:env, "development".inquiry, &block)

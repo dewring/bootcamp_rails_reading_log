@@ -1,4 +1,13 @@
 namespace :development_scenario do
+  desc "Report real 50% discovery assignments and current reaction counts at DISCOVERY_AS_OF (development only)"
+  task preview_discovery: :environment do
+    as_of = Time.iso8601(ENV.fetch("DISCOVERY_AS_OF"))
+    report = DevelopmentReadingScenarioReactions.new.preview_discovery(as_of: as_of)
+    $stdout.write("Discovery preview (synthetic data): #{report.to_json}\n")
+  rescue KeyError, ArgumentError, DevelopmentReadingScenarioReactions::ReactionsError, DevelopmentReadingScenarioManifest::ManifestError => error
+    abort error.message
+  end
+
   desc "Refresh one recorded old_hit reaction once using the scenario reference time (development only)"
   task refresh_old_hit_reaction: :environment do
     manifest = DevelopmentReadingScenarioReactions.new.refresh_old_hit_reaction
@@ -14,7 +23,8 @@ namespace :development_scenario do
   desc "Seed 160 owned book reactions from the prepared baseline (development only)"
   task seed_reactions: :environment do
     manifest = DevelopmentReadingScenarioReactions.new.seed_reactions
-    $stdout.write("Scenario-owned reactions: #{manifest.fetch('reactions').fetch('actual_counts').to_json}\n")
+    $stdout.write("Scenario baseline reactions: #{manifest.fetch('reactions').fetch('actual_counts').to_json}\n")
+    $stdout.write("Current synthetic-reader reactions: #{manifest.fetch('reactions').fetch('current_counts').to_json}\n")
     $stdout.write("Run the development worker to publish aggregate totals.\n")
   rescue DevelopmentReadingScenarioReactions::ReactionsError, DevelopmentReadingScenarioManifest::ManifestError => error
     abort error.message

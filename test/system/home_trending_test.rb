@@ -15,7 +15,7 @@ class HomeTrendingTest < ApplicationSystemTestCase
     Rails.cache = @previous_cache
   end
 
-  test "plain trending cards precede other shelves and retain cached order until expiry on desktop and mobile" do
+  test "default ranked trending cards work on mobile and retain deleted reactions in the ranking until expiry" do
     first = Book.create!(title: "Trending leader", author: "Test author")
     others = 2.times.map { |index| Book.create!(title: "Trending peer #{index}", author: "Test author") }
     [ first, *others ].each do |book|
@@ -28,13 +28,15 @@ class HomeTrendingTest < ApplicationSystemTestCase
     within ".home-trending" do
       assert_text "Trending"
       assert_selector ".book-card", count: 3
+      assert_selector ".trending-rank", count: 3
+      assert_selector ".trending-total", count: 3
       assert_no_selector ".reaction-panel, .home-trending-rank, .home-trending-score, time"
       assert_no_link "View All"
       assert_no_button "Refresh"
     end
     assert_equal [ "Trending", "Most Read", "New Books" ], all("section.home-section > header > h2").map(&:text)
     original_links = all(".home-trending .book-card").map { |card| card[:href] }
-    assert_equal first.title, find(".home-trending .book-card:first-child .book-title").text
+    assert_equal first.title, find(".home-trending .trending-book-card:first-child .book-title").text
     first.reactions.destroy_all
     assert_equal original_links, all(".home-trending .book-card").map { |card| card[:href] }
 

@@ -105,3 +105,7 @@ group :development do
   gem "web-console"
   gem "letter_opener"
 end
+
+gem "flipper-active_record", "~> 1.4"
+
+gem "flipper-ui", "~> 1.4"

@@ -12,16 +12,57 @@ class HomeController < ApplicationController
     @new_books = books.includes([ :cover_image_attachment ]).order(created_at: :desc).limit(8).to_a
     @featured_book = @new_books.first || @most_read.first
     @trending_books = cached_trending_books(books)
+    prepare_discovery_presentation
   end
 
   private
 
-  def cached_trending_books(books)
-    # BookPolicy currently exposes the same public catalog to everyone, so share the ranked IDs.
-    # Reapply the policy scope when loading current book attributes and covers.
-    ids = Rails.cache.fetch("home#trending_books", expires_in: TRENDING_CACHE_DURATION) do
-      books.trending(as_of: Time.current).limit(8).map(&:id)
+  def prepare_discovery_presentation
+    # The layout depends on the reader and current flags; do not reuse HTTP-cached HTML.
+    response.headers["Cache-Control"] = "no-store"
+    @hero_trending = hero_trending_for_current_user?
+    if @hero_trending
+      @hero_trending_books = @trending_books.first(4)
+    else
+      prepare_trending_reaction_summary
     end
-    books.in_order_of(:id, ids).with_attached_cover_image.to_a
+  end
+
+  def prepare_trending_reaction_summary
+    types = ReactionType.all.index_by(&:key)
+    counts = Reaction.eligible.where(book_id: @trending_books.map(&:id)).group(:book_id, :kind)
+      .order(Arel.sql("MAX(reactions.updated_at) DESC"), :kind).count
+    @trending_reaction_emojis = counts.keys.group_by(&:first).transform_values do |keys|
+      keys.first(3).map { |_book_id, kind| types.fetch(kind) }
+    end
+    @trending_reaction_totals = counts.each_with_object(Hash.new(0)) do |((book_id, _kind), count), totals|
+      totals[book_id] += count
+    end
+  end
+
+  # Flags never replace authorization: only signed-in active readers enter the comparison.
+  def hero_trending_for_current_user?
+    return false unless current_user&.account_status == "active"
+    return false unless Flipper.enabled?(:discovery_experiment_running_v1)
+    return false if @trending_books.empty?
+
+    Flipper.enabled?(:discovery_hero_trending_v1, current_user)
+  end
+
+  def cached_trending_books(books)
+    # BookPolicy currently exposes the same public catalog to everyone, so share ranking snapshots.
+    # Reapply the policy scope when loading current book attributes and covers.
+    ranking = Rails.cache.fetch(Book::TRENDING_CACHE_KEY, expires_in: TRENDING_CACHE_DURATION) do
+      books.trending(as_of: Time.current).limit(8).map do |book|
+        { id: book.id, rank: book.trending_rank, reaction_count: book.trending_score }
+      end
+    end
+    # HTML needs cover metadata and variant records to generate URLs. The image
+    # request loads processed variant attachments separately, so omit those here.
+    visible_books = books.in_order_of(:id, ranking.map { |entry| entry.fetch(:id) })
+      .includes(cover_image_attachment: { blob: :variant_records }).to_a
+    visible_ids = visible_books.map(&:id)
+    @trending_statistics = ranking.select { |entry| visible_ids.include?(entry.fetch(:id)) }.index_by { |entry| entry.fetch(:id) }
+    visible_books
   end
 end

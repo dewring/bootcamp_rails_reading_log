@@ -157,6 +157,15 @@ current conversation take precedence.
     and recovery risks. Test the required order and resulting behavior instead
     of adding defensive checks throughout the workflow.
 
+30. Match implementation complexity to the required behavior. Establish the
+    required freshness, consistency, and update frequency before adding
+    synchronization or automatic refresh mechanisms. Prefer the simplest
+    existing mechanism that meets those requirements; do not assume every
+    change needs immediate propagation. Before adding callbacks or shared
+    state, explain the concrete requirement they serve and consider how often
+    they trigger downstream work. Use stronger guarantees when correctness,
+    security, or an explicit requirement needs them.
+
 ## Semantic HTML
 
 - Use semantic HTML for newly created markup, including Rails ERB views,

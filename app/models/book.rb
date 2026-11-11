@@ -1,4 +1,6 @@
 class Book < ApplicationRecord
+  TRENDING_CACHE_KEY = "home#trending_books/v3".freeze
+
   include Displayable
   include HasAttachedCoverImage
 
@@ -88,6 +90,7 @@ class Book < ApplicationRecord
     reading_sessions.sum(:pages_read)
   end
 
+  # 7. Class methods
   def self.find_or_create_from_search_result(doc)
     return nil if doc["key"].blank?
 

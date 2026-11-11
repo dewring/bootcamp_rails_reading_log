@@ -53,6 +53,20 @@ class HomeControllerTest < ActionDispatch::IntegrationTest
     assert_not_requested :any, /openlibrary\.org/
   end
 
+  test "trending renders cached books again after their cover variant has been processed" do
+    book = Book.create!(title: "Processed trending cover", author: "Test author")
+    book.cover_image.attach(fixture_file_upload("cover_test.jpg", "image/jpeg"))
+    Reaction.create!(book: book, user: users(:leika), kind: "like", updated_at: 1.hour.ago)
+    get root_path
+    assert_response :success
+
+    book.cover_image.variant(resize_to_fill: [ 160, 240 ]).processed
+    get root_path
+
+    assert_response :success
+    assert_select ".home-trending img.book-cover", count: 1
+  end
+
   test "trending empty state offers the ordinary catalog without substituting unrelated books" do
     get root_path
 
@@ -103,7 +117,7 @@ class HomeControllerTest < ActionDispatch::IntegrationTest
     end
   end
 
-  test "new reactions change the cached ranking only after expiry" do
+  test "committed new reactions change the ranking only after its thirty minute expiry" do
     as_of = Time.zone.local(2026, 11, 9, 12)
     first = books(:refactoring)
     second = books(:pragmatic)
@@ -123,7 +137,7 @@ class HomeControllerTest < ActionDispatch::IntegrationTest
     end
   end
 
-  test "an empty trending result is cached until expiry" do
+  test "an empty trending result remains cached after a reaction until expiry" do
     as_of = Time.zone.local(2026, 11, 9, 12)
     assert_trending_query_count(1) { travel_to(as_of) { get root_path } }
     Reaction.create!(book: books(:refactoring), user: users(:leika), kind: "like", updated_at: as_of + 1.minute)
@@ -135,6 +149,89 @@ class HomeControllerTest < ActionDispatch::IntegrationTest
     assert_trending_query_count(1) do
       travel_to(as_of + 30.minutes) { get root_path }
       assert_equal [ books(:refactoring).id ], assigns(:trending_books).map(&:id)
+    end
+  end
+
+  test "removing a tied book reaction preserves its cached rank while updating its total" do
+    as_of = Time.zone.local(2026, 11, 9, 12)
+    first = books(:refactoring)
+    second = books(:pragmatic)
+    [ first, second ].each do |book|
+      [ users(:leika), users(:jaina) ].each do |reader|
+        Reaction.create!(book: book, user: reader, kind: "like", updated_at: as_of - 1.hour)
+      end
+    end
+
+    travel_to(as_of) do
+      get root_path
+      assert_select ".home-trending .trending-rank[aria-label='Rank 1']", count: 2
+
+      ReactionSelection.new(user: users(:jaina), target: second).clear_selection
+      assert_trending_query_count(0) { get root_path }
+
+      assert_select ".home-trending .trending-book-card" do |cards|
+        remaining = cards.find { |card| card.at_css("a")["href"] == book_path(second) }
+        assert_equal "Rank 1", remaining.at_css(".trending-rank")["aria-label"]
+        assert_equal "Total reactions 1", remaining.at_css(".trending-total")["aria-label"]
+      end
+      assert_equal 1, assigns(:trending_statistics).fetch(first.id).fetch(:rank)
+      assert_equal 1, assigns(:trending_statistics).fetch(second.id).fetch(:rank)
+    end
+  end
+
+  test "shared ranks and seven day counts refresh together after expiry" do
+    as_of = Time.zone.local(2026, 11, 9, 12)
+    first = books(:refactoring)
+    second = books(:pragmatic)
+    Reaction.create!(book: first, user: users(:leika), kind: "like", updated_at: as_of - 2.hours)
+    Reaction.create!(book: second, user: users(:leika), kind: "love", updated_at: as_of - 1.hour)
+
+    travel_to(as_of) do
+      get root_path
+
+      assert_equal({ id: first.id, rank: 1, reaction_count: 1 }, assigns(:trending_statistics).fetch(first.id))
+      assert_equal({ id: second.id, rank: 1, reaction_count: 1 }, assigns(:trending_statistics).fetch(second.id))
+    end
+    Reaction.create!(book: second, user: users(:jaina), kind: "wow", updated_at: as_of + 1.minute)
+
+    travel_to(as_of + 2.minutes) do
+      assert_trending_query_count(0) { get root_path }
+      assert_equal 1, assigns(:trending_statistics).fetch(second.id).fetch(:reaction_count)
+      assert_equal 1, assigns(:trending_statistics).fetch(first.id).fetch(:rank)
+    end
+
+    travel_to(as_of + 30.minutes) do
+      assert_trending_query_count(1) { get root_path }
+      assert_equal({ id: second.id, rank: 1, reaction_count: 2 }, assigns(:trending_statistics).fetch(second.id))
+      assert_equal({ id: first.id, rank: 2, reaction_count: 1 }, assigns(:trending_statistics).fetch(first.id))
+    end
+  end
+
+  test "account suspension updates totals but preserves ranking until expiry" do
+    as_of = Time.zone.local(2026, 11, 9, 12)
+    first = books(:refactoring)
+    second = books(:pragmatic)
+    [ first, second ].each do |book|
+      Reaction.create!(book: book, user: users(:leika), kind: "like", updated_at: as_of - 1.hour)
+    end
+    Reaction.create!(book: second, user: users(:jaina), kind: "love", updated_at: as_of - 1.hour)
+    travel_to(as_of) { get root_path }
+    assert_equal 2, assigns(:trending_statistics).fetch(second.id).fetch(:reaction_count)
+
+    users(:jaina).update!(account_status: "suspended")
+
+    travel_to(as_of + 2.minutes) do
+      assert_trending_query_count(0) { get root_path }
+      assert_equal 2, assigns(:trending_statistics).fetch(second.id).fetch(:reaction_count)
+      assert_equal 1, assigns(:trending_reaction_totals).fetch(second.id)
+      assert_equal 2, assigns(:trending_statistics).fetch(first.id).fetch(:rank)
+    end
+
+    travel_to(as_of + 30.minutes) do
+      assert_trending_query_count(1) { get root_path }
+      assert_equal 1, assigns(:trending_statistics).fetch(second.id).fetch(:reaction_count)
+      assert_equal 1, assigns(:trending_statistics).fetch(first.id).fetch(:rank)
+      assert_equal 1, assigns(:trending_statistics).fetch(second.id).fetch(:rank)
     end
   end
 
@@ -177,6 +274,7 @@ class HomeControllerTest < ActionDispatch::IntegrationTest
       BookPolicy::Scope.stub(:new, restricted_scope) do
         assert_trending_query_count(0) { get root_path }
         assert_equal [ first.id ], assigns(:trending_books).map(&:id)
+        assert_equal [ first.id ], assigns(:trending_statistics).keys
       end
       restricted_scope.verify
 
@@ -185,7 +283,7 @@ class HomeControllerTest < ActionDispatch::IntegrationTest
     end
   end
 
-  test "trending precedes the other shelves and shows only the existing book card content" do
+  test "the default trending shelf precedes other shelves and shows ranks and total reactions for guests and readers" do
     book = books(:refactoring)
     Reaction.create!(book: book, user: users(:leika), kind: "dislike", updated_at: 1.hour.ago)
 
@@ -197,11 +295,13 @@ class HomeControllerTest < ActionDispatch::IntegrationTest
       assert_select "section.home-section > header > h2" do |headings|
         assert_equal [ "Trending", "Most Read", "New Books" ], headings.map(&:text)
       end
-      assert_select ".home-trending .book-row > a.book-card[href='#{book_path(book)}']", count: 1
+      assert_select ".home-trending .trending-book-card > a.book-card[href='#{book_path(book)}']", count: 1
       assert_select ".home-trending .book-title", text: book.title
       assert_select ".home-trending .book-author", text: book.author
       assert_select ".home-trending > p, .home-trending time, .home-trending .reaction-panel, .home-trending turbo-cable-stream-source, .home-trending .home-view-all", count: 0
-      assert_select ".home-trending .book-row > :not(a.book-card)", count: 0
+      assert_select ".home-trending .book-row > :not(article.trending-book-card)", count: 0
+      assert_select ".home-trending .trending-rank[aria-label='Rank 1']", count: 1
+      assert_select ".home-trending .trending-total[aria-label='Total reactions 1']"
       assert_select ".home-trending" do |sections|
         [ "Rank ", "7-day reactions", "All-date reactions", "Each active reader", "7-day window" ].each do |removed_text|
           assert_not_includes sections.first.text, removed_text
