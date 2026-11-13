@@ -42,7 +42,6 @@
       text-transform: uppercase;
     }
 
-    select,
     input[type="date"] {
       height: 38px;
       padding: 0 12px;
@@ -289,16 +288,6 @@
   .admin-report-range > .admin-report-period-form {
     grid-column: 1 / -1;
     justify-content: flex-end;
-  }
-
-  .admin-report-sort-direction {
-    padding: 8px 10px;
-    border: $card-border;
-    border-radius: 8px;
-    background: #fff;
-    color: tokens.$ink;
-    font-size: 11px;
-    font-weight: 500;
   }
 
   .admin-report-table {
