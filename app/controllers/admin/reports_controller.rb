@@ -11,5 +11,6 @@ class Admin::ReportsController < ApplicationController
       end_param: params[:end],
       today: @as_of.to_date
     )
+    @totals = ReadingActivityTotals.new(@period.dates).totals
   end
 end

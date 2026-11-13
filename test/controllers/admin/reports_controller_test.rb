@@ -50,4 +50,35 @@ class Admin::ReportsControllerTest < ActionDispatch::IntegrationTest
     assert_select "h2#admin-report-range-title", text: "November 11, 2026"
     assert_select "input[type='date'][name='start'][value='2026-11-05']"
   end
+
+  test "guests and regular readers are turned away before any reading_sessions query runs" do
+    report_queries = []
+    record_query = lambda do |_name, _start, _finish, _id, payload|
+      report_queries.push(payload[:sql]) if payload[:sql].include?("reading_sessions")
+    end
+
+    ActiveSupport::Notifications.subscribed(record_query, "sql.active_record") do
+      get admin_report_path
+      sign_in users(:leika)
+      get admin_report_path
+    end
+
+    assert_empty report_queries
+  end
+
+  test "admins see overview totals for the selected period" do
+    sign_in users(:admin)
+    ReadingSession.create!(user: users(:leika), book: books(:refactoring), read_on: Date.new(2026, 11, 5), pages_read: 1200)
+    ReadingSession.create!(user: users(:jaina), book: books(:pragmatic), read_on: Date.new(2026, 11, 6), pages_read: 30)
+
+    travel_to Time.zone.local(2026, 11, 11, 18, 0) do
+      get admin_report_path, params: { period: "custom", start: "2026-11-05", end: "2026-11-06" }
+    end
+
+    assert_response :success
+    assert_select ".admin-report-stat", text: /Active readers\s+2 readers/
+    assert_select ".admin-report-stat", text: /Reading sessions\s+2 sessions/
+    assert_select ".admin-report-stat", text: /Pages read\s+1,230 pages/
+    assert_select ".admin-report-stat", text: /Books read\s+2 books/
+  end
 end
