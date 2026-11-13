@@ -99,4 +99,28 @@ class Admin::ReportsControllerTest < ActionDispatch::IntegrationTest
     assert_select ".admin-report-sort-form input[type='hidden'][name='start'][value='2026-11-05']"
     assert_select ".admin-report-sort-form select[name='sort'] option[selected][value='sessions']"
   end
+
+  test "the power users tab shows readers by nickname and keeps the tab when sorting" do
+    sign_in users(:admin)
+    ReadingSession.create!(user: users(:leika), book: books(:refactoring), read_on: Date.new(2026, 11, 5), pages_read: 20)
+
+    travel_to Time.zone.local(2026, 11, 11, 18, 0) do
+      get admin_report_path, params: { period: "last_7_days", tab: "power_users" }
+    end
+
+    assert_response :success
+    assert_select ".admin-report-tabs a[aria-current='page']", text: /Power users/
+    assert_select ".admin-report-table th[scope='row']", text: /#{users(:leika).nickname}/
+    assert_select ".admin-report-table th[aria-sort='descending']", text: "Active days"
+    assert_select ".admin-report-sort-form input[type='hidden'][name='tab'][value='power_users']"
+  end
+
+  test "an unknown tab shows the most read leaderboard" do
+    sign_in users(:admin)
+
+    get admin_report_path, params: { tab: "../../secrets" }
+
+    assert_response :success
+    assert_select ".admin-report-tabs a[aria-current='page']", text: /Most read/
+  end
 end

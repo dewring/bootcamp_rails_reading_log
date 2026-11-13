@@ -26,6 +26,7 @@
             <%= f.label :end, "End date" %>
             <%= f.date_field :end, value: @period.end_param, max: @as_of.to_date.iso8601 %>
           <% end %>
+          <%= hidden_field_tag :tab, @leaderboard_tab %>
           <%= hidden_field_tag :sort, @leaderboard.sort %>
           <%= f.submit "Apply" %>
         <% end %>
@@ -70,52 +71,29 @@
       <section class="admin-report-leaderboards" aria-labelledby="admin-report-leaderboards-title">
         <h2 id="admin-report-leaderboards-title">Leaderboards</h2>
         <nav class="admin-report-tabs" aria-label="Leaderboard type">
-          <%= link_to "Most read", admin_report_path(report_period_params(@period)), class: "admin-report-tab is-active", aria: { current: "page" } %>
+          <%= link_to admin_report_path(report_period_params(@period).merge(tab: "most_read")), class: "admin-report-tab#{' is-active' if @leaderboard_tab == 'most_read'}", aria: { current: ("page" if @leaderboard_tab == "most_read") } do %>
+            Most read <span class="admin-report-tab-count"><%= number_with_delimiter(@totals.books) %></span>
+          <% end %>
+          <%= link_to admin_report_path(report_period_params(@period).merge(tab: "power_users")), class: "admin-report-tab#{' is-active' if @leaderboard_tab == 'power_users'}", aria: { current: ("page" if @leaderboard_tab == "power_users") } do %>
+            Power users <span class="admin-report-tab-count"><%= number_with_delimiter(@totals.active_readers) %></span>
+          <% end %>
         </nav>
 
         <%= form_with url: admin_report_path, method: :get, class: "admin-report-sort-form", data: { controller: "submit-on-change" } do |f| %>
           <% report_period_params(@period).each do |name, value| %>
             <%= hidden_field_tag name, value %>
           <% end %>
+          <%= hidden_field_tag :tab, @leaderboard_tab %>
           <%= f.label :sort, "Sort by" %>
-          <%= f.select :sort, MostReadBooksLeaderboard::SORT_OPTIONS, { selected: @leaderboard.sort }, data: { action: "change->submit-on-change#submit" } %>
+          <%= f.select :sort, @leaderboard.sort_options, { selected: @leaderboard.sort }, data: { action: "change->submit-on-change#submit" } %>
           <%= f.submit "Sort" %>
         <% end %>
 
-        <% rows = @leaderboard.rows %>
-        <table class="admin-report-table">
-          <caption>Top <%= MostReadBooksLeaderboard::TOP_RANK %> books by read_on in this period · tied books share a rank</caption>
-          <thead>
-            <tr>
-              <th scope="col">#</th>
-              <th scope="col">Book</th>
-              <th scope="col" aria-sort="<%= @leaderboard.sort == 'pages_read' ? 'descending' : 'none' %>">Pages</th>
-              <th scope="col" aria-sort="<%= @leaderboard.sort == 'sessions' ? 'descending' : 'none' %>">Sessions</th>
-              <th scope="col" aria-sort="<%= @leaderboard.sort == 'readers' ? 'descending' : 'none' %>">Readers</th>
-              <th scope="col">Share of pages</th>
-            </tr>
-          </thead>
-          <tbody>
-            <% if rows.empty? %>
-              <tr>
-                <td colspan="6">No reading sessions in this period.</td>
-              </tr>
-            <% end %>
-            <% rows.each do |row| %>
-              <tr>
-                <td><%= row.rank %></td>
-                <th scope="row">
-                  <%= row.book.title %>
-                  <span class="admin-report-table-subtext"><%= row.book.author %></span>
-                </th>
-                <td><%= number_with_delimiter(row.pages_read) %></td>
-                <td><%= number_with_delimiter(row.sessions) %></td>
-                <td><%= number_with_delimiter(row.readers) %></td>
-                <td><%= report_page_share(row.pages_read, @totals.pages_read) %></td>
-              </tr>
-            <% end %>
-          </tbody>
-        </table>
+        <% if @leaderboard_tab == "power_users" %>
+          <%= render "admin/reports/power_users_table", leaderboard: @leaderboard, period: @period %>
+        <% else %>
+          <%= render "admin/reports/most_read_table", leaderboard: @leaderboard, total_pages_read: @totals.pages_read %>
+        <% end %>
       </section>
     </main>
   </div>

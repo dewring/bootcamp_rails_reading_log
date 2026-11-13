@@ -24,4 +24,11 @@ module Admin::ReportsHelper
 
     number_to_percentage(pages_read * 100.0 / total_pages_read, precision: 1)
   end
+
+  # aria-sort tells screen readers which column the leaderboard is ranked by.
+  def report_aria_sort(leaderboard, sort_key)
+    return "descending" if leaderboard.sort == sort_key
+
+    "none"
+  end
 end
