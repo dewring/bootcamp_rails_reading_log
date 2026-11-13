@@ -18,17 +18,28 @@ module Admin::ReportsHelper
     { period: period.preset, start: period.start_param, end: period.end_param }
   end
 
-  # Share of all pages read in the period; zero-safe for an empty period.
-  def report_page_share(pages_read, total_pages_read)
-    return "N/A" if total_pages_read.zero?
-
-    number_to_percentage(pages_read * 100.0 / total_pages_read, precision: 1)
-  end
-
   # aria-sort tells screen readers which column the leaderboard is ranked by.
   def report_aria_sort(leaderboard, sort_key)
     return "descending" if leaderboard.sort == sort_key
 
     "none"
+  end
+
+  # Zero-safe percentage: an empty denominator shows "N/A", not an error.
+  def report_percentage(part, whole)
+    return "N/A" if whole.zero?
+
+    number_to_percentage(part * 100.0 / whole, precision: 1)
+  end
+
+  REPORT_FRESHNESS_LABELS = {
+    "fresh" => "Fresh",
+    "incomplete" => "Some readers missing",
+    "stale" => "Stale",
+    "never_calculated" => "Never calculated"
+  }.freeze
+
+  def report_freshness_label(status)
+    REPORT_FRESHNESS_LABELS.fetch(status)
   end
 end

@@ -68,38 +68,73 @@
         </dl>
       </section>
 
-      <section class="admin-report-leaderboards" aria-labelledby="admin-report-leaderboards-title">
-        <h2 id="admin-report-leaderboards-title">Leaderboards</h2>
-        <nav class="admin-report-tabs" aria-label="Leaderboard type">
-          <%= link_to admin_report_path(report_period_params(@period).merge(tab: "most_read")), class: "admin-report-tab#{' is-active' if @leaderboard_tab == 'most_read'}", aria: { current: ("page" if @leaderboard_tab == "most_read") } do %>
-            Most read <span class="admin-report-tab-count"><%= number_with_delimiter(@totals.books) %></span>
-          <% end %>
-          <%= link_to admin_report_path(report_period_params(@period).merge(tab: "most_reactions")), class: "admin-report-tab#{' is-active' if @leaderboard_tab == 'most_reactions'}", aria: { current: ("page" if @leaderboard_tab == "most_reactions") } do %>
-            Most reactions <span class="admin-report-tab-count"><%= number_with_delimiter(@reacted_book_count) %></span>
-          <% end %>
-          <%= link_to admin_report_path(report_period_params(@period).merge(tab: "power_users")), class: "admin-report-tab#{' is-active' if @leaderboard_tab == 'power_users'}", aria: { current: ("page" if @leaderboard_tab == "power_users") } do %>
-            Power users <span class="admin-report-tab-count"><%= number_with_delimiter(@totals.active_readers) %></span>
-          <% end %>
-        </nav>
+      <div class="admin-report-main">
+        <section class="admin-report-leaderboards" aria-labelledby="admin-report-leaderboards-title">
+          <h2 id="admin-report-leaderboards-title">Leaderboards</h2>
+          <nav class="admin-report-tabs" aria-label="Leaderboard type">
+            <%= link_to admin_report_path(report_period_params(@period).merge(tab: "most_read")), class: "admin-report-tab#{' is-active' if @leaderboard_tab == 'most_read'}", aria: { current: ("page" if @leaderboard_tab == "most_read") } do %>
+              Most read <span class="admin-report-tab-count"><%= number_with_delimiter(@totals.books) %></span>
+            <% end %>
+            <%= link_to admin_report_path(report_period_params(@period).merge(tab: "most_reactions")), class: "admin-report-tab#{' is-active' if @leaderboard_tab == 'most_reactions'}", aria: { current: ("page" if @leaderboard_tab == "most_reactions") } do %>
+              Most reactions <span class="admin-report-tab-count"><%= number_with_delimiter(@reacted_book_count) %></span>
+            <% end %>
+            <%= link_to admin_report_path(report_period_params(@period).merge(tab: "power_users")), class: "admin-report-tab#{' is-active' if @leaderboard_tab == 'power_users'}", aria: { current: ("page" if @leaderboard_tab == "power_users") } do %>
+              Power users <span class="admin-report-tab-count"><%= number_with_delimiter(@totals.active_readers) %></span>
+            <% end %>
+          </nav>
 
-        <%= form_with url: admin_report_path, method: :get, class: "admin-report-sort-form", data: { controller: "submit-on-change" } do |f| %>
-          <% report_period_params(@period).each do |name, value| %>
-            <%= hidden_field_tag name, value %>
+          <%= form_with url: admin_report_path, method: :get, class: "admin-report-sort-form", data: { controller: "submit-on-change" } do |f| %>
+            <% report_period_params(@period).each do |name, value| %>
+              <%= hidden_field_tag name, value %>
+            <% end %>
+            <%= hidden_field_tag :tab, @leaderboard_tab %>
+            <%= f.label :sort, "Sort by" %>
+            <%= f.select :sort, @leaderboard.sort_options, { selected: @leaderboard.sort }, data: { action: "change->submit-on-change#submit" } %>
+            <%= f.submit "Sort" %>
           <% end %>
-          <%= hidden_field_tag :tab, @leaderboard_tab %>
-          <%= f.label :sort, "Sort by" %>
-          <%= f.select :sort, @leaderboard.sort_options, { selected: @leaderboard.sort }, data: { action: "change->submit-on-change#submit" } %>
-          <%= f.submit "Sort" %>
-        <% end %>
 
-        <% if @leaderboard_tab == "power_users" %>
-          <%= render "admin/reports/power_users_table", leaderboard: @leaderboard, period: @period %>
-        <% elsif @leaderboard_tab == "most_reactions" %>
-          <%= render "admin/reports/most_reactions_table", leaderboard: @leaderboard %>
-        <% else %>
-          <%= render "admin/reports/most_read_table", leaderboard: @leaderboard, total_pages_read: @totals.pages_read %>
-        <% end %>
-      </section>
+          <% if @leaderboard_tab == "power_users" %>
+            <%= render "admin/reports/power_users_table", leaderboard: @leaderboard, period: @period %>
+          <% elsif @leaderboard_tab == "most_reactions" %>
+            <%= render "admin/reports/most_reactions_table", leaderboard: @leaderboard %>
+          <% else %>
+            <%= render "admin/reports/most_read_table", leaderboard: @leaderboard, total_pages_read: @totals.pages_read %>
+          <% end %>
+        </section>
+
+        <aside class="admin-report-health" aria-labelledby="admin-report-health-title">
+          <h2 id="admin-report-health-title">Report health</h2>
+
+          <section class="admin-report-health-card" aria-labelledby="admin-report-import-title">
+            <h3 id="admin-report-import-title">Import completeness</h3>
+            <dl>
+              <dt>Imported Works</dt>
+              <dd><%= @import_completeness.imported_count %> / <%= @import_completeness.selected_count %></dd>
+              <dt>Completeness</dt>
+              <dd><%= report_percentage(@import_completeness.imported_count, @import_completeness.selected_count) %></dd>
+              <dt>Missing</dt>
+              <dd><%= @import_completeness.missing_count %> · not replaced with placeholder books</dd>
+            </dl>
+          </section>
+
+          <section class="admin-report-health-card" aria-labelledby="admin-report-freshness-title">
+            <h3 id="admin-report-freshness-title">ReadingMetric freshness</h3>
+            <p class="admin-report-health-status admin-report-health-status--<%= @metric_freshness.status.dasherize %>"><%= report_freshness_label(@metric_freshness.status) %></p>
+            <% if @metric_freshness.oldest_calculated_at %>
+              <dl>
+                <dt>Oldest calculated_at</dt>
+                <dd>
+                  <time datetime="<%= @metric_freshness.oldest_calculated_at.utc.iso8601 %>" data-controller="local-time"><%= @metric_freshness.oldest_calculated_at.utc.to_fs(:long) %> UTC</time>
+                  · <%= @metric_freshness.minutes_old(@as_of) %> min before as_of
+                </dd>
+                <dt>Readers with metrics</dt>
+                <dd><%= @metric_freshness.metric_count %> / <%= @metric_freshness.reader_count %></dd>
+              </dl>
+            <% end %>
+            <p class="admin-report-health-note">ReadingMetricsJob recalculates every 10 minutes while the job worker runs.</p>
+          </section>
+        </aside>
+      </div>
     </main>
   </div>
 </div>

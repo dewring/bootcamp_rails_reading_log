@@ -27,7 +27,7 @@
         <td><%= number_with_delimiter(row.pages_read) %></td>
         <td><%= number_with_delimiter(row.sessions) %></td>
         <td><%= number_with_delimiter(row.readers) %></td>
-        <td><%= report_page_share(row.pages_read, total_pages_read) %></td>
+        <td><%= report_percentage(row.pages_read, total_pages_read) %></td>
       </tr>
     <% end %>
   </tbody>

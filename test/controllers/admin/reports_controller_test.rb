@@ -138,4 +138,20 @@ class Admin::ReportsControllerTest < ActionDispatch::IntegrationTest
     assert_select ".admin-report-table th[scope='row']", text: /#{books(:refactoring).title}/
     assert_select ".admin-report-table th[aria-sort='descending']", text: "Total"
   end
+
+  test "admins see import completeness and ReadingMetric freshness in the report health panel" do
+    sign_in users(:admin)
+    ReadingMetric.create!(user: users(:leika), calculated_at: Time.zone.local(2026, 11, 11, 17, 52))
+
+    travel_to Time.zone.local(2026, 11, 11, 18, 0) do
+      get admin_report_path
+    end
+
+    assert_response :success
+    assert_select "aside.admin-report-health h3", text: "Import completeness"
+    assert_select "aside.admin-report-health dd", text: %r{/ 100}
+    assert_select ".admin-report-health-status"
+    assert_select "aside.admin-report-health time[data-controller='local-time'][datetime='2026-11-11T17:52:00Z']"
+    assert_select "aside.admin-report-health dd", text: /8 min before as_of/
+  end
 end
