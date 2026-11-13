@@ -1,0 +1,29 @@
+@use "sass:math";
+
+// Native date input with the admin calendar icon on the right.
+//
+// The browser's own picker indicator is kept (it is what opens the calendar)
+// but made transparent and pinned with absolute positioning so its click area
+// is centered on our icon. Without the pinning the browser decides where the
+// indicator sits, so the clickable spot drifts away from the visible icon.
+@mixin calendar-date-input($icon-size: 16px, $inset: 12px, $hit-size: 32px) {
+  position: relative;
+  padding-right: $inset + $icon-size + 8px;
+  background-image: url("admin-calendar.svg");
+  background-repeat: no-repeat;
+  background-position: right $inset center;
+  background-size: $icon-size;
+
+  &::-webkit-calendar-picker-indicator {
+    position: absolute;
+    top: 50%;
+    right: $inset + math.div($icon-size - $hit-size, 2);
+    width: $hit-size;
+    height: $hit-size;
+    margin: 0;
+    padding: 0;
+    transform: translateY(-50%);
+    opacity: 0;
+    cursor: pointer;
+  }
+}
