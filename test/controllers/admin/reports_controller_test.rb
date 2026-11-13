@@ -114,6 +114,23 @@ class Admin::ReportsControllerTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "the custom range Cancel link drops the custom dates and keeps the leaderboard tab and sort" do
+    sign_in users(:admin)
+
+    travel_to Time.zone.local(2026, 11, 11, 18, 0) do
+      get admin_report_path, params: { period: "custom", start: "2026-11-05", end: "2026-11-06", tab: "power_users", sort: "pages_read" }
+    end
+
+    assert_response :success
+    assert_select "form.admin-report-period-form a.admin-report-cancel", text: "Cancel" do |links|
+      uri = URI.parse(links.first["href"])
+      query = Rack::Utils.parse_nested_query(uri.query)
+
+      assert_equal admin_report_path, uri.path
+      assert_equal({ "tab" => "power_users", "sort" => "pages_read" }, query)
+    end
+  end
+
   test "the power users tab shows readers by nickname and keeps the tab when sorting" do
     sign_in users(:admin)
     ReadingSession.create!(user: users(:leika), book: books(:refactoring), read_on: Date.new(2026, 11, 5), pages_read: 20)
