@@ -206,6 +206,60 @@
 
   .admin-report-sort-form {
     justify-content: flex-end;
+
+    > span {
+      color: tokens.$text-muted;
+      font-size: 11px;
+    }
+  }
+
+  .admin-report-sort-dropdown {
+    position: relative;
+
+    .admin-select-trigger {
+      width: auto;
+      height: auto;
+      gap: 8px;
+      padding: 8px 12px;
+      border-color: tokens.$accent;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .admin-select-menu {
+      left: auto;
+      width: 222px;
+      padding: 6px;
+      gap: 2px;
+      border-radius: 12px;
+      box-shadow: 0 10px 28px rgba(43, 38, 36, 0.14);
+    }
+
+    .catalog-dropdown-option {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 9px 12px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 500;
+
+      > span {
+        width: 12px;
+      }
+
+      &.is-selected {
+        color: #c95e59 !important;
+        font-weight: 700;
+      }
+    }
+  }
+
+  .admin-report-sort-direction {
+    padding: 8px 10px;
+    border: $card-border;
+    border-radius: 8px;
+    background: #fff;
   }
 
   .admin-report-table {

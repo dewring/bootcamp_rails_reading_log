@@ -83,15 +83,24 @@
             <% end %>
           </nav>
 
-          <%= form_with url: admin_report_path, method: :get, class: "admin-report-sort-form", data: { controller: "submit-on-change" } do |f| %>
-            <% report_period_params(@period).each do |name, value| %>
-              <%= hidden_field_tag name, value %>
-            <% end %>
-            <%= hidden_field_tag :tab, @leaderboard_tab %>
-            <%= f.label :sort, "Sort by" %>
-            <%= f.select :sort, @leaderboard.sort_options, { selected: @leaderboard.sort }, data: { action: "change->submit-on-change#submit" } %>
-            <%= f.submit "Sort" %>
-          <% end %>
+          <div class="admin-report-sort-form">
+            <span id="admin-report-sort-label">Sort by</span>
+            <div class="admin-report-sort-dropdown" data-controller="nav-menu" data-action="dropdown:opened@window->nav-menu#closeIfAnother click@document->nav-menu#closeOnOutsideClick keydown.esc@document->nav-menu#closeOnEscape">
+              <button type="button" class="admin-select-trigger" data-nav-menu-target="trigger" data-action="click->nav-menu#toggle" aria-expanded="false" aria-controls="admin-report-sort-menu" aria-labelledby="admin-report-sort-label admin-report-sort-value">
+                <span id="admin-report-sort-value"><%= @leaderboard.sort_options.find { |_, value| value == @leaderboard.sort }.first %></span>
+                <span aria-hidden="true">⌄</span>
+              </button>
+              <nav id="admin-report-sort-menu" class="catalog-dropdown-menu admin-select-menu" data-nav-menu-target="menu" aria-label="Leaderboard sorting" hidden>
+                <% @leaderboard.sort_options.each do |label, value| %>
+                  <%= link_to admin_report_path(report_period_params(@period).merge(tab: @leaderboard_tab, sort: value)), class: "catalog-dropdown-option#{' is-selected' if @leaderboard.sort == value}", aria: { current: ("true" if @leaderboard.sort == value) } do %>
+                    <span aria-hidden="true"><%= "✓" if @leaderboard.sort == value %></span>
+                    <%= label %>
+                  <% end %>
+                <% end %>
+              </nav>
+            </div>
+            <span class="admin-report-sort-direction">↓ High → low</span>
+          </div>
 
           <% if @leaderboard_tab == "power_users" %>
             <%= render "admin/reports/power_users_table", leaderboard: @leaderboard, period: @period %>

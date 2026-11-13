@@ -82,7 +82,7 @@ class Admin::ReportsControllerTest < ActionDispatch::IntegrationTest
     assert_select ".admin-report-stat", text: /Books read\s+2 books/
   end
 
-  test "admins see the most read table sorted by the chosen column with the period kept in the sort form" do
+  test "admins see the chosen sorting column and sorting links preserve the custom period" do
     sign_in users(:admin)
     ReadingSession.create!(user: users(:leika), book: books(:refactoring), read_on: Date.new(2026, 11, 5), pages_read: 90)
     ReadingSession.create!(user: users(:jaina), book: books(:pragmatic), read_on: Date.new(2026, 11, 5), pages_read: 10)
@@ -96,8 +96,20 @@ class Admin::ReportsControllerTest < ActionDispatch::IntegrationTest
     assert_select ".admin-report-table th[aria-sort='descending']", text: "Sessions"
     assert_select ".admin-report-table tbody tr:first-child th[scope='row']", text: /#{books(:pragmatic).title}/
     assert_select ".admin-report-table tbody tr:first-child td:last-child", text: "18.2%"
-    assert_select ".admin-report-sort-form input[type='hidden'][name='start'][value='2026-11-05']"
-    assert_select ".admin-report-sort-form select[name='sort'] option[selected][value='sessions']"
+    assert_select "button[aria-controls='admin-report-sort-menu'][aria-expanded='false']", text: /Sessions/
+    assert_select "nav#admin-report-sort-menu[hidden]" do
+      assert_select "a[aria-current='true']", text: /Sessions/
+      assert_select "a", count: 3 do |links|
+        links.each do |link|
+          query = Rack::Utils.parse_nested_query(URI.parse(link["href"]).query)
+          assert_equal "custom", query["period"]
+          assert_equal "2026-11-05", query["start"]
+          assert_equal "2026-11-06", query["end"]
+          assert_equal "most_read", query["tab"]
+          assert_includes [ "pages_read", "sessions", "readers" ], query["sort"]
+        end
+      end
+    end
   end
 
   test "the power users tab shows readers by nickname and keeps the tab when sorting" do
@@ -112,7 +124,13 @@ class Admin::ReportsControllerTest < ActionDispatch::IntegrationTest
     assert_select ".admin-report-tabs a[aria-current='page']", text: /Power users/
     assert_select ".admin-report-table th[scope='row']", text: /#{users(:leika).nickname}/
     assert_select ".admin-report-table th[aria-sort='descending']", text: "Active days"
-    assert_select ".admin-report-sort-form input[type='hidden'][name='tab'][value='power_users']"
+    assert_select "#admin-report-sort-menu a", count: 4 do |links|
+      links.each do |link|
+        query = Rack::Utils.parse_nested_query(URI.parse(link["href"]).query)
+        assert_equal "power_users", query["tab"]
+        assert_equal "last_7_days", query["period"]
+      end
+    end
   end
 
   test "an unknown tab shows the most read leaderboard" do
