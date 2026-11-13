@@ -123,4 +123,19 @@ class Admin::ReportsControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_select ".admin-report-tabs a[aria-current='page']", text: /Most read/
   end
+
+  test "the most reactions tab ranks books by reactions changed in the period" do
+    sign_in users(:admin)
+    reaction = Reaction.create!(user: users(:leika), book: books(:refactoring), kind: "like")
+    reaction.update_column(:updated_at, Time.zone.local(2026, 11, 10, 9))
+
+    travel_to Time.zone.local(2026, 11, 11, 18, 0) do
+      get admin_report_path, params: { period: "last_7_days", tab: "most_reactions" }
+    end
+
+    assert_response :success
+    assert_select ".admin-report-tabs a[aria-current='page']", text: /Most reactions\s+1/
+    assert_select ".admin-report-table th[scope='row']", text: /#{books(:refactoring).title}/
+    assert_select ".admin-report-table th[aria-sort='descending']", text: "Total"
+  end
 end

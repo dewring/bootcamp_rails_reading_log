@@ -1,0 +1,34 @@
+<% rows = leaderboard.rows %>
+<table class="admin-report-table">
+  <caption>Top <%= RankedLeaderboard::TOP_RANK %> books by reactions created or changed in this period · latest kind per reaction · tied books share a rank</caption>
+  <thead>
+    <tr>
+      <th scope="col">#</th>
+      <th scope="col">Book</th>
+      <th scope="col" aria-sort="<%= report_aria_sort(leaderboard, 'total') %>">Total</th>
+      <th scope="col" aria-sort="<%= report_aria_sort(leaderboard, 'likes') %>">Likes</th>
+      <th scope="col" aria-sort="<%= report_aria_sort(leaderboard, 'dislikes') %>">Dislikes</th>
+      <th scope="col">Other kinds</th>
+    </tr>
+  </thead>
+  <tbody>
+    <% if rows.empty? %>
+      <tr>
+        <td colspan="6">No reactions were created or changed in this period.</td>
+      </tr>
+    <% end %>
+    <% rows.each do |row| %>
+      <tr>
+        <td><%= row.rank %></td>
+        <th scope="row">
+          <%= row.book.title %>
+          <span class="admin-report-table-subtext"><%= row.book.author %></span>
+        </th>
+        <td><%= number_with_delimiter(row.total) %></td>
+        <td><%= number_with_delimiter(row.likes) %></td>
+        <td><%= number_with_delimiter(row.dislikes) %></td>
+        <td><%= number_with_delimiter(row.other_kinds) %></td>
+      </tr>
+    <% end %>
+  </tbody>
+</table>

@@ -30,7 +30,7 @@ module RankedLeaderboard
   # A window function's result cannot be filtered in the same query's WHERE,
   # so the grouped, ranked query is wrapped as a subquery first.
   def top_ranked(grouped_activity)
-    ReadingSession
+    grouped_activity.klass
       .from(grouped_activity, :ranked_activity)
       .select("ranked_activity.*")
       .where("ranked_activity.rank <= ?", TOP_RANK)

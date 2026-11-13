@@ -74,6 +74,9 @@
           <%= link_to admin_report_path(report_period_params(@period).merge(tab: "most_read")), class: "admin-report-tab#{' is-active' if @leaderboard_tab == 'most_read'}", aria: { current: ("page" if @leaderboard_tab == "most_read") } do %>
             Most read <span class="admin-report-tab-count"><%= number_with_delimiter(@totals.books) %></span>
           <% end %>
+          <%= link_to admin_report_path(report_period_params(@period).merge(tab: "most_reactions")), class: "admin-report-tab#{' is-active' if @leaderboard_tab == 'most_reactions'}", aria: { current: ("page" if @leaderboard_tab == "most_reactions") } do %>
+            Most reactions <span class="admin-report-tab-count"><%= number_with_delimiter(@reacted_book_count) %></span>
+          <% end %>
           <%= link_to admin_report_path(report_period_params(@period).merge(tab: "power_users")), class: "admin-report-tab#{' is-active' if @leaderboard_tab == 'power_users'}", aria: { current: ("page" if @leaderboard_tab == "power_users") } do %>
             Power users <span class="admin-report-tab-count"><%= number_with_delimiter(@totals.active_readers) %></span>
           <% end %>
@@ -91,6 +94,8 @@
 
         <% if @leaderboard_tab == "power_users" %>
           <%= render "admin/reports/power_users_table", leaderboard: @leaderboard, period: @period %>
+        <% elsif @leaderboard_tab == "most_reactions" %>
+          <%= render "admin/reports/most_reactions_table", leaderboard: @leaderboard %>
         <% else %>
           <%= render "admin/reports/most_read_table", leaderboard: @leaderboard, total_pages_read: @totals.pages_read %>
         <% end %>

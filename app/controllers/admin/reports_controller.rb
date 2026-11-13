@@ -4,6 +4,7 @@ class Admin::ReportsController < ApplicationController
 
   LEADERBOARDS = {
     "most_read" => MostReadBooksLeaderboard,
+    "most_reactions" => MostReactedBooksLeaderboard,
     "power_users" => PowerUsersLeaderboard
   }.freeze
   DEFAULT_LEADERBOARD = "most_read"
@@ -20,6 +21,7 @@ class Admin::ReportsController < ApplicationController
     @totals = ReadingActivityTotals.new(@period.dates).totals
     @leaderboard_tab = selected_leaderboard_tab
     @leaderboard = LEADERBOARDS.fetch(@leaderboard_tab).new(dates: @period.dates, sort: params[:sort])
+    @reacted_book_count = MostReactedBooksLeaderboard.book_count(dates: @period.dates)
   end
 
   private
