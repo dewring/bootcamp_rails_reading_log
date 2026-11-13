@@ -4,7 +4,7 @@
 # reader switches kinds (like -> dislike), so this counts each reaction's
 # latest kind by updated_at; earlier kinds are not kept. Only reactions from
 # active accounts count, the same rule the public reaction totals use.
-# Ranking and the Top 10 tie rule live in RankedLeaderboard.
+# Ranking before pagination lives in RankedLeaderboard.
 class MostReactedBooksLeaderboard
   include RankedLeaderboard
 
@@ -39,12 +39,16 @@ class MostReactedBooksLeaderboard
     @sort = selected_sort(sort)
   end
 
-  def rows
-    activity = top_ranked(book_reactions).to_a
-    books_by_id = Book.where(id: activity.map(&:book_id)).index_by(&:id)
-    ranked_rows = activity.map { |book_reaction| build_row(book_reaction, books_by_id.fetch(book_reaction.book_id)) }
+  def ranked_activity
+    ranked_relation(book_reactions)
+      .joins(:book)
+      .order(Arel.sql("rank ASC, books.title ASC, books.id ASC"))
+  end
 
-    ranked_rows.sort_by { |row| [ row.rank, row.book.title ] }
+  def rows(activity = ranked_activity)
+    activity = activity.to_a
+    books_by_id = Book.where(id: activity.map(&:book_id)).index_by(&:id)
+    activity.map { |book_reaction| build_row(book_reaction, books_by_id.fetch(book_reaction.book_id)) }
   end
 
   private

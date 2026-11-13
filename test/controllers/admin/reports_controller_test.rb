@@ -198,4 +198,53 @@ class Admin::ReportsControllerTest < ActionDispatch::IntegrationTest
     assert_select "aside.admin-report-health time[data-controller='local-time'][datetime='2026-11-11T17:52:00Z']"
     assert_select "aside.admin-report-health dd", text: /8 min before as_of/
   end
+  test "all leaderboard tabs paginate full results and preserve report filters" do
+    sign_in users(:admin)
+    report_books = []
+    report_users = []
+    12.times do |index|
+      book = Book.create!(title: "Report book #{format('%02d', index)}", author: "Report author")
+      reader = User.create!(first_name: "Report", last_name: "Reader", nickname: "report#{format('%02d', index)}",
+        email: "report#{index}@example.com", password: "password123")
+      ReadingSession.create!(user: reader, book: book, read_on: Date.new(2026, 11, 5), pages_read: 100 - index)
+      reaction = Reaction.create!(user: reader, book: book, kind: "like")
+      reaction.update_column(:updated_at, Time.zone.local(2026, 11, 5, 9))
+      report_books.push(book)
+      report_users.push(reader)
+    end
+
+    travel_to Time.zone.local(2026, 11, 11, 18, 0) do
+      [ "most_read", "most_reactions", "power_users" ].each do |tab|
+        sort = tab == "most_reactions" ? "total" : "pages_read"
+        filters = { period: "custom", start: "2026-11-05", end: "2026-11-06", tab: tab, sort: sort }
+        get admin_report_path, params: filters
+
+        assert_response :success
+        assert_select ".admin-report-table tbody tr", count: 10
+        assert_select ".admin-report-leaderboards > footer", count: 0
+        next_link = css_select(".admin-report-leaderboards .pagy a[href]").find do |link|
+          Rack::Utils.parse_nested_query(URI.parse(link["href"]).query)["page"] == "2"
+        end
+        assert next_link
+        query = Rack::Utils.parse_nested_query(URI.parse(next_link["href"]).query)
+        filters.each { |key, value| assert_equal value, query[key.to_s] }
+        get next_link["href"]
+
+        assert_response :success
+        assert_select ".admin-report-table tbody tr", count: 2
+        assert_select ".admin-report-leaderboards > footer", count: 0
+        expected_rank = tab == "most_reactions" ? "1" : "11"
+        assert_select ".admin-report-table tbody tr:first-child td:first-child", text: expected_rank
+        expected_name = tab == "power_users" ? report_users[10].nickname : report_books[10].title
+        assert_select ".admin-report-table tbody tr:first-child th[scope='row']", text: /#{expected_name}/
+
+        [ "#admin-report-sort-menu a", "#admin-report-period-menu a", ".admin-report-tabs a" ].each do |selector|
+          css_select(selector).each do |link|
+            control_query = Rack::Utils.parse_nested_query(URI.parse(link["href"]).query)
+            assert_nil control_query["page"]
+          end
+        end
+      end
+    end
+  end
 end

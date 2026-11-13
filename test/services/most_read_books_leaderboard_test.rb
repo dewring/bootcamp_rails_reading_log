@@ -24,7 +24,7 @@ class MostReadBooksLeaderboardTest < ActiveSupport::TestCase
     assert_equal [ 1, 2, 2, 4 ], rows.map(&:rank)
   end
 
-  test "books tied at rank 10 are all kept so the list has 11 rows" do
+  test "all ranks remain available including books below rank 10" do
     books = build_books(12)
     books.first(9).each_with_index { |book, index| record_session(users(:leika), book, Date.new(2025, 1, 1), 100 - index) }
     record_session(users(:leika), books[9], Date.new(2025, 1, 1), 5)
@@ -33,9 +33,9 @@ class MostReadBooksLeaderboardTest < ActiveSupport::TestCase
 
     rows = MostReadBooksLeaderboard.new(dates: DATES, sort: "pages_read").rows
 
-    assert_equal 11, rows.size
-    assert_equal [ 10, 10 ], rows.last(2).map(&:rank)
-    refute_includes rows.map(&:book), books[11]
+    assert_equal 12, rows.size
+    assert_equal [ 10, 10, 12 ], rows.last(3).map(&:rank)
+    assert_includes rows.map(&:book), books[11]
   end
 
   test "sorting by sessions ranks by session count and counts readers and pages per book" do
@@ -68,5 +68,20 @@ class MostReadBooksLeaderboardTest < ActiveSupport::TestCase
     rows = MostReadBooksLeaderboard.new(dates: DATES, sort: nil).rows
 
     assert_equal [ inside ], rows.map(&:book)
+  end
+  test "database pages split tied books consistently and keep their overall ranks" do
+    report_books = build_books(12)
+    report_books.each_with_index do |book, index|
+      pages = index < 9 ? 100 - index : 5
+      record_session(users(:leika), book, DATES.first, pages)
+    end
+    leaderboard = MostReadBooksLeaderboard.new(dates: DATES, sort: nil)
+    first_page = leaderboard.rows(leaderboard.ranked_activity.limit(10))
+    second_page = leaderboard.rows(leaderboard.ranked_activity.limit(10).offset(10))
+
+    assert_equal report_books.first(10), first_page.map(&:book)
+    assert_equal report_books.last(2), second_page.map(&:book)
+    assert_equal 10, first_page.last.rank
+    assert_equal [ 10, 10 ], second_page.map(&:rank)
   end
 end

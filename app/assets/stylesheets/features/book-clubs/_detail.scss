@@ -737,12 +737,6 @@ main.container:has(> [data-controller~="club-discussion"] > .book-club-detail-pa
   font-size: 12px;
 }
 
-.club-discussion-pagination .pagy.series-nav {
-  font-size: 15px;
-
-  a { min-width: 30px; height: 30px; padding: 0 5px; }
-}
-
 .club-discussion-replies { margin-top: 10px; }
 
 .club-discussion-replies-toggle {

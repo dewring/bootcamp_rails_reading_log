@@ -21,6 +21,8 @@ class Admin::ReportsController < ApplicationController
     @totals = ReadingActivityTotals.new(@period.dates).totals
     @leaderboard_tab = selected_leaderboard_tab
     @leaderboard = LEADERBOARDS.fetch(@leaderboard_tab).new(dates: @period.dates, sort: params[:sort])
+    @pagy, activity = pagy(:offset, @leaderboard.ranked_activity, limit: 10)
+    @leaderboard_rows = @leaderboard.rows(activity)
     @reacted_book_count = MostReactedBooksLeaderboard.book_count(dates: @period.dates)
     @import_completeness = CatalogImportCompleteness.new.completeness
     @metric_freshness = ReadingMetricFreshness.new(as_of: @as_of).freshness

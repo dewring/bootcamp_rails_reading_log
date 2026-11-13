@@ -1,5 +1,5 @@
 # Books ranked by reading activity (by read_on) in a report period.
-# Ranking and the Top 10 tie rule live in RankedLeaderboard.
+# Ranking before pagination lives in RankedLeaderboard.
 class MostReadBooksLeaderboard
   include RankedLeaderboard
 
@@ -22,12 +22,16 @@ class MostReadBooksLeaderboard
     @sort = selected_sort(sort)
   end
 
-  def rows
-    activity = top_ranked(book_activity).to_a
-    books_by_id = Book.where(id: activity.map(&:book_id)).index_by(&:id)
-    ranked_rows = activity.map { |book_activity| build_row(book_activity, books_by_id.fetch(book_activity.book_id)) }
+  def ranked_activity
+    ranked_relation(book_activity)
+      .joins(:book)
+      .order(Arel.sql("rank ASC, books.title ASC, books.id ASC"))
+  end
 
-    ranked_rows.sort_by { |row| [ row.rank, row.book.title ] }
+  def rows(activity = ranked_activity)
+    activity = activity.to_a
+    books_by_id = Book.where(id: activity.map(&:book_id)).index_by(&:id)
+    activity.map { |book_activity| build_row(book_activity, books_by_id.fetch(book_activity.book_id)) }
   end
 
   private

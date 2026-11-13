@@ -10,7 +10,7 @@
         <div>
           <p class="admin-eyebrow">READING INSIGHTS</p>
           <h1 id="admin-report-title">Reading Activity Report</h1>
-          <p class="admin-page-description">Period overview and sortable Top 10 leaderboards. Aggregates only.</p>
+          <p class="admin-page-description">Period overview and sortable leaderboards. Aggregates only.</p>
         </div>
       </div>
 
@@ -135,12 +135,13 @@
           </div>
 
           <% if @leaderboard_tab == "power_users" %>
-            <%= render "admin/reports/power_users_table", leaderboard: @leaderboard, period: @period %>
+            <%= render "admin/reports/power_users_table", leaderboard: @leaderboard, rows: @leaderboard_rows, period: @period %>
           <% elsif @leaderboard_tab == "most_reactions" %>
-            <%= render "admin/reports/most_reactions_table", leaderboard: @leaderboard %>
+            <%= render "admin/reports/most_reactions_table", leaderboard: @leaderboard, rows: @leaderboard_rows %>
           <% else %>
-            <%= render "admin/reports/most_read_table", leaderboard: @leaderboard, total_pages_read: @totals.pages_read %>
+            <%= render "admin/reports/most_read_table", leaderboard: @leaderboard, rows: @leaderboard_rows, total_pages_read: @totals.pages_read %>
           <% end %>
+          <%= render "shared/pagination", pagy: @pagy %>
         </section>
 
         <aside class="admin-report-health" aria-labelledby="admin-report-health-title">

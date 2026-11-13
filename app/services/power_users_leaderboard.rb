@@ -1,5 +1,5 @@
 # Readers ranked by reading activity (by read_on) in a report period.
-# Ranking and the Top 10 tie rule live in RankedLeaderboard. Readers are
+# Ranking before pagination lives in RankedLeaderboard. Readers are
 # shown by nickname, or by user ID when no nickname is set.
 class PowerUsersLeaderboard
   include RankedLeaderboard
@@ -29,12 +29,16 @@ class PowerUsersLeaderboard
     @sort = selected_sort(sort)
   end
 
-  def rows
-    activity = top_ranked(reader_activity).to_a
-    users_by_id = User.where(id: activity.map(&:user_id)).index_by(&:id)
-    ranked_rows = activity.map { |user_activity| build_row(user_activity, users_by_id.fetch(user_activity.user_id)) }
+  def ranked_activity
+    ranked_relation(reader_activity)
+      .joins(:user)
+      .order(Arel.sql("rank ASC, COALESCE(NULLIF(users.nickname, ''), 'User #' || users.id) ASC, users.id ASC"))
+  end
 
-    ranked_rows.sort_by { |row| [ row.rank, row.reader_name ] }
+  def rows(activity = ranked_activity)
+    activity = activity.to_a
+    users_by_id = User.where(id: activity.map(&:user_id)).index_by(&:id)
+    activity.map { |user_activity| build_row(user_activity, users_by_id.fetch(user_activity.user_id)) }
   end
 
   private
