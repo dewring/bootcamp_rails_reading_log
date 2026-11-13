@@ -12,5 +12,6 @@ class Admin::ReportsController < ApplicationController
       today: @as_of.to_date
     )
     @totals = ReadingActivityTotals.new(@period.dates).totals
+    @leaderboard = MostReadBooksLeaderboard.new(dates: @period.dates, sort: params[:sort])
   end
 end

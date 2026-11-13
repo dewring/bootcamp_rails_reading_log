@@ -89,4 +89,12 @@ class ReportPeriodTest < ActiveSupport::TestCase
     assert_equal "today", period.preset
     assert_equal TODAY..TODAY, period.dates
   end
+
+  test "choosing custom before entering any dates is not an error and shows today until dates are applied" do
+    period = build_period(preset: "custom", start_param: "", end_param: "")
+
+    assert period.valid?
+    assert period.custom?
+    assert_equal TODAY..TODAY, period.dates
+  end
 end

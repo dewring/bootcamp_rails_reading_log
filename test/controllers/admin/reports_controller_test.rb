@@ -81,4 +81,22 @@ class Admin::ReportsControllerTest < ActionDispatch::IntegrationTest
     assert_select ".admin-report-stat", text: /Pages read\s+1,230 pages/
     assert_select ".admin-report-stat", text: /Books read\s+2 books/
   end
+
+  test "admins see the most read table sorted by the chosen column with the period kept in the sort form" do
+    sign_in users(:admin)
+    ReadingSession.create!(user: users(:leika), book: books(:refactoring), read_on: Date.new(2026, 11, 5), pages_read: 90)
+    ReadingSession.create!(user: users(:jaina), book: books(:pragmatic), read_on: Date.new(2026, 11, 5), pages_read: 10)
+    ReadingSession.create!(user: users(:leika), book: books(:pragmatic), read_on: Date.new(2026, 11, 6), pages_read: 10)
+
+    travel_to Time.zone.local(2026, 11, 11, 18, 0) do
+      get admin_report_path, params: { period: "custom", start: "2026-11-05", end: "2026-11-06", sort: "sessions" }
+    end
+
+    assert_response :success
+    assert_select ".admin-report-table th[aria-sort='descending']", text: "Sessions"
+    assert_select ".admin-report-table tbody tr:first-child th[scope='row']", text: /#{books(:pragmatic).title}/
+    assert_select ".admin-report-table tbody tr:first-child td:last-child", text: "18.2%"
+    assert_select ".admin-report-sort-form input[type='hidden'][name='start'][value='2026-11-05']"
+    assert_select ".admin-report-sort-form select[name='sort'] option[selected][value='sessions']"
+  end
 end

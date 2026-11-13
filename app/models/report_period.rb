@@ -53,6 +53,7 @@ class ReportPeriod
   def validation_error
     return "Choose a period from the list." unless known_preset?(@requested_preset)
     return nil unless custom?
+    return nil if awaiting_custom_dates?
     return "Enter both dates in YYYY-MM-DD format." if @custom_start_on.nil? || @custom_end_on.nil?
     return "End date must be on or after the start date." if @custom_end_on < @custom_start_on
     return "End date can't be after today (#{@today.iso8601})." if @custom_end_on > @today
@@ -66,7 +67,7 @@ class ReportPeriod
   end
 
   def assign_dates
-    if valid? && custom?
+    if valid? && custom? && !awaiting_custom_dates?
       @start_on = @custom_start_on
       @end_on = @custom_end_on
     else
@@ -74,11 +75,18 @@ class ReportPeriod
     end
   end
 
-  # Invalid custom input shows the default period's data, not partial input.
+  # Custom input that is invalid or not entered yet shows the default
+  # period's data, never partial input.
   def assign_preset_dates
-    date_count = PRESET_DATE_COUNTS.fetch(valid? ? @preset : DEFAULT_PRESET)
+    date_count = PRESET_DATE_COUNTS.fetch(@preset) { PRESET_DATE_COUNTS.fetch(DEFAULT_PRESET) }
     @end_on = @today
     @start_on = @today - (date_count - 1)
+  end
+
+  # Choosing "Custom range" submits the form before any date is picked.
+  # That is a normal step, not an error.
+  def awaiting_custom_dates?
+    custom? && @start_param.blank? && @end_param.blank?
   end
 
   def custom_date_count
