@@ -1,0 +1,127 @@
+@use "../../../foundation/tokens";
+@use "../../../components/calendar-date-input";
+@use "report-tokens" as report;
+
+// Period header: title, period dropdown position, custom range bar, error and as-of time.
+.admin-page--reports {
+  // Period header
+  .admin-report-range {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 12px 24px;
+    margin-bottom: 20px;
+  }
+
+  .admin-report-range > h2 {
+    font-size: 24px;
+  }
+
+  .admin-report-period-controls {
+    justify-self: end;
+  }
+
+  .admin-report-range > .admin-report-period-form {
+    grid-column: 1 / -1;
+  }
+
+  // Custom range bar: compact, one row, matching the Figma "Custom range" frame.
+  .admin-report-period-form {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 12px;
+    margin: 0;
+    padding: 16px 20px;
+    border: report.$card-border;
+    border-radius: 14px;
+    background: #fff;
+
+    input[type="submit"] {
+      width: auto;
+      height: 40px;
+      margin: 0;
+      padding: 0 18px;
+      border: 1px solid tokens.$accent;
+      border-radius: 999px;
+      background: tokens.$accent;
+      color: #fff;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+  }
+
+  .admin-report-date-field {
+    display: grid;
+    gap: 6px;
+
+    label {
+      margin: 0;
+      color: tokens.$ink;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    input[type="date"] {
+      @include calendar-date-input.calendar-date-input;
+      width: 178px;
+      height: 40px;
+      margin: 0;
+      padding-left: 12px;
+      border: report.$card-border;
+      border-radius: 8px;
+      background-color: #fff;
+      color: tokens.$ink;
+      font-size: 13px;
+    }
+  }
+
+  // Cancel and the hint share the input row's 40px height and sit on the
+  // bottom edge (like the inputs and Apply), not the middle of the whole
+  // label + input block.
+  .admin-report-cancel,
+  .admin-report-range-hint {
+    display: inline-flex;
+    align-items: center;
+    align-self: flex-end;
+    height: 40px;
+  }
+
+  .admin-report-cancel {
+    color: tokens.$text-muted;
+    font-size: 12px;
+    font-weight: 700;
+    text-decoration: none;
+  }
+
+  .admin-report-range-hint {
+    margin: 0 0 0 auto;
+    color: tokens.$text-muted;
+    font-size: 10px;
+  }
+
+  .admin-report-error {
+    grid-column: 1 / -1;
+    margin: 0;
+    padding: 10px 14px;
+    border-radius: 8px;
+    background: report.$tint;
+    color: #d9383a;
+    font-size: 12px;
+    font-weight: 500;
+  }
+
+  .admin-report-as-of {
+    grid-column: 1 / -1;
+    margin: 0;
+    color: tokens.$text-muted;
+    font-size: 11px;
+  }
+
+  .admin-report-period-divider {
+    margin: 0;
+    border: 0;
+    border-top: report.$card-border;
+  }
+}
