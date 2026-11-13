@@ -36,6 +36,7 @@ Rails.application.routes.draw do
 
   namespace :admin do
     root to: "challenges#index"
+    resource :report, only: [ :show ]
     get "catalog", to: "books#index", as: :catalog
     resources :reviews, only: [ :index, :destroy ]
     resources :members, only: [ :index, :create, :update, :destroy ]

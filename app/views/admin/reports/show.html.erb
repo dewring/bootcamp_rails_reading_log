@@ -1,0 +1,18 @@
+<% content_for :title, "Reading Activity Report · BookNook" %>
+
+<div class="admin-page admin-page--reports">
+  <%= render "admin/shared/topbar" %>
+  <div class="admin-body">
+    <%= render "admin/shared/sidebar", active_section: :reports %>
+
+    <main class="admin-main" aria-labelledby="admin-report-title">
+      <div class="admin-page-heading">
+        <div>
+          <p class="admin-eyebrow">READING INSIGHTS</p>
+          <h1 id="admin-report-title">Reading Activity Report</h1>
+          <p class="admin-page-description">Period overview and sortable Top 10 leaderboards. Aggregates only.</p>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>

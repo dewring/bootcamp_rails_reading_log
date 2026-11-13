@@ -2,6 +2,7 @@
   <div>
     <p class="admin-sidebar-label">Management</p>
     <nav class="admin-sidebar-nav">
+      <%= link_to admin_report_path, class: "admin-sidebar-link#{' is-active' if active_section == :reports}", aria: { current: ("page" if active_section == :reports) } do %><span class="admin-sidebar-icon admin-sidebar-icon--chart-column" aria-hidden="true"></span><span>Reports</span><% end %>
       <%= link_to admin_catalog_path, class: "admin-sidebar-link#{' is-active' if active_section == :catalog}", aria: { current: ("page" if active_section == :catalog) } do %><span class="admin-sidebar-icon admin-sidebar-icon--library" aria-hidden="true"></span><span>Catalog</span><% end %>
       <%= link_to admin_reviews_path, class: "admin-sidebar-link#{' is-active' if active_section == :reviews}", aria: { current: ("page" if active_section == :reviews) } do %><span class="admin-sidebar-icon admin-sidebar-icon--message-square-text" aria-hidden="true"></span><span>Reviews</span><% end %>
       <%= link_to admin_root_path, class: "admin-sidebar-link#{' is-active' if active_section == :challenges}", aria: { current: ("page" if active_section == :challenges) } do %><span class="admin-sidebar-icon admin-sidebar-icon--trophy" aria-hidden="true"></span><span>Challenges</span><% end %>
