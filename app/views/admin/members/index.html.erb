@@ -45,7 +45,7 @@
             <% end %>
             <% if @members.empty? %><div class="admin-reviews-empty"><h2>No matching members</h2><p>Try another name, nickname, email, or status.</p></div><% end %>
           </div>
-          <footer class="admin-reviews-pagination"><p><%= pluralize(@pagy.count, "member") %> · Page <%= @pagy.page %> of <%= @pagy.last %></p><%== @pagy.series_nav if @pagy.last > 1 %></footer>
+          <footer class="admin-reviews-pagination"><p><%= pluralize(@pagy.count, "member") %> · Page <%= @pagy.page %> of <%= @pagy.last %></p><%= render "shared/pagination", pagy: @pagy %></footer>
         </section>
         <section class="admin-review-detail admin-member-detail" aria-labelledby="admin-member-detail-title">
           <div class="admin-member-heading"><div><p class="admin-eyebrow"><%= @is_invitation ? "NEW MEMBER" : "SELECTED RECORD" %></p><h2 id="admin-member-detail-title"><%= @is_invitation ? "Invite a member" : "Member profile" %></h2></div><% if @selected_member&.persisted? %><span class="admin-member-status admin-member-status--<%= @selected_member.account_status %>"><%= @selected_member.account_status.capitalize %></span><% end %></div>

@@ -1,0 +1,77 @@
+@use "../../../foundation/tokens";
+@use "report-tokens" as report;
+
+// Overview card with the period totals.
+.admin-page--reports {
+  // Overview
+  .admin-report-overview {
+    margin-bottom: 20px;
+    overflow: hidden;
+    border: report.$card-border;
+    border-radius: 18px;
+    background: #fff;
+
+    > h2 {
+      padding: 16px 24px;
+      border-bottom: report.$card-border;
+      background: report.$side;
+      font-family: inherit;
+      font-size: 14px;
+      letter-spacing: 0;
+    }
+  }
+
+  .admin-report-stats {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    margin: 0;
+  }
+
+  .admin-report-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 22px 16px;
+    text-align: center;
+
+    & + .admin-report-stat {
+      border-left: report.$card-border;
+    }
+
+    dt {
+      order: 2;
+      color: tokens.$text-muted;
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    dd {
+      margin: 0;
+    }
+
+    .admin-report-stat-value {
+      order: 1;
+      color: tokens.$ink;
+      font-family: report.$heading-font;
+      font-size: 28px;
+      font-weight: 700;
+    }
+
+    .admin-report-stat-rule {
+      order: 3;
+      color: report.$accent-text;
+      font-size: 9px;
+    }
+  }
+
+  @media (max-width: 1100px) {
+    .admin-report-stats {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .admin-report-stat + .admin-report-stat {
+      border-left: 0;
+    }
+  }
+}

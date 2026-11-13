@@ -7,6 +7,7 @@ class AdminSidebarTest < ActionDispatch::IntegrationTest
     sign_in users(:admin)
 
     [
+      [ admin_report_path, "Reports" ],
       [ admin_root_path, "Challenges" ],
       [ admin_catalog_path, "Catalog" ],
       [ admin_reviews_path, "Reviews" ],
@@ -30,8 +31,9 @@ class AdminSidebarTest < ActionDispatch::IntegrationTest
       assert_select "#admin_workspace_account_menu[hidden]", count: 1
       assert_select "#admin_workspace_account_menu a[href='#{destroy_user_session_path}'][data-turbo-method='delete']", text: "Log Out"
       assert_select ".admin-sidebar-nav > .admin-sidebar-link" do |items|
-        assert_equal [ "Catalog", "Reviews", "Challenges", "Book Clubs", "Members" ], items.map { |item| item.text.strip }
+        assert_equal [ "Reports", "Catalog", "Reviews", "Challenges", "Book Clubs", "Members" ], items.map { |item| item.text.strip }
       end
+      assert_select ".admin-sidebar-nav a[href='#{admin_report_path}']", text: "Reports"
       assert_select ".admin-sidebar-nav a[href='#{admin_root_path}']", text: "Challenges"
       assert_select ".admin-sidebar-nav a[href='#{admin_catalog_path}']", text: "Catalog"
       assert_select ".admin-sidebar-nav a[href='#{admin_reviews_path}']", text: "Reviews"
@@ -40,7 +42,7 @@ class AdminSidebarTest < ActionDispatch::IntegrationTest
       assert_select ".admin-sidebar-nav a[href='#{edit_user_registration_path}']", count: 0
       assert_select ".admin-topbar .account-dropdown a[href='#{edit_user_registration_path}']", text: "Settings"
       assert_select ".admin-sidebar-nav .is-active[aria-current='page']", count: 1, text: active_section
-      assert_select ".admin-sidebar-nav .admin-sidebar-icon[aria-hidden='true']", count: 5
+      assert_select ".admin-sidebar-nav .admin-sidebar-icon[aria-hidden='true']", count: 6
       assert_select ".admin-sidebar-nav img", count: 0
       assert_select ".admin-sidebar-footer a[data-turbo-method='delete']", text: "Log out"
     end

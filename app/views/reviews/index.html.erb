@@ -26,7 +26,7 @@
                 <%= render "reviews/card", review: review %>
               <% end %>
             </div>
-            <%== @pagy.series_nav if @pagy.last > 1 %>
+            <%= render "shared/pagination", pagy: @pagy %>
           <% else %>
             <p class="reviews-empty-state">You have not written any reviews yet. <%= link_to "Browse the catalog", books_path %> to find a book.</p>
           <% end %>

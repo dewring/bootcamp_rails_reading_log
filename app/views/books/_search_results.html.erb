@@ -31,4 +31,4 @@
     <% end %>
   </div>
 <% end %>
-<%== pagy.series_nav if pagy && pagy.last > 1 %>
+<%= render "shared/pagination", pagy: pagy %>

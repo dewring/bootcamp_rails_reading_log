@@ -1,4 +1,5 @@
 @use "../../foundation/tokens";
+@use "../../components/calendar-date-input";
 
 // ── Book Club detail overview ─────────────────────────────
 main.container:has(> .book-club-detail-page),
@@ -442,13 +443,7 @@ main.container:has(> [data-controller~="club-discussion"] > .book-club-detail-pa
   }
   .admin-club-deadline { grid-column: 1 / -1; }
   .admin-club-deadline input[type="date"] {
-    padding-right: 12px;
-    background-image: url("admin-calendar.svg");
-    background-repeat: no-repeat;
-    background-position: right 12px center;
-    background-size: 18px;
-
-    &::-webkit-calendar-picker-indicator { display: block; width: 18px; height: 18px; opacity: 0; cursor: pointer; }
+    @include calendar-date-input.calendar-date-input($icon-size: 18px);
   }
 }
 
@@ -740,12 +735,6 @@ main.container:has(> [data-controller~="club-discussion"] > .book-club-detail-pa
   margin: 0;
   color: tokens.$text-muted;
   font-size: 12px;
-}
-
-.club-discussion-pagination .pagy.series-nav {
-  font-size: 15px;
-
-  a { min-width: 30px; height: 30px; padding: 0 5px; }
 }
 
 .club-discussion-replies { margin-top: 10px; }

@@ -134,10 +134,11 @@
   mask-position: center;
   mask-size: contain;
 
+  &--chart-column { mask-image: url("admin-chart-column.svg"); }
   &--library { mask-image: url("admin-library.svg"); }
   &--message-square-text { mask-image: url("admin-message-square-text.svg"); }
   &--trophy { mask-image: url("admin-trophy.svg"); }
-  &--book-clubs { mask-image: url("dropdown-users.svg"); }
+  &--book-clubs { mask-image: url("admin-book-clubs.svg"); }
   &--users { mask-image: url("admin-users.svg"); }
   &--settings { mask-image: url("admin-settings.svg"); }
 }

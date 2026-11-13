@@ -285,7 +285,7 @@
           <% end %>
         <% end %>
       </div>
-      <%== @editions_pagy.series_nav if @editions_pagy.last > 1 %>
+      <%= render "shared/pagination", pagy: @editions_pagy %>
     </section>
   <% end %>
 </main>

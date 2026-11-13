@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_10_234000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_13_232000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -131,6 +131,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_10_234000) do
     t.string "title", default: "", null: false
     t.integer "total_pages"
     t.datetime "updated_at", null: false
+    t.index "btrim((ol_work_key)::text)", name: "index_books_on_trimmed_ol_work_key"
     t.index ["author"], name: "index_books_on_author"
     t.index ["ol_work_key"], name: "index_books_on_ol_work_key", unique: true
     t.index ["title"], name: "index_books_on_title"
@@ -240,6 +241,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_10_234000) do
     t.string "kind", null: false
     t.datetime "updated_at", null: false
     t.bigint "user_id", null: false
+    t.index ["updated_at"], name: "index_reactions_on_updated_at"
     t.index ["book_id"], name: "index_reactions_on_book_id"
     t.index ["kind"], name: "index_reactions_on_kind"
     t.index ["user_id", "book_id"], name: "index_reactions_on_user_id_and_book_id", unique: true
@@ -256,6 +258,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_10_234000) do
     t.integer "pages_today", default: 0
     t.datetime "updated_at", null: false
     t.integer "user_id", null: false
+    t.index ["calculated_at"], name: "index_reading_metrics_on_calculated_at"
     t.index ["user_id"], name: "index_reading_metrics_on_user_id", unique: true
   end
 
@@ -270,6 +273,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_10_234000) do
     t.integer "user_id", null: false
     t.index ["book_edition_id"], name: "index_reading_sessions_on_book_edition_id"
     t.index ["book_id"], name: "index_reading_sessions_on_book_id"
+    t.index ["read_on"], name: "index_reading_sessions_on_read_on"
     t.index ["user_id", "book_id"], name: "index_reading_sessions_on_user_id_and_book_id"
     t.index ["user_id", "read_on"], name: "index_reading_sessions_on_user_id_and_read_on"
   end

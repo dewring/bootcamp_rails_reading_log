@@ -1,0 +1,11 @@
+@use "../../../foundation/tokens";
+
+// Values shared by the report partials. Kept here so a color or border
+// change happens in one place instead of in every section.
+$card-border: 1px solid tokens.$gray-mid;
+$tint: #fdf1ef;
+$side: #f7f2ea;
+$accent-text: #c95e59;
+$green: #52715a;
+$green-tint: #ebf2ec;
+$heading-font: "Fraunces", Georgia, serif;

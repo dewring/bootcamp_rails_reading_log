@@ -62,7 +62,7 @@
           </div>
           <footer class="admin-reviews-pagination">
             <p><%= pluralize(@pagy.count, "review") %> · Page <%= @pagy.page %> of <%= @pagy.last %></p>
-            <%== @pagy.series_nav if @pagy.last > 1 %>
+            <%= render "shared/pagination", pagy: @pagy %>
           </footer>
         </section>
 

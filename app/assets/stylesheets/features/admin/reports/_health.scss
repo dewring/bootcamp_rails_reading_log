@@ -1,0 +1,72 @@
+@use "../../../foundation/tokens";
+@use "report-tokens" as report;
+
+// Report health side column: import completeness and metric freshness.
+.admin-page--reports {
+  .admin-report-health {
+    display: grid;
+    gap: 12px;
+
+    > h2 {
+      font-size: 16px;
+    }
+
+    h3 {
+      margin: 0 0 8px;
+      color: tokens.$text-muted;
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    dl {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 4px 10px;
+      margin: 0;
+      font-size: 11px;
+    }
+
+    dt {
+      color: tokens.$text-muted;
+    }
+
+    dd {
+      margin: 0;
+      color: tokens.$ink;
+      text-align: right;
+    }
+  }
+
+  .admin-report-health-card {
+    padding: 16px;
+    border: report.$card-border;
+    border-radius: 14px;
+    background: #fff;
+  }
+
+  .admin-report-health-status {
+    display: inline-block;
+    margin: 0 0 8px;
+    padding: 4px 8px;
+    border-radius: 999px;
+    background: report.$green-tint;
+    color: report.$green;
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+
+    &--stale,
+    &--incomplete,
+    &--never-calculated {
+      background: report.$tint;
+      color: report.$accent-text;
+    }
+  }
+
+  .admin-report-health-note {
+    margin: 8px 0 0;
+    color: tokens.$text-muted;
+    font-size: 10px;
+  }
+}

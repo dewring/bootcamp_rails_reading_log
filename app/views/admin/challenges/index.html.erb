@@ -75,7 +75,7 @@
 
           <div class="admin-pagination" aria-label="Challenge pages">
             <span>Showing <strong><%= @challenges.size %></strong> of <strong><%= @pagy.count %></strong></span>
-            <%== @pagy.series_nav if @pagy.last > 1 %>
+            <%= render "shared/pagination", pagy: @pagy %>
           </div>
         </section>
 

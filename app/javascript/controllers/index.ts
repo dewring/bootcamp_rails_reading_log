@@ -18,6 +18,7 @@ import ClubMessageController from "./club_message_controller"
 import ClubDiscussionController from "./club_discussion_controller"
 import ReactionPickerController from "./reaction_picker_controller"
 import ReactionStreamController from "./reaction_stream_controller"
+import LocalTimeController from "./local_time_controller"
 
 application.register("search", SearchController)
 application.register("progress-bar", ProgressBarController)
@@ -40,3 +41,4 @@ application.register("reaction-picker", ReactionPickerController)
 application.register("club-replies", ClubRepliesController)
 
 application.register("club-message", ClubMessageController)
+application.register("local-time", LocalTimeController)

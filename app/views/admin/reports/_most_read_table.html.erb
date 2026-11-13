@@ -1,0 +1,33 @@
+<table class="admin-report-table">
+  <caption>Books by read_on in this period · tied books share a rank</caption>
+  <thead>
+    <tr>
+      <th scope="col">#</th>
+      <th scope="col">Book</th>
+      <th scope="col" aria-sort="<%= report_aria_sort(leaderboard, 'pages_read') %>">Pages</th>
+      <th scope="col" aria-sort="<%= report_aria_sort(leaderboard, 'sessions') %>">Sessions</th>
+      <th scope="col" aria-sort="<%= report_aria_sort(leaderboard, 'readers') %>">Readers</th>
+      <th scope="col">Share of pages</th>
+    </tr>
+  </thead>
+  <tbody>
+    <% if rows.empty? %>
+      <tr>
+        <td colspan="6">No reading sessions in this period.</td>
+      </tr>
+    <% end %>
+    <% rows.each do |row| %>
+      <tr>
+        <td><%= row.rank %></td>
+        <th scope="row">
+          <%= row.book.title %>
+          <span class="admin-report-table-subtext"><%= row.book.author %></span>
+        </th>
+        <td><%= number_with_delimiter(row.pages_read) %></td>
+        <td><%= number_with_delimiter(row.sessions) %></td>
+        <td><%= number_with_delimiter(row.readers) %></td>
+        <td><%= report_percentage(row.pages_read, total_pages_read) %></td>
+      </tr>
+    <% end %>
+  </tbody>
+</table>

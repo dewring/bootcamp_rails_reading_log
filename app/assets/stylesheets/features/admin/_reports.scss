@@ -1,0 +1,9 @@
+// Admin reading report (issue #146), following the Figma "Reports / FINAL" frame.
+// Each section of the page lives in its own partial under reports/.
+@use "reports/layout";
+@use "reports/range";
+@use "reports/overview";
+@use "reports/leaderboards";
+@use "reports/dropdowns";
+@use "reports/table";
+@use "reports/health";
