@@ -213,7 +213,8 @@
     }
   }
 
-  .admin-report-sort-dropdown {
+  .admin-report-sort-dropdown,
+  .admin-report-period-dropdown {
     position: relative;
 
     .admin-select-trigger {
@@ -244,7 +245,7 @@
       font-size: 12px;
       font-weight: 500;
 
-      > span {
+      > span:first-child {
         width: 12px;
       }
 
@@ -255,11 +256,49 @@
     }
   }
 
+  .admin-report-period-controls {
+    justify-self: end;
+  }
+
+  .admin-report-period-dropdown {
+    .admin-select-trigger {
+      gap: 6px;
+      padding: 9px 14px;
+      font-size: 12px;
+    }
+
+    .admin-report-period-label {
+      color: tokens.$text-muted;
+      font-weight: 400;
+    }
+
+    .catalog-dropdown-option small {
+      margin-left: auto;
+      color: tokens.$text-muted;
+      font-size: 9px;
+      font-weight: 400;
+    }
+  }
+
+  .admin-report-period-divider {
+    margin: 0;
+    border: 0;
+    border-top: $card-border;
+  }
+
+  .admin-report-range > .admin-report-period-form {
+    grid-column: 1 / -1;
+    justify-content: flex-end;
+  }
+
   .admin-report-sort-direction {
     padding: 8px 10px;
     border: $card-border;
     border-radius: 8px;
     background: #fff;
+    color: tokens.$ink;
+    font-size: 11px;
+    font-weight: 500;
   }
 
   .admin-report-table {

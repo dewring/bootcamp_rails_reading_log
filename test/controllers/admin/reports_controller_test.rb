@@ -33,7 +33,9 @@ class Admin::ReportsControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     assert_select "h2#admin-report-range-title", text: /November 5, 2026 – November 11, 2026/
-    assert_select "select[name='period'] option[selected][value='last_7_days']"
+    assert_select "button[aria-controls='admin-report-period-menu'][aria-expanded='false']", text: /Last 7 days/
+    assert_select "#admin-report-period-menu[hidden] a[aria-current='true']", text: /Last 7 days\s+7 dates/
+    assert_select "#admin-report-period-menu hr", count: 1
     assert_select ".admin-report-as-of time[data-controller='local-time'][datetime='2026-11-11T18:00:00Z']", text: "November 11, 2026 18:00 UTC"
     assert_select ".admin-report-error", count: 0
   end
@@ -124,6 +126,13 @@ class Admin::ReportsControllerTest < ActionDispatch::IntegrationTest
     assert_select ".admin-report-tabs a[aria-current='page']", text: /Power users/
     assert_select ".admin-report-table th[scope='row']", text: /#{users(:leika).nickname}/
     assert_select ".admin-report-table th[aria-sort='descending']", text: "Active days"
+    assert_select "#admin-report-period-menu a", count: 4 do |links|
+      links.each do |link|
+        query = Rack::Utils.parse_nested_query(URI.parse(link["href"]).query)
+        assert_equal "power_users", query["tab"]
+        assert_equal "active_days", query["sort"]
+      end
+    end
     assert_select "#admin-report-sort-menu a", count: 4 do |links|
       links.each do |link|
         query = Rack::Utils.parse_nested_query(URI.parse(link["href"]).query)
