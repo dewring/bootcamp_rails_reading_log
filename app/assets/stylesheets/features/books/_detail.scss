@@ -506,6 +506,11 @@
   }
 }
 
+.book-detail-edition-text {
+  flex: 1;
+  min-width: 0;
+}
+
 .book-detail-edition-cover {
   width: 78px;
   min-width: 78px;

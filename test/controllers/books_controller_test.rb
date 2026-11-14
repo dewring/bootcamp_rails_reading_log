@@ -238,6 +238,29 @@ class BookControllerTest < ActionDispatch::IntegrationTest
     assert_select "section.book-detail-editions", count: 0
   end
 
+  test "edition cards retain full text and external link attributes" do
+    book = Book.create!(title: "Edition details", author: "An author with a long name " * 8)
+    edition = book.book_editions.create!(
+      ol_edition_key: "/books/LONGTEXTM",
+      title: "A long edition title " * 12,
+      publisher: "A long publisher name " * 8,
+      publish_year: 2026,
+      language: "English"
+    )
+
+    get book_path(book)
+
+    assert_response :success
+    assert_select "a.book-detail-edition-card[href='https://openlibrary.org#{edition.ol_edition_key}'][target='_blank'][rel='noopener']" do
+      assert_select ".book-detail-edition-cover", count: 1
+      assert_select ".book-detail-edition-text" do
+        assert_select "h3", text: edition.title.strip
+        assert_select "p", text: book.author.strip
+        assert_select "small", text: "#{edition.publisher.strip} · 2026 · English"
+      end
+    end
+  end
+
   test "exactly six editions are displayed without pagination links" do
     book = Book.create!(title: "Six Editions", author: "An Author")
     6.times do |index|
