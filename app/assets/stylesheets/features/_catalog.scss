@@ -123,10 +123,20 @@
   text-decoration: none;
 
   &:hover,
-  &:focus-visible,
+  &:focus-visible {
+    background: #f3f3f3;
+    color: tokens.$ink !important;
+  }
+
+  &:focus-visible {
+    outline: 2px solid tokens.$ink;
+    outline-offset: -2px;
+  }
+
   &.is-selected {
     background: #fdf1ef;
     color: tokens.$accent !important;
+    font-weight: 700;
   }
 }
 

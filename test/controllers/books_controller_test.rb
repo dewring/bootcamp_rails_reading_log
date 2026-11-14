@@ -436,7 +436,10 @@ class BookControllerTest < ActionDispatch::IntegrationTest
     ordered_ids = assigns(:books).map(&:id)
     assert_operator ordered_ids.index(most_read_book.id), :<, ordered_ids.index(less_read_book.id)
     assert_select ".catalog-dropdown-trigger", text: /Most Read/
-    assert_select "#catalog-filter-menu a.catalog-dropdown-option.is-selected[href*='filter=most_read']", text: "Most Read", count: 1
+    assert_select "#catalog-filter-menu a.catalog-dropdown-option.is-selected[aria-current='page'][href*='filter=most_read']", text: "Most Read", count: 1
+    assert_select "#catalog-filter-menu a.is-selected", count: 1
+    assert_select "#catalog-filter-menu a[aria-current]", count: 1
+    assert_select "#catalog-filter-menu a[href*='filter=new_books']:not(.is-selected):not([aria-current])", count: 1
   end
 
   test "most read search preserves filters and counts sessions independently of editions" do
