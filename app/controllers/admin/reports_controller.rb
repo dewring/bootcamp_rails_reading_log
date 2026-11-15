@@ -24,7 +24,9 @@ class Admin::ReportsController < ApplicationController
     @pagy, activity = pagy(:offset, @leaderboard.ranked_activity, limit: 10)
     @leaderboard_rows = @leaderboard.rows(activity)
     @reacted_book_count = MostReactedBooksLeaderboard.book_count(dates: @period.dates)
-    @import_completeness = CatalogImportCompleteness.new.completeness
+    if Rails.env.local?
+      @import_completeness = CatalogImportCompleteness.new.completeness
+    end
     @metric_freshness = ReadingMetricFreshness.new(as_of: @as_of).freshness
   end
 
