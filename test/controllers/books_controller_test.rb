@@ -238,6 +238,29 @@ class BookControllerTest < ActionDispatch::IntegrationTest
     assert_select "section.book-detail-editions", count: 0
   end
 
+  test "edition cards retain full text and external link attributes" do
+    book = Book.create!(title: "Edition details", author: "An author with a long name " * 8)
+    edition = book.book_editions.create!(
+      ol_edition_key: "/books/LONGTEXTM",
+      title: "A long edition title " * 12,
+      publisher: "A long publisher name " * 8,
+      publish_year: 2026,
+      language: "English"
+    )
+
+    get book_path(book)
+
+    assert_response :success
+    assert_select "a.book-detail-edition-card[href='https://openlibrary.org#{edition.ol_edition_key}'][target='_blank'][rel='noopener']" do
+      assert_select ".book-detail-edition-cover", count: 1
+      assert_select ".book-detail-edition-text" do
+        assert_select "h3", text: edition.title.strip
+        assert_select "p", text: book.author.strip
+        assert_select "small", text: "#{edition.publisher.strip} · 2026 · English"
+      end
+    end
+  end
+
   test "exactly six editions are displayed without pagination links" do
     book = Book.create!(title: "Six Editions", author: "An Author")
     6.times do |index|
@@ -420,6 +443,34 @@ class BookControllerTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "catalog preloads every displayed book's genres across sorting search and genre filtering" do
+    fiction = genres(:fiction)
+    mystery = Genre.find_or_create_by!(name: "Mystery")
+    2.times do |index|
+      Book.create!(title: "Genre preload #{index}", author: "An Author", genres: [ fiction, mystery ])
+    end
+
+    [ {}, { filter: "new_books" }, { filter: "most_read" }, { q: "Genre preload" },
+      { q: "Genre preload", filter: "most_read", genre: "Fiction" } ].each do |query|
+      genre_queries = []
+      capture_genre_query = lambda do |_name, _start, _finish, _id, payload|
+        genre_queries.push(payload[:sql]) if payload[:sql].match?(/SELECT .*FROM "genres"/)
+      end
+      ActiveSupport::Notifications.subscribed(capture_genre_query, "sql.active_record") do
+        get books_path, params: query
+      end
+
+      assert_response :success
+      assert_equal 1, genre_queries.size, "Genres must load in one query for #{query.inspect}"
+      displayed_books = assigns(:books)
+      assert displayed_books.all? { |book| book.association(:genres).loaded? }, "Genres must be preloaded for #{query.inspect}"
+      displayed_books.select { |book| book.title.start_with?("Genre preload") }.each do |book|
+        assert_equal [ "Fiction", "Mystery" ], book.genres.map(&:name).sort
+      end
+      assert_select ".book-list-item", text: /Genre preload/, count: 2
+    end
+  end
+
   test "most read catalog filter orders books by reading session count" do
     sign_in users(:leika)
 
@@ -436,7 +487,10 @@ class BookControllerTest < ActionDispatch::IntegrationTest
     ordered_ids = assigns(:books).map(&:id)
     assert_operator ordered_ids.index(most_read_book.id), :<, ordered_ids.index(less_read_book.id)
     assert_select ".catalog-dropdown-trigger", text: /Most Read/
-    assert_select "#catalog-filter-menu a.catalog-dropdown-option.is-selected[href*='filter=most_read']", text: "Most Read", count: 1
+    assert_select "#catalog-filter-menu a.catalog-dropdown-option.is-selected[aria-current='page'][href*='filter=most_read']", text: "Most Read", count: 1
+    assert_select "#catalog-filter-menu a.is-selected", count: 1
+    assert_select "#catalog-filter-menu a[aria-current]", count: 1
+    assert_select "#catalog-filter-menu a[href*='filter=new_books']:not(.is-selected):not([aria-current])", count: 1
   end
 
   test "most read search preserves filters and counts sessions independently of editions" do

@@ -18,10 +18,10 @@ class BooksController < ApplicationController
      )
      .distinct
     else
-      books.includes(:genres)
+      books
     end
     @books = @books.joins(:genres).where(genres: { name: params[:genre] }) if params[:genre].present?
-    @books = apply_catalog_order(@books)
+    @books = apply_catalog_order(@books).preload(:genres)
     @pagy, @books = pagy(:offset, @books, limit: 10)
 
     respond_to do |format|

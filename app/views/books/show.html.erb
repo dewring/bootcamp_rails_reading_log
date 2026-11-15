@@ -276,7 +276,7 @@
                   <div class="book-detail-edition-no-cover" aria-label="No cover available">📚</div>
                 <% end %>
               </div>
-              <div>
+              <div class="book-detail-edition-text">
                 <h3><%= edition.title.presence || @book.title %></h3>
                 <p><%= @book.author %></p>
                 <small><%= [ edition.publisher, edition.publish_year, edition.language ].compact_blank.join(" · ") %></small>

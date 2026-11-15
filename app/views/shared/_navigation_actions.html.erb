@@ -90,7 +90,7 @@
         </li>
         <% if current_user.admin? %>
           <li>
-            <%= link_to admin_root_path, class: "account-dropdown-item" do %>
+            <%= link_to admin_report_path, class: "account-dropdown-item" do %>
               <%= image_tag "dropdown-grid.svg", class: "dropdown-item-icon", alt: "" %>
               <span>Manage</span>
             <% end %>
