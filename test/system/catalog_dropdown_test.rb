@@ -3,8 +3,6 @@ require "application_system_test_case"
 class CatalogDropdownTest < ApplicationSystemTestCase
   test "hover and keyboard focus differ from selection while disabled options stay neutral" do
     visit books_path(filter: "new_books")
-    # Verify menu states without Turbo prefetch issuing a separate catalog request.
-    page.execute_script('document.getElementById("catalog-filter-menu").dataset.turboPrefetch = "false"')
     find("button[aria-controls='catalog-filter-menu']").click
 
     selected = find("#catalog-filter-menu .is-selected[aria-current='page']")

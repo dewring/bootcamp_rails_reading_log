@@ -137,6 +137,7 @@
     <% else %>
       <div class="book-list">
         <% @books.each do |book| %>
+          <% book_genres = book.genres.to_a %>
           <div class="book-list-item">
             <div class="book-list-cover">
               <%= link_to book do %>
@@ -149,9 +150,9 @@
             </div>
 
             <div class="book-list-info">
-              <% if book.genres.any? %>
+              <% if book_genres.any? %>
                 <p class="book-list-genre">
-                  <% book.genres.each do |genre| %>
+                  <% book_genres.each do |genre| %>
                     <span><%= genre.name %></span>
                   <% end %>
                 </p>

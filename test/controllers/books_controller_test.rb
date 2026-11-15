@@ -443,6 +443,34 @@ class BookControllerTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "catalog preloads every displayed book's genres across sorting search and genre filtering" do
+    fiction = genres(:fiction)
+    mystery = Genre.find_or_create_by!(name: "Mystery")
+    2.times do |index|
+      Book.create!(title: "Genre preload #{index}", author: "An Author", genres: [ fiction, mystery ])
+    end
+
+    [ {}, { filter: "new_books" }, { filter: "most_read" }, { q: "Genre preload" },
+      { q: "Genre preload", filter: "most_read", genre: "Fiction" } ].each do |query|
+      genre_queries = []
+      capture_genre_query = lambda do |_name, _start, _finish, _id, payload|
+        genre_queries.push(payload[:sql]) if payload[:sql].match?(/SELECT .*FROM "genres"/)
+      end
+      ActiveSupport::Notifications.subscribed(capture_genre_query, "sql.active_record") do
+        get books_path, params: query
+      end
+
+      assert_response :success
+      assert_equal 1, genre_queries.size, "Genres must load in one query for #{query.inspect}"
+      displayed_books = assigns(:books)
+      assert displayed_books.all? { |book| book.association(:genres).loaded? }, "Genres must be preloaded for #{query.inspect}"
+      displayed_books.select { |book| book.title.start_with?("Genre preload") }.each do |book|
+        assert_equal [ "Fiction", "Mystery" ], book.genres.map(&:name).sort
+      end
+      assert_select ".book-list-item", text: /Genre preload/, count: 2
+    end
+  end
+
   test "most read catalog filter orders books by reading session count" do
     sign_in users(:leika)
 
