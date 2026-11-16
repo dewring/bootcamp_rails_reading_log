@@ -137,6 +137,41 @@ class HomeControllerTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "a lower ranked book keeps its reaction summary until ranking and summary refresh together" do
+    as_of = Time.zone.local(2026, 11, 9, 12)
+    first = books(:refactoring)
+    second = books(:pragmatic)
+    Reaction.create!(book: first, user: users(:leika), kind: "like", updated_at: as_of - 1.hour)
+    Reaction.create!(book: first, user: users(:jaina), kind: "like", updated_at: as_of - 1.hour)
+    Reaction.create!(book: second, user: users(:leika), kind: "like", updated_at: as_of - 1.hour)
+
+    travel_to(as_of) do
+      get root_path
+
+      assert_equal 2, assigns(:trending_statistics).fetch(second.id).fetch(:rank)
+      assert_equal 1, assigns(:trending_reaction_totals).fetch(second.id)
+    end
+
+    Reaction.create!(book: second, user: users(:jaina), kind: "love", updated_at: as_of + 1.minute)
+    Reaction.create!(book: second, user: users(:admin), kind: "wow", updated_at: as_of + 1.minute)
+
+    travel_to(as_of + 30.minutes - 1.second) do
+      get root_path
+
+      assert_equal 2, assigns(:trending_statistics).fetch(second.id).fetch(:rank)
+      assert_equal 1, assigns(:trending_reaction_totals).fetch(second.id)
+      assert_equal [ "like" ], assigns(:trending_reaction_emojis).fetch(second.id).map(&:key)
+    end
+
+    travel_to(as_of + 30.minutes) do
+      get root_path
+
+      assert_equal 1, assigns(:trending_statistics).fetch(second.id).fetch(:rank)
+      assert_equal 3, assigns(:trending_reaction_totals).fetch(second.id)
+      assert_equal [ "love", "wow", "like" ], assigns(:trending_reaction_emojis).fetch(second.id).map(&:key)
+    end
+  end
+
   test "an empty trending result remains cached after a reaction until expiry" do
     as_of = Time.zone.local(2026, 11, 9, 12)
     assert_trending_query_count(1) { travel_to(as_of) { get root_path } }
