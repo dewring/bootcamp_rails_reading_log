@@ -59,6 +59,40 @@ class HomeDiscoveryControllerTest < ActionDispatch::IntegrationTest
     assert_equal "no-store", response.headers["Cache-Control"]
   end
 
+  test "the standard layout reuses reaction summaries cached by the hero until expiry" do
+    sign_in @reader
+    Flipper.enable_percentage_of_actors(:discovery_hero_trending_v1, 100)
+    book = @books.first
+
+    get root_path
+
+    assert_select ".home-trending-hero", count: 1
+    assert_select ".home-trending .trending-total", count: 0
+
+    Reaction.create!(user: users(:admin), book: book, kind: "wow")
+    Flipper.disable(:discovery_experiment_running_v1)
+    sign_out @reader
+    get root_path
+
+    assert_select ".home-trending-hero", count: 0
+    assert_select ".home-trending .trending-book-card:has(a[href='#{book_path(book)}'])" do
+      assert_select ".trending-rank[aria-label='Rank 2']"
+      assert_select ".trending-total[aria-label='Total reactions 1']"
+      assert_select ".trending-reaction-emojis > span[data-reaction-kind='like']", count: 1
+      assert_select ".trending-reaction-emojis > span[data-reaction-kind='wow']", count: 0
+    end
+
+    travel 31.minutes do
+      get root_path
+
+      assert_select ".home-trending .trending-book-card:has(a[href='#{book_path(book)}'])" do
+        assert_select ".trending-rank[aria-label='Rank 1']"
+        assert_select ".trending-total[aria-label='Total reactions 2']"
+        assert_select ".trending-reaction-emojis > span[data-reaction-kind='wow']", count: 1
+      end
+    end
+  end
+
   test "turning the running switch off restores the default hero and ranked cards even for a treatment actor" do
     sign_in @reader
     Flipper.enable_percentage_of_actors(:discovery_hero_trending_v1, 100)
