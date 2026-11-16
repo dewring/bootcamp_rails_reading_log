@@ -173,25 +173,33 @@ class HomeDiscoveryControllerTest < ActionDispatch::IntegrationTest
     end
   end
 
-  test "changing a reaction moves its new kind first without repeating kinds or refreshing the ranking" do
+  test "changing a reaction preserves cached emoji order until the snapshot expires" do
     book = @books.first
     reaction = Reaction.create!(user: users(:admin), book: book, kind: "love", updated_at: 2.hours.ago)
     get root_path
-    cached_ranking = Rails.cache.read(Book::TRENDING_CACHE_KEY)
+    cached_snapshot = Rails.cache.read(Book::TRENDING_CACHE_KEY)
 
     reaction.update!(kind: "wow")
     get root_path
 
-    assert_equal cached_ranking, Rails.cache.read(Book::TRENDING_CACHE_KEY)
+    assert_equal cached_snapshot, Rails.cache.read(Book::TRENDING_CACHE_KEY)
     assert_select ".trending-book-card:has(a[href='#{book_path(book)}'])" do
       assert_select ".trending-reaction-emojis > span" do |emoji|
-        assert_equal [ "wow", "like" ], emoji.map { |node| node["data-reaction-kind"] }
+        assert_equal [ "like", "love" ], emoji.map { |node| node["data-reaction-kind"] }
       end
       assert_select ".trending-reaction-count", text: "2"
     end
+
+    travel 31.minutes do
+      get root_path
+
+      assert_select ".trending-book-card:has(a[href='#{book_path(book)}']) .trending-reaction-emojis > span" do |emoji|
+        assert_equal [ "wow", "like" ], emoji.map { |node| node["data-reaction-kind"] }
+      end
+    end
   end
 
-  test "a cached book with no remaining reactions shows zero without emoji" do
+  test "a cached book with no remaining reactions keeps its summary until it leaves trending after expiry" do
     get root_path
     book = @books.first
     book.reactions.destroy_all
@@ -199,9 +207,15 @@ class HomeDiscoveryControllerTest < ActionDispatch::IntegrationTest
     get root_path
 
     assert_select ".trending-book-card:has(a[href='#{book_path(book)}'])" do
-      assert_select ".trending-total[aria-label='Total reactions 0']", count: 1
-      assert_select ".trending-reaction-count", text: "0"
-      assert_select "[data-reaction-kind]", count: 0
+      assert_select ".trending-total[aria-label='Total reactions 1']", count: 1
+      assert_select ".trending-reaction-count", text: "1"
+      assert_select "[data-reaction-kind='like']", count: 1
+    end
+
+    travel 31.minutes do
+      get root_path
+
+      assert_select ".trending-book-card:has(a[href='#{book_path(book)}'])", count: 0
     end
   end
 

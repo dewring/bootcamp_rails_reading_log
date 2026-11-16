@@ -187,7 +187,7 @@ class HomeControllerTest < ActionDispatch::IntegrationTest
     end
   end
 
-  test "removing a tied book reaction preserves its cached rank while updating its total" do
+  test "removing a tied book reaction preserves its cached rank and total until expiry" do
     as_of = Time.zone.local(2026, 11, 9, 12)
     first = books(:refactoring)
     second = books(:pragmatic)
@@ -207,10 +207,17 @@ class HomeControllerTest < ActionDispatch::IntegrationTest
       assert_select ".home-trending .trending-book-card" do |cards|
         remaining = cards.find { |card| card.at_css("a")["href"] == book_path(second) }
         assert_equal "Rank 1", remaining.at_css(".trending-rank")["aria-label"]
-        assert_equal "Total reactions 1", remaining.at_css(".trending-total")["aria-label"]
+        assert_equal "Total reactions 2", remaining.at_css(".trending-total")["aria-label"]
       end
       assert_equal 1, assigns(:trending_statistics).fetch(first.id).fetch(:rank)
       assert_equal 1, assigns(:trending_statistics).fetch(second.id).fetch(:rank)
+    end
+
+    travel_to(as_of + 30.minutes) do
+      get root_path
+
+      assert_equal 2, assigns(:trending_statistics).fetch(second.id).fetch(:rank)
+      assert_equal 1, assigns(:trending_reaction_totals).fetch(second.id)
     end
   end
 
@@ -242,7 +249,7 @@ class HomeControllerTest < ActionDispatch::IntegrationTest
     end
   end
 
-  test "account suspension updates totals but preserves ranking until expiry" do
+  test "account suspension updates ranking and totals together after expiry" do
     as_of = Time.zone.local(2026, 11, 9, 12)
     first = books(:refactoring)
     second = books(:pragmatic)
@@ -258,13 +265,14 @@ class HomeControllerTest < ActionDispatch::IntegrationTest
     travel_to(as_of + 2.minutes) do
       assert_trending_query_count(0) { get root_path }
       assert_equal 2, assigns(:trending_statistics).fetch(second.id).fetch(:reaction_count)
-      assert_equal 1, assigns(:trending_reaction_totals).fetch(second.id)
+      assert_equal 2, assigns(:trending_reaction_totals).fetch(second.id)
       assert_equal 2, assigns(:trending_statistics).fetch(first.id).fetch(:rank)
     end
 
     travel_to(as_of + 30.minutes) do
       assert_trending_query_count(1) { get root_path }
       assert_equal 1, assigns(:trending_statistics).fetch(second.id).fetch(:reaction_count)
+      assert_equal 1, assigns(:trending_reaction_totals).fetch(second.id)
       assert_equal 1, assigns(:trending_statistics).fetch(first.id).fetch(:rank)
       assert_equal 1, assigns(:trending_statistics).fetch(second.id).fetch(:rank)
     end
