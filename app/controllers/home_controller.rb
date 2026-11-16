@@ -30,8 +30,7 @@ class HomeController < ApplicationController
 
   def prepare_trending_reaction_summary
     types = ReactionType.all.index_by(&:key)
-    counts = Reaction.eligible.where(book_id: @trending_books.map(&:id)).group(:book_id, :kind)
-      .order(Arel.sql("MAX(reactions.updated_at) DESC"), :kind).count
+    counts = @trending_reaction_counts
     @trending_reaction_emojis = counts.keys.group_by(&:first).transform_values do |keys|
       keys.first(3).map { |_book_id, kind| types.fetch(kind) }
     end
@@ -52,17 +51,31 @@ class HomeController < ApplicationController
   def cached_trending_books(books)
     # BookPolicy currently exposes the same public catalog to everyone, so share ranking snapshots.
     # Reapply the policy scope when loading current book attributes and covers.
-    ranking = Rails.cache.fetch(Book::TRENDING_CACHE_KEY, expires_in: TRENDING_CACHE_DURATION) do
-      books.trending(as_of: Time.current).limit(8).map do |book|
-        { id: book.id, rank: book.trending_rank, reaction_count: book.trending_score }
-      end
+    snapshot = Rails.cache.fetch(Book::TRENDING_CACHE_KEY, expires_in: TRENDING_CACHE_DURATION) do
+      trending_snapshot(books)
     end
+    ranking = snapshot.fetch(:ranking)
     # HTML needs cover metadata and variant records to generate URLs. The image
     # request loads processed variant attachments separately, so omit those here.
     visible_books = books.in_order_of(:id, ranking.map { |entry| entry.fetch(:id) })
       .includes(cover_image_attachment: { blob: :variant_records }).to_a
     visible_ids = visible_books.map(&:id)
     @trending_statistics = ranking.select { |entry| visible_ids.include?(entry.fetch(:id)) }.index_by { |entry| entry.fetch(:id) }
+    @trending_reaction_counts = snapshot.fetch(:reaction_counts).select do |(book_id, _kind), _count|
+      visible_ids.include?(book_id)
+    end
     visible_books
+  end
+
+  def trending_snapshot(books)
+    ranking = books.trending(as_of: Time.current).limit(8).map do |book|
+      { id: book.id, rank: book.trending_rank, reaction_count: book.trending_score }
+    end
+    # Keep the all-time summary and seven-day ranking in one cache entry so
+    # both layouts share the same expiry, even when the hero fills it first.
+    reaction_counts = Reaction.eligible.where(book_id: ranking.map { |entry| entry.fetch(:id) })
+      .group(:book_id, :kind).order(Arel.sql("MAX(reactions.updated_at) DESC"), :kind).count
+
+    { ranking: ranking, reaction_counts: reaction_counts }
   end
 end
