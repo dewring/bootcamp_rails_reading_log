@@ -147,17 +147,19 @@
         <aside class="admin-report-health" aria-labelledby="admin-report-health-title">
           <h2 id="admin-report-health-title">Report health</h2>
 
-          <section class="admin-report-health-card" aria-labelledby="admin-report-import-title">
-            <h3 id="admin-report-import-title">Import completeness</h3>
-            <dl>
-              <dt>Imported Works</dt>
-              <dd><%= @import_completeness.imported_count %> / <%= @import_completeness.selected_count %></dd>
-              <dt>Completeness</dt>
-              <dd><%= report_percentage(@import_completeness.imported_count, @import_completeness.selected_count) %></dd>
-              <dt>Missing</dt>
-              <dd><%= @import_completeness.missing_count %> · not replaced with placeholder books</dd>
-            </dl>
-          </section>
+          <% if Rails.env.local? %>
+            <section class="admin-report-health-card" aria-labelledby="admin-report-import-title">
+              <h3 id="admin-report-import-title">Import completeness</h3>
+              <dl>
+                <dt>Imported Works</dt>
+                <dd><%= @import_completeness.imported_count %> / <%= @import_completeness.selected_count %></dd>
+                <dt>Completeness</dt>
+                <dd><%= report_percentage(@import_completeness.imported_count, @import_completeness.selected_count) %></dd>
+                <dt>Missing</dt>
+                <dd><%= @import_completeness.missing_count %> · not replaced with placeholder books</dd>
+              </dl>
+            </section>
+          <% end %>
 
           <section class="admin-report-health-card" aria-labelledby="admin-report-freshness-title">
             <h3 id="admin-report-freshness-title">ReadingMetric freshness</h3>
