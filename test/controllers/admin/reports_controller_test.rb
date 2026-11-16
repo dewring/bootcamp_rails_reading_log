@@ -183,7 +183,42 @@ class Admin::ReportsControllerTest < ActionDispatch::IntegrationTest
     assert_select ".admin-report-table th[aria-sort='descending']", text: "Total"
   end
 
-  test "admins see import completeness and ReadingMetric freshness in the report health panel" do
+  test "admins see import completeness in development and test environments" do
+    sign_in users(:admin)
+
+    [ "development", "test" ].each do |environment|
+      Rails.stub(:env, ActiveSupport::EnvironmentInquirer.new(environment)) do
+        get admin_report_path
+      end
+
+      assert_response :success
+      assert_select "#admin-report-import-title", text: "Import completeness"
+      assert_select "section[aria-labelledby='admin-report-import-title'] dd", text: %r{/ 100}
+      assert_select "#admin-report-freshness-title", text: "ReadingMetric freshness"
+    end
+  end
+
+  test "admins do not see or calculate import completeness in production and staging" do
+    sign_in users(:admin)
+    unexpected_import_calculation = -> { flunk "Non-local reports must not initialize import completeness" }
+
+    [ "production", "staging" ].each do |environment|
+      Rails.stub(:env, ActiveSupport::EnvironmentInquirer.new(environment)) do
+        CatalogImportCompleteness.stub(:new, unexpected_import_calculation) do
+          get admin_report_path
+        end
+      end
+
+      assert_response :success
+      assert_select "section[aria-labelledby='admin-report-import-title']", count: 0
+      assert_select "#admin-report-import-title", count: 0
+      assert_select "#admin-report-freshness-title", text: "ReadingMetric freshness"
+      assert_select ".admin-report-health-status"
+      assert_select ".admin-report-table"
+    end
+  end
+
+  test "admins see ReadingMetric freshness in the report health panel" do
     sign_in users(:admin)
     ReadingMetric.create!(user: users(:leika), calculated_at: Time.zone.local(2026, 11, 11, 17, 52))
 
@@ -192,8 +227,6 @@ class Admin::ReportsControllerTest < ActionDispatch::IntegrationTest
     end
 
     assert_response :success
-    assert_select "aside.admin-report-health h3", text: "Import completeness"
-    assert_select "aside.admin-report-health dd", text: %r{/ 100}
     assert_select ".admin-report-health-status"
     assert_select "aside.admin-report-health time[data-controller='local-time'][datetime='2026-11-11T17:52:00Z']"
     assert_select "aside.admin-report-health dd", text: /8 min before as_of/
