@@ -25,7 +25,8 @@ class DevelopmentReadingScenarioChallenges
     @scenario_manifest.save_scenario
     working = @manifest.fetch("challenges").deep_dup
     user_ids = @manifest.fetch("bootstrap").fetch("records").fetch("users").values.map { |record| record.fetch("id") }
-    enrollments = UserChallenge.where(user_id: user_ids).to_a
+    recorded_ids = working.dig("records", "user_challenges").values.filter_map { |record| record["id"] }
+    enrollments = UserChallenge.where(user_id: user_ids).or(UserChallenge.where(id: recorded_ids)).to_a
 
     Challenge.transaction(requires_new: true) do
       challenges = import_challenges(working)
@@ -91,7 +92,7 @@ class DevelopmentReadingScenarioChallenges
 
   def existing_challenge(record, identity)
     id = record["id"]
-    return matching_row(@challenge_rows, record, record.fetch("expected_attributes"), identity) unless id
+    return matching_row(@challenge_rows, record.fetch("expected_attributes"), identity) unless id
 
     # Once recorded, the ID identifies the challenge. Its current attributes belong to the application.
     @challenge_rows.find { |row| row.id == id }
@@ -109,11 +110,12 @@ class DevelopmentReadingScenarioChallenges
 
       expected = record.fetch("expected_attributes").merge("challenge_id" => challenge.id)
       # Progress, status and lock_version belong to normal application activity; replay must not reset them.
-      row = matching_row(rows, record, expected, identity)
-      if record["id"] && !row
-        record.merge!("result" => "skipped", "reason" => "recorded_enrollment_missing")
-        next
+      row = if record["id"]
+        recorded_enrollment(rows, record, expected)
+      else
+        matching_row(rows, expected, identity)
       end
+      next if record["result"] == "skipped"
 
       row ||= UserChallenge.create!(expected)
       record["id"] = row.id
@@ -121,17 +123,18 @@ class DevelopmentReadingScenarioChallenges
     end
   end
 
-  def matching_row(rows, record, expected, identity)
-    if record["id"]
-      row = rows.find { |candidate| candidate.id == record.fetch("id") }
-      return unless row
-
-      unless row.attributes.slice(*expected.keys).as_json == expected
-        raise ChallengeError, "Recorded challenge data #{identity} (ID #{record.fetch('id')}) changed; no automatic overwrite is allowed."
-      end
+  def recorded_enrollment(rows, record, expected)
+    row = rows.find { |candidate| candidate.id == record.fetch("id") }
+    if row && row.user_id == expected.fetch("user_id") && row.challenge_id == expected.fetch("challenge_id")
       return row
     end
 
+    reason = row ? "recorded_enrollment_identity_changed" : "recorded_enrollment_missing"
+    record.merge!("result" => "skipped", "reason" => reason)
+    nil
+  end
+
+  def matching_row(rows, expected, identity)
     matches = rows.select { |row| row.attributes.slice(*expected.keys).as_json == expected }
     raise ChallengeError, "Ambiguous challenge data #{identity}: IDs #{matches.map(&:id)}; review before replaying." if matches.length > 1
 

@@ -132,6 +132,27 @@ class DevelopmentReadingScenarioChallengesTest < ActiveSupport::TestCase
     end
   end
 
+  test "replay skips a reassigned enrollment and preserves edits to an enrollment with the same reader and challenge" do
+    first = seed_challenges.fetch("challenges")
+    records = first.dig("records", "user_challenges")
+    identity, recorded = records.first
+    reassigned = UserChallenge.find(recorded.fetch("id"))
+    reassigned.update!(user: users(:leika))
+    edited = UserChallenge.find(records.values.last.fetch("id"))
+    edited.update!(created_at: edited.created_at + 1.day, progress: 40)
+    before = UserChallenge.order(:id).map(&:attributes)
+
+    result = seed_challenges.fetch("challenges")
+
+    skipped = result.dig("records", "user_challenges", identity)
+    assert_equal "skipped", skipped.fetch("result")
+    assert_equal "recorded_enrollment_identity_changed", skipped.fetch("reason")
+    assert_equal reassigned.id, skipped.fetch("id")
+    assert_equal({ "challenges" => 6, "user_challenges" => 39 }, result.fetch("actual_counts"))
+    assert_equal before, UserChallenge.order(:id).map(&:attributes)
+    assert_equal result, seed_challenges.fetch("challenges")
+  end
+
   test "an enrollment failure rolls back the whole challenge phase and can be retried" do
     factory = UserChallenge.method(:create!)
     created = 0
