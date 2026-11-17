@@ -79,16 +79,19 @@ class DevelopmentReadingScenarioChallengesTest < ActiveSupport::TestCase
     end
   end
 
-  test "an edited challenge is refused without overwriting its changes" do
-    seed_challenges
+  test "replay reuses an edited challenge by ID without overwriting its changes or enrollments" do
+    first = seed_challenges.fetch("challenges")
     challenge = Challenge.order(:id).last
-    challenge.update!(title: "A revised demo challenge")
+    challenge.update!(title: "A revised demo challenge", goal_value: 99)
+    before = challenge.attributes
+    enrollments = UserChallenge.where(challenge: challenge).order(:id).map(&:attributes)
 
     assert_no_difference [ "Challenge.count", "UserChallenge.count" ] do
-      assert_raises(DevelopmentReadingScenarioChallenges::ChallengeError) { seed_challenges }
+      assert_equal first, seed_challenges.fetch("challenges")
     end
 
-    assert_equal "A revised demo challenge", challenge.reload.title
+    assert_equal before, challenge.reload.attributes
+    assert_equal enrollments, UserChallenge.where(challenge: challenge).order(:id).map(&:attributes)
   end
 
   test "a deleted recorded enrollment is refused without recreating it" do

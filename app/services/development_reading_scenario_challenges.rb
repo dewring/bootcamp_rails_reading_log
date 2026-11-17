@@ -14,7 +14,7 @@ class DevelopmentReadingScenarioChallenges
     @manifest.dig("challenges", "records", "challenges")&.each do |identity, record|
       next if record["result"] == "skipped"
 
-      matching_row(@challenge_rows, record, record.fetch("expected_attributes"), identity)
+      existing_challenge(record, identity)
     end
   end
 
@@ -77,10 +77,19 @@ class DevelopmentReadingScenarioChallenges
       next if record["result"] == "skipped"
 
       expected = record.fetch("expected_attributes")
-      row = matching_row(@challenge_rows, record, expected, identity) || Challenge.create!(expected)
+      row = existing_challenge(record, identity) || Challenge.create!(expected)
       record["id"] = row.id
       challenges[identity] = row
     end
+  end
+
+  def existing_challenge(record, identity)
+    id = record["id"]
+    return matching_row(@challenge_rows, record, record.fetch("expected_attributes"), identity) unless id
+
+    # Once recorded, the ID identifies the challenge. Its current attributes belong to the application.
+    @challenge_rows.find { |row| row.id == id } ||
+      raise(ChallengeError, "Recorded challenge #{identity} (ID #{id}) is missing; no automatic recreation is allowed.")
   end
 
   def import_enrollments(working, challenges, rows)
