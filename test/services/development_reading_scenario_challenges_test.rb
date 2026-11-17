@@ -94,12 +94,41 @@ class DevelopmentReadingScenarioChallengesTest < ActiveSupport::TestCase
     assert_equal enrollments, UserChallenge.where(challenge: challenge).order(:id).map(&:attributes)
   end
 
-  test "a deleted recorded enrollment is refused without recreating it" do
-    seed_challenges
-    UserChallenge.order(:id).last.destroy!
+  test "replay skips a deleted challenge and its enrollments without changing unrelated rows" do
+    first = seed_challenges.fetch("challenges")
+    identity, record = first.dig("records", "challenges").first
+    challenge = Challenge.find(record.fetch("id"))
+    deleted_count = challenge.user_challenges.count
+    challenge.destroy!
+    before = [ Challenge.order(:id).map(&:attributes), UserChallenge.order(:id).map(&:attributes) ]
+
+    result = seed_challenges.fetch("challenges")
+    skipped = result.dig("records", "challenges", identity)
+    assert_equal "skipped", skipped.fetch("result")
+    assert_equal "recorded_challenge_missing", skipped.fetch("reason")
+    assert_equal challenge.id, skipped.fetch("id")
+    enrollments = result.dig("records", "user_challenges").values.select { |row| row.fetch("challenge") == identity }
+    assert_equal deleted_count, enrollments.length
+    assert enrollments.all? { |row| row["result"] == "skipped" && row["reason"] == "challenge_skipped" }
+    assert_equal({ "challenges" => 5, "user_challenges" => 40 - deleted_count }, result.fetch("actual_counts"))
+    assert_equal result, seed_challenges.fetch("challenges")
+    assert_equal before, [ Challenge.order(:id).map(&:attributes), UserChallenge.order(:id).map(&:attributes) ]
+  end
+
+  test "replay reports a deleted enrollment without recreating it" do
+    first = seed_challenges.fetch("challenges")
+    enrollment = UserChallenge.order(:id).last
+    identity, = first.dig("records", "user_challenges").find { |_, record| record["id"] == enrollment.id }
+    enrollment.destroy!
 
     assert_no_difference [ "Challenge.count", "UserChallenge.count" ] do
-      assert_raises(DevelopmentReadingScenarioChallenges::ChallengeError) { seed_challenges }
+      result = seed_challenges.fetch("challenges")
+      skipped = result.dig("records", "user_challenges", identity)
+      assert_equal "skipped", skipped.fetch("result")
+      assert_equal "recorded_enrollment_missing", skipped.fetch("reason")
+      assert_equal enrollment.id, skipped.fetch("id")
+      assert_equal({ "challenges" => 6, "user_challenges" => 39 }, result.fetch("actual_counts"))
+      assert_equal result, seed_challenges.fetch("challenges")
     end
   end
 

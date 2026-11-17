@@ -34,7 +34,7 @@ class DevelopmentReadingScenarioChallenges
 
     working["status"] = "complete"
     working["actual_counts"] = working.fetch("records").transform_values do |records|
-      records.values.count { |record| record["id"] }
+      records.values.count { |record| record["id"] && record["result"] != "skipped" }
     end
     @manifest["challenges"] = working
     @scenario_manifest.save_scenario
@@ -77,7 +77,13 @@ class DevelopmentReadingScenarioChallenges
       next if record["result"] == "skipped"
 
       expected = record.fetch("expected_attributes")
-      row = existing_challenge(record, identity) || Challenge.create!(expected)
+      row = existing_challenge(record, identity)
+      if record["id"] && !row
+        record.merge!("result" => "skipped", "reason" => "recorded_challenge_missing")
+        next
+      end
+
+      row ||= Challenge.create!(expected)
       record["id"] = row.id
       challenges[identity] = row
     end
@@ -88,17 +94,28 @@ class DevelopmentReadingScenarioChallenges
     return matching_row(@challenge_rows, record, record.fetch("expected_attributes"), identity) unless id
 
     # Once recorded, the ID identifies the challenge. Its current attributes belong to the application.
-    @challenge_rows.find { |row| row.id == id } ||
-      raise(ChallengeError, "Recorded challenge #{identity} (ID #{id}) is missing; no automatic recreation is allowed.")
+    @challenge_rows.find { |row| row.id == id }
   end
 
   def import_enrollments(working, challenges, rows)
     working.fetch("records").fetch("user_challenges").each do |identity, record|
       next if record["result"] == "skipped"
 
-      expected = record.fetch("expected_attributes").merge("challenge_id" => challenges.fetch(record.fetch("challenge")).id)
+      challenge = challenges[record.fetch("challenge")]
+      unless challenge
+        record.merge!("result" => "skipped", "reason" => "challenge_skipped")
+        next
+      end
+
+      expected = record.fetch("expected_attributes").merge("challenge_id" => challenge.id)
       # Progress, status and lock_version belong to normal application activity; replay must not reset them.
-      row = matching_row(rows, record, expected, identity) || UserChallenge.create!(expected)
+      row = matching_row(rows, record, expected, identity)
+      if record["id"] && !row
+        record.merge!("result" => "skipped", "reason" => "recorded_enrollment_missing")
+        next
+      end
+
+      row ||= UserChallenge.create!(expected)
       record["id"] = row.id
       record["expected_attributes"] = expected
     end
@@ -107,8 +124,10 @@ class DevelopmentReadingScenarioChallenges
   def matching_row(rows, record, expected, identity)
     if record["id"]
       row = rows.find { |candidate| candidate.id == record.fetch("id") }
-      unless row && row.attributes.slice(*expected.keys).as_json == expected
-        raise ChallengeError, "Recorded challenge data #{identity} (ID #{record.fetch('id')}) is missing or changed; no automatic overwrite or recreation is allowed."
+      return unless row
+
+      unless row.attributes.slice(*expected.keys).as_json == expected
+        raise ChallengeError, "Recorded challenge data #{identity} (ID #{record.fetch('id')}) changed; no automatic overwrite is allowed."
       end
       return row
     end
