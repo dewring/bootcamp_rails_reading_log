@@ -46,6 +46,38 @@ class DevelopmentReadingScenarioPlanTest < ActiveSupport::TestCase
     assert_not_requested :any, /https?:/
   end
 
+  test "the challenge plan includes two challenges per goal type with valid dates and goals" do
+    challenges = build_baseline.fetch("challenges")
+
+    assert_equal 6, challenges.length
+    assert_equal 6, challenges.map { |entry| entry.fetch("identity") }.uniq.length
+    assert_equal 6, challenges.map { |entry| entry.fetch("attributes").fetch("title") }.uniq.length
+    assert_equal({ "pages_per_day" => 2, "books_total" => 2, "streak_days" => 2 }, challenges.map { |entry| entry.fetch("attributes").fetch("goal_type") }.tally)
+    challenges.each do |entry|
+      challenge = Challenge.new(entry.fetch("attributes"))
+      assert challenge.valid?, challenge.errors.full_messages.join(", ")
+      assert challenge.active?
+      assert_operator challenge.starts_at, :<, @as_of
+      assert_operator challenge.ends_at, :>, @as_of
+    end
+  end
+
+  test "ten readers join three challenges ten join one and ten join none in the plan" do
+    plan = build_baseline
+    enrollments = plan.fetch("user_challenges")
+    by_reader = enrollments.group_by { |entry| entry.fetch("reader") }
+    counts = plan.fetch("users").select { |entry| entry.fetch("attributes").fetch("role") == "user" }.map do |reader|
+      by_reader.fetch(reader.fetch("identity"), []).length
+    end
+
+    assert_equal({ 3 => 10, 1 => 10, 0 => 10 }, counts.tally)
+    assert_equal 40, enrollments.length
+    assert_equal 40, enrollments.map { |entry| entry.fetch("identity") }.uniq.length
+    assert_equal 40, enrollments.map { |entry| entry.values_at("reader", "challenge") }.uniq.length
+    assert_equal plan.fetch("challenges").map { |entry| entry.fetch("identity") }.sort, enrollments.map { |entry| entry.fetch("challenge") }.uniq.sort
+    assert_not by_reader.key?("admin")
+  end
+
   test "the same snapshot seed and reference time reproduce the same plan without mutating catalog input" do
     before = @catalog.deep_dup
     first = build_baseline
