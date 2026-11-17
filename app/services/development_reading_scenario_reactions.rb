@@ -89,7 +89,7 @@ class DevelopmentReadingScenarioReactions
     catalog = OpenLibraryCatalogPreflight.new(snapshot_path: @snapshot_path, manifest_path: @scenario_manifest.path).preflight_catalog
     @manifest = @scenario_manifest.prepare_scenario(snapshot_id: catalog.fetch("snapshot_id"))
     unless @manifest.dig("baseline", "status") == "complete"
-      raise ReactionsError, "Prepare the Day 1 baseline with db:seed before seeding reactions."
+      raise ReactionsError, "Run DevelopmentReadingScenario.new.seed_scenario in the Rails console to prepare the Day 1 baseline."
     end
     load_readers
     load_books

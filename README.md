@@ -36,7 +36,19 @@ With those settings present, run inside the production application container:
 위 설정을 적용한 프로덕션 앱 컨테이너 안에서 실행한다:
 
 ```bash
-RAILS_ENV=production bin/rails db:seed
+RAILS_ENV=production bin/rails console
+```
+
+In the Rails console / Rails 콘솔에서:
+
+```ruby
+demo = DevelopmentReadingScenario.new.seed_scenario
+pp demo.fetch("baseline").slice("status", "actual_counts")
+```
+
+To add another batch, use the application container shell / 추가 활동은 앱 컨테이너 셸에서 실행한다:
+
+```bash
 RAILS_ENV=production bin/rails 'development_scenario:simulate_reading[demo1]'
 ```
 

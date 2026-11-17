@@ -334,9 +334,7 @@ class DevelopmentReadingScenarioTest < ActiveSupport::TestCase
       # Exercise the production permission branch without changing lazy database connection selection.
       Rails.env.stub(:production?, true) do
         @scenario = DevelopmentReadingScenario.new(**@paths, password: "synthetic-scenario-test-password")
-        DevelopmentReadingScenario.stub(:new, @scenario) do
-          capture_io { load Rails.root.join("db/seeds.rb") }
-        end
+        @scenario.seed_scenario
         manifest = JSON.parse(@paths.fetch(:manifest_path).read)
         assert_equal "complete", manifest.dig("baseline", "status")
         assert_equal Time.iso8601(reference), Time.iso8601(manifest.fetch("as_of"))
@@ -358,11 +356,10 @@ class DevelopmentReadingScenarioTest < ActiveSupport::TestCase
     assert_not_requested :any, /https?:/
   end
 
-  test "the seed entry point refuses non-development environments before writes or HTTP" do
+  test "baseline replay without permission leaves the database unchanged and makes no HTTP requests" do
     [ "test", "production" ].each do |environment|
       assert_no_difference model_counts do
         Rails.stub(:env, environment.inquiry) do
-          assert_raises(DevelopmentReadingScenario::ScenarioError) { load Rails.root.join("db/seeds.rb") }
           assert_raises(DevelopmentReadingScenario::ScenarioError) { @scenario.seed_baseline }
         end
       end
@@ -370,6 +367,18 @@ class DevelopmentReadingScenarioTest < ActiveSupport::TestCase
     assert_not @paths.fetch(:manifest_path).exist?
     assert_empty enqueued_jobs
     assert_not_requested :any, /https?:/
+  end
+
+  test "production database preparation never starts the simulator even when explicitly enabled" do
+    variables = ENV.to_h.merge("ALLOW_PRODUCTION_SCENARIO" => "true")
+
+    ENV.stub(:[], variables.method(:[])) do
+      Rails.env.stub(:production?, true) do
+        DevelopmentReadingScenario.stub(:new, -> { flunk "Database setup started the demo simulator" }) do
+          assert load(Rails.root.join("db/seeds.rb"))
+        end
+      end
+    end
   end
 
   private

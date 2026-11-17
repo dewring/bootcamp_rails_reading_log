@@ -40,7 +40,7 @@ class DevelopmentReadingScenarioTick
       @baseline = DevelopmentReadingScenarioPlan.new(catalog: catalog, as_of: @as_of).build_baseline
       @manifest = @scenario_manifest.prepare_scenario(snapshot_id: catalog.fetch("snapshot_id"))
       unless @manifest["baseline"] && @manifest.dig("community", "status") == "saved"
-        raise TickError, "Seed the complete baseline with db:seed before advancing a tick."
+        raise TickError, "Run DevelopmentReadingScenario.new.seed_scenario in the Rails console before advancing a tick."
       end
       @bootstrap.preflight_bootstrap
       @catalog.preflight_catalog
