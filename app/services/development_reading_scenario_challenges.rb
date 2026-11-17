@@ -49,7 +49,11 @@ class DevelopmentReadingScenarioChallenges
       attributes = entry.fetch("attributes").merge("created_at" => @plan.fetch("as_of"))
       record = planned_record(Challenge, attributes)
       collisions = @challenge_rows.select { |row| row.title.casecmp?(attributes.fetch("title")) }
-      if collisions.any?
+      expected = record.fetch("expected_attributes").except("created_at")
+      matches = collisions.select { |row| row.attributes.slice(*expected.keys).as_json == expected }
+      if matches.one?
+        record.merge!("id" => matches.first.id, "result" => "reused")
+      elsif collisions.any?
         record.merge!("result" => "skipped", "reason" => "challenge_title_collision", "record_ids" => collisions.map(&:id).sort)
       end
       [ entry.fetch("identity"), record ]

@@ -55,6 +55,36 @@ class DevelopmentReadingScenarioChallengesTest < ActiveSupport::TestCase
     assert_equal before, [ Challenge.order(:id).map(&:attributes), UserChallenge.order(:id).map(&:attributes) ]
   end
 
+  test "a unique challenge with matching title goal and dates is reused with its existing attributes" do
+    planned = @plan.fetch("challenges").first
+    identity = planned.fetch("identity")
+    existing = Challenge.create!(planned.fetch("attributes").merge("created_at" => 1.year.ago))
+    before = existing.attributes
+
+    assert_difference "Challenge.count", 5 do
+      result = seed_challenges.fetch("challenges")
+      record = result.dig("records", "challenges", identity)
+      assert_equal existing.id, record.fetch("id")
+      assert_equal "reused", record.fetch("result")
+      expected = @plan.fetch("user_challenges").count { |entry| entry.fetch("challenge") == identity }
+      assert_equal expected, UserChallenge.where(challenge: existing).count
+    end
+    assert_equal before, existing.reload.attributes
+  end
+
+  test "two otherwise matching challenges are skipped as ambiguous" do
+    planned = @plan.fetch("challenges").first
+    attributes = planned.fetch("attributes")
+    ids = Array.new(2) { Challenge.create!(attributes).id }
+
+    result = seed_challenges.fetch("challenges")
+
+    record = result.dig("records", "challenges", planned.fetch("identity"))
+    assert_equal "skipped", record.fetch("result")
+    assert_equal ids.sort, record.fetch("record_ids")
+    assert_empty UserChallenge.where(challenge_id: ids)
+  end
+
   test "a challenge title collision skips its enrollments and preserves unrelated imports on replay" do
     planned = @plan.fetch("challenges").first
     identity = planned.fetch("identity")
