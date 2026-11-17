@@ -1,10 +1,11 @@
 class DevelopmentReadingScenarioTick::Plan
   NAME = "tick1".freeze
 
-  def initialize(baseline:, manifest:, as_of:)
+  def initialize(baseline:, manifest:, as_of:, name: NAME)
     @baseline = baseline
     @manifest = manifest
     @as_of = as_of.in_time_zone
+    @name = name
   end
 
   def build_tick
@@ -16,9 +17,9 @@ class DevelopmentReadingScenarioTick::Plan
         "id" => nil, "result" => nil, "library_identity" => "#{reader}/#{work}",
         "expected_attributes" => {
           "user_id" => reader_id(reader), "book_id" => book.fetch("book").fetch("id"),
-          "book_edition_id" => book.fetch("edition")["id"], "read_on" => @as_of.to_date.iso8601,
+          "book_edition_id" => book.fetch("edition")["id"], "read_on" => activity_date.iso8601,
           "pages_read" => 16 + index,
-          "notes" => "Synthetic journal. Follow-up reading: I revisited a passage and compared it with my earlier notes."
+          "notes" => activity_text("Synthetic journal. Follow-up reading: I revisited a passage and compared it with my earlier notes.")
         }
       } ]
     end
@@ -29,15 +30,26 @@ class DevelopmentReadingScenarioTick::Plan
           "user_id" => reader_id(reader),
           "book_club_id" => @manifest.fetch("community").fetch("records").fetch("book_clubs").fetch(club).fetch("id"),
           "parent_id" => nil,
-          "body" => "Synthetic discussion. After another reading break, I noticed how the opening passage changes my interpretation of the chapter."
+          "body" => activity_text("Synthetic discussion. After another reading break, I noticed how the opening passage changes my interpretation of the chapter.")
         }
       } ]
     end
-    { "name" => NAME, "status" => "pending", "expected_counts" => { "reading_sessions" => 3, "club_messages" => 2 },
+    { "name" => @name, "status" => "pending", "expected_counts" => { "reading_sessions" => 3, "club_messages" => 2 },
       "reading_sessions" => sessions, "club_messages" => posts }
   end
 
   private
+
+  def activity_date
+    @name == NAME ? @as_of.to_date : Date.current
+  end
+
+  def activity_text(text)
+    return text if @name == NAME
+
+    # Distinguish batches even on the same day so interrupted writes cannot adopt another batch's rows.
+    text.dup.concat(" Demo batch: #{@name}.")
+  end
 
   def reader_id(identity)
     @manifest.fetch("bootstrap").fetch("records").fetch("users").fetch(identity).fetch("id")

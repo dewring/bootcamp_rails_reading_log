@@ -19,20 +19,26 @@ class DevelopmentReadingScenario
   def seed_scenario
     @scenario_manifest.with_exclusive_access do
       seed_baseline
+      @challenges.seed_challenges
       @reactions.seed_reactions
     end
   end
 
   def seed_baseline
-    raise ScenarioError, "Scenario seed replay is only available in development" unless Rails.env.development?
+    unless ReadingScenarioEnvironment.enabled?
+      raise ScenarioError, "Scenario seed replay requires development or production with ALLOW_PRODUCTION_SCENARIO=true"
+    end
 
     @scenario_manifest.with_exclusive_access do
       catalog = OpenLibraryCatalogPreflight.new(snapshot_path: @snapshot_path, manifest_path: @scenario_manifest.path).preflight_catalog
       @plan = DevelopmentReadingScenarioPlan.new(catalog: catalog, as_of: @as_of).build_baseline
       @manifest = @scenario_manifest.prepare_scenario(snapshot_id: catalog.fetch("snapshot_id"))
+      @challenges = DevelopmentReadingScenarioChallenges.new(plan: @plan, manifest: @manifest, scenario_manifest: @scenario_manifest)
+      @challenges.preflight_challenges
       preflight_baseline
       @bootstrap.bootstrap_scenario
       @catalog.replay_catalog
+      DevelopmentReadingScenarioGenres.new(manifest: @manifest, scenario_manifest: @scenario_manifest).seed_genres
       @reading.replay_reading
       @community.replay_community
       record_baseline_result

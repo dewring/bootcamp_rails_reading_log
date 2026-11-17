@@ -20,7 +20,9 @@ class DevelopmentReadingScenarioManifest
   end
 
   def with_exclusive_access
-    raise ManifestError, "Scenario writes are only available in development" unless Rails.env.development?
+    unless ReadingScenarioEnvironment.enabled?
+      raise ManifestError, "Scenario writes require development or production with ALLOW_PRODUCTION_SCENARIO=true"
+    end
     raise ManifestError, "Another reading scenario operation is already running" unless @monitor.try_enter
 
     begin

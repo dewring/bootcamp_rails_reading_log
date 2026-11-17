@@ -1,5 +1,5 @@
 namespace :development_scenario do
-  desc "Report real 50% discovery assignments and current reaction counts at DISCOVERY_AS_OF (development only)"
+  desc "Report discovery assignments and reaction counts at DISCOVERY_AS_OF (production requires ALLOW_PRODUCTION_SCENARIO=true)"
   task preview_discovery: :environment do
     as_of = Time.iso8601(ENV.fetch("DISCOVERY_AS_OF"))
     report = DevelopmentReadingScenarioReactions.new.preview_discovery(as_of: as_of)
@@ -8,7 +8,7 @@ namespace :development_scenario do
     abort error.message
   end
 
-  desc "Refresh one recorded old_hit reaction once using the scenario reference time (development only)"
+  desc "Refresh one recorded old_hit reaction once at the scenario reference time (production requires ALLOW_PRODUCTION_SCENARIO=true)"
   task refresh_old_hit_reaction: :environment do
     manifest = DevelopmentReadingScenarioReactions.new.refresh_old_hit_reaction
     action = manifest.fetch("reactions").fetch(DevelopmentReadingScenarioReactions::REFRESH_ACTION)
@@ -20,25 +20,26 @@ namespace :development_scenario do
     abort error.message
   end
 
-  desc "Seed 160 owned book reactions from the prepared baseline (development only)"
+  desc "Seed 160 owned book reactions from the prepared baseline (production requires ALLOW_PRODUCTION_SCENARIO=true)"
   task seed_reactions: :environment do
     manifest = DevelopmentReadingScenarioReactions.new.seed_reactions
     $stdout.write("Scenario baseline reactions: #{manifest.fetch('reactions').fetch('actual_counts').to_json}\n")
     $stdout.write("Current synthetic-reader reactions: #{manifest.fetch('reactions').fetch('current_counts').to_json}\n")
-    $stdout.write("Run the development worker to publish aggregate totals.\n")
+    $stdout.write("Run the application worker to publish aggregate totals.\n")
   rescue DevelopmentReadingScenarioReactions::ReactionsError, DevelopmentReadingScenarioManifest::ManifestError => error
     abort error.message
   end
 
-  desc "Simulate reading activity once: three sessions and two top-level posts (development only)"
-  task simulate_reading: :environment do
-    name = DevelopmentReadingScenarioTick::Plan::NAME
+  desc "Simulate three sessions and two posts per named tick (default: tick1; production requires ALLOW_PRODUCTION_SCENARIO=true)"
+  task :simulate_reading, [ :tick ] => :environment do |_task, arguments|
+    name = arguments[:tick] || DevelopmentReadingScenarioTick::Plan::NAME
     manifest = DevelopmentReadingScenarioTick.new.advance_scenario(tick: name)
     tick = manifest.fetch("ticks").fetch(name)
     $stdout.write("Baseline activity: #{tick.fetch('baseline_counts').to_json}\n")
     $stdout.write("Reading simulation #{tick.fetch('status')}; scenario counts: #{tick.fetch('scenario_counts').to_json}\n")
-    $stdout.write("Run the development worker to process normal background jobs.\n")
-  rescue DevelopmentReadingScenarioTick::TickError => error
+    $stdout.write("Run the application worker to process normal background jobs.\n")
+  rescue ArgumentError, DevelopmentReadingScenarioTick::TickError,
+    DevelopmentReadingScenarioManifest::ManifestError, OpenLibraryCatalogPreflight::PreflightError => error
     abort error.message
   end
 

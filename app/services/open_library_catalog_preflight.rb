@@ -19,7 +19,9 @@ class OpenLibraryCatalogPreflight
   end
 
   def preflight_catalog
-    raise PreflightError, "Catalog preflight is only available in development" unless Rails.env.development?
+    unless ReadingScenarioEnvironment.enabled?
+      raise PreflightError, "Catalog preflight is only available in development or production with ALLOW_PRODUCTION_SCENARIO=true"
+    end
 
     @snapshot = JSON.parse(@snapshot_path.read)
     @conflicts = []

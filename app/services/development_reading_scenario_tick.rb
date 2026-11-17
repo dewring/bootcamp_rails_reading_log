@@ -31,7 +31,9 @@ class DevelopmentReadingScenarioTick
   private
 
   def with_tick_context(name)
-    raise TickError, "Supported named tick: #{Plan::NAME}." unless name == Plan::NAME
+    unless name.is_a?(String) && name.match?(/\A[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}\z/)
+      raise TickError, "Use a tick name of 1–64 letters, numbers, underscores or hyphens, starting with a letter or number."
+    end
 
     @scenario_manifest.with_exclusive_access do
       catalog = OpenLibraryCatalogPreflight.new(snapshot_path: @snapshot_path, manifest_path: @scenario_manifest.path).preflight_catalog
@@ -42,7 +44,7 @@ class DevelopmentReadingScenarioTick
       end
       @bootstrap.preflight_bootstrap
       @catalog.preflight_catalog
-      @tick = @manifest.dig("ticks", name) || Plan.new(baseline: @baseline, manifest: @manifest, as_of: @as_of).build_tick
+      @tick = @manifest.dig("ticks", name) || Plan.new(baseline: @baseline, manifest: @manifest, as_of: @as_of, name: name).build_tick
       @inventory = Inventory.new(tick: @tick)
       @inventory.verify_tick
       @reading.preflight_reading

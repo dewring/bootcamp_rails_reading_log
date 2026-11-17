@@ -45,6 +45,7 @@ class DevelopmentReadingScenarioTest < ActiveSupport::TestCase
     assert_equal "complete", baseline.fetch("status")
     assert_includes output, "complete"
     assert_equal DevelopmentReadingScenarioReactions::COUNTS, manifest.dig("reactions", "actual_counts")
+    assert_equal({ "challenges" => 6, "user_challenges" => 40 }, manifest.dig("challenges", "actual_counts"))
     assert_not manifest.fetch("reading").key?("callback_work")
     assert_not_empty enqueued_jobs
     assert_equal 12, manifest.dig("bootstrap", "actual_counts", "genres")
@@ -321,6 +322,40 @@ class DevelopmentReadingScenarioTest < ActiveSupport::TestCase
         assert_includes actual.backtrace.first, __FILE__
       end
     end
+  end
+
+  test "opted-in production seeds the complete scenario and replays without changing existing rows" do
+    models = [ Genre, Badge, User, Book, BookEdition, UserBook, ReadingSession, BookClub, BookClubMembership, ClubMessage, Review, Reaction, Challenge, UserChallenge ]
+    existing = models.to_h { |model| [ model, model.order(:id).map(&:attributes) ] }
+    reference = "2026-11-16T20:00:00Z"
+    variables = ENV.to_h.merge("ALLOW_PRODUCTION_SCENARIO" => "true", "READING_SCENARIO_AS_OF" => reference)
+
+    ENV.stub(:[], variables.method(:[])) do
+      # Exercise the production permission branch without changing lazy database connection selection.
+      Rails.env.stub(:production?, true) do
+        @scenario = DevelopmentReadingScenario.new(**@paths, password: "synthetic-scenario-test-password")
+        DevelopmentReadingScenario.stub(:new, @scenario) do
+          capture_io { load Rails.root.join("db/seeds.rb") }
+        end
+        manifest = JSON.parse(@paths.fetch(:manifest_path).read)
+        assert_equal "complete", manifest.dig("baseline", "status")
+        assert_equal Time.iso8601(reference), Time.iso8601(manifest.fetch("as_of"))
+        book_id = manifest.dig("reactions", "anchors", "new_burst", "book_id")
+        assert_equal 12, Book.where(id: book_id).trending(as_of: Time.iso8601(reference)).sole.trending_score
+        assert_equal manifest.dig("baseline", "expected_counts"), manifest.dig("baseline", "actual_counts")
+        assert_equal DevelopmentReadingScenarioReactions::COUNTS, manifest.dig("reactions", "actual_counts")
+        saved = models.to_h { |model| [ model, model.order(:id).map(&:attributes) ] }
+
+        @scenario.seed_scenario
+
+        assert_equal saved, models.to_h { |model| [ model, model.order(:id).map(&:attributes) ] }
+      end
+    end
+
+    existing.each do |model, rows|
+      assert_equal rows, model.where(id: rows.map { |row| row.fetch("id") }).order(:id).map(&:attributes)
+    end
+    assert_not_requested :any, /https?:/
   end
 
   test "the seed entry point refuses non-development environments before writes or HTTP" do

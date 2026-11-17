@@ -18,6 +18,26 @@ class DevelopmentReadingScenarioTickRecoveryTest < ActiveSupport::TestCase
     assert_not_requested :any, /https?:/
   end
 
+  test "an interrupted named batch resumes on a later date without adopting the previous batch" do
+    travel_to Time.zone.local(2026, 11, 16, 12) do
+      first = in_development { @tick.advance_scenario(tick: "demo1") }
+      first_ids = first.dig("ticks", "demo1", "reading_sessions").values.map { |record| record.fetch("id") }
+      interrupt_checkpoint_when(tick: "demo2") { scenario_sessions.count > 303 }
+      committed = scenario_sessions.order(:id).last
+      assert_not_includes first_ids, committed.id
+      travel 1.day
+
+      completed = in_development { @tick.advance_scenario(tick: "demo2") }
+
+      assert_equal committed.id, completed.dig("ticks", "demo2", "reading_sessions", "reading1", "id")
+      assert_equal 306, scenario_sessions.count
+      assert_equal 84, scenario_posts.count
+      ids = completed.dig("ticks", "demo2", "reading_sessions").values.map { |record| record.fetch("id") }
+      assert_equal [ Date.new(2026, 11, 16) ], ReadingSession.where(id: ids).distinct.pluck(:read_on)
+      assert_equal first.fetch("ticks").fetch("demo1"), completed.fetch("ticks").fetch("demo1")
+    end
+  end
+
   test "a post committed before its checkpoint is reused without repeating its broadcast" do
     interrupt_checkpoint_when { scenario_posts.count > 80 }
     first = scenario_posts.order(:id).last
@@ -135,7 +155,7 @@ class DevelopmentReadingScenarioTickRecoveryTest < ActiveSupport::TestCase
     ClubMessage.where(user_id: User.where.not(id: @initial_users).select(:id))
   end
 
-  def interrupt_checkpoint_when(&condition)
+  def interrupt_checkpoint_when(tick: "tick1", &condition)
     original = File.method(:rename)
     File.stub(:rename, ->(source, destination) {
       if Pathname.new(destination) == @paths.fetch(:manifest_path) && condition.call(JSON.parse(Pathname.new(source).read))
@@ -143,7 +163,7 @@ class DevelopmentReadingScenarioTickRecoveryTest < ActiveSupport::TestCase
       end
       original.call(source, destination)
     }) do
-      assert_raises(IOError) { advance }
+      assert_raises(IOError) { in_development { @tick.advance_scenario(tick: tick) } }
     end
   end
 

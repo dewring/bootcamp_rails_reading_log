@@ -32,6 +32,52 @@ class DevelopmentReadingScenarioPlanTest < ActiveSupport::TestCase
     assert_not_requested :any, /https?:/
   end
 
+  test "production planning matches development without changing database rows or making HTTP requests" do
+    expected = build_baseline
+    actual = nil
+
+    assert_no_difference [ "User.count", "Book.count", "UserBook.count", "ReadingSession.count", "BookClub.count", "ClubMessage.count", "Review.count" ] do
+      Rails.stub(:env, "production".inquiry) do
+        actual = @builder.build_baseline
+      end
+    end
+
+    assert_equal expected, actual
+    assert_not_requested :any, /https?:/
+  end
+
+  test "the challenge plan includes two challenges per goal type with valid dates and goals" do
+    challenges = build_baseline.fetch("challenges")
+
+    assert_equal 6, challenges.length
+    assert_equal 6, challenges.map { |entry| entry.fetch("identity") }.uniq.length
+    assert_equal 6, challenges.map { |entry| entry.fetch("attributes").fetch("title") }.uniq.length
+    assert_equal({ "pages_per_day" => 2, "books_total" => 2, "streak_days" => 2 }, challenges.map { |entry| entry.fetch("attributes").fetch("goal_type") }.tally)
+    challenges.each do |entry|
+      challenge = Challenge.new(entry.fetch("attributes"))
+      assert challenge.valid?, challenge.errors.full_messages.join(", ")
+      assert challenge.active?
+      assert_operator challenge.starts_at, :<, @as_of
+      assert_operator challenge.ends_at, :>, @as_of
+    end
+  end
+
+  test "ten readers join three challenges ten join one and ten join none in the plan" do
+    plan = build_baseline
+    enrollments = plan.fetch("user_challenges")
+    by_reader = enrollments.group_by { |entry| entry.fetch("reader") }
+    counts = plan.fetch("users").select { |entry| entry.fetch("attributes").fetch("role") == "user" }.map do |reader|
+      by_reader.fetch(reader.fetch("identity"), []).length
+    end
+
+    assert_equal({ 3 => 10, 1 => 10, 0 => 10 }, counts.tally)
+    assert_equal 40, enrollments.length
+    assert_equal 40, enrollments.map { |entry| entry.fetch("identity") }.uniq.length
+    assert_equal 40, enrollments.map { |entry| entry.values_at("reader", "challenge") }.uniq.length
+    assert_equal plan.fetch("challenges").map { |entry| entry.fetch("identity") }.sort, enrollments.map { |entry| entry.fetch("challenge") }.uniq.sort
+    assert_not by_reader.key?("admin")
+  end
+
   test "the same snapshot seed and reference time reproduce the same plan without mutating catalog input" do
     before = @catalog.deep_dup
     first = build_baseline
@@ -74,6 +120,38 @@ class DevelopmentReadingScenarioPlanTest < ActiveSupport::TestCase
     end
     admin = users.find { |entry| entry.fetch("identity") == "admin" }
     assert_equal "reading_scenario_admin@example.test", admin.fetch("attributes").fetch("email")
+  end
+
+  test "a configured reference time dates the baseline and challenges reproducibly" do
+    reference = "2026-11-16T20:00:00Z"
+    variables = ENV.to_h.merge("READING_SCENARIO_AS_OF" => reference)
+    ENV.stub(:[], variables.method(:[])) do
+      first = DevelopmentReadingScenarioPlan.new(catalog: @catalog).build_baseline
+      travel 2.days do
+        second = DevelopmentReadingScenarioPlan.new(catalog: @catalog).build_baseline
+        assert_equal first, second
+      end
+
+      assert_equal Time.iso8601(reference), Time.iso8601(first.fetch("as_of"))
+      dates = first.fetch("reading_sessions").map { |entry| Date.iso8601(entry.fetch("attributes").fetch("read_on")) }
+      assert_equal Date.new(2026, 10, 20), dates.min
+      assert_equal Date.new(2026, 11, 16), dates.max
+      first.fetch("challenges").each do |entry|
+        attributes = entry.fetch("attributes")
+        assert_operator Time.iso8601(attributes.fetch("starts_at")), :<, Time.iso8601(reference)
+        assert_operator Time.iso8601(attributes.fetch("ends_at")), :>, Time.iso8601(reference)
+      end
+    end
+  end
+
+  test "invalid or ambiguous configured reference times are rejected" do
+    [ "", "invalid", "2026-11-16T20:00:00", "2026-99-99T20:00:00Z" ].each do |value|
+      variables = ENV.to_h.merge("READING_SCENARIO_AS_OF" => value)
+      ENV.stub(:[], variables.method(:[])) do
+        error = assert_raises(ArgumentError) { DevelopmentReadingScenarioPlan.new(catalog: @catalog) }
+        assert_includes error.message, "READING_SCENARIO_AS_OF"
+      end
+    end
   end
 
   test "default baseline dates stay reproducible across application time zones" do
@@ -208,10 +286,13 @@ class DevelopmentReadingScenarioPlanTest < ActiveSupport::TestCase
     assert reviews.all? { |review| review.fetch("attributes").fetch("body").start_with?("Synthetic review:") }
   end
 
-  test "non-development planning refuses without making HTTP requests" do
+  test "non-development planning still rejects a catalog with fewer than 100 works" do
+    @catalog.fetch("books").pop
+
     [ "test", "production" ].each do |environment|
       Rails.stub(:env, environment.inquiry) do
-        assert_raises(RuntimeError) { @builder.build_baseline }
+        error = assert_raises(ArgumentError) { @builder.build_baseline }
+        assert_equal "The baseline requires exactly 100 distinct captured Works", error.message
       end
     end
 
