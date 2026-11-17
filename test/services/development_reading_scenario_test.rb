@@ -45,6 +45,7 @@ class DevelopmentReadingScenarioTest < ActiveSupport::TestCase
     assert_equal "complete", baseline.fetch("status")
     assert_includes output, "complete"
     assert_equal DevelopmentReadingScenarioReactions::COUNTS, manifest.dig("reactions", "actual_counts")
+    assert_equal({ "challenges" => 6, "user_challenges" => 40 }, manifest.dig("challenges", "actual_counts"))
     assert_not manifest.fetch("reading").key?("callback_work")
     assert_not_empty enqueued_jobs
     assert_equal 12, manifest.dig("bootstrap", "actual_counts", "genres")
@@ -324,7 +325,7 @@ class DevelopmentReadingScenarioTest < ActiveSupport::TestCase
   end
 
   test "opted-in production seeds the complete scenario and replays without changing existing rows" do
-    models = [ Genre, Badge, User, Book, BookEdition, UserBook, ReadingSession, BookClub, BookClubMembership, ClubMessage, Review, Reaction ]
+    models = [ Genre, Badge, User, Book, BookEdition, UserBook, ReadingSession, BookClub, BookClubMembership, ClubMessage, Review, Reaction, Challenge, UserChallenge ]
     existing = models.to_h { |model| [ model, model.order(:id).map(&:attributes) ] }
     variables = ENV.to_h.merge("ALLOW_PRODUCTION_SCENARIO" => "true")
 
