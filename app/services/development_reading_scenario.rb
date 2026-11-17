@@ -24,7 +24,9 @@ class DevelopmentReadingScenario
   end
 
   def seed_baseline
-    raise ScenarioError, "Scenario seed replay is only available in development" unless Rails.env.development?
+    unless ReadingScenarioEnvironment.enabled?
+      raise ScenarioError, "Scenario seed replay requires development or production with ALLOW_PRODUCTION_SCENARIO=true"
+    end
 
     @scenario_manifest.with_exclusive_access do
       catalog = OpenLibraryCatalogPreflight.new(snapshot_path: @snapshot_path, manifest_path: @scenario_manifest.path).preflight_catalog

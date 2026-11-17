@@ -25,13 +25,13 @@ class DevelopmentScenarioReactionsTaskTest < ActiveSupport::TestCase
     assert_includes output, '"dislikes":40'
   end
 
-  test "the task reports the development-only guard without creating reactions" do
+  test "the task reports the environment guard without creating reactions" do
     assert_no_difference "Reaction.count" do
       _output, error_output = capture_io do
         error = assert_raises(SystemExit) { @task.invoke }
         assert_equal 1, error.status
       end
-      assert_includes error_output, "only available in development"
+      assert_includes error_output, "ALLOW_PRODUCTION_SCENARIO=true"
     end
   end
 
@@ -110,7 +110,7 @@ class DevelopmentScenarioReactionsTaskTest < ActiveSupport::TestCase
     end
   end
 
-  test "the refresh command reports the development-only guard without changing reactions" do
+  test "the refresh command reports the environment guard without changing reactions" do
     Rake.with_application do
       Rake::Task.define_task(:environment)
       load Rails.root.join("lib/tasks/development_scenario.rake")
@@ -119,7 +119,7 @@ class DevelopmentScenarioReactionsTaskTest < ActiveSupport::TestCase
           error = assert_raises(SystemExit) { Rake::Task["development_scenario:refresh_old_hit_reaction"].invoke }
           assert_equal 1, error.status
         end
-        assert_includes error_output, "only available in development"
+        assert_includes error_output, "ALLOW_PRODUCTION_SCENARIO=true"
       end
     end
   end

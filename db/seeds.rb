@@ -1,5 +1,5 @@
-unless Rails.env.development?
-  raise DevelopmentReadingScenario::ScenarioError, "Development scenario seeds are only available in development; no records were written."
+unless ReadingScenarioEnvironment.enabled?
+  raise DevelopmentReadingScenario::ScenarioError, "Scenario seeds require development or production with ALLOW_PRODUCTION_SCENARIO=true; no records were written."
 end
 
 manifest = DevelopmentReadingScenario.new.seed_scenario

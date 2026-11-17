@@ -323,6 +323,34 @@ class DevelopmentReadingScenarioTest < ActiveSupport::TestCase
     end
   end
 
+  test "opted-in production seeds the complete scenario and replays without changing existing rows" do
+    models = [ Genre, Badge, User, Book, BookEdition, UserBook, ReadingSession, BookClub, BookClubMembership, ClubMessage, Review, Reaction ]
+    existing = models.to_h { |model| [ model, model.order(:id).map(&:attributes) ] }
+    variables = ENV.to_h.merge("ALLOW_PRODUCTION_SCENARIO" => "true")
+
+    ENV.stub(:[], variables.method(:[])) do
+      Rails.stub(:env, "production".inquiry) do
+        DevelopmentReadingScenario.stub(:new, @scenario) do
+          capture_io { load Rails.root.join("db/seeds.rb") }
+        end
+        manifest = JSON.parse(@paths.fetch(:manifest_path).read)
+        assert_equal "complete", manifest.dig("baseline", "status")
+        assert_equal manifest.dig("baseline", "expected_counts"), manifest.dig("baseline", "actual_counts")
+        assert_equal DevelopmentReadingScenarioReactions::COUNTS, manifest.dig("reactions", "actual_counts")
+        saved = models.to_h { |model| [ model, model.order(:id).map(&:attributes) ] }
+
+        @scenario.seed_scenario
+
+        assert_equal saved, models.to_h { |model| [ model, model.order(:id).map(&:attributes) ] }
+      end
+    end
+
+    existing.each do |model, rows|
+      assert_equal rows, model.where(id: rows.map { |row| row.fetch("id") }).order(:id).map(&:attributes)
+    end
+    assert_not_requested :any, /https?:/
+  end
+
   test "the seed entry point refuses non-development environments before writes or HTTP" do
     [ "test", "production" ].each do |environment|
       assert_no_difference model_counts do
