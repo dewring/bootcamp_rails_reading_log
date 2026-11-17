@@ -38,6 +38,7 @@ class DevelopmentReadingScenario
       preflight_baseline
       @bootstrap.bootstrap_scenario
       @catalog.replay_catalog
+      DevelopmentReadingScenarioGenres.new(manifest: @manifest, scenario_manifest: @scenario_manifest).seed_genres
       @reading.replay_reading
       @community.replay_community
       record_baseline_result
