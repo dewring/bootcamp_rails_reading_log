@@ -14,6 +14,7 @@ class OpenLibraryCatalogReplay
       @scenario_manifest.save_scenario
       @plan.fetch("books").each { |entry| import_catalog_entry(entry) }
       record_catalog_counts
+      record_skipped_edition_conflicts
       @manifest.fetch("catalog")["status"] = "complete"
       @scenario_manifest.save_scenario
       prepare_cover_previews
@@ -175,5 +176,15 @@ class OpenLibraryCatalogReplay
       "books" => OpenLibraryCatalogCapture::TARGET_COUNT,
       "book_editions" => @plan.fetch("books").count { |entry| entry["edition_attributes"] }
     }
+  end
+
+  def record_skipped_edition_conflicts
+    catalog = @manifest.fetch("catalog")
+    catalog["skipped_edition_conflicts"] = catalog.fetch("records").filter_map do |work_key, pair|
+      edition = pair.fetch("edition")
+      next unless edition["reason"] == "conflicting_edition_identity"
+
+      edition.except("result").merge("work_key" => work_key)
+    end
   end
 end

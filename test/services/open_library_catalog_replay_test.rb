@@ -70,12 +70,15 @@ class OpenLibraryCatalogReplayTest < ActiveSupport::TestCase
     assert_equal "skipped", skipped.fetch("result")
     assert_equal "conflicting_edition_identity", skipped.fetch("reason")
     assert_equal [ edition.id ], skipped.fetch("record_ids")
+    summary = skipped.except("result").merge("work_key" => "/works/OL153000W")
+    assert_equal [ summary ], first.dig("catalog", "skipped_edition_conflicts")
     assert_equal({ "books" => 100, "book_editions" => 1 }, first.dig("catalog", "actual_counts"))
     assert_equal before, edition.reload.attributes
 
     assert_no_difference [ "Book.count", "BookEdition.count" ] do
       second = replay_catalog
       assert_equal skipped, catalog_records(second).fetch("/works/OL153000W").fetch("edition")
+      assert_equal [ summary ], second.dig("catalog", "skipped_edition_conflicts")
     end
     assert_equal before, edition.reload.attributes
   end
