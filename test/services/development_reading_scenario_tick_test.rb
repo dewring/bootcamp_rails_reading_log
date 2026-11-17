@@ -63,6 +63,59 @@ class DevelopmentReadingScenarioTickTest < ActiveSupport::TestCase
     end
   end
 
+  test "named production batches add current activity preserve existing rows and replay without duplicates" do
+    advance
+    models = [ User, Book, ReadingSession, ClubMessage, Review ]
+    original_rows = models.to_h { |model| [ model, model.order(:id).map(&:attributes) ] }
+    variables = ENV.to_h.merge("ALLOW_PRODUCTION_SCENARIO" => "true")
+    date = Date.new(2026, 11, 16)
+
+    travel_to Time.zone.local(2026, 11, 16, 12) do
+      ENV.stub(:[], variables.method(:[])) do
+        Rails.stub(:env, "production".inquiry) do
+          Rake.with_application do
+            Rake::Task.define_task(:environment)
+            load Rails.root.join("lib/tasks/development_scenario.rake")
+            DevelopmentReadingScenarioTick.stub(:new, @tick) do
+              command = Rake::Task["development_scenario:simulate_reading"]
+              [ "demo1", "demo2" ].each do |name|
+                command.reenable
+                assert_difference "ReadingSession.count", 3 do
+                  assert_difference "ClubMessage.count", 2 do
+                    capture_io { command.invoke(name) }
+                  end
+                end
+              end
+            end
+          end
+          manifest = JSON.parse(@paths.fetch(:manifest_path).read)
+          ids = [ "demo1", "demo2" ].flat_map do |name|
+            manifest.dig("ticks", name, "reading_sessions").values.map { |record| record.fetch("id") }
+          end
+          assert_equal 6, ids.uniq.length
+          assert_equal [ date ], ReadingSession.where(id: ids).distinct.pluck(:read_on)
+          saved = models.to_h { |model| [ model, model.order(:id).map(&:attributes) ] }
+          saved_manifest = @paths.fetch(:manifest_path).read
+          queue = enqueued_jobs.dup
+
+          travel 1.day
+          [ "tick1", "demo1", "demo2" ].each { |name| @tick.advance_scenario(tick: name) }
+
+          assert_equal saved_manifest, @paths.fetch(:manifest_path).read
+          assert_equal queue, enqueued_jobs
+          assert_equal saved, models.to_h { |model| [ model, model.order(:id).map(&:attributes) ] }
+          replayed = @seed.seed_baseline
+          assert_equal({ "reading_sessions" => 309, "club_messages" => 86 }, replayed.fetch("baseline").fetch("actual_counts").slice("reading_sessions", "club_messages"))
+        end
+      end
+    end
+
+    original_rows.each do |model, rows|
+      assert_equal rows, model.where(id: rows.map { |row| row.fetch("id") }).order(:id).map(&:attributes)
+    end
+    assert_not_requested :any, /https?:/
+  end
+
   test "repeating a fully saved tick changes no rows jobs broadcasts or manifest contents" do
     first = advance
     saved = @paths.fetch(:manifest_path).read
@@ -116,7 +169,7 @@ class DevelopmentReadingScenarioTickTest < ActiveSupport::TestCase
     queue = enqueued_jobs.dup
     assert_no_difference [ "ReadingSession.count", "ClubMessage.count" ] do
       in_development do
-        [ nil, "tick2" ].each do |name|
+        [ nil, "", "../demo", "a" * 65 ].each do |name|
           assert_raises(DevelopmentReadingScenarioTick::TickError) { @tick.advance_scenario(tick: name) }
         end
       end

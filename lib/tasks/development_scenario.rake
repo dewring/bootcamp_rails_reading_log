@@ -30,9 +30,9 @@ namespace :development_scenario do
     abort error.message
   end
 
-  desc "Simulate reading activity once: three sessions and two top-level posts (development only)"
-  task simulate_reading: :environment do
-    name = DevelopmentReadingScenarioTick::Plan::NAME
+  desc "Simulate three sessions and two posts per named tick (default: tick1; production requires ALLOW_PRODUCTION_SCENARIO=true)"
+  task :simulate_reading, [ :tick ] => :environment do |_task, arguments|
+    name = arguments[:tick] || DevelopmentReadingScenarioTick::Plan::NAME
     manifest = DevelopmentReadingScenarioTick.new.advance_scenario(tick: name)
     tick = manifest.fetch("ticks").fetch(name)
     $stdout.write("Baseline activity: #{tick.fetch('baseline_counts').to_json}\n")
