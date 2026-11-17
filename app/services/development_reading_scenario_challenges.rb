@@ -99,7 +99,8 @@ class DevelopmentReadingScenarioChallenges
   end
 
   def import_enrollments(working, challenges, rows)
-    working.fetch("records").fetch("user_challenges").each do |identity, record|
+    by_pair = rows.index_by { |row| [ row.user_id, row.challenge_id ] }
+    working.fetch("records").fetch("user_challenges").each_value do |record|
       next if record["result"] == "skipped"
 
       challenge = challenges[record.fetch("challenge")]
@@ -113,7 +114,7 @@ class DevelopmentReadingScenarioChallenges
       row = if record["id"]
         recorded_enrollment(rows, record, expected)
       else
-        matching_row(rows, expected, identity)
+        by_pair[expected.values_at("user_id", "challenge_id")]
       end
       next if record["result"] == "skipped"
 

@@ -2,7 +2,7 @@ require "test_helper"
 require "tmpdir"
 
 class DevelopmentReadingScenarioChallengesTest < ActiveSupport::TestCase
-  uses_transaction "test_committed_challenges_and_enrollments_recover_after_the_manifest_checkpoint_fails"
+  uses_transaction "test_recovery_reuses_existing_enrollments_by_reader_and_challenge_after_a_failed_checkpoint"
 
   setup do
     @directory = Pathname.new(Dir.mktmpdir("booknook-challenges-"))
@@ -172,7 +172,7 @@ class DevelopmentReadingScenarioChallengesTest < ActiveSupport::TestCase
     assert_equal "complete", seed_challenges.dig("challenges", "status")
   end
 
-  test "committed challenges and enrollments recover after the manifest checkpoint fails" do
+  test "recovery reuses existing enrollments by reader and challenge after a failed checkpoint" do
     rename = File.method(:rename)
     File.stub(:rename, ->(source, destination) {
       if Pathname.new(destination) == @directory.join("manifest.json") && UserChallenge.count == 40
@@ -182,11 +182,14 @@ class DevelopmentReadingScenarioChallengesTest < ActiveSupport::TestCase
     }) do
       assert_raises(IOError) { seed_challenges }
     end
+    enrollment = UserChallenge.order(:id).first
+    enrollment.update!(created_at: enrollment.created_at + 1.day, status: :in_progress, progress: 45)
     before = [ Challenge.order(:id).map(&:attributes), UserChallenge.order(:id).map(&:attributes) ]
 
     result = seed_challenges
 
     assert_equal "complete", result.dig("challenges", "status")
+    assert_includes result.dig("challenges", "records", "user_challenges").values.map { |record| record.fetch("id") }, enrollment.id
     assert_equal before, [ Challenge.order(:id).map(&:attributes), UserChallenge.order(:id).map(&:attributes) ]
   end
 
