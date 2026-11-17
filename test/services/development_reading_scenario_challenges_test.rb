@@ -55,17 +55,28 @@ class DevelopmentReadingScenarioChallengesTest < ActiveSupport::TestCase
     assert_equal before, [ Challenge.order(:id).map(&:attributes), UserChallenge.order(:id).map(&:attributes) ]
   end
 
-  test "an existing demo title is refused without taking over or creating records" do
-    existing = Challenge.create!(@plan.fetch("challenges").first.fetch("attributes"))
+  test "a challenge title collision skips its enrollments and preserves unrelated imports on replay" do
+    planned = @plan.fetch("challenges").first
+    identity = planned.fetch("identity")
+    existing = Challenge.create!(planned.fetch("attributes").merge("goal_value" => 99))
     before = existing.attributes
-    saved = @directory.join("manifest.json").read
+    skipped_count = @plan.fetch("user_challenges").count { |entry| entry.fetch("challenge") == identity }
+
+    first = seed_challenges.fetch("challenges")
+    challenge = first.dig("records", "challenges", identity)
+    assert_equal "skipped", challenge.fetch("result")
+    assert_equal "challenge_title_collision", challenge.fetch("reason")
+    assert_equal [ existing.id ], challenge.fetch("record_ids")
+    skipped = first.dig("records", "user_challenges").values.select { |row| row["result"] == "skipped" }
+    assert_equal skipped_count, skipped.length
+    assert skipped.all? { |row| row["challenge"] == identity && row["reason"] == "challenge_skipped" }
+    assert_equal({ "challenges" => 5, "user_challenges" => 40 - skipped_count }, first.fetch("actual_counts"))
+    assert_empty UserChallenge.where(challenge: existing)
+    assert_equal before, existing.reload.attributes
 
     assert_no_difference [ "Challenge.count", "UserChallenge.count" ] do
-      assert_raises(DevelopmentReadingScenarioChallenges::ChallengeError) { seed_challenges }
+      assert_equal first, seed_challenges.fetch("challenges")
     end
-
-    assert_equal before, existing.reload.attributes
-    assert_equal saved, @directory.join("manifest.json").read
   end
 
   test "an edited challenge is refused without overwriting its changes" do

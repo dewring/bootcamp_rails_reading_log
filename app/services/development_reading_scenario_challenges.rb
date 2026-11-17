@@ -11,11 +11,9 @@ class DevelopmentReadingScenarioChallenges
     titles = @plan.fetch("challenges").map { |entry| entry.fetch("attributes").fetch("title").downcase }
     saved_ids = @manifest.dig("challenges", "records", "challenges")&.values&.filter_map { |record| record["id"] } || []
     @challenge_rows = Challenge.where("LOWER(title) IN (?)", titles).or(Challenge.where(id: saved_ids)).to_a
-    if !@manifest["challenges"] && @challenge_rows.any?
-      raise ChallengeError, "Demo challenge titles already exist: IDs #{@challenge_rows.map(&:id)}; no automatic takeover is allowed."
-    end
-
     @manifest.dig("challenges", "records", "challenges")&.each do |identity, record|
+      next if record["result"] == "skipped"
+
       matching_row(@challenge_rows, record, record.fetch("expected_attributes"), identity)
     end
   end
@@ -35,7 +33,9 @@ class DevelopmentReadingScenarioChallenges
     end
 
     working["status"] = "complete"
-    working["actual_counts"] = working.fetch("records").transform_values(&:length)
+    working["actual_counts"] = working.fetch("records").transform_values do |records|
+      records.values.count { |record| record["id"] }
+    end
     @manifest["challenges"] = working
     @scenario_manifest.save_scenario
     @manifest.deep_dup
@@ -46,12 +46,20 @@ class DevelopmentReadingScenarioChallenges
   def planned_challenges
     challenges = @plan.fetch("challenges").to_h do |entry|
       attributes = entry.fetch("attributes").merge("created_at" => @plan.fetch("as_of"))
-      [ entry.fetch("identity"), planned_record(Challenge, attributes) ]
+      record = planned_record(Challenge, attributes)
+      collisions = @challenge_rows.select { |row| row.title.casecmp?(attributes.fetch("title")) }
+      if collisions.any?
+        record.merge!("result" => "skipped", "reason" => "challenge_title_collision", "record_ids" => collisions.map(&:id).sort)
+      end
+      [ entry.fetch("identity"), record ]
     end
     users = @manifest.fetch("bootstrap").fetch("records").fetch("users")
     enrollments = @plan.fetch("user_challenges").to_h do |entry|
       attributes = { "user_id" => users.fetch(entry.fetch("reader")).fetch("id"), "created_at" => @plan.fetch("as_of") }
       record = planned_record(UserChallenge, attributes).merge("challenge" => entry.fetch("challenge"))
+      if challenges.fetch(record.fetch("challenge"))["result"] == "skipped"
+        record.merge!("result" => "skipped", "reason" => "challenge_skipped")
+      end
       [ entry.fetch("identity"), record ]
     end
     {
@@ -65,16 +73,20 @@ class DevelopmentReadingScenarioChallenges
   end
 
   def import_challenges(working)
-    working.fetch("records").fetch("challenges").to_h do |identity, record|
+    working.fetch("records").fetch("challenges").each_with_object({}) do |(identity, record), challenges|
+      next if record["result"] == "skipped"
+
       expected = record.fetch("expected_attributes")
       row = matching_row(@challenge_rows, record, expected, identity) || Challenge.create!(expected)
       record["id"] = row.id
-      [ identity, row ]
+      challenges[identity] = row
     end
   end
 
   def import_enrollments(working, challenges, rows)
     working.fetch("records").fetch("user_challenges").each do |identity, record|
+      next if record["result"] == "skipped"
+
       expected = record.fetch("expected_attributes").merge("challenge_id" => challenges.fetch(record.fetch("challenge")).id)
       # Progress, status and lock_version belong to normal application activity; replay must not reset them.
       row = matching_row(rows, record, expected, identity) || UserChallenge.create!(expected)
