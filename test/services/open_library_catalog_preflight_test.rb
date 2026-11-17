@@ -252,9 +252,12 @@ class OpenLibraryCatalogPreflightTest < ActiveSupport::TestCase
     before = edition.attributes
     write_snapshot
 
-    error = assert_read_only_failure
-
-    conflict = error.report.fetch("conflicts").find { |entry| entry.fetch("reason") == "conflicting_edition_identity" }
+    report = preflight_catalog
+    entry = report.fetch("books").first
+    assert_empty report.fetch("conflicts")
+    assert_nil entry.fetch("edition_attributes")
+    assert_equal "skipped", entry.fetch("edition_status")
+    conflict = entry.fetch("edition_skip")
     assert_equal [ edition.id ], conflict.fetch("record_ids")
     assert_equal [ books(:pragmatic).id ], conflict.fetch("book_ids")
     assert_equal before, edition.reload.attributes

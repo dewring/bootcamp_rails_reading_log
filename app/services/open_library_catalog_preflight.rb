@@ -44,6 +44,7 @@ class OpenLibraryCatalogPreflight
 
   def load_reviewed_identities
     @reviewed_identities = {}
+    @recorded_catalog = {}
     return unless @manifest_path.exist?
 
     manifest = JSON.parse(@manifest_path.read)
@@ -51,6 +52,7 @@ class OpenLibraryCatalogPreflight
       manifest["database"] == ActiveRecord::Base.connection_db_config.database
 
     @reviewed_identities = manifest.dig("catalog", "reviewed_identities") || {}
+    @recorded_catalog = manifest.dig("catalog", "records") || {}
   rescue JSON::ParserError
     raise DevelopmentReadingScenarioManifest::ManifestError, "The reading scenario manifest contains invalid JSON; preserve it and inspect the failure before replaying."
   end
@@ -235,15 +237,33 @@ class OpenLibraryCatalogPreflight
 
   def inspect_existing_edition(entry)
     key = entry.fetch("edition_attributes").fetch("ol_edition_key")
+    work_key = entry.fetch("book_attributes").fetch("ol_work_key")
+    recorded = @recorded_catalog.dig(work_key, "edition")
+    if recorded&.fetch("reason", nil) == "conflicting_edition_identity"
+      skip_edition(entry, recorded.except("result"))
+      return
+    end
+
     existing = @existing_editions.select { |edition| normalized_edition_key(edition.ol_edition_key) == key }
     return if existing.empty?
 
     unless existing.one? && existing.first.ol_edition_key == key && existing.first.book_id == entry["existing_book_id"]
-      add_conflict("conflicting_edition_identity", edition_key: key, record_ids: existing.map(&:id), book_ids: existing.map(&:book_id))
+      details = { "edition_key" => key, "record_ids" => existing.map(&:id), "book_ids" => existing.map(&:book_id) }
+      if recorded
+        add_conflict("conflicting_edition_identity", **details.symbolize_keys)
+      else
+        skip_edition(entry, details.merge("reason" => "conflicting_edition_identity"))
+      end
       return
     end
     entry["existing_edition_id"] = existing.first.id
     entry["edition_status"] = "reused"
+  end
+
+  def skip_edition(entry, details)
+    entry["edition_attributes"] = nil
+    entry["edition_status"] = "skipped"
+    entry["edition_skip"] = details
   end
 
   def same_title_and_author?(book, attributes)

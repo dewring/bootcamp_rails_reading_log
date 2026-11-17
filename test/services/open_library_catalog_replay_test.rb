@@ -60,6 +60,26 @@ class OpenLibraryCatalogReplayTest < ActiveSupport::TestCase
     assert_not_requested :any, /https?:/
   end
 
+  test "a conflicting edition is preserved while its work and unrelated editions import and replay" do
+    edition = BookEdition.create!(book: books(:pragmatic), ol_edition_key: "/books/OL153000M")
+    before = edition.attributes
+    write_snapshot
+
+    first = replay_catalog
+    skipped = catalog_records(first).fetch("/works/OL153000W").fetch("edition")
+    assert_equal "skipped", skipped.fetch("result")
+    assert_equal "conflicting_edition_identity", skipped.fetch("reason")
+    assert_equal [ edition.id ], skipped.fetch("record_ids")
+    assert_equal({ "books" => 100, "book_editions" => 1 }, first.dig("catalog", "actual_counts"))
+    assert_equal before, edition.reload.attributes
+
+    assert_no_difference [ "Book.count", "BookEdition.count" ] do
+      second = replay_catalog
+      assert_equal skipped, catalog_records(second).fetch("/works/OL153000W").fetch("edition")
+    end
+    assert_equal before, edition.reload.attributes
+  end
+
   test "repeating replay preserves IDs and existing record attributes without duplicate rows" do
     write_snapshot
     first = replay_catalog

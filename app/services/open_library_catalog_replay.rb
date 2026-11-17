@@ -60,9 +60,14 @@ class OpenLibraryCatalogReplay
       edition_attributes = entry["edition_attributes"]
       book = @books[key]
       edition = edition_attributes && @editions[edition_attributes.fetch("ol_edition_key")]
+      edition_record = if edition_attributes
+        planned_record(edition, edition_attributes)
+      else
+        { "result" => "skipped", "reason" => "No representative Edition returned" }.merge(entry.fetch("edition_skip", {}))
+      end
       [ key, {
         "book" => planned_record(book, attributes),
-        "edition" => edition_attributes ? planned_record(edition, edition_attributes) : { "result" => "skipped", "reason" => "No representative Edition returned" },
+        "edition" => edition_record,
         "source_page_estimate" => entry["page_estimate_source"] ? { "field" => entry.fetch("page_estimate_source"), "value" => attributes.fetch("total_pages") } : nil,
         "missing_optional_fields" => entry.fetch("missing_optional_fields")
       } ]
