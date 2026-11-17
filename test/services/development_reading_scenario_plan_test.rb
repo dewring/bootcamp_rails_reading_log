@@ -122,6 +122,38 @@ class DevelopmentReadingScenarioPlanTest < ActiveSupport::TestCase
     assert_equal "reading_scenario_admin@example.test", admin.fetch("attributes").fetch("email")
   end
 
+  test "a configured reference time dates the baseline and challenges reproducibly" do
+    reference = "2026-11-16T20:00:00Z"
+    variables = ENV.to_h.merge("READING_SCENARIO_AS_OF" => reference)
+    ENV.stub(:[], variables.method(:[])) do
+      first = DevelopmentReadingScenarioPlan.new(catalog: @catalog).build_baseline
+      travel 2.days do
+        second = DevelopmentReadingScenarioPlan.new(catalog: @catalog).build_baseline
+        assert_equal first, second
+      end
+
+      assert_equal Time.iso8601(reference), Time.iso8601(first.fetch("as_of"))
+      dates = first.fetch("reading_sessions").map { |entry| Date.iso8601(entry.fetch("attributes").fetch("read_on")) }
+      assert_equal Date.new(2026, 10, 20), dates.min
+      assert_equal Date.new(2026, 11, 16), dates.max
+      first.fetch("challenges").each do |entry|
+        attributes = entry.fetch("attributes")
+        assert_operator Time.iso8601(attributes.fetch("starts_at")), :<, Time.iso8601(reference)
+        assert_operator Time.iso8601(attributes.fetch("ends_at")), :>, Time.iso8601(reference)
+      end
+    end
+  end
+
+  test "invalid or ambiguous configured reference times are rejected" do
+    [ "", "invalid", "2026-11-16T20:00:00", "2026-99-99T20:00:00Z" ].each do |value|
+      variables = ENV.to_h.merge("READING_SCENARIO_AS_OF" => value)
+      ENV.stub(:[], variables.method(:[])) do
+        error = assert_raises(ArgumentError) { DevelopmentReadingScenarioPlan.new(catalog: @catalog) }
+        assert_includes error.message, "READING_SCENARIO_AS_OF"
+      end
+    end
+  end
+
   test "default baseline dates stay reproducible across application time zones" do
     plans = [ "UTC", "America/Vancouver" ].map do |zone|
       Time.use_zone(zone) do

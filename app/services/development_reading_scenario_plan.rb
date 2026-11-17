@@ -18,7 +18,16 @@ class DevelopmentReadingScenarioPlan
   ].freeze
 
   def self.default_reference_time
-    Time.zone.local(2026, 10, 30, 12)
+    configured_time = ENV["READING_SCENARIO_AS_OF"]
+    return Time.zone.local(2026, 10, 30, 12) if configured_time.nil?
+
+    unless configured_time.match?(/(?:Z|[+-]\d{2}:\d{2})\z/)
+      raise ArgumentError, "READING_SCENARIO_AS_OF must be an ISO 8601 timestamp with Z or an explicit UTC offset"
+    end
+
+    Time.iso8601(configured_time).in_time_zone
+  rescue ArgumentError
+    raise ArgumentError, "READING_SCENARIO_AS_OF must be a valid ISO 8601 timestamp with Z or an explicit UTC offset"
   end
 
   def initialize(catalog:, as_of: DevelopmentReadingScenarioPlan.default_reference_time)

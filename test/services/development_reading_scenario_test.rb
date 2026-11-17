@@ -327,15 +327,21 @@ class DevelopmentReadingScenarioTest < ActiveSupport::TestCase
   test "opted-in production seeds the complete scenario and replays without changing existing rows" do
     models = [ Genre, Badge, User, Book, BookEdition, UserBook, ReadingSession, BookClub, BookClubMembership, ClubMessage, Review, Reaction, Challenge, UserChallenge ]
     existing = models.to_h { |model| [ model, model.order(:id).map(&:attributes) ] }
-    variables = ENV.to_h.merge("ALLOW_PRODUCTION_SCENARIO" => "true")
+    reference = "2026-11-16T20:00:00Z"
+    variables = ENV.to_h.merge("ALLOW_PRODUCTION_SCENARIO" => "true", "READING_SCENARIO_AS_OF" => reference)
 
     ENV.stub(:[], variables.method(:[])) do
-      Rails.stub(:env, "production".inquiry) do
+      # Exercise the production permission branch without changing lazy database connection selection.
+      Rails.env.stub(:production?, true) do
+        @scenario = DevelopmentReadingScenario.new(**@paths, password: "synthetic-scenario-test-password")
         DevelopmentReadingScenario.stub(:new, @scenario) do
           capture_io { load Rails.root.join("db/seeds.rb") }
         end
         manifest = JSON.parse(@paths.fetch(:manifest_path).read)
         assert_equal "complete", manifest.dig("baseline", "status")
+        assert_equal Time.iso8601(reference), Time.iso8601(manifest.fetch("as_of"))
+        book_id = manifest.dig("reactions", "anchors", "new_burst", "book_id")
+        assert_equal 12, Book.where(id: book_id).trending(as_of: Time.iso8601(reference)).sole.trending_score
         assert_equal manifest.dig("baseline", "expected_counts"), manifest.dig("baseline", "actual_counts")
         assert_equal DevelopmentReadingScenarioReactions::COUNTS, manifest.dig("reactions", "actual_counts")
         saved = models.to_h { |model| [ model, model.order(:id).map(&:attributes) ] }
