@@ -32,6 +32,20 @@ class DevelopmentReadingScenarioPlanTest < ActiveSupport::TestCase
     assert_not_requested :any, /https?:/
   end
 
+  test "production planning matches development without changing database rows or making HTTP requests" do
+    expected = build_baseline
+    actual = nil
+
+    assert_no_difference [ "User.count", "Book.count", "UserBook.count", "ReadingSession.count", "BookClub.count", "ClubMessage.count", "Review.count" ] do
+      Rails.stub(:env, "production".inquiry) do
+        actual = @builder.build_baseline
+      end
+    end
+
+    assert_equal expected, actual
+    assert_not_requested :any, /https?:/
+  end
+
   test "the same snapshot seed and reference time reproduce the same plan without mutating catalog input" do
     before = @catalog.deep_dup
     first = build_baseline
@@ -208,10 +222,13 @@ class DevelopmentReadingScenarioPlanTest < ActiveSupport::TestCase
     assert reviews.all? { |review| review.fetch("attributes").fetch("body").start_with?("Synthetic review:") }
   end
 
-  test "non-development planning refuses without making HTTP requests" do
+  test "non-development planning still rejects a catalog with fewer than 100 works" do
+    @catalog.fetch("books").pop
+
     [ "test", "production" ].each do |environment|
       Rails.stub(:env, environment.inquiry) do
-        assert_raises(RuntimeError) { @builder.build_baseline }
+        error = assert_raises(ArgumentError) { @builder.build_baseline }
+        assert_equal "The baseline requires exactly 100 distinct captured Works", error.message
       end
     end
 

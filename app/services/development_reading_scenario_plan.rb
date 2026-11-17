@@ -27,8 +27,6 @@ class DevelopmentReadingScenarioPlan
   end
 
   def build_baseline
-    raise "Scenario planning is only available in development" unless Rails.env.development?
-
     @work_keys = @catalog.fetch("books").map { |entry| entry.fetch("book_attributes").fetch("ol_work_key") }
     unless @work_keys.length == 100 && @work_keys.uniq.length == 100
       raise ArgumentError, "The baseline requires exactly 100 distinct captured Works"
