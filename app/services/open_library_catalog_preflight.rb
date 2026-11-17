@@ -212,7 +212,11 @@ class OpenLibraryCatalogPreflight
     matching = @existing_books.select { |book| same_title_and_author?(book, attributes) }
     unkeyed = matching.select { |book| book.ol_work_key.blank? && !reviewed_preserved_book?(book, attributes) }
     other_keyed = matching.reject { |book| book.ol_work_key.blank? || @selected_work_keys.include?(normalized_work_key(book.ol_work_key)) }
-    add_conflict("legacy_unkeyed_book", work_key: key, record_ids: unkeyed.map(&:id)) if unkeyed.any?
+    verified_match = keyed.one? && keyed.first.ol_work_key == key && matching.include?(keyed.first)
+    # Reuse a verified key while leaving unkeyed lookalikes and their associations intact.
+    if unkeyed.any? && !verified_match
+      add_conflict("legacy_unkeyed_book", work_key: key, record_ids: unkeyed.map(&:id))
+    end
     add_conflict("different_work_key", work_key: key, record_ids: other_keyed.map(&:id)) if other_keyed.any?
     if keyed.length > 1
       add_conflict("ambiguous_work_identity", work_key: key, record_ids: keyed.map(&:id))

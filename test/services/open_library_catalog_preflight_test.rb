@@ -145,6 +145,29 @@ class OpenLibraryCatalogPreflightTest < ActiveSupport::TestCase
     assert_not_requested :any, /https?:/
   end
 
+  test "development and production reuse a verified keyed book alongside an unkeyed lookalike" do
+    keyed = create_selected_book(description: "Existing production description")
+    legacy = Book.create!(title: keyed.title, author: keyed.author)
+    before = [ keyed.attributes, legacy.attributes ]
+    write_snapshot
+    variables = ENV.to_h.merge("ALLOW_PRODUCTION_SCENARIO" => "true")
+
+    ENV.stub(:[], variables.method(:[])) do
+      [ "development", "production" ].each do |environment|
+        Rails.stub(:env, environment.inquiry) do
+          assert_no_difference "Book.count" do
+            report = @preflight.preflight_catalog
+            assert_empty report.fetch("conflicts")
+            assert_equal keyed.id, report.fetch("books").first.fetch("existing_book_id")
+            assert_equal "reused", report.fetch("books").first.fetch("book_status")
+          end
+        end
+      end
+    end
+
+    assert_equal before, [ keyed.reload.attributes, legacy.reload.attributes ]
+  end
+
   test "a legacy unkeyed book is reported by ID without adding a duplicate or assigning its key" do
     legacy = Book.create!(title: @docs.first.fetch("title").titleize, author: "Gabriel García Márquez".titleize)
     before = legacy.attributes
@@ -362,16 +385,17 @@ class OpenLibraryCatalogPreflightTest < ActiveSupport::TestCase
     end
   end
 
-  test "reviewing one legacy duplicate does not hide a newly added legacy collision" do
+  test "a verified keyed book is reused after another unkeyed lookalike appears" do
     book = create_selected_book
     legacy = Book.create!(title: @docs.first.fetch("title"), author: "Gabriel García Márquez")
     write_review(book, preserved: [ legacy ])
     unreviewed = Book.create!(title: legacy.title, author: legacy.author)
 
-    error = assert_read_only_failure
+    report = preflight_catalog
 
-    conflict = error.report.fetch("conflicts").find { |entry| entry.fetch("reason") == "legacy_unkeyed_book" }
-    assert_equal [ unreviewed.id ], conflict.fetch("record_ids")
+    assert_empty report.fetch("conflicts")
+    assert_equal book.id, report.fetch("books").first.fetch("existing_book_id")
+    assert_nil unreviewed.reload.ol_work_key
   end
 
   private

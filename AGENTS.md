@@ -166,13 +166,13 @@ current conversation take precedence.
     they trigger downstream work. Use stronger guarantees when correctness,
     security, or an explicit requirement needs them.
 
-## Production demo data
+## Demo data imports
 
 - Never run or recommend `bin/rails db:seed` in production. Use the
   Rails console to invoke the simulator or use an existing Rake task
   dedicated to demo data.
-- Apply the same conflict policy to every model the production simulator
-  imports. Treat existing production records as authoritative. Reuse a
+- Apply the same conflict policy to every model in every environment
+  where the simulator is enabled. Treat existing records as authoritative. Reuse a
   record when its identity is clear, preserving its attributes and
   associations.
 - If a conflict cannot be resolved safely, skip the affected record and
