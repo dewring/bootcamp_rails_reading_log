@@ -259,6 +259,53 @@ class DevelopmentReadingScenarioBootstrapTest < ActiveSupport::TestCase
     assert badge.valid?
   end
 
+  test "a badge name already used by another type is reported while setup continues" do
+    first = Badge.find_by!(badge_type: "first_session")
+    first.destroy!
+    existing = Badge.find_by!(badge_type: "week_streak")
+    existing.update!(name: "First Session")
+    before = existing.attributes
+    write_snapshot
+
+    assert_difference "User.count", 31 do
+      result = bootstrap_scenario.fetch("bootstrap")
+      record = result.dig("records", "badges", "first_session")
+      assert_equal "skipped", record.fetch("result")
+      assert_equal "badge_name_collision", record.fetch("reason")
+      assert_equal [ existing.id ], record.fetch("record_ids")
+      assert_equal 4, result.dig("actual_counts", "badges")
+    end
+    assert_not Badge.exists?(badge_type: "first_session")
+    assert_equal before, existing.reload.attributes
+  end
+
+  test "badge replay preserves edits and skips deleted types until a replacement exists" do
+    write_snapshot
+    bootstrap_scenario
+    missing = Badge.find_by!(badge_type: "first_session")
+    missing.destroy!
+    edited = Badge.find_by!(badge_type: "week_streak")
+    edited.update!(description: "Updated catalog description")
+    before = edited.attributes
+
+    assert_no_difference "Badge.count" do
+      result = bootstrap_scenario.fetch("bootstrap")
+      record = result.dig("records", "badges", "first_session")
+      assert_equal "recorded_badge_missing", record.fetch("reason")
+      assert_equal missing.id, record.fetch("id")
+      assert_equal 4, result.dig("actual_counts", "badges")
+    end
+    assert_equal before, edited.reload.attributes
+
+    replacement = Badge.create!(badge_type: "first_session", name: "First Reading", description: "Awarded for the first log.")
+    result = bootstrap_scenario.fetch("bootstrap")
+    record = result.dig("records", "badges", "first_session")
+    assert_equal replacement.id, record.fetch("id")
+    assert_equal "reused", record.fetch("result")
+    assert_nil record["reason"]
+    assert_equal 5, result.dig("actual_counts", "badges")
+  end
+
   test "an invalid pending badge stops setup before any records or checkpoint are written" do
     Badge.find_by!(badge_type: "first_session").destroy!
     write_snapshot

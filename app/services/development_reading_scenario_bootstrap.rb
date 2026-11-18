@@ -74,11 +74,6 @@ class DevelopmentReadingScenarioBootstrap
     end
     @plan.fetch("badges").each do |attributes|
       key = attributes.fetch("badge_type")
-      rows = @existing.fetch("badges").fetch(key)
-      if rows.empty?
-        collisions = @badge_name_candidates.select { |row| row.name == attributes.fetch("name") }
-        refuse_collision("badges", key, collisions) if collisions.any?
-      end
       records.fetch("badges")[key] = planned_record("badges", key, attributes)
     end
     @plan.fetch("users").each do |entry|
@@ -108,12 +103,40 @@ class DevelopmentReadingScenarioBootstrap
       records.each do |identity, record|
         rows = @existing.fetch(group).fetch(identity)
         refuse_collision(group, identity, rows) if rows.length > 1
+        reconcile_badge(identity, record, rows.first) if group == "badges"
+        next if record["result"] == "skipped"
+
         verify_recorded_row(group, identity, record, rows.first)
       end
     end
   end
 
+  def reconcile_badge(identity, record, row)
+    if row
+      record.merge!("id" => row.id, "result" => "reused", "origin" => "reused") if row.id != record["id"]
+      record.except!("reason", "record_ids")
+      return
+    end
+
+    if record["id"]
+      record.merge!("result" => "skipped", "reason" => "recorded_badge_missing")
+      return
+    end
+
+    name = record.fetch("expected_attributes").fetch("name")
+    collisions = @badge_name_candidates.select { |candidate| candidate.name == name && candidate.badge_type != identity }
+    if collisions.any?
+      record.merge!("result" => "skipped", "reason" => "badge_name_collision", "record_ids" => collisions.map(&:id))
+    elsif record["result"] == "skipped"
+      record["result"] = nil
+      record.except!("reason", "record_ids")
+    end
+  end
+
   def verify_recorded_row(group, identity, record, row)
+    # Badge type is unique. The existing name and description belong to the catalog.
+    return if group == "badges" && row&.badge_type == identity
+
     if group == "users"
       password_hash = record.fetch("expected_attributes")["encrypted_password"]
       unless password_hash.is_a?(String) && password_hash.present?
@@ -134,7 +157,7 @@ class DevelopmentReadingScenarioBootstrap
   def prepare_pending_records
     @bootstrap.fetch("records").each do |group, records|
       records.each do |identity, record|
-        next if @existing.fetch(group).fetch(identity).any?
+        next if record["result"] == "skipped" || @existing.fetch(group).fetch(identity).any?
 
         @prepared_records.fetch(group)[identity] ||= prepare_pending_record(group, record.fetch("expected_attributes"))
       end
@@ -168,6 +191,8 @@ class DevelopmentReadingScenarioBootstrap
   def import_bootstrap_records
     BOOTSTRAP_MODELS.each do |group, model|
       @bootstrap.fetch("records").fetch(group).each do |identity, record|
+        next if record["result"] == "skipped"
+
         row = @existing.fetch(group).fetch(identity).first
         result = row ? "reused" : "imported"
         model.transaction(requires_new: true) do
