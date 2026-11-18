@@ -1,6 +1,4 @@
 class DevelopmentReadingScenarioActivity
-  class ActivityError < StandardError; end
-
   def initialize(snapshot_path: Rails.root.join("db/seeds/open_library_catalog.json"),
     manifest_path: DevelopmentReadingScenarioManifest::DEFAULT_PATH,
     lock_path: DevelopmentReadingScenarioManifest::DEFAULT_LOCK_PATH,
@@ -42,7 +40,7 @@ class DevelopmentReadingScenarioActivity
 
   def with_reading_context
     @scenario_manifest.with_exclusive_access do
-      catalog = OpenLibraryCatalogPreflight.new(snapshot_path: @snapshot_path, manifest_path: @scenario_manifest.path).preflight_catalog
+      catalog = OpenLibraryCatalogPreflight.new(snapshot_path: @snapshot_path, manifest_path: @scenario_manifest.path).preflight_catalog(skip_book_conflicts: true)
       @plan = DevelopmentReadingScenarioPlan.new(catalog: catalog, as_of: @as_of).build_baseline
       @manifest = @scenario_manifest.prepare_scenario(snapshot_id: catalog.fetch("snapshot_id"))
       @references = References.new(manifest: @manifest).load_references
@@ -62,6 +60,8 @@ class DevelopmentReadingScenarioActivity
 
   def import_library_entries
     @reading.fetch("records").fetch("user_books").each do |identity, record|
+      next if record["result"] == "skipped"
+
       row = @inventory.library_matches[identity]
       result = row ? "reused" : "imported"
       UserBook.transaction(requires_new: true) do
@@ -83,8 +83,24 @@ class DevelopmentReadingScenarioActivity
     @plan.fetch("reading_sessions").each do |entry|
       identity = entry.fetch("identity")
       record = @reading.fetch("records").fetch("reading_sessions").fetch(identity)
+      next if record["result"] == "skipped"
+
       row = @inventory.session_matches[identity]
+      library_identity = "#{entry.fetch('reader')}/#{entry.fetch('work_key')}"
+      unless row || @inventory.library_matches[library_identity]
+        record.merge!("result" => "skipped", "reason" => "library_entry_unavailable")
+        @scenario_manifest.save_scenario
+        next
+      end
+      if !row && @reading.dig("records", "user_books", library_identity, "origin") == "existing"
+        record.merge!("result" => "skipped", "reason" => "existing_shelf_preserved")
+        @scenario_manifest.save_scenario
+        next
+      end
       result = row ? "reused" : "imported"
+      if !row && @references.update_pending_session_edition(record, work_key: entry.fetch("work_key"))
+        @scenario_manifest.save_scenario
+      end
       ReadingSession.transaction(requires_new: true) do
         if row
           row.lock!

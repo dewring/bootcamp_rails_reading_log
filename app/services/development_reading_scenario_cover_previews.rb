@@ -9,13 +9,28 @@ class DevelopmentReadingScenarioCoverPreviews
   end
 
   def prepare_previews
-    plan = Plan.new(snapshot: @snapshot, books: @books).build_previews(missing_work_key: @manifest.dig("cover_previews", "missing_case", "work_key"))
+    previous = @manifest["cover_previews"]
+    recorded_ids = previous&.fetch("records")&.transform_values { |entry| entry["book_id"] } || {}
+    missing = previous&.fetch("missing_case")
+    recorded_ids[missing.fetch("work_key")] = missing["book_id"] if missing
+    plan = Plan.new(snapshot: @snapshot, books: @books).build_previews(
+      missing_work_key: missing&.fetch("work_key"), recorded_ids: recorded_ids
+    )
     @previews = @manifest["cover_previews"] || plan.deep_dup
     verify_preview_plan(plan)
     @manifest["cover_previews"] = @previews
+    @previews["unavailable_book_work_keys"] = @snapshot.fetch("selected").map { |entry| entry.fetch("work_key") } - @books.keys
     @scenario_manifest.save_scenario
     @previews.fetch("records").each do |key, record|
-      book = @books.fetch(key)
+      book = @books[key]
+      unless book
+        record["skip_reason"] = "book_unavailable"
+        record["cover_attached"] = false
+        next
+      end
+
+      record["book_id"] ||= book.id
+      record.delete("skip_reason")
       record["cover_attached"] = book.cover_image.attached?
       record["status"] = "attached" if record.fetch("cover_attached")
       record.except!("job_status", "failed_job_ids", "notice")
@@ -30,7 +45,8 @@ class DevelopmentReadingScenarioCoverPreviews
       @scenario_manifest.save_scenario
     end
     records = @previews.fetch("records").values
-    @previews["actual_counts"] = { "selected" => records.length, "statuses" => records.map { |record| record.fetch("status") }.tally,
+    statuses = records.map { |record| record["skip_reason"] ? "skipped" : record.fetch("status") }
+    @previews["actual_counts"] = { "selected" => records.length, "statuses" => statuses.tally,
       "source_unavailable" => @previews.fetch("source_unavailable_work_keys").length }
     @scenario_manifest.save_scenario
     @manifest.deep_dup
@@ -39,8 +55,14 @@ class DevelopmentReadingScenarioCoverPreviews
   private
 
   def verify_preview_plan(plan)
-    selected = @previews.fetch("records").transform_values { |record| record.slice("book_id", "cover_id") }
+    selected = @previews.fetch("records").to_h do |key, record|
+      attributes = record.slice("book_id", "cover_id")
+      attributes["book_id"] ||= @books[key]&.id
+      [ key, attributes ]
+    end
     intended = plan.fetch("records").transform_values { |record| record.slice("book_id", "cover_id") }
+    missing = @previews.fetch("missing_case")
+    missing["book_id"] ||= @books[missing.fetch("work_key")]&.id
     unless selected == intended && @previews.values_at("limit", "missing_case", "source_unavailable_work_keys") == plan.values_at("limit", "missing_case", "source_unavailable_work_keys")
       raise PreviewError, "Recorded preview selection differs from the captured catalog or exceeds its fixed budget."
     end

@@ -40,7 +40,9 @@ class BadgeAwardJob < ApplicationJob
   end
 
   def award(user, badge_type)
-    badge = Badge.find_by!(badge_type: badge_type)
+    badge = Badge.find_by(badge_type: badge_type)
+    return unless badge
+
     UserBadge.find_or_create_by!(user: user, badge: badge) do |ub|
       ub.awarded_at = Time.current
     end

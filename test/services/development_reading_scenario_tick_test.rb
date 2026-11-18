@@ -190,7 +190,7 @@ class DevelopmentReadingScenarioTickTest < ActiveSupport::TestCase
   test "scenario services preserve the original catalog error and diagnostic report without writes" do
     failure = OpenLibraryCatalogPreflight::PreflightError.new("Captured catalog is unavailable", report: { "snapshot" => "missing" })
     preflight = Object.new
-    preflight.define_singleton_method(:preflight_catalog) { raise failure }
+    preflight.define_singleton_method(:preflight_catalog) { |**| raise failure }
     saved = @paths.fetch(:manifest_path).read
     operations = [
       -> { @tick.advance_scenario(tick: "tick1") },
@@ -212,14 +212,13 @@ class DevelopmentReadingScenarioTickTest < ActiveSupport::TestCase
     assert_equal saved, @paths.fetch(:manifest_path).read
   end
 
-  test "a changed baseline review stops the tick before intent or activity is saved" do
-    review_id = @baseline.dig("community", "records", "reviews").values.last.fetch("id")
-    Review.find(review_id).update!(body: "A reader revised the review")
-    saved = @paths.fetch(:manifest_path).read
-    assert_no_difference [ "ReadingSession.count", "ClubMessage.count" ] do
-      error = assert_raises(DevelopmentReadingScenarioCommunity::CommunityError) { advance }
-      assert_includes error.message, review_id.to_s
+
+  test "a changed baseline review is preserved while the tick adds activity" do
+    review = Review.find(@baseline.dig("community", "records", "reviews").values.last.fetch("id"))
+    review.update!(body: "A reader revised the review")
+    assert_difference({ "ReadingSession.count" => 3, "ClubMessage.count" => 2 }) do
+      assert_equal "complete", advance.dig("ticks", "tick1", "status")
     end
-    assert_equal saved, @paths.fetch(:manifest_path).read
+    assert_equal "A reader revised the review", review.reload.body
   end
 end

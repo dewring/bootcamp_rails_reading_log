@@ -84,13 +84,29 @@ class DevelopmentReadingScenarioGenresTest < ActionDispatch::IntegrationTest
     assert_equal before, BookGenre.order(:id).map(&:attributes)
   end
 
-  test "a deleted recorded link stops replay without recreating it" do
-    seed_genres
-    @books.fetch("Mystery").book_genres.destroy_all
+  test "replay reports a deleted link and reuses an existing replacement for the same pair" do
+    first = seed_genres.fetch("book_genres")
+    mystery = @books.fetch("Mystery")
+    deleted = mystery.book_genres.sole
+    deleted.destroy!
+    poetry = @books.fetch("Poetry")
+    poetry.book_genres.sole.destroy!
+    replacement = BookGenre.create!(book: poetry, genre: @genres.fetch("Poetry"))
+    original = BookGenre.order(:id).map(&:attributes)
 
     assert_no_difference "BookGenre.count" do
-      assert_raises(DevelopmentReadingScenarioGenres::GenreError) { seed_genres }
+      result = seed_genres.fetch("book_genres")
+      skipped = result.dig("records", "#{mystery.ol_work_key}/Mystery")
+      assert_equal "skipped", skipped.fetch("result")
+      assert_equal "recorded_genre_link_missing", skipped.fetch("reason")
+      assert_equal deleted.id, skipped.fetch("id")
+      reused = result.dig("records", "#{poetry.ol_work_key}/Poetry")
+      assert_equal replacement.id, reused.fetch("id")
+      assert_equal "reused", reused.fetch("origin")
+      assert_equal first.fetch("actual_count") - 1, result.fetch("actual_count")
+      assert_equal result, seed_genres.fetch("book_genres")
     end
+    assert_equal original, BookGenre.order(:id).map(&:attributes)
   end
 
   private

@@ -24,17 +24,39 @@ class DevelopmentReadingScenario
     end
   end
 
+  def import_summary(manifest)
+    grouped_sections = [ "bootstrap", "reading", "community", "challenges" ]
+    flat_sections = [ "book_genres", "reactions" ]
+    sections = manifest.slice(*grouped_sections, *flat_sections)
+    counts = sections.transform_values { |section| section["actual_counts"] || section["actual_count"] }
+    skipped = sections.to_h do |name, section|
+      records = section.fetch("records")
+      entries = if grouped_sections.include?(name)
+        records.transform_values { |group| skipped_records(group) }.reject { |_group, conflicts| conflicts.empty? }
+      else
+        skipped_records(records)
+      end
+      [ name, entries ]
+    end
+    catalog = manifest.fetch("catalog")
+    counts["catalog"] = catalog.fetch("actual_counts")
+    skipped["catalog"] = catalog.slice("skipped_book_conflicts", "skipped_edition_conflicts").reject { |_group, entries| entries.empty? }
+    counts["cover_previews"] = manifest.dig("cover_previews", "actual_counts") if manifest["cover_previews"]
+    skipped["cover_previews"] = skipped_cover_previews(manifest.dig("cover_previews", "records") || {})
+    skipped["discovery_demo"] = skipped_records(manifest.dig("reactions", "discovery_demo", "records") || {})
+    { "actual_counts" => counts, "skipped" => skipped.reject { |_section, entries| entries.empty? } }
+  end
+
   def seed_baseline
     unless ReadingScenarioEnvironment.enabled?
       raise ScenarioError, "Scenario seed replay requires development or production with ALLOW_PRODUCTION_SCENARIO=true"
     end
 
     @scenario_manifest.with_exclusive_access do
-      catalog = OpenLibraryCatalogPreflight.new(snapshot_path: @snapshot_path, manifest_path: @scenario_manifest.path).preflight_catalog
+      catalog = OpenLibraryCatalogPreflight.new(snapshot_path: @snapshot_path, manifest_path: @scenario_manifest.path).preflight_catalog(skip_book_conflicts: true)
       @plan = DevelopmentReadingScenarioPlan.new(catalog: catalog, as_of: @as_of).build_baseline
       @manifest = @scenario_manifest.prepare_scenario(snapshot_id: catalog.fetch("snapshot_id"))
       @challenges = DevelopmentReadingScenarioChallenges.new(plan: @plan, manifest: @manifest, scenario_manifest: @scenario_manifest)
-      @challenges.preflight_challenges
       preflight_baseline
       @bootstrap.bootstrap_scenario
       @catalog.replay_catalog
@@ -49,31 +71,27 @@ class DevelopmentReadingScenario
 
   private
 
+  def skipped_cover_previews(records)
+    records.filter_map do |identity, record|
+      next unless record["skip_reason"]
+
+      [ identity, { "id" => record["book_id"], "reason" => record.fetch("skip_reason") } ]
+    end.to_h
+  end
+
+  def skipped_records(records)
+    records.filter_map do |identity, record|
+      next unless record["result"] == "skipped"
+
+      [ identity, record.slice("id", "reason", "record_ids", "conflicts", "edition_key") ]
+    end.to_h
+  end
+
   def preflight_baseline
     @catalog.preflight_catalog
     @bootstrap.preflight_bootstrap
     @reading.preflight_reading if @manifest["reading"]
-    if @manifest["community"]
-      @community.preflight_community
-      return
-    end
-
-    names = @plan.fetch("book_clubs").map { |entry| entry.fetch("attributes").fetch("name").downcase }
-    collisions = BookClub.where("LOWER(name) IN (?)", names).pluck(:id)
-    actor_ids = @manifest.dig("bootstrap", "records", "users")&.values&.filter_map { |record| record["id"] } || []
-    existing = {
-      "book_clubs" => collisions,
-      "book_club_memberships" => BookClubMembership.where(user_id: actor_ids).pluck(:id),
-      "club_messages" => ClubMessage.where(user_id: actor_ids).pluck(:id),
-      "reviews" => Review.where(user_id: actor_ids).pluck(:id)
-    }.reject { |_group, ids| ids.empty? }
-    raise ScenarioError, "Unrecorded community data or club-name collisions: #{existing.inspect}; review before importing any baseline records." if existing.any?
-
-    return if @manifest["reading"]
-
-    reading = { "user_books" => UserBook.where(user_id: actor_ids).pluck(:id), "reading_sessions" => ReadingSession.where(user_id: actor_ids).pluck(:id) }
-      .reject { |_group, ids| ids.empty? }
-    raise ScenarioError, "Unrecorded reading data: #{reading.inspect}; review before importing any baseline records." if reading.any?
+    @community.preflight_community if @manifest["community"]
   end
 
   def record_baseline_result

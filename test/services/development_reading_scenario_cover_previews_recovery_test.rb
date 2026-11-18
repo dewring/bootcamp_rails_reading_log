@@ -52,14 +52,19 @@ class DevelopmentReadingScenarioCoverPreviewsRecoveryTest < ActiveSupport::TestC
     assert_equal jobs, cover_jobs
   end
 
-  test "an image manually added to the missing-cover case is preserved and reported instead of removed" do
+  test "replay preserves an image manually added to the omitted preview work" do
     result = prepare_previews
     book = Book.find(result.fetch("cover_previews").fetch("missing_case").fetch("book_id"))
     book.cover_image.attach(io: File.open(file_fixture("cover_test.jpg")), filename: "manual.jpg", content_type: "image/jpeg")
     blob_id = book.cover_image.blob.id
 
-    assert_raises(DevelopmentReadingScenarioCoverPreviews::PreviewError) { prepare_previews }
+    queued = cover_jobs
+
+    replay = prepare_previews
+
+    assert_equal result.dig("cover_previews", "missing_case"), replay.dig("cover_previews", "missing_case")
     assert_equal blob_id, book.reload.cover_image.blob.id
+    assert_equal queued, cover_jobs
   end
 
   test "non-development and overlapping preparation are refused without enqueueing jobs or HTTP" do

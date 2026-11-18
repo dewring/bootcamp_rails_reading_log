@@ -110,16 +110,23 @@ class DevelopmentReadingScenarioReactionsTest < ActiveSupport::TestCase
     assert_no_enqueued_jobs only: ReactionTotalsJob
   end
 
-  test "changed or missing recorded discovery demo reactions stop replay without repair" do
+  test "replay reports edited and deleted discovery demo reactions while completing baseline reactions" do
     seed
     book = Book.create!(title: "Discovery demo book", author: "Demo author")
     reaction = Reaction.create!(user_id: @reader_ids.first, book: book, kind: "love")
     record_discovery_demo(reaction)
     reaction.update!(kind: "laugh")
-    assert_seed_refuses_changes("changed")
+    manifest = seed
+    record = manifest.dig("reactions", "discovery_demo", "records").values.first
+    assert_equal "recorded_discovery_reaction_changed", record.fetch("reason")
+    assert_equal "laugh", reaction.reload.kind
 
     reaction.destroy!
-    assert_seed_refuses_changes("missing")
+    manifest = seed
+    record = manifest.dig("reactions", "discovery_demo", "records").values.first
+    assert_equal "recorded_discovery_reaction_missing", record.fetch("reason")
+    assert_equal 160, manifest.dig("reactions", "actual_counts", "book_reactions")
+    assert_not Reaction.exists?(reaction.id)
   end
 
   test "discovery demo records cannot claim real readers or baseline reactions" do
@@ -134,14 +141,14 @@ class DevelopmentReadingScenarioReactionsTest < ActiveSupport::TestCase
     assert_seed_refuses_changes("separate from the baseline")
   end
 
-  test "recording a demo does not permit extra unrecorded synthetic reactions" do
+  test "replay reports extra reactions separately from recorded discovery reactions" do
     seed
     book = Book.create!(title: "Discovery demo book", author: "Demo author")
     reaction = Reaction.create!(user_id: @reader_ids.first, book: book, kind: "love")
     record_discovery_demo(reaction)
-    Reaction.create!(user_id: @reader_ids.second, book: book, kind: "like")
+    extra = Reaction.create!(user_id: @reader_ids.second, book: book, kind: "like")
 
-    assert_seed_refuses_changes("Unrecorded synthetic-reader reactions")
+    assert_equal [ extra.id ], seed.dig("reactions", "unplanned_record_ids")
   end
 
   test "discovery preview uses real fifty percent actors and the supplied ranking time without writing reactions" do
@@ -298,6 +305,24 @@ class DevelopmentReadingScenarioReactionsTest < ActiveSupport::TestCase
     assert_equal "wow", row.reload.kind
   end
 
+  test "a replacement reaction cannot inherit a recorded timestamp refresh" do
+    seed
+    result = refresh_old_hit
+    action = result.dig("reactions", DevelopmentReadingScenarioReactions::REFRESH_ACTION)
+    original = Reaction.find(action.fetch("reaction_id"))
+    pair = original.attributes.slice("user_id", "book_id")
+    original.destroy!
+    replacement = Reaction.create!(pair.merge("kind" => "love"))
+    before = replacement.attributes
+
+    reactions = seed.fetch("reactions")
+    assert_equal "recorded_reaction_missing", reactions.dig("records", action.fetch("identity"), "reason")
+    assert_includes reactions.fetch("unplanned_record_ids"), replacement.id
+    assert_equal reactions, seed.fetch("reactions")
+    assert_raises(DevelopmentReadingScenarioReactions::ReactionsError) { refresh_old_hit }
+    assert_equal before, replacement.reload.attributes
+  end
+
   test "refresh requires completed reaction seeding and refuses production and overlapping operations" do
     saved = @paths.fetch(:manifest_path).read
     assert_raises(DevelopmentReadingScenarioReactions::ReactionsError) { refresh_old_hit }
@@ -353,38 +378,50 @@ class DevelopmentReadingScenarioReactionsTest < ActiveSupport::TestCase
     assert_equal 160, enqueued_jobs.count { |job| job[:job] == ReactionTotalsJob }
   end
 
-  test "unrecorded reactions from synthetic readers stop before any seed or manifest writes" do
-    row = Reaction.create!(user_id: @reader_ids.first, book_id: @book_ids.values.first, kind: "love")
-    before = @paths.fetch(:manifest_path).read
+  test "the first import reuses an existing reader and book reaction without changing its emoji or dates" do
+    book_id = @book_ids.fetch(DevelopmentReadingScenarioReactions::ANCHORS.dig("old_hit", "work_key"))
+    row = Reaction.create!(user_id: @reader_ids.first, book_id: book_id, kind: "love")
+    before = row.attributes
 
-    assert_no_difference "Reaction.count" do
-      error = assert_raises(DevelopmentReadingScenarioReactions::ReactionsError) { seed }
-      assert_includes error.message, row.id.to_s
-      assert_includes error.message, "no automatic takeover"
+    assert_difference "Reaction.count", 159 do
+      result = seed
+      record = result.dig("reactions", "records").values.find { |entry| entry["id"] == row.id }
+      assert_equal "reused", record.fetch("result")
+      assert_equal 160, result.dig("reactions", "actual_counts", "book_reactions")
     end
-    assert_equal before, @paths.fetch(:manifest_path).read
-    assert_equal "love", row.reload.kind
+    assert_equal before, row.reload.attributes
   end
 
-  test "changed kind or timestamp and missing owned reactions are refused without repair" do
-    seed
-    record = Reaction.where(user_id: @reader_ids).first
-    original = record.attributes
-    record.update!(kind: "love")
-    assert_seed_refuses_changes("changed")
-    record.update_columns(original.except("id"))
-    record.touch(time: record.updated_at + 1.hour)
-    assert_seed_refuses_changes("changed")
-    record.destroy!
-    assert_seed_refuses_changes("missing")
+  test "replay preserves edited and reassigned reactions and reports missing planned reactions" do
+    first = seed
+    (edited_identity, edited_record), (missing_identity, missing_record), (moved_identity, moved_record) = first.dig("reactions", "records").first(3)
+    edited = Reaction.find(edited_record.fetch("id"))
+    edited.update!(kind: "love", updated_at: edited.updated_at + 1.hour)
+    Reaction.find(missing_record.fetch("id")).destroy!
+    Reaction.find(moved_record.fetch("id")).update!(user: users(:leika))
+    before = Reaction.order(:id).map(&:attributes)
+    clear_enqueued_jobs
+
+    result = seed.fetch("reactions")
+    records = result.fetch("records")
+    assert_equal "reused", records.dig(edited_identity, "result")
+    assert_equal "recorded_reaction_missing", records.dig(missing_identity, "reason")
+    assert_equal "reaction_identity_changed", records.dig(moved_identity, "reason")
+    assert_equal 158, result.dig("actual_counts", "book_reactions")
+    assert_equal [ moved_record.fetch("id") ], result.fetch("unplanned_record_ids")
+    assert_equal result, seed.fetch("reactions")
+    assert_equal before, Reaction.order(:id).map(&:attributes)
+    assert_no_enqueued_jobs only: ReactionTotalsJob
   end
 
-  test "an extra unrecorded pair stops replay without changing existing owned reactions" do
+  test "an extra unplanned pair is reported without changing existing reactions" do
     seed
     pair = Reaction.create!(user_id: @reader_ids.first, book_id: anchor("empty").fetch("book_id"), kind: "wow")
 
-    assert_seed_refuses_changes("Unrecorded")
-    assert_equal "wow", pair.reload.kind
+    before = owned_rows
+    result = seed
+    assert_equal [ pair.id ], result.dig("reactions", "unplanned_record_ids")
+    assert_equal before, owned_rows
   end
 
   test "real user reactions including other emoji on anchor books remain untouched" do
@@ -412,10 +449,13 @@ class DevelopmentReadingScenarioReactionsTest < ActiveSupport::TestCase
     assert_equal "love", saved_manifest.dig("reactions", "records", identity, "expected_attributes", "kind")
   end
 
-  test "inactive readers and missing required anchor keys are refused before reaction writes" do
+  test "inactive readers are skipped while a malformed inventory with a missing anchor key is rejected" do
     reader = User.find(@reader_ids.first)
     reader.update!(account_status: "suspended")
-    assert_seed_refuses_changes("inactive")
+    result = seed
+    assert_empty Reaction.where(user: reader)
+    assert result.dig("reactions", "records").values.any? { |record| record["reason"] == "account_unavailable" }
+    assert_operator result.dig("reactions", "actual_counts", "book_reactions"), :<, 160
     reader.update!(account_status: "active")
     manifest = saved_manifest
     records = manifest.fetch("catalog").fetch("records")
@@ -426,7 +466,7 @@ class DevelopmentReadingScenarioReactionsTest < ActiveSupport::TestCase
     assert_seed_refuses_changes("Required reaction anchors")
   end
 
-  test "tie anchor ID ordering is checked without renumbering or rewriting books" do
+  test "tie anchors retain existing book IDs regardless of their order" do
     key = DevelopmentReadingScenarioReactions::ANCHORS.fetch("tie_c").fetch("work_key")
     original = Book.find(@book_ids.fetch(key))
     attributes = original.attributes.except("id", "created_at", "updated_at")
@@ -436,7 +476,7 @@ class DevelopmentReadingScenarioReactionsTest < ActiveSupport::TestCase
     manifest.fetch("catalog").fetch("records").fetch(key).fetch("book")["id"] = replacement.id
     write_manifest(manifest)
 
-    assert_seed_refuses_changes("tie_c.id < tie_d.id")
+    assert_equal 160, seed.dig("reactions", "actual_counts", "book_reactions")
     assert_equal attributes, replacement.reload.attributes.except("id", "created_at", "updated_at")
   end
 

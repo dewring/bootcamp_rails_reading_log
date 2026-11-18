@@ -77,7 +77,8 @@ class DevelopmentReadingScenarioBootstrapTest < ActiveSupport::TestCase
     assert user_records(second).values.all? { |record| record.fetch("result") == "reused" }
   end
 
-  test "an existing reader email is refused before creating genres badges or accounts" do
+
+  test "an existing reader email is preserved while other accounts and lookup records are created" do
     collision = User.create!(
       first_name: "Existing", last_name: "Person", nickname: "existing_person",
       email: "reader01@example.test", password: @password, role: "user", account_status: "active"
@@ -85,41 +86,44 @@ class DevelopmentReadingScenarioBootstrapTest < ActiveSupport::TestCase
     before = collision.attributes
     write_snapshot
 
-    assert_no_difference [ "Genre.count", "Badge.count", "User.count" ] do
-      error = assert_raises(DevelopmentReadingScenarioBootstrap::BootstrapError) { bootstrap_scenario }
-      assert_includes error.message, collision.id.to_s
-      assert_includes error.message, "no automatic merge or account takeover"
+    assert_difference "User.count", 30 do
+      record = user_records(bootstrap_scenario).fetch("reader01")
+      assert_equal "skipped", record.fetch("result")
+      assert_equal [ collision.id ], record.fetch("record_ids")
+      assert_nil record.fetch("id")
     end
     assert_equal before, collision.reload.attributes
-    assert_not @manifest_path.exist?
   end
 
-  test "a collision at the final admin nickname cannot cause an account takeover or earlier writes" do
+
+  test "a final admin nickname collision never promotes the existing account" do
     collision = User.create!(
       first_name: "Existing", last_name: "Reader", nickname: "avery.morgan",
       email: "someone@example.test", password: @password, role: "user", account_status: "active"
     )
     write_snapshot
 
-    assert_no_difference [ "Genre.count", "Badge.count", "User.count" ] do
-      error = assert_raises(DevelopmentReadingScenarioBootstrap::BootstrapError) { bootstrap_scenario }
-      assert_includes error.message, collision.id.to_s
+    assert_difference "User.count", 30 do
+      record = user_records(bootstrap_scenario).fetch("admin")
+      assert_equal "skipped", record.fetch("result")
+      assert_equal [ collision.id ], record.fetch("record_ids")
     end
     assert_equal "user", collision.reload.role
-    assert_not @manifest_path.exist?
   end
 
-  test "matching synthetic attributes and a matching password do not make an unrecorded account scenario-owned" do
-    write_snapshot
-    plan = scenario_plan
-    attributes = plan.fetch("users").first.fetch("attributes")
-    existing = User.create!(attributes.merge("password" => @password))
 
-    assert_no_difference "User.count" do
-      error = assert_raises(DevelopmentReadingScenarioBootstrap::BootstrapError) { bootstrap_scenario }
-      assert_includes error.message, existing.id.to_s
-    end
-    assert_not @manifest_path.exist?
+  test "matching public attributes and a matching password do not authorize takeover of an existing account" do
+    write_snapshot
+    attributes = scenario_plan.fetch("users").first.fetch("attributes")
+    existing = User.create!(attributes.merge("password" => @password))
+    before = existing.attributes
+
+    record = user_records(bootstrap_scenario).fetch("reader01")
+
+    assert_equal "account_identity_collision", record.fetch("reason")
+    assert_nil record.fetch("id")
+    assert_equal [ existing.id ], record.fetch("record_ids")
+    assert_equal before, existing.reload.attributes
   end
 
   test "a missing password is refused before writing bootstrap records or a manifest" do
@@ -166,20 +170,21 @@ class DevelopmentReadingScenarioBootstrapTest < ActiveSupport::TestCase
     assert_not_requested :any, /https?:/
   end
 
-  test "changed scenario credentials stop resume before unfinished users are created" do
+
+  test "replay skips an uncheckpointed account whose credentials changed and resumes other accounts" do
     write_snapshot
     interrupt_after_first_account_commit
     user = User.find_by!(email: "reader01@example.test")
     user.update!(password: "a-different-synthetic-password")
-    before = @manifest_path.binread
+    before = user.attributes
 
-    assert_no_difference [ "Genre.count", "Badge.count", "User.count" ] do
-      error = assert_raises(DevelopmentReadingScenarioBootstrap::BootstrapError) { bootstrap_scenario }
-      assert_includes error.message, user.id.to_s
-      assert_includes error.message, "changed"
+    assert_difference "User.count", 30 do
+      record = user_records(bootstrap_scenario).fetch("reader01")
+      assert_equal "account_identity_or_credentials_changed", record.fetch("reason")
+      assert_equal [ user.id ], record.fetch("record_ids")
     end
-    assert_equal before, @manifest_path.binread
-    assert_not User.exists?(email: "reader02@example.test")
+    assert_equal before, user.reload.attributes
+    assert User.exists?(email: "reader02@example.test")
   end
 
   test "the wrong local password cannot resume creation of unfinished synthetic accounts" do
@@ -218,9 +223,10 @@ class DevelopmentReadingScenarioBootstrapTest < ActiveSupport::TestCase
     User.find(id).destroy!
 
     assert_no_difference "User.count" do
-      error = assert_raises(DevelopmentReadingScenarioBootstrap::BootstrapError) { bootstrap_scenario }
-      assert_includes error.message, id.to_s
-      assert_includes error.message, "no automatic recreation"
+      record = user_records(bootstrap_scenario).fetch("reader30")
+      assert_equal "recorded_account_missing", record.fetch("reason")
+      assert_equal "skipped", record.fetch("result")
+      assert_equal id, record.fetch("id")
     end
   end
 
@@ -238,9 +244,9 @@ class DevelopmentReadingScenarioBootstrapTest < ActiveSupport::TestCase
         user.update!(first_name: "Developer edit")
       end
     }) do
-      error = assert_raises(DevelopmentReadingScenarioBootstrap::BootstrapError) { bootstrap_scenario }
-      assert_includes error.message, user.id.to_s
-      assert_includes error.message, "changed"
+      record = user_records(bootstrap_scenario).fetch("reader01")
+      assert_equal user.id, record.fetch("id")
+      assert_equal "reused", record.fetch("result")
     end
 
     assert_equal "Developer edit", user.reload.first_name
@@ -257,6 +263,53 @@ class DevelopmentReadingScenarioBootstrapTest < ActiveSupport::TestCase
     assert_equal "First Session", badge.name
     assert_equal "Logged your first reading session.", badge.description
     assert badge.valid?
+  end
+
+  test "a badge name already used by another type is reported while setup continues" do
+    first = Badge.find_by!(badge_type: "first_session")
+    first.destroy!
+    existing = Badge.find_by!(badge_type: "week_streak")
+    existing.update!(name: "First Session")
+    before = existing.attributes
+    write_snapshot
+
+    assert_difference "User.count", 31 do
+      result = bootstrap_scenario.fetch("bootstrap")
+      record = result.dig("records", "badges", "first_session")
+      assert_equal "skipped", record.fetch("result")
+      assert_equal "badge_name_collision", record.fetch("reason")
+      assert_equal [ existing.id ], record.fetch("record_ids")
+      assert_equal 4, result.dig("actual_counts", "badges")
+    end
+    assert_not Badge.exists?(badge_type: "first_session")
+    assert_equal before, existing.reload.attributes
+  end
+
+  test "badge replay preserves edits and skips deleted types until a replacement exists" do
+    write_snapshot
+    bootstrap_scenario
+    missing = Badge.find_by!(badge_type: "first_session")
+    missing.destroy!
+    edited = Badge.find_by!(badge_type: "week_streak")
+    edited.update!(description: "Updated catalog description")
+    before = edited.attributes
+
+    assert_no_difference "Badge.count" do
+      result = bootstrap_scenario.fetch("bootstrap")
+      record = result.dig("records", "badges", "first_session")
+      assert_equal "recorded_badge_missing", record.fetch("reason")
+      assert_equal missing.id, record.fetch("id")
+      assert_equal 4, result.dig("actual_counts", "badges")
+    end
+    assert_equal before, edited.reload.attributes
+
+    replacement = Badge.create!(badge_type: "first_session", name: "First Reading", description: "Awarded for the first log.")
+    result = bootstrap_scenario.fetch("bootstrap")
+    record = result.dig("records", "badges", "first_session")
+    assert_equal replacement.id, record.fetch("id")
+    assert_equal "reused", record.fetch("result")
+    assert_nil record["reason"]
+    assert_equal 5, result.dig("actual_counts", "badges")
   end
 
   test "an invalid pending badge stops setup before any records or checkpoint are written" do

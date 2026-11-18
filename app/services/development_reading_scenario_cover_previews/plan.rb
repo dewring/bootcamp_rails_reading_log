@@ -6,21 +6,21 @@ class DevelopmentReadingScenarioCoverPreviews::Plan
     @books = books
   end
 
-  def build_previews(missing_work_key: nil)
+  def build_previews(missing_work_key: nil, recorded_ids: {})
     pages = @snapshot.fetch("pages").to_h { |page| [ page.fetch("page"), JSON.parse(page.fetch("raw_body")).fetch("docs") ] }
     entries = @snapshot.fetch("selected").map do |selection|
       key = selection.fetch("work_key")
       cover_id = pages.fetch(selection.fetch("page")).fetch(selection.fetch("index"))["cover_i"]
-      { "work_key" => key, "book_id" => @books.fetch(key).id,
+      { "work_key" => key, "book_id" => @books[key]&.id || recorded_ids[key],
         "cover_id" => cover_id.is_a?(Integer) && cover_id.positive? ? cover_id : nil }
     end
     missing = if missing_work_key
       entries.find { |entry| entry.fetch("work_key") == missing_work_key }
     else
-      entries.reverse.find { |entry| entry["cover_id"].nil? && !attached?(entry) } || entries.reverse.find { |entry| !attached?(entry) }
+      entries.reverse.find { |entry| entry["cover_id"].nil? && !attached?(entry) } || entries.reverse.find { |entry| !attached?(entry) } || entries.last
     end
-    unless missing && !attached?(missing)
-      raise DevelopmentReadingScenarioCoverPreviews::PreviewError, "A selected book must remain without an attached cover; no images were removed automatically."
+    unless missing
+      raise DevelopmentReadingScenarioCoverPreviews::PreviewError, "The recorded cover preview work is absent from the snapshot."
     end
     records = entries.reject { |entry| entry.fetch("work_key") == missing.fetch("work_key") || entry["cover_id"].nil? }.first(LIMIT).to_h do |entry|
       [ entry.fetch("work_key"), entry.except("work_key").merge("job_id" => nil, "status" => "planned") ]
@@ -34,6 +34,6 @@ class DevelopmentReadingScenarioCoverPreviews::Plan
   private
 
   def attached?(entry)
-    @books.fetch(entry.fetch("work_key")).cover_image.attached?
+    @books[entry.fetch("work_key")]&.cover_image&.attached?
   end
 end

@@ -36,13 +36,39 @@ With those settings present, run inside the production application container:
 위 설정을 적용한 프로덕션 앱 컨테이너 안에서 실행한다:
 
 ```bash
-RAILS_ENV=production bin/rails db:seed
+RAILS_ENV=production bin/rails console
+```
+
+In the Rails console / Rails 콘솔에서:
+
+```ruby
+begin
+  scenario = DevelopmentReadingScenario.new
+  summary = scenario.import_summary(scenario.seed_scenario)
+  pp summary
+  nil
+end
+```
+
+The same conflict rules apply in each enabled environment. The simulator
+reuses safely identified existing records and preserves their values. It
+reports unresolved conflicts and skips affected records and their dependents
+while importing unrelated records.
+
+활성화된 모든 환경에 같은 충돌 처리 규칙을 적용한다. 기존 레코드임을
+확인할 수 있으면 기존 값을 유지한 채 재사용한다. 해결할 수 없는 충돌은
+결과에 표시하고, 영향을 받는 레코드와 의존 레코드를 건너뛰며 나머지 데이터는
+계속 가져온다.
+
+To add another batch, use the application container shell / 추가 활동은 앱 컨테이너 셸에서 실행한다:
+
+```bash
 RAILS_ENV=production bin/rails 'development_scenario:simulate_reading[demo1]'
 ```
 
 | English | 한국어 |
 | --- | --- |
-| Seeding adds 100 catalog books, 30 readers and a demo admin, reading/community/reaction data, six challenges with 40 enrollments, and subject-based genre links. Existing data is preserved; identity collisions stop execution for review. | 책 100권, 독자 30명과 시연 관리자, 독서·커뮤니티·반응 데이터, 챌린지 6개와 참여 40개, 주제 기반 장르 연결을 추가한다. 기존 데이터를 보존하며 식별 충돌은 검토를 위해 실행을 중단한다. |
+| The demo uses 100 catalog books and adds 30 readers and a demo admin, reading/community/reaction data, six challenges with 40 enrollments, and subject-based genre links. | 시연에는 카탈로그 책 100권을 사용하고, 독자 30명과 시연 관리자, 독서·커뮤니티·반응 데이터, 챌린지 6개와 참여 40개, 주제 기반 장르 연결을 추가한다. |
 | `demo1` adds three sessions dated today and two posts. Use `demo2` for another batch. Repeating the same name resumes or reuses that batch without duplicates. The argument-free command retains the original `tick1` behavior and reference date. | `demo1`은 오늘 날짜 세션 3개와 게시글 2개를 추가한다. 추가 활동에는 `demo2`처럼 새 이름을 사용한다. 같은 이름은 중복 없이 복구·재사용하며 인수 없는 명령은 기존 `tick1` 동작과 기준일을 유지한다. |
 | Keep the normal worker running for progress jobs, notifications and broadcasts. Synthetic accounts use reserved `@example.test` addresses, but normal job callbacks still run. | 진행률 작업·알림·브로드캐스트를 처리하는 워커를 실행한다. 합성 계정은 예약된 이메일 주소를 사용하지만 일반 작업 콜백은 실행된다. |
 | Verify the printed counts, all genre filters, the three challenge enrollment groups, and current Trending results where enabled. Ranking is cached for 30 minutes. Recent reactions age out of its seven-day window; new reading batches do not refresh reactions. | 출력 수, 장르 필터, 챌린지 참여 그룹 3가지, 활성화된 Trending 결과를 확인한다. 순위는 30분 캐시되며 반응은 7일 집계 범위를 벗어날 수 있다. 독서 활동 추가는 반응 시각을 갱신하지 않는다. |

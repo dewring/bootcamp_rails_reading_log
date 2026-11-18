@@ -11,7 +11,7 @@ class DevelopmentReadingScenarioTick::Inventory
       records = @tick.fetch(group)
       rows = model.where(user_id: records.values.map { |record| record.fetch("expected_attributes").fetch("user_id") }).to_a
       [ group, records.to_h do |identity, record|
-        [ identity, matching_record(rows, record, group, identity) ]
+        [ identity, matching_record(rows, record, group) ]
       end ]
     end
   end
@@ -31,25 +31,22 @@ class DevelopmentReadingScenarioTick::Inventory
 
   private
 
-  def verify_saved_record(record, row, identity)
-    expected = record.fetch("expected_attributes")
-    unless snapshot_attributes(row).slice(*expected.keys) == expected
-      raise DevelopmentReadingScenarioTick::TickError, "Recorded tick #{identity} (ID #{row.id}) changed; no automatic overwrite is allowed."
-    end
-  end
+  def matching_record(rows, record, group)
+    return if record["result"] == "skipped"
 
-  def matching_record(rows, record, group, identity)
+    expected = record.fetch("expected_attributes")
     if record["id"]
       row = rows.find { |candidate| candidate.id == record.fetch("id") }
-      raise DevelopmentReadingScenarioTick::TickError, "Recorded tick #{group} #{identity} (ID #{record.fetch('id')}) is missing; no automatic recreation is allowed." unless row
+      keys = group == "reading_sessions" ? [ "user_id", "book_id" ] : [ "user_id", "book_club_id" ]
+      return row if row&.attributes&.slice(*keys) == expected.slice(*keys)
 
-      verify_saved_record(record, row, identity)
-      return row
+      record.merge!("result" => "skipped", "reason" => row ? "tick_identity_changed" : "recorded_tick_row_missing")
+      return
     end
-    expected = record.fetch("expected_attributes")
     candidates = rows.select { |row| snapshot_attributes(row).slice(*expected.keys) == expected }
     if candidates.length > 1
-      raise DevelopmentReadingScenarioTick::TickError, "Ambiguous tick #{group} #{identity}: record IDs #{candidates.map(&:id)}; no records were changed."
+      record.merge!("result" => "skipped", "reason" => "ambiguous_tick_payload", "record_ids" => candidates.map(&:id).sort)
+      return
     end
     candidates.first
   end

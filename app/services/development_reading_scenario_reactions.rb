@@ -25,7 +25,7 @@ class DevelopmentReadingScenarioReactions
       @manifest["reactions"] = @reactions
       @scenario_manifest.save_scenario
       @reactions.fetch("records").each { |identity, record| import_reaction(identity, record) }
-      rows = @matches.values
+      rows = @matches.values.compact
       @reactions["actual_counts"] = { "book_reactions" => rows.length, "likes" => rows.count { |row| row.kind == "like" }, "dislikes" => rows.count { |row| row.kind == "dislike" } }
       @reactions["current_counts"] = current_reader_reaction_counts
       @reactions["status"] = "complete"
@@ -41,6 +41,11 @@ class DevelopmentReadingScenarioReactions
         raise ReactionsError, "Complete development_scenario:seed_reactions before refreshing an old_hit reaction."
       end
       action = @reactions[REFRESH_ACTION] ||= planned_old_hit_refresh
+      row = @matches.fetch(action.fetch("identity"))
+      if row.nil? || row.id != action.fetch("reaction_id")
+        raise ReactionsError, "The selected old_hit reaction is missing or its identity changed."
+      end
+      verify_reaction(row, action.fetch("identity"), @reactions.fetch("records").fetch(action.fetch("identity")))
       return @manifest.deep_dup if action.fetch("status") == "complete"
 
       # Save intent before the database write so an interrupted update can resume.
@@ -67,7 +72,7 @@ class DevelopmentReadingScenarioReactions
       previous_memoization = Flipper.memoizing?
       begin
         Flipper.memoize = true
-        User.where(id: @reader_ids.values).each do |reader|
+        User.where(id: available_reader_ids).each do |reader|
           variant = feature.enabled?(reader) ? "treatment" : "control"
           assignments[variant] += 1
         end
@@ -86,10 +91,10 @@ class DevelopmentReadingScenarioReactions
   private
 
   def prepare_reactions
-    catalog = OpenLibraryCatalogPreflight.new(snapshot_path: @snapshot_path, manifest_path: @scenario_manifest.path).preflight_catalog
+    catalog = OpenLibraryCatalogPreflight.new(snapshot_path: @snapshot_path, manifest_path: @scenario_manifest.path).preflight_catalog(skip_book_conflicts: true)
     @manifest = @scenario_manifest.prepare_scenario(snapshot_id: catalog.fetch("snapshot_id"))
     unless @manifest.dig("baseline", "status") == "complete"
-      raise ReactionsError, "Prepare the Day 1 baseline with db:seed before seeding reactions."
+      raise ReactionsError, "Run DevelopmentReadingScenario.new.seed_scenario in the Rails console to prepare the Day 1 baseline."
     end
     load_readers
     load_books
@@ -104,41 +109,39 @@ class DevelopmentReadingScenarioReactions
     identities = (1..30).map { |number| format("reader%02d", number) }
     records = @manifest.fetch("bootstrap").fetch("records").fetch("users").slice(*identities)
     ids = records.values.map { |record| record["id"] }
-    unless records.length == 30 && ids.uniq.length == 30
+    unless records.length == 30 && ids.compact.uniq.length == ids.compact.length
       raise ReactionsError, "The manifest must identify 30 distinct synthetic readers; review before seeding."
     end
     users = User.where(id: ids).index_by(&:id)
+    @unavailable_reader_ids = Set.new
     @reader_ids = identities.to_h do |identity|
       record = records.fetch(identity)
       user = users[record["id"]]
       expected = { "email" => record.fetch("expected_attributes").fetch("email"), "role" => "user", "account_status" => "active" }
-      unless user&.attributes&.slice(*expected.keys) == expected
-        raise ReactionsError, "Synthetic reader #{identity} (ID #{record['id']}) is missing, changed or inactive; no reactions were written."
+      if record["result"] == "skipped" || user&.attributes&.slice(*expected.keys) != expected
+        @unavailable_reader_ids.add(record["id"])
       end
-      [ identity, user.id ]
+      [ identity, record["id"] ]
     end
   end
 
   def load_books
     records = @manifest.fetch("catalog").fetch("records")
     ids = records.values.map { |pair| pair.fetch("book").fetch("id") }
-    unless records.length == 100 && ids.uniq.length == 100
-      raise ReactionsError, "The manifest must identify 100 distinct scenario books; review before seeding."
+    unless records.length == 100 && ids.compact.uniq.length == ids.compact.length
+      raise ReactionsError, "The manifest must identify 100 distinct scenario works; review before seeding."
     end
     books = Book.where(id: ids).index_by(&:id)
+    @unavailable_book_ids = Set.new
     @book_ids = records.to_h do |key, pair|
-      id = pair.fetch("book").fetch("id")
-      raise ReactionsError, "Scenario Work #{key} (ID #{id}) is missing or changed." unless books[id]&.ol_work_key == key
+      record = pair.fetch("book")
+      id = record.fetch("id")
+      @unavailable_book_ids.add(id) if record["result"] == "skipped" || books[id]&.ol_work_key != key
 
       [ key, id ]
     end
     missing = ANCHORS.values.map { |anchor| anchor.fetch("work_key") } - @book_ids.keys
     raise ReactionsError, "Required reaction anchors are missing from the manifest: #{missing.join(', ')}" if missing.any?
-    tie_c_id = @book_ids.fetch(ANCHORS.fetch("tie_c").fetch("work_key"))
-    tie_d_id = @book_ids.fetch(ANCHORS.fetch("tie_d").fetch("work_key"))
-    unless tie_c_id < tie_d_id
-      raise ReactionsError, "Reaction anchors require tie_c.id < tie_d.id; preserve the books and review their identities."
-    end
   end
 
   def planned_reactions
@@ -186,40 +189,62 @@ class DevelopmentReadingScenarioReactions
   def verify_inventory
     saved_ids = @reactions.fetch("records").values.filter_map { |record| record["id"] }
     demo_ids = @reactions.fetch("discovery_demo", {}).fetch("records", {}).values.map { |record| record.fetch("id") }
-    rows = Reaction.where(user_id: @reader_ids.values).or(Reaction.where(id: [ *saved_ids, *demo_ids ])).to_a
-    if !@manifest["reactions"] && rows.any?
-      raise ReactionsError, "Unrecorded synthetic-reader reactions already exist (IDs #{rows.map(&:id)}); no automatic takeover is allowed."
-    end
+    rows = Reaction.where(user_id: available_reader_ids).or(Reaction.where(id: [ *saved_ids, *demo_ids ])).to_a
     by_id = rows.index_by(&:id)
-    by_pair = rows.index_by { |row| [ row.user_id, row.book_id ] }
+    by_pair = rows.index_by { |row| reaction_pair(row) }
+    refresh = @reactions[REFRESH_ACTION]
     @matches = @reactions.fetch("records").to_h do |identity, record|
-      expected = record.fetch("expected_attributes")
-      row = record["id"] ? by_id[record.fetch("id")] : by_pair[expected.values_at("user_id", "book_id")]
-      raise ReactionsError, "Recorded reaction #{identity} (ID #{record['id']}) is missing; no automatic recreation is allowed." if record["id"] && !row
-
-      verify_reaction(row, identity, record) if row
+      row = match_baseline_reaction(identity, record, by_pair, refresh: refresh, demo_ids: demo_ids)
       [ identity, row ]
     end
-    verify_discovery_demo(by_id, baseline_ids: saved_ids)
-    extra_ids = rows.map(&:id) - @matches.values.compact.map(&:id) - demo_ids
-    raise ReactionsError, "Unrecorded synthetic-reader reactions: IDs #{extra_ids}; review without deleting data." if extra_ids.any?
+    reconcile_discovery_demo(by_id, baseline_ids: saved_ids)
+    @reactions["unplanned_record_ids"] = (rows.map(&:id) - @matches.values.compact.map(&:id) - demo_ids).sort
+    @reaction_rows_by_id = by_id
+    @discovery_reaction_ids = demo_ids
+    @reaction_rows_by_pair = by_pair
   end
 
-  def verify_discovery_demo(by_id, baseline_ids:)
+  def match_baseline_reaction(identity, record, by_pair, refresh:, demo_ids:)
+    user_id, book_id = record.fetch("expected_attributes").values_at("user_id", "book_id")
+    row = by_pair[[ user_id, book_id ]]
+    return if demo_ids.include?(row&.id)
+    return if @unavailable_reader_ids.include?(user_id)
+    return if @unavailable_book_ids.include?(book_id)
+
+    # A recorded timestamp change belongs to its original row.
+    return row unless refresh&.fetch("identity") == identity
+    return row if refresh.fetch("reaction_id") == row&.id
+
+    nil
+  end
+
+  def reaction_pair(row)
+    [ row.user_id, row.book_id ]
+  end
+
+  def reconcile_discovery_demo(by_id, baseline_ids:)
     @reactions.fetch("discovery_demo", {}).fetch("records", {}).each do |identity, record|
       id = record.fetch("id")
       if baseline_ids.include?(id) || !@reader_ids.value?(record.fetch("expected_attributes").fetch("user_id"))
         raise ReactionsError, "Discovery demo records must be separate from the baseline and belong to synthetic readers."
       end
       row = by_id[id]
-      raise ReactionsError, "Discovery demo reaction #{id} is missing; no automatic recreation is allowed." unless row
-
-      verify_reaction(row, "discovery_demo/#{identity}", record)
+      if !row
+        record.merge!("result" => "skipped", "reason" => "recorded_discovery_reaction_missing")
+      elsif !expected_reaction_states("discovery_demo/#{identity}", record).include?(attributes_for(row))
+        record.merge!("result" => "skipped", "reason" => "recorded_discovery_reaction_changed")
+      else
+        record.except!("result", "reason")
+      end
     end
   end
 
+  def available_reader_ids
+    @reader_ids.values.compact - @unavailable_reader_ids.to_a
+  end
+
   def current_reader_reaction_counts
-    by_kind = Reaction.where(user_id: @reader_ids.values).group(:kind).count
+    by_kind = Reaction.where(user_id: available_reader_ids).group(:kind).count
     { "book_reactions" => by_kind.values.sum, "by_kind" => by_kind }
   end
 
@@ -279,25 +304,58 @@ class DevelopmentReadingScenarioReactions
 
   def import_reaction(identity, record)
     row = @matches.fetch(identity)
+    reason = reaction_skip_reason(record) unless row
+    return skip_reaction(identity, record, reason) if reason
+
     result = row ? "reused" : "imported"
-    Reaction.transaction(requires_new: true) do
+    expected = record.fetch("expected_attributes")
+    saved = Reaction.transaction(requires_new: true) do
       if row
-        row.lock!
-        verify_reaction(row, identity, record)
+        current = Reaction.lock.find_by(id: row.id)
+        next if current.nil?
+
+        current if reaction_pair(current) == expected.values_at("user_id", "book_id")
       else
-        row = Reaction.create!(record.fetch("expected_attributes"))
+        Reaction.create!(expected)
       end
     end
-    @matches[identity] = row
-    record["id"] = row.id
+    unless saved
+      record["id"] ||= row.id
+      return skip_reaction(identity, record, "reaction_unavailable_during_import")
+    end
+
+    @matches[identity] = saved
+    record["id"] = saved.id
     record["result"] = result
     record.delete("errors")
+    record.delete("reason")
     @scenario_manifest.save_scenario
   rescue ActiveRecord::RecordInvalid => error
     record["result"] = "failed"
     record["errors"] = error.record.errors.full_messages
     @scenario_manifest.save_scenario
     raise
+  end
+
+  def skip_reaction(identity, record, reason)
+    record.merge!("result" => "skipped", "reason" => reason)
+    @matches[identity] = nil
+    @scenario_manifest.save_scenario
+  end
+
+  def reaction_skip_reason(record)
+    expected_pair = record.fetch("expected_attributes").values_at("user_id", "book_id")
+    return "account_unavailable" if @unavailable_reader_ids.include?(expected_pair.first)
+    return "book_unavailable" if @unavailable_book_ids.include?(expected_pair.last)
+    row = @reaction_rows_by_pair[expected_pair]
+    return "discovery_demo_pair_in_use" if @discovery_reaction_ids.include?(row&.id)
+    return unless record["id"]
+
+    if @reaction_rows_by_id.key?(record.fetch("id"))
+      "reaction_identity_changed"
+    else
+      "recorded_reaction_missing"
+    end
   end
 
   def attributes_for(row)

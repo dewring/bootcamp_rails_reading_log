@@ -1,6 +1,4 @@
 class DevelopmentReadingScenarioCommunity
-  class CommunityError < StandardError; end
-
   MODELS = { "book_clubs" => BookClub, "book_club_memberships" => BookClubMembership, "club_messages" => ClubMessage, "reviews" => Review }.freeze
 
   def initialize(snapshot_path: Rails.root.join("db/seeds/open_library_catalog.json"),
@@ -26,20 +24,22 @@ class DevelopmentReadingScenarioCommunity
   end
 
   def preflight_community
-    with_community_context { @community.deep_dup }
+    with_community_context do
+      record_community_counts
+      @community.deep_dup
+    end
   end
 
   private
 
   def with_community_context
     @scenario_manifest.with_exclusive_access do
-      catalog = OpenLibraryCatalogPreflight.new(snapshot_path: @snapshot_path, manifest_path: @scenario_manifest.path).preflight_catalog
+      catalog = OpenLibraryCatalogPreflight.new(snapshot_path: @snapshot_path, manifest_path: @scenario_manifest.path).preflight_catalog(skip_book_conflicts: true)
       @plan = DevelopmentReadingScenarioPlan.new(catalog: catalog, as_of: @as_of).build_baseline
       @manifest = @scenario_manifest.prepare_scenario(snapshot_id: catalog.fetch("snapshot_id"))
       load_references
       @community = @manifest["community"] || planned_community
       load_community_rows
-      reject_existing_community unless @manifest["community"]
       verify_inventory
       yield
     end
@@ -47,9 +47,11 @@ class DevelopmentReadingScenarioCommunity
 
   def load_references
     users = @manifest.fetch("bootstrap").fetch("records").fetch("users")
-    @users = User.where(id: users.values.map { |record| record.fetch("id") }).includes(avatar_attachment: :blob).index_by(&:id)
-    @user_ids = users.transform_values { |record| record.fetch("id") }
-    @book_ids = @manifest.fetch("catalog").fetch("records").transform_values { |pair| pair.fetch("book").fetch("id") }
+    ids = users.values.filter_map { |record| record["id"] unless record["result"] == "skipped" }
+    @users = User.where(id: ids).includes(avatar_attachment: :blob).index_by(&:id)
+    @user_ids = users.transform_values { |record| record["id"] if @users.key?(record["id"]) }
+    @book_ids = DevelopmentReadingScenarioActivity::References.new(manifest: @manifest).load_references.books.transform_values { |book| book&.id }
+    @available_book_ids = @book_ids.values.compact.to_set
   end
 
   def planned_community
@@ -87,11 +89,6 @@ class DevelopmentReadingScenarioCommunity
     }
   end
 
-  def reject_existing_community
-    existing = @rows.transform_values { |rows| rows.map(&:id) }.reject { |_group, ids| ids.empty? }
-    raise CommunityError, "Unrecorded community data or a club-name collision exists: #{existing.inspect}; no automatic takeover is allowed." if existing.any?
-  end
-
   def verify_inventory
     @matches = {}
     MODELS.each_key do |group|
@@ -99,26 +96,84 @@ class DevelopmentReadingScenarioCommunity
         [ identity, match_record(group, identity, record) ]
       end
     end
-    verify_no_extra_rows
-    verify_club_owners
+    report_unplanned_community_rows
   end
 
   def match_record(group, identity, record)
-    if record["id"]
-      row = @rows.fetch(group).find { |candidate| candidate.id == record.fetch("id") }
-      raise CommunityError, "Recorded #{group} #{identity} (ID #{record.fetch('id')}) is missing; no automatic recreation is allowed." unless row
-
-      verify_record(row, group, identity, record)
-      return row
+    if group == "book_clubs" && !@users.key?(record["owner_id"])
+      return skip_community_record(record, "owner_account_unavailable")
     end
+    if group != "book_clubs" && !@users.key?(record.dig("expected_attributes", "user_id"))
+      return skip_community_record(record, "account_unavailable")
+    end
+    if group == "reviews" && !@available_book_ids.include?(record.dig("expected_attributes", "book_id"))
+      record.merge!("result" => "skipped", "reason" => "book_unavailable")
+      return
+    end
+
+    return if record["result"] == "skipped"
+
+    if record["club"] && @community.dig("records", "book_clubs", record.fetch("club"), "result") == "skipped"
+      return skip_community_record(record, "club_unavailable")
+    end
+
     expected = resolved_attributes(record)
     return if record["club"] && expected["book_club_id"].nil?
 
-    matches = @rows.fetch(group).select { |row| attributes_for(row).slice(*expected.keys) == expected }
+    rows = @rows.fetch(group)
+    if record["id"]
+      row = rows.find { |candidate| candidate.id == record.fetch("id") }
+      return skip_community_record(record, "recorded_community_row_missing") unless row
+
+      return reuse_recorded_community_row(group, record, row, expected)
+    end
+
+    matches = pending_community_matches(group, rows, expected)
     if matches.length > 1
-      raise CommunityError, "Ambiguous #{group} #{identity}: record IDs #{matches.map(&:id)}; review before replaying."
+      return skip_community_record(record, "ambiguous_community_identity", matches)
+    end
+    if group == "book_clubs"
+      titled = rows.select { |row| row.name.casecmp?(expected.fetch("name")) }
+      if !@manifest["community"] && titled.any?
+        return skip_community_record(record, "club_name_collision", titled)
+      end
+      return skip_community_record(record, "club_name_collision", titled) if matches.empty? && titled.any?
+      return skip_community_record(record, "club_owner_conflict", matches) if matches.one? && !expected_club_owner?(matches.first, record)
     end
     matches.first
+  end
+
+  def pending_community_matches(group, rows, expected)
+    keys = case group
+    when "reviews" then [ "user_id", "book_id" ]
+    when "book_club_memberships" then [ "user_id", "book_club_id" ]
+    else expected.keys
+    end
+    rows.select { |row| attributes_for(row).slice(*keys) == expected.slice(*keys) }
+  end
+
+  def reuse_recorded_community_row(group, record, row, expected)
+    if group == "book_clubs"
+      return row if expected_club_owner?(row, record)
+
+      return skip_community_record(record, "club_owner_conflict", [ row ])
+    end
+
+    keys = group == "reviews" ? [ "user_id", "book_id" ] : [ "user_id", "book_club_id" ]
+    return row if row.attributes.slice(*keys) == expected.slice(*keys)
+
+    skip_community_record(record, "community_identity_changed", [ row ])
+  end
+
+  def skip_community_record(record, reason, candidates = [])
+    record.merge!("result" => "skipped", "reason" => reason)
+    record["record_ids"] = candidates.map(&:id).sort if candidates.any?
+    nil
+  end
+
+  def expected_club_owner?(club, record)
+    owners = @rows.fetch("book_club_memberships").select { |row| row.book_club_id == club.id && row.role == "owner" }
+    owners.map(&:user_id) == [ record.fetch("owner_id") ]
   end
 
   def resolved_attributes(record)
@@ -127,42 +182,24 @@ class DevelopmentReadingScenarioCommunity
     attributes
   end
 
-  def verify_record(row, group, identity, record)
-    expected = resolved_attributes(record)
-    unless attributes_for(row).slice(*expected.keys) == expected
-      raise CommunityError, "Recorded #{group} #{identity} (ID #{row.id}) changed; no automatic overwrite is allowed."
-    end
-  end
-
-  def verify_no_extra_rows
+  def report_unplanned_community_rows
     tick_messages = @manifest.fetch("ticks", {}).flat_map do |name, tick|
       tick.fetch("club_messages", {}).map { |identity, record| [ "#{name}/#{identity}", record ] }
     end.to_h
     @tick_messages = tick_messages.to_h do |identity, record|
       [ identity, match_record("club_messages", identity, record) ]
     end
-    MODELS.each_key do |group|
+    @community["unplanned_record_ids"] = MODELS.keys.to_h do |group|
       selected = @matches.fetch(group).values.compact.map(&:id)
       selected.concat(@tick_messages.values.compact.map(&:id)) if group == "club_messages"
-      extras = @rows.fetch(group).map(&:id) - selected
-      raise CommunityError, "Unrecorded #{group}: record IDs #{extras}; review without deleting data." if extras.any?
-    end
-  end
-
-  def verify_club_owners
-    @matches.fetch("book_clubs").each do |identity, club|
-      next unless club
-
-      owner_id = @community.fetch("records").fetch("book_clubs").fetch(identity).fetch("owner_id")
-      owners = @rows.fetch("book_club_memberships").select { |row| row.book_club_id == club.id && row.role == "owner" }
-      unless owners.length == 1 && owners.first.user_id == owner_id
-        raise CommunityError, "Club #{identity} (ID #{club.id}) has an unexpected owner; no automatic takeover is allowed."
-      end
+      [ group, (@rows.fetch(group).map(&:id) - selected).sort ]
     end
   end
 
   def import_clubs
     @community.fetch("records").fetch("book_clubs").each do |identity, record|
+      next if record["result"] == "skipped"
+
       club = @matches.fetch("book_clubs")[identity]
       result = club ? "reused" : "imported"
       BookClub.transaction(requires_new: true) do
@@ -194,6 +231,8 @@ class DevelopmentReadingScenarioCommunity
   def import_records(group)
     model = MODELS.fetch(group)
     @community.fetch("records").fetch(group).each do |identity, record|
+      next if record["result"] == "skipped"
+
       row = @matches.fetch(group)[identity]
       result = row ? "reused" : "imported"
       model.transaction(requires_new: true) do

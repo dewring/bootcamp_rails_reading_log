@@ -145,6 +145,42 @@ class OpenLibraryCatalogPreflightTest < ActiveSupport::TestCase
     assert_not_requested :any, /https?:/
   end
 
+  test "development and production reuse a verified keyed book alongside an unkeyed lookalike" do
+    keyed = create_selected_book(description: "Existing production description")
+    legacy = Book.create!(title: keyed.title, author: keyed.author)
+    before = [ keyed.attributes, legacy.attributes ]
+    write_snapshot
+    variables = ENV.to_h.merge("ALLOW_PRODUCTION_SCENARIO" => "true")
+
+    ENV.stub(:[], variables.method(:[])) do
+      [ "development", "production" ].each do |environment|
+        Rails.stub(:env, environment.inquiry) do
+          assert_no_difference "Book.count" do
+            report = @preflight.preflight_catalog
+            assert_empty report.fetch("conflicts")
+            assert_equal keyed.id, report.fetch("books").first.fetch("existing_book_id")
+            assert_equal "reused", report.fetch("books").first.fetch("book_status")
+          end
+        end
+      end
+    end
+
+    assert_equal before, [ keyed.reload.attributes, legacy.reload.attributes ]
+  end
+
+  test "a verified keyed book is reused even when a lookalike has a different work key" do
+    keyed = create_selected_book
+    lookalike = create_selected_book(ol_work_key: "/works/OL999999W")
+    before = [ keyed.attributes, lookalike.attributes ]
+    write_snapshot
+
+    report = preflight_catalog
+
+    assert_empty report.fetch("conflicts")
+    assert_equal keyed.id, report.fetch("books").first.fetch("existing_book_id")
+    assert_equal before, [ keyed.reload.attributes, lookalike.reload.attributes ]
+  end
+
   test "a legacy unkeyed book is reported by ID without adding a duplicate or assigning its key" do
     legacy = Book.create!(title: @docs.first.fetch("title").titleize, author: "Gabriel García Márquez".titleize)
     before = legacy.attributes
@@ -229,31 +265,39 @@ class OpenLibraryCatalogPreflightTest < ActiveSupport::TestCase
     before = edition.attributes
     write_snapshot
 
-    error = assert_read_only_failure
-
-    conflict = error.report.fetch("conflicts").find { |entry| entry.fetch("reason") == "conflicting_edition_identity" }
+    report = preflight_catalog
+    entry = report.fetch("books").first
+    assert_empty report.fetch("conflicts")
+    assert_nil entry.fetch("edition_attributes")
+    assert_equal "skipped", entry.fetch("edition_status")
+    conflict = entry.fetch("edition_skip")
     assert_equal [ edition.id ], conflict.fetch("record_ids")
     assert_equal [ books(:pragmatic).id ], conflict.fetch("book_ids")
     assert_equal before, edition.reload.attributes
   end
 
-  test "a returned representative Edition that names another Work is rejected" do
+  test "a returned representative edition that names another work is skipped" do
     @docs.first.fetch("editions").fetch("docs").first["work_key"] = [ "/works/OL999999W" ]
     write_snapshot
 
-    error = assert_read_only_failure
-
-    assert_equal "edition_work_mismatch", error.report.fetch("conflicts").first.fetch("reason")
+    report = preflight_catalog
+    assert_empty report.fetch("conflicts")
+    entry = report.fetch("books").first
+    assert_equal "edition_work_mismatch", entry.dig("edition_skip", "reason")
+    assert_nil entry.fetch("edition_attributes")
   end
 
-  test "one representative Edition selected under two Works is reported before import" do
+  test "a representative edition selected under two works is skipped for both" do
     @docs[1]["editions"] = { "docs" => [ { "key" => "/books/OL142000M" } ] }
     write_snapshot
 
-    error = assert_read_only_failure
-
-    conflict = error.report.fetch("conflicts").find { |entry| entry.fetch("reason") == "edition_selected_for_multiple_works" }
-    assert_equal [ "/works/OL142000W", "/works/OL142001W" ], conflict.fetch("work_keys")
+    report = preflight_catalog
+    assert_empty report.fetch("conflicts")
+    report.fetch("books").first(2).each do |entry|
+      assert_nil entry.fetch("edition_attributes")
+      assert_equal "edition_selected_for_multiple_works", entry.dig("edition_skip", "reason")
+      assert_equal [ "/works/OL142000W", "/works/OL142001W" ], entry.dig("edition_skip", "work_keys")
+    end
   end
 
   test "source edits after capture are rejected before database writes" do
@@ -362,16 +406,17 @@ class OpenLibraryCatalogPreflightTest < ActiveSupport::TestCase
     end
   end
 
-  test "reviewing one legacy duplicate does not hide a newly added legacy collision" do
+  test "a verified keyed book is reused after another unkeyed lookalike appears" do
     book = create_selected_book
     legacy = Book.create!(title: @docs.first.fetch("title"), author: "Gabriel García Márquez")
     write_review(book, preserved: [ legacy ])
     unreviewed = Book.create!(title: legacy.title, author: legacy.author)
 
-    error = assert_read_only_failure
+    report = preflight_catalog
 
-    conflict = error.report.fetch("conflicts").find { |entry| entry.fetch("reason") == "legacy_unkeyed_book" }
-    assert_equal [ unreviewed.id ], conflict.fetch("record_ids")
+    assert_empty report.fetch("conflicts")
+    assert_equal book.id, report.fetch("books").first.fetch("existing_book_id")
+    assert_nil unreviewed.reload.ol_work_key
   end
 
   private

@@ -60,6 +60,48 @@ class OpenLibraryCatalogReplayTest < ActiveSupport::TestCase
     assert_not_requested :any, /https?:/
   end
 
+  test "a conflicting edition is preserved while its work and unrelated editions import and replay" do
+    edition = BookEdition.create!(book: books(:pragmatic), ol_edition_key: "/books/OL153000M")
+    before = edition.attributes
+    write_snapshot
+
+    first = replay_catalog
+    skipped = catalog_records(first).fetch("/works/OL153000W").fetch("edition")
+    assert_equal "skipped", skipped.fetch("result")
+    assert_equal "conflicting_edition_identity", skipped.fetch("reason")
+    assert_equal [ edition.id ], skipped.fetch("record_ids")
+    summary = skipped.except("result").merge("work_key" => "/works/OL153000W")
+    assert_equal [ summary ], first.dig("catalog", "skipped_edition_conflicts")
+    assert_equal({ "books" => 100, "book_editions" => 1 }, first.dig("catalog", "actual_counts"))
+    assert_equal before, edition.reload.attributes
+
+    assert_no_difference [ "Book.count", "BookEdition.count" ] do
+      second = replay_catalog
+      assert_equal skipped, catalog_records(second).fetch("/works/OL153000W").fetch("edition")
+      assert_equal [ summary ], second.dig("catalog", "skipped_edition_conflicts")
+    end
+    assert_equal before, edition.reload.attributes
+  end
+
+  test "invalid work links in source editions do not prevent unrelated catalog imports or replay" do
+    @docs.first.fetch("editions").fetch("docs").first["work_key"] = [ "/works/OL999999W" ]
+    @docs[2]["editions"] = { "docs" => [ { "key" => "/books/OL153001M" } ] }
+    @docs[3]["editions"] = { "docs" => [ { "key" => "/books/OL153003M" } ] }
+    write_snapshot
+
+    result = replay_catalog
+
+    assert_equal({ "books" => 100, "book_editions" => 1 }, result.dig("catalog", "actual_counts"))
+    reasons = result.dig("catalog", "skipped_edition_conflicts").map { |entry| entry.fetch("reason") }.tally
+    assert_equal({ "edition_work_mismatch" => 1, "edition_selected_for_multiple_works" => 2 }, reasons)
+    assert BookEdition.exists?(ol_edition_key: "/books/OL153003M")
+    assert_no_difference [ "Book.count", "BookEdition.count" ] do
+      replayed = replay_catalog
+      assert_equal result.dig("catalog", "skipped_edition_conflicts"), replayed.dig("catalog", "skipped_edition_conflicts")
+      assert_equal recorded_ids(result), recorded_ids(replayed)
+    end
+  end
+
   test "repeating replay preserves IDs and existing record attributes without duplicate rows" do
     write_snapshot
     first = replay_catalog
@@ -121,17 +163,19 @@ class OpenLibraryCatalogReplayTest < ActiveSupport::TestCase
     assert_equal edition_before, edition.reload.attributes
   end
 
-  test "a collision in the last planned Work stops replay before any database insert or manifest creation" do
+  test "a collision in the last planned work is reported while other works import" do
     legacy = Book.create!(title: @docs.last.fetch("title"), author: @docs.last.fetch("author_name").first)
     before = legacy.attributes
     write_snapshot
 
-    assert_no_difference [ "Book.count", "BookEdition.count" ] do
-      assert_raises(OpenLibraryCatalogPreflight::PreflightError) { replay_catalog }
-    end
+    result = replay_catalog
+    skip = result.dig("catalog", "skipped_book_conflicts").sole
+    assert_equal @docs.last.fetch("key"), skip.fetch("work_key")
+    assert_equal [ legacy.id ], skip.fetch("conflicts").sole.fetch("record_ids")
+    assert_equal 99, result.dig("catalog", "actual_counts", "books")
 
     assert_equal before, legacy.reload.attributes
-    assert_not @manifest_path.exist?
+    assert_not Book.exists?(ol_work_key: @docs.last.fetch("key"))
     assert_not_requested :any, /https?:/
   end
 
@@ -189,21 +233,21 @@ class OpenLibraryCatalogReplayTest < ActiveSupport::TestCase
     assert inspected
   end
 
-  test "a changed recorded row is detected before writing an unfinished later Work" do
+  test "an edited recorded book keeps its metadata while replay imports unfinished works" do
     write_snapshot
     interrupt_after_first_work
     changed = Book.find_by!(ol_work_key: @docs.first.fetch("key"))
-    changed.update!(description: "An explicit developer edit")
-    before = @manifest_path.binread
-    rows_before = Book.order(:id).map(&:attributes)
+    changed.update!(title: "A corrected title", author: "A corrected author", description: "An explicit developer edit")
+    before = changed.attributes.except("updated_at")
 
-    error = assert_raises(OpenLibraryCatalogReplay::ReplayError) { replay_catalog }
+    result = replay_catalog
 
-    assert_includes error.message, "changed"
-    assert_includes error.message, changed.id.to_s
-    assert_equal rows_before, Book.order(:id).map(&:attributes)
-    assert_equal before, @manifest_path.binread
-    assert_not Book.exists?(ol_work_key: @docs[1].fetch("key"))
+    assert_equal before, changed.reload.attributes.except("updated_at")
+    record = catalog_records(result).fetch(changed.ol_work_key).fetch("book")
+    assert_equal changed.id, record.fetch("id")
+    assert_equal "reused", record.fetch("result")
+    assert_equal changed.description, record.dig("expected_attributes", "description")
+    assert Book.exists?(ol_work_key: @docs[1].fetch("key"))
   end
 
   test "a recorded missing Book is not silently recreated on resume" do
@@ -213,26 +257,64 @@ class OpenLibraryCatalogReplayTest < ActiveSupport::TestCase
     missing_id = missing.id
     missing.destroy!
 
-    assert_no_difference [ "Book.count", "BookEdition.count" ] do
-      error = assert_raises(OpenLibraryCatalogReplay::ReplayError) { replay_catalog }
-      assert_includes error.message, missing_id.to_s
-      assert_includes error.message, "no automatic recreation"
-    end
+    result = replay_catalog
+    skip = result.dig("catalog", "skipped_book_conflicts").sole
+    assert_equal missing_id, skip.fetch("record_id")
+    assert_equal "recorded_book_unavailable", skip.fetch("conflicts").sole.fetch("reason")
+    assert_equal 99, result.dig("catalog", "actual_counts", "books")
+    assert_not Book.exists?(ol_work_key: @docs.first.fetch("key"))
   end
 
-  test "a changed recorded Edition is detected before replay mutates any row" do
+  test "replay preserves an edited edition with the same key and book without adding rows" do
     write_snapshot
     replay_catalog
     edition = BookEdition.find_by!(ol_edition_key: "/books/OL153000M")
     edition.update!(publisher: "Developer corrected publisher")
-    before = @manifest_path.binread
+    before = edition.attributes
 
     assert_no_difference [ "Book.count", "BookEdition.count" ] do
-      error = assert_raises(OpenLibraryCatalogReplay::ReplayError) { replay_catalog }
-      assert_includes error.message, edition.id.to_s
-      assert_includes error.message, "changed"
+      result = replay_catalog
+      record = catalog_records(result).fetch(@docs.first.fetch("key")).fetch("edition")
+      assert_equal edition.id, record.fetch("id")
+      assert_equal "reused", record.fetch("result")
+      assert_equal edition.publisher, record.dig("expected_attributes", "publisher")
     end
-    assert_equal before, @manifest_path.binread
+    assert_equal before, edition.reload.attributes
+  end
+
+  test "replay reports a missing recorded edition and leaves the other catalog records intact" do
+    write_snapshot
+    first = replay_catalog
+    book = first.dig("catalog", "records", "/works/OL153000W", "book")
+    edition = BookEdition.find_by!(ol_edition_key: "/books/OL153000M")
+    edition.destroy!
+
+    assert_no_difference [ "Book.count", "BookEdition.count" ] do
+      result = replay_catalog
+      assert_equal book.fetch("id"), result.dig("catalog", "records", "/works/OL153000W", "book", "id")
+      assert_equal 1, result.dig("catalog", "actual_counts", "book_editions")
+      skip = result.dig("catalog", "skipped_edition_conflicts").sole
+      assert_equal [ edition.id ], skip.fetch("record_ids")
+      assert_equal "recorded_edition_unavailable", skip.fetch("reason")
+      assert_equal result.dig("catalog"), replay_catalog.dig("catalog")
+    end
+  end
+
+  test "replay skips an edition reassigned to another book while importing unfinished catalog entries" do
+    write_snapshot
+    interrupt_after_first_work
+    edition = BookEdition.find_by!(ol_edition_key: "/books/OL153000M")
+    edition.update!(book: books(:pragmatic))
+    before = edition.attributes
+
+    result = replay_catalog
+
+    assert_equal({ "books" => 100, "book_editions" => 1 }, result.dig("catalog", "actual_counts"))
+    skip = result.dig("catalog", "skipped_edition_conflicts").sole
+    assert_equal "conflicting_edition_identity", skip.fetch("reason")
+    assert_equal [ edition.id ], skip.fetch("record_ids")
+    assert_equal [ books(:pragmatic).id ], skip.fetch("book_ids")
+    assert_equal before, edition.reload.attributes
   end
 
   test "a different snapshot is refused without replacing the original manifest" do

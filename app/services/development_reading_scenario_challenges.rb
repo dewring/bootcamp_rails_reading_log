@@ -1,33 +1,22 @@
 class DevelopmentReadingScenarioChallenges
-  class ChallengeError < StandardError; end
-
   def initialize(plan:, manifest:, scenario_manifest:)
     @plan = plan
     @manifest = manifest
     @scenario_manifest = scenario_manifest
   end
 
-  def preflight_challenges
-    titles = @plan.fetch("challenges").map { |entry| entry.fetch("attributes").fetch("title").downcase }
-    saved_ids = @manifest.dig("challenges", "records", "challenges")&.values&.filter_map { |record| record["id"] } || []
-    @challenge_rows = Challenge.where("LOWER(title) IN (?)", titles).or(Challenge.where(id: saved_ids)).to_a
-    if !@manifest["challenges"] && @challenge_rows.any?
-      raise ChallengeError, "Demo challenge titles already exist: IDs #{@challenge_rows.map(&:id)}; no automatic takeover is allowed."
-    end
-
-    @manifest.dig("challenges", "records", "challenges")&.each do |identity, record|
-      matching_row(@challenge_rows, record, record.fetch("expected_attributes"), identity)
-    end
-  end
-
   def seed_challenges
-    preflight_challenges
+    load_challenge_candidates
     @manifest["challenges"] ||= planned_challenges
     # Save ownership intent before committing so a retry can recognize committed rows after a failed checkpoint.
     @scenario_manifest.save_scenario
     working = @manifest.fetch("challenges").deep_dup
-    user_ids = @manifest.fetch("bootstrap").fetch("records").fetch("users").values.map { |record| record.fetch("id") }
-    enrollments = UserChallenge.where(user_id: user_ids).to_a
+    user_ids = @manifest.fetch("bootstrap").fetch("records").fetch("users").values.filter_map do |record|
+      record["id"] unless record["result"] == "skipped"
+    end
+    @available_user_ids = User.where(id: user_ids).pluck(:id).to_set
+    recorded_ids = working.dig("records", "user_challenges").values.filter_map { |record| record["id"] }
+    enrollments = UserChallenge.where(user_id: user_ids).or(UserChallenge.where(id: recorded_ids)).to_a
 
     Challenge.transaction(requires_new: true) do
       challenges = import_challenges(working)
@@ -35,7 +24,9 @@ class DevelopmentReadingScenarioChallenges
     end
 
     working["status"] = "complete"
-    working["actual_counts"] = working.fetch("records").transform_values(&:length)
+    working["actual_counts"] = working.fetch("records").transform_values do |records|
+      records.values.count { |record| record["id"] && record["result"] != "skipped" }
+    end
     @manifest["challenges"] = working
     @scenario_manifest.save_scenario
     @manifest.deep_dup
@@ -43,10 +34,18 @@ class DevelopmentReadingScenarioChallenges
 
   private
 
+  def load_challenge_candidates
+    titles = @plan.fetch("challenges").map { |entry| entry.fetch("attributes").fetch("title").downcase }
+    saved_ids = @manifest.dig("challenges", "records", "challenges")&.values&.filter_map { |record| record["id"] } || []
+    @challenge_rows = Challenge.where("LOWER(title) IN (?)", titles).or(Challenge.where(id: saved_ids)).to_a
+  end
+
+
   def planned_challenges
     challenges = @plan.fetch("challenges").to_h do |entry|
       attributes = entry.fetch("attributes").merge("created_at" => @plan.fetch("as_of"))
-      [ entry.fetch("identity"), planned_record(Challenge, attributes) ]
+      record = planned_record(Challenge, attributes)
+      [ entry.fetch("identity"), record ]
     end
     users = @manifest.fetch("bootstrap").fetch("records").fetch("users")
     enrollments = @plan.fetch("user_challenges").to_h do |entry|
@@ -65,36 +64,85 @@ class DevelopmentReadingScenarioChallenges
   end
 
   def import_challenges(working)
-    working.fetch("records").fetch("challenges").to_h do |identity, record|
+    working.fetch("records").fetch("challenges").each_with_object({}) do |(identity, record), challenges|
+      next if record["result"] == "skipped"
+
       expected = record.fetch("expected_attributes")
-      row = matching_row(@challenge_rows, record, expected, identity) || Challenge.create!(expected)
+      row = existing_challenge(record)
+      next if record["result"] == "skipped"
+      if record["id"] && !row
+        record.merge!("result" => "skipped", "reason" => "recorded_challenge_missing")
+        next
+      end
+
+      row ||= Challenge.create!(expected)
       record["id"] = row.id
-      [ identity, row ]
+      challenges[identity] = row
     end
   end
 
+  def existing_challenge(record)
+    id = record["id"]
+    return matching_challenge(record) unless id
+
+    # Once recorded, the ID identifies the challenge. Its current attributes belong to the application.
+    @challenge_rows.find { |row| row.id == id }
+  end
+
   def import_enrollments(working, challenges, rows)
-    working.fetch("records").fetch("user_challenges").each do |identity, record|
-      expected = record.fetch("expected_attributes").merge("challenge_id" => challenges.fetch(record.fetch("challenge")).id)
+    by_pair = rows.index_by { |row| [ row.user_id, row.challenge_id ] }
+    working.fetch("records").fetch("user_challenges").each_value do |record|
+      next if record["result"] == "skipped"
+
+      unless @available_user_ids.include?(record.dig("expected_attributes", "user_id"))
+        record.merge!("result" => "skipped", "reason" => "account_unavailable")
+        next
+      end
+
+      challenge = challenges[record.fetch("challenge")]
+      unless challenge
+        record.merge!("result" => "skipped", "reason" => "challenge_skipped")
+        next
+      end
+
+      expected = record.fetch("expected_attributes").merge("challenge_id" => challenge.id)
       # Progress, status and lock_version belong to normal application activity; replay must not reset them.
-      row = matching_row(rows, record, expected, identity) || UserChallenge.create!(expected)
+      row = if record["id"]
+        recorded_enrollment(rows, record, expected)
+      else
+        by_pair[expected.values_at("user_id", "challenge_id")]
+      end
+      next if record["result"] == "skipped"
+
+      row ||= UserChallenge.create!(expected)
       record["id"] = row.id
       record["expected_attributes"] = expected
     end
   end
 
-  def matching_row(rows, record, expected, identity)
-    if record["id"]
-      row = rows.find { |candidate| candidate.id == record.fetch("id") }
-      unless row && row.attributes.slice(*expected.keys).as_json == expected
-        raise ChallengeError, "Recorded challenge data #{identity} (ID #{record.fetch('id')}) is missing or changed; no automatic overwrite or recreation is allowed."
-      end
+  def recorded_enrollment(rows, record, expected)
+    row = rows.find { |candidate| candidate.id == record.fetch("id") }
+    if row&.user_id == expected.fetch("user_id") && row&.challenge_id == expected.fetch("challenge_id")
       return row
     end
 
-    matches = rows.select { |row| row.attributes.slice(*expected.keys).as_json == expected }
-    raise ChallengeError, "Ambiguous challenge data #{identity}: IDs #{matches.map(&:id)}; review before replaying." if matches.length > 1
+    reason = row ? "recorded_enrollment_identity_changed" : "recorded_enrollment_missing"
+    record.merge!("result" => "skipped", "reason" => reason)
+    nil
+  end
 
-    matches.first
+  def matching_challenge(record)
+    expected = record.fetch("expected_attributes").except("created_at")
+    collisions = @challenge_rows.select { |row| row.title.casecmp?(expected.fetch("title")) }
+    matches = collisions.select { |row| row.attributes.slice(*expected.keys).as_json == expected }
+    if matches.one?
+      record["result"] = "reused"
+      return matches.first
+    end
+
+    if collisions.any?
+      record.merge!("result" => "skipped", "reason" => "challenge_title_collision", "record_ids" => collisions.map(&:id).sort)
+    end
+    nil
   end
 end

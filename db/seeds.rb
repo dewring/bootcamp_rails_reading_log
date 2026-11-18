@@ -1,6 +1,5 @@
-unless ReadingScenarioEnvironment.enabled?
-  raise DevelopmentReadingScenario::ScenarioError, "Scenario seeds require development or production with ALLOW_PRODUCTION_SCENARIO=true; no records were written."
-end
+# Rails can load this file as part of db:prepare when provisioning a database.
+return if Rails.env.production?
 
 manifest = DevelopmentReadingScenario.new.seed_scenario
 baseline = manifest.fetch("baseline")

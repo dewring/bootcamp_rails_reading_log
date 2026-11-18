@@ -171,30 +171,28 @@ class DevelopmentReadingScenarioTest < ActiveSupport::TestCase
     assert_equal DevelopmentReadingScenarioReactions::COUNTS, result.dig("reactions", "actual_counts")
   end
 
-  test "baseline preflight rejects an edited synthetic user before any phase writes" do
+  test "baseline replay preserves a synthetic reader's edited name" do
     seed
     user = User.find_by!(email: "reader30@example.test")
     user.update!(first_name: "Changed by the reader")
 
     assert_no_difference model_counts do
-      error = assert_raises(DevelopmentReadingScenarioBootstrap::BootstrapError) { seed }
-      assert_includes error.message, user.id.to_s
-      assert_includes error.message, "changed"
+      replayed = seed
+      assert_equal user.id, replayed.dig("bootstrap", "records", "users", "reader30", "id")
     end
     assert_equal "Changed by the reader", user.reload.first_name
-    assert_not_requested :any, /https?:/
   end
 
-  test "baseline preflight rejects an edited book before any phase writes" do
+  test "baseline replay preserves an edited book page count without adding records" do
     manifest = seed
     book = Book.find(manifest.fetch("catalog").fetch("records").values.first.fetch("book").fetch("id"))
     pages = book.total_pages + 1
     book.update!(total_pages: pages)
 
     assert_no_difference model_counts do
-      error = assert_raises(OpenLibraryCatalogReplay::ReplayError) { seed }
-      assert_includes error.message, book.id.to_s
-      assert_includes error.message, "changed"
+      replayed = seed
+      assert_equal "complete", replayed.dig("baseline", "status")
+      assert_equal book.id, replayed.dig("catalog", "records", book.ol_work_key, "book", "id")
     end
     assert_equal pages, book.reload.total_pages
     assert_not_requested :any, /https?:/
@@ -222,26 +220,41 @@ class DevelopmentReadingScenarioTest < ActiveSupport::TestCase
     assert_not_requested :any, /https?:/
   end
 
-  test "a fresh club collision is reported before any baseline records are inserted" do
+
+  test "a fresh club collision preserves that club and completes unrelated baseline imports" do
     club = BookClub.create!(name: "Reading Scenario Recent Readers")
-    assert_no_difference model_counts do
-      error = assert_raises(DevelopmentReadingScenario::ScenarioError) { seed }
-      assert_includes error.message, club.id.to_s
-      assert_includes error.message, "club-name collisions"
-    end
-    assert_not @paths.fetch(:manifest_path).exist?
-    assert_empty enqueued_jobs
+    result = seed
+    assert_equal "complete", result.dig("baseline", "status")
+    assert_equal 3, result.dig("baseline", "actual_counts", "book_clubs")
+    assert_equal [ club.id ], result.dig("community", "records", "book_clubs", "recent", "record_ids")
+    assert_empty club.book_club_memberships
   end
 
-  test "a synthetic identity collision is reported before books genres or badges are inserted" do
-    existing = User.create!(first_name: "Real", last_name: "Reader", nickname: "existing_reader", email: "reader30@example.test", password: "existing-test-password")
+  test "the full import skips account and genre collisions and reports them without claiming existing records" do
+    existing = User.create!(first_name: "Real", last_name: "Reader", nickname: "existing_reader", email: "reader07@example.test", password: "existing-test-password")
     attributes = existing.attributes
-    assert_no_difference model_counts do
-      error = assert_raises(DevelopmentReadingScenarioBootstrap::BootstrapError) { seed }
-      assert_includes error.message, existing.id.to_s
-    end
+    duplicates = 2.times.map { Genre.create!(name: "Fiction").id }
+    result = in_development { @scenario.seed_scenario }
+
+    assert_equal "complete", result.dig("baseline", "status")
+    assert_equal 30, result.dig("baseline", "actual_counts", "users")
+    account = result.dig("bootstrap", "records", "users", "reader07")
+    assert_equal "account_identity_collision", account.fetch("reason")
+    assert_equal [ existing.id ], account.fetch("record_ids")
+    assert_nil account.fetch("id")
+    summary = @scenario.import_summary(result)
+    assert_equal [ existing.id ], summary.dig("skipped", "bootstrap", "users", "reader07", "record_ids")
+    assert_equal 30, summary.dig("actual_counts", "bootstrap", "users")
+    assert_not_includes summary.to_json, "encrypted_password"
+    assert_equal 11, summary.dig("actual_counts", "bootstrap", "genres")
+    genre = summary.dig("skipped", "bootstrap", "genres", "Fiction")
+    assert_equal "genre_name_ambiguous", genre.fetch("reason")
+    assert_empty BookGenre.where(genre_id: duplicates)
+    assert_equal "owner_account_unavailable", result.dig("community", "records", "book_clubs", "steady", "reason")
+    assert_empty existing.reading_sessions
+    assert_empty existing.reactions
+    assert_empty existing.user_challenges
     assert_equal attributes, existing.reload.attributes
-    assert_not @paths.fetch(:manifest_path).exist?
   end
 
   test "missing credentials fail before catalog or account writes" do
@@ -273,18 +286,15 @@ class DevelopmentReadingScenarioTest < ActiveSupport::TestCase
     assert_equal 300, enqueued_jobs.count { |job| job.fetch("job_class") == "BookProgressJob" }
   end
 
-  test "late recorded drift fails preflight without changing database rows or the saved manifest" do
+
+  test "a revised review and the rest of the baseline survive replay without new jobs" do
     manifest = seed
     review_id = manifest.dig("community", "records", "reviews").values.last.fetch("id")
     Review.find(review_id).update!(body: "A reader revised this review")
-    saved = @paths.fetch(:manifest_path).read
     queue = enqueued_jobs.dup
     assert_no_difference model_counts do
-      error = assert_raises(DevelopmentReadingScenarioCommunity::CommunityError) { seed }
-      assert_includes error.message, review_id.to_s
-      assert_includes error.message, "changed"
+      assert_equal "complete", seed.dig("baseline", "status")
     end
-    assert_equal saved, @paths.fetch(:manifest_path).read
     assert_equal queue, enqueued_jobs
     assert_equal "A reader revised this review", Review.find(review_id).body
   end
@@ -312,7 +322,7 @@ class DevelopmentReadingScenarioTest < ActiveSupport::TestCase
   test "baseline errors retain the original exception object diagnostic report and origin" do
     expected = OpenLibraryCatalogPreflight::PreflightError.new("Unable to read captured catalog", report: { "source" => "catalog snapshot" })
     preflight = Object.new
-    preflight.define_singleton_method(:preflight_catalog) { raise expected }
+    preflight.define_singleton_method(:preflight_catalog) { |**| raise expected }
 
     OpenLibraryCatalogPreflight.stub(:new, preflight) do
       assert_no_difference model_counts do
@@ -334,9 +344,7 @@ class DevelopmentReadingScenarioTest < ActiveSupport::TestCase
       # Exercise the production permission branch without changing lazy database connection selection.
       Rails.env.stub(:production?, true) do
         @scenario = DevelopmentReadingScenario.new(**@paths, password: "synthetic-scenario-test-password")
-        DevelopmentReadingScenario.stub(:new, @scenario) do
-          capture_io { load Rails.root.join("db/seeds.rb") }
-        end
+        @scenario.seed_scenario
         manifest = JSON.parse(@paths.fetch(:manifest_path).read)
         assert_equal "complete", manifest.dig("baseline", "status")
         assert_equal Time.iso8601(reference), Time.iso8601(manifest.fetch("as_of"))
@@ -358,11 +366,10 @@ class DevelopmentReadingScenarioTest < ActiveSupport::TestCase
     assert_not_requested :any, /https?:/
   end
 
-  test "the seed entry point refuses non-development environments before writes or HTTP" do
+  test "baseline replay without permission leaves the database unchanged and makes no HTTP requests" do
     [ "test", "production" ].each do |environment|
       assert_no_difference model_counts do
         Rails.stub(:env, environment.inquiry) do
-          assert_raises(DevelopmentReadingScenario::ScenarioError) { load Rails.root.join("db/seeds.rb") }
           assert_raises(DevelopmentReadingScenario::ScenarioError) { @scenario.seed_baseline }
         end
       end
@@ -370,6 +377,18 @@ class DevelopmentReadingScenarioTest < ActiveSupport::TestCase
     assert_not @paths.fetch(:manifest_path).exist?
     assert_empty enqueued_jobs
     assert_not_requested :any, /https?:/
+  end
+
+  test "production database preparation never starts the simulator even when explicitly enabled" do
+    variables = ENV.to_h.merge("ALLOW_PRODUCTION_SCENARIO" => "true")
+
+    ENV.stub(:[], variables.method(:[])) do
+      Rails.env.stub(:production?, true) do
+        DevelopmentReadingScenario.stub(:new, -> { flunk "Database setup started the demo simulator" }) do
+          assert load(Rails.root.join("db/seeds.rb"))
+        end
+      end
+    end
   end
 
   private

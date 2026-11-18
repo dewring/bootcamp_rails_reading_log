@@ -18,6 +18,16 @@ class BadgeAwardJobTest < ActiveSupport::TestCase
     assert UserBadge.exists?(user: users(:jaina), badge: badge)
   end
 
+  test "a missing badge definition does not prevent awarding later badges" do
+    Badge.find_by!(badge_type: "first_session").destroy!
+    reader = users(:jaina)
+    ReadingSession.create!(user: reader, book: books(:refactoring), read_on: Date.current, pages_read: 500)
+
+    BadgeAwardJob.new.perform(reader)
+
+    assert UserBadge.exists?(user: reader, badge: Badge.find_by!(badge_type: "page_turner"))
+  end
+
   test "does not create a duplicate UserBadge when run twice for the same user" do
     ReadingSession.create!(user: users(:jaina), book: books(:refactoring), read_on: Date.today, pages_read: 50)
     BadgeAwardJob.new.perform(users(:jaina))

@@ -2,7 +2,7 @@ require "test_helper"
 require "tmpdir"
 
 class DevelopmentReadingScenarioChallengesTest < ActiveSupport::TestCase
-  uses_transaction "test_committed_challenges_and_enrollments_recover_after_the_manifest_checkpoint_fails"
+  uses_transaction "test_recovery_reuses_existing_enrollments_by_reader_and_challenge_after_a_failed_checkpoint"
 
   setup do
     @directory = Pathname.new(Dir.mktmpdir("booknook-challenges-"))
@@ -55,38 +55,132 @@ class DevelopmentReadingScenarioChallengesTest < ActiveSupport::TestCase
     assert_equal before, [ Challenge.order(:id).map(&:attributes), UserChallenge.order(:id).map(&:attributes) ]
   end
 
-  test "an existing demo title is refused without taking over or creating records" do
-    existing = Challenge.create!(@plan.fetch("challenges").first.fetch("attributes"))
+  test "a unique challenge with matching title goal and dates is reused with its existing attributes" do
+    planned = @plan.fetch("challenges").first
+    identity = planned.fetch("identity")
+    existing = Challenge.create!(planned.fetch("attributes").merge("created_at" => 1.year.ago))
     before = existing.attributes
-    saved = @directory.join("manifest.json").read
 
-    assert_no_difference [ "Challenge.count", "UserChallenge.count" ] do
-      assert_raises(DevelopmentReadingScenarioChallenges::ChallengeError) { seed_challenges }
+    assert_difference "Challenge.count", 5 do
+      result = seed_challenges.fetch("challenges")
+      record = result.dig("records", "challenges", identity)
+      assert_equal existing.id, record.fetch("id")
+      assert_equal "reused", record.fetch("result")
+      expected = @plan.fetch("user_challenges").count { |entry| entry.fetch("challenge") == identity }
+      assert_equal expected, UserChallenge.where(challenge: existing).count
     end
-
     assert_equal before, existing.reload.attributes
-    assert_equal saved, @directory.join("manifest.json").read
   end
 
-  test "an edited challenge is refused without overwriting its changes" do
-    seed_challenges
+  test "two otherwise matching challenges are skipped as ambiguous" do
+    planned = @plan.fetch("challenges").first
+    attributes = planned.fetch("attributes")
+    ids = Array.new(2) { Challenge.create!(attributes).id }
+
+    result = seed_challenges.fetch("challenges")
+
+    record = result.dig("records", "challenges", planned.fetch("identity"))
+    assert_equal "skipped", record.fetch("result")
+    assert_equal ids.sort, record.fetch("record_ids")
+    assert_empty UserChallenge.where(challenge_id: ids)
+  end
+
+  test "a challenge title collision skips its enrollments and preserves unrelated imports on replay" do
+    planned = @plan.fetch("challenges").first
+    identity = planned.fetch("identity")
+    existing = Challenge.create!(planned.fetch("attributes").merge("goal_value" => 99))
+    before = existing.attributes
+    skipped_count = @plan.fetch("user_challenges").count { |entry| entry.fetch("challenge") == identity }
+
+    first = seed_challenges.fetch("challenges")
+    challenge = first.dig("records", "challenges", identity)
+    assert_equal "skipped", challenge.fetch("result")
+    assert_equal "challenge_title_collision", challenge.fetch("reason")
+    assert_equal [ existing.id ], challenge.fetch("record_ids")
+    skipped = first.dig("records", "user_challenges").values.select { |row| row["result"] == "skipped" }
+    assert_equal skipped_count, skipped.length
+    assert skipped.all? { |row| row["challenge"] == identity && row["reason"] == "challenge_skipped" }
+    assert_equal({ "challenges" => 5, "user_challenges" => 40 - skipped_count }, first.fetch("actual_counts"))
+    assert_empty UserChallenge.where(challenge: existing)
+    assert_equal before, existing.reload.attributes
+
+    assert_no_difference [ "Challenge.count", "UserChallenge.count" ] do
+      assert_equal first, seed_challenges.fetch("challenges")
+    end
+  end
+
+  test "replay reuses an edited challenge by ID without overwriting its changes or enrollments" do
+    first = seed_challenges.fetch("challenges")
     challenge = Challenge.order(:id).last
-    challenge.update!(title: "A revised demo challenge")
+    challenge.update!(title: "A revised demo challenge", goal_value: 99)
+    before = challenge.attributes
+    enrollments = UserChallenge.where(challenge: challenge).order(:id).map(&:attributes)
 
     assert_no_difference [ "Challenge.count", "UserChallenge.count" ] do
-      assert_raises(DevelopmentReadingScenarioChallenges::ChallengeError) { seed_challenges }
+      assert_equal first, seed_challenges.fetch("challenges")
     end
 
-    assert_equal "A revised demo challenge", challenge.reload.title
+    assert_equal before, challenge.reload.attributes
+    assert_equal enrollments, UserChallenge.where(challenge: challenge).order(:id).map(&:attributes)
   end
 
-  test "a deleted recorded enrollment is refused without recreating it" do
-    seed_challenges
-    UserChallenge.order(:id).last.destroy!
+  test "replay skips a deleted challenge and its enrollments without changing unrelated rows" do
+    first = seed_challenges.fetch("challenges")
+    identity, record = first.dig("records", "challenges").first
+    challenge = Challenge.find(record.fetch("id"))
+    deleted_count = challenge.user_challenges.count
+    challenge.destroy!
+    before = [ Challenge.order(:id).map(&:attributes), UserChallenge.order(:id).map(&:attributes) ]
+
+    result = seed_challenges.fetch("challenges")
+    skipped = result.dig("records", "challenges", identity)
+    assert_equal "skipped", skipped.fetch("result")
+    assert_equal "recorded_challenge_missing", skipped.fetch("reason")
+    assert_equal challenge.id, skipped.fetch("id")
+    enrollments = result.dig("records", "user_challenges").values.select { |row| row.fetch("challenge") == identity }
+    assert_equal deleted_count, enrollments.length
+    assert enrollments.all? { |row| row["result"] == "skipped" && row["reason"] == "challenge_skipped" }
+    assert_equal({ "challenges" => 5, "user_challenges" => 40 - deleted_count }, result.fetch("actual_counts"))
+    assert_equal result, seed_challenges.fetch("challenges")
+    assert_equal before, [ Challenge.order(:id).map(&:attributes), UserChallenge.order(:id).map(&:attributes) ]
+  end
+
+  test "replay reports a deleted enrollment without recreating it" do
+    first = seed_challenges.fetch("challenges")
+    enrollment = UserChallenge.order(:id).last
+    identity, = first.dig("records", "user_challenges").find { |_, record| record["id"] == enrollment.id }
+    enrollment.destroy!
 
     assert_no_difference [ "Challenge.count", "UserChallenge.count" ] do
-      assert_raises(DevelopmentReadingScenarioChallenges::ChallengeError) { seed_challenges }
+      result = seed_challenges.fetch("challenges")
+      skipped = result.dig("records", "user_challenges", identity)
+      assert_equal "skipped", skipped.fetch("result")
+      assert_equal "recorded_enrollment_missing", skipped.fetch("reason")
+      assert_equal enrollment.id, skipped.fetch("id")
+      assert_equal({ "challenges" => 6, "user_challenges" => 39 }, result.fetch("actual_counts"))
+      assert_equal result, seed_challenges.fetch("challenges")
     end
+  end
+
+  test "replay skips a reassigned enrollment and preserves edits to an enrollment with the same reader and challenge" do
+    first = seed_challenges.fetch("challenges")
+    records = first.dig("records", "user_challenges")
+    identity, recorded = records.first
+    reassigned = UserChallenge.find(recorded.fetch("id"))
+    reassigned.update!(user: users(:leika))
+    edited = UserChallenge.find(records.values.last.fetch("id"))
+    edited.update!(created_at: edited.created_at + 1.day, progress: 40)
+    before = UserChallenge.order(:id).map(&:attributes)
+
+    result = seed_challenges.fetch("challenges")
+
+    skipped = result.dig("records", "user_challenges", identity)
+    assert_equal "skipped", skipped.fetch("result")
+    assert_equal "recorded_enrollment_identity_changed", skipped.fetch("reason")
+    assert_equal reassigned.id, skipped.fetch("id")
+    assert_equal({ "challenges" => 6, "user_challenges" => 39 }, result.fetch("actual_counts"))
+    assert_equal before, UserChallenge.order(:id).map(&:attributes)
+    assert_equal result, seed_challenges.fetch("challenges")
   end
 
   test "an enrollment failure rolls back the whole challenge phase and can be retried" do
@@ -108,7 +202,7 @@ class DevelopmentReadingScenarioChallengesTest < ActiveSupport::TestCase
     assert_equal "complete", seed_challenges.dig("challenges", "status")
   end
 
-  test "committed challenges and enrollments recover after the manifest checkpoint fails" do
+  test "recovery reuses existing enrollments by reader and challenge after a failed checkpoint" do
     rename = File.method(:rename)
     File.stub(:rename, ->(source, destination) {
       if Pathname.new(destination) == @directory.join("manifest.json") && UserChallenge.count == 40
@@ -118,11 +212,14 @@ class DevelopmentReadingScenarioChallengesTest < ActiveSupport::TestCase
     }) do
       assert_raises(IOError) { seed_challenges }
     end
+    enrollment = UserChallenge.order(:id).first
+    enrollment.update!(created_at: enrollment.created_at + 1.day, status: :in_progress, progress: 45)
     before = [ Challenge.order(:id).map(&:attributes), UserChallenge.order(:id).map(&:attributes) ]
 
     result = seed_challenges
 
     assert_equal "complete", result.dig("challenges", "status")
+    assert_includes result.dig("challenges", "records", "user_challenges").values.map { |record| record.fetch("id") }, enrollment.id
     assert_equal before, [ Challenge.order(:id).map(&:attributes), UserChallenge.order(:id).map(&:attributes) ]
   end
 

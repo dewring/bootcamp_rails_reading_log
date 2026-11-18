@@ -79,14 +79,17 @@ class DevelopmentReadingScenarioCommunityTest < ActiveSupport::TestCase
     assert_equal broadcast_counts, clubs.map { |club| broadcasts(ClubDiscussionChannel.broadcasting_for(club)).length }
   end
 
-  test "an existing club name is refused without taking over the club or writing memberships" do
+
+  test "a club name collision is skipped alongside its dependent community records" do
     existing = BookClub.create!(name: "Reading Scenario Steady Readers")
     before = existing.attributes
-    assert_no_difference [ "BookClub.count", "BookClubMembership.count", "ClubMessage.count", "Review.count" ] do
-      error = assert_raises(DevelopmentReadingScenarioCommunity::CommunityError) { replay }
-      assert_includes error.message, existing.id.to_s
-      assert_includes error.message, "no automatic takeover"
-    end
+    result = replay
+    club = records(result, "book_clubs").fetch("steady")
+    assert_equal "club_name_collision", club.fetch("reason")
+    assert_equal [ existing.id ], club.fetch("record_ids")
+    assert_equal 3, result.dig("community", "actual_counts", "book_clubs")
+    assert_empty existing.book_club_memberships
+    assert_empty existing.club_messages
     assert_equal before, existing.reload.attributes
   end
 
@@ -112,16 +115,18 @@ class DevelopmentReadingScenarioCommunityTest < ActiveSupport::TestCase
     assert_equal 27, broadcasts(stream).length
   end
 
-  test "ambiguous committed messages stop replay and report both candidate IDs" do
+
+  test "ambiguous committed messages are reported while other messages import" do
     interrupt_checkpoint_when { ClubMessage.where(user_id: scenario_user_ids).exists? }
     first = ClubMessage.where(user_id: scenario_user_ids).sole
     duplicate = ClubMessage.create!(first.attributes.except("id", "created_at", "updated_at"))
-    assert_no_difference [ "BookClub.count", "BookClubMembership.count", "ClubMessage.count", "Review.count" ] do
-      error = assert_raises(DevelopmentReadingScenarioCommunity::CommunityError) { replay }
-      assert_includes error.message, "Ambiguous"
-      assert_includes error.message, first.id.to_s
-      assert_includes error.message, duplicate.id.to_s
-    end
+    result = replay
+    conflict = records(result, "club_messages").fetch("steady/reflection01")
+    assert_equal "ambiguous_community_identity", conflict.fetch("reason")
+    assert_equal [ first.id, duplicate.id ].sort, conflict.fetch("record_ids")
+    assert_equal 79, result.dig("community", "actual_counts", "club_messages")
+    assert ClubMessage.exists?(first.id)
+    assert ClubMessage.exists?(duplicate.id)
   end
 
   test "a review committed before checkpoint resumes with the original ID" do
@@ -132,17 +137,16 @@ class DevelopmentReadingScenarioCommunityTest < ActiveSupport::TestCase
     assert_equal 20, Review.where(user_id: scenario_user_ids).count
   end
 
-  test "an unrecorded member in a scenario club stops replay without removing the membership" do
+
+  test "an unplanned member is reported and its membership is preserved" do
     manifest = replay
     club = BookClub.find(records(manifest, "book_clubs").fetch("steady").fetch("id"))
-    outsider = User.find(@initial_user_ids.first)
-    membership = club.book_club_memberships.create!(user: outsider, role: "member")
+    membership = club.book_club_memberships.create!(user: User.find(@initial_user_ids.first), role: "member")
+    before = membership.attributes
     assert_no_difference [ "BookClubMembership.count", "ClubMessage.count", "Review.count" ] do
-      error = assert_raises(DevelopmentReadingScenarioCommunity::CommunityError) { replay }
-      assert_includes error.message, membership.id.to_s
-      assert_includes error.message, "Unrecorded"
+      assert_equal [ membership.id ], replay.dig("community", "unplanned_record_ids", "book_club_memberships")
     end
-    assert BookClubMembership.exists?(membership.id)
+    assert_equal before, membership.reload.attributes
   end
 
   test "baseline replay preserves the two additional posts recorded by a tick" do
@@ -163,23 +167,20 @@ class DevelopmentReadingScenarioCommunityTest < ActiveSupport::TestCase
     assert_equal 29, broadcasts(ClubDiscussionChannel.broadcasting_for(club)).length
   end
 
-  test "edited reviews and deleted messages are refused without overwriting or recreating them" do
+
+  test "replay keeps an edited review and reports a deleted message without recreating it" do
     manifest = replay
     review = Review.find(records(manifest, "reviews").values.last.fetch("id"))
     review.update!(body: "Reader edited this review")
-    assert_no_difference [ "ClubMessage.count", "Review.count" ] do
-      error = assert_raises(DevelopmentReadingScenarioCommunity::CommunityError) { replay }
-      assert_includes error.message, "changed"
-      assert_includes error.message, review.id.to_s
-    end
-    review.update!(body: records(manifest, "reviews").values.last.fetch("expected_attributes").fetch("body"))
     message = ClubMessage.find(records(manifest, "club_messages").values.last.fetch("id"))
     message.destroy!
     assert_no_difference [ "ClubMessage.count", "Review.count" ] do
-      error = assert_raises(DevelopmentReadingScenarioCommunity::CommunityError) { replay }
-      assert_includes error.message, "missing"
-      assert_includes error.message, message.id.to_s
+      result = replay
+      skipped = records(result, "club_messages").values.find { |row| row["id"] == message.id }
+      assert_equal "recorded_community_row_missing", skipped.fetch("reason")
+      assert_equal 79, result.dig("community", "actual_counts", "club_messages")
     end
+    assert_equal "Reader edited this review", review.reload.body
   end
 
   test "a failed message save preserves the invalid model and checkpoints the failure for retry" do

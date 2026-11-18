@@ -17,7 +17,7 @@ current conversation take precedence.
 2. Create a focused commit after every meaningful change.
 
 3. When adding or changing behavior, add or update a test that proves the
-   behavior.
+   expected behavior. See Testing for the conventions.
 
 4. Keep each pull request focused on its stated purpose. Do not add unrelated
    refactoring, speculative abstractions, or cleanup work that is not required
@@ -41,12 +41,12 @@ current conversation take precedence.
    Distinguish live delivery, connection recovery, and manual reload in
    names and comments. When resources use different delivery paths because
    their authorization requirements differ, explain that reason near the
-   relevant code. When choosing between return values, make both outcomes
-   clear; prefer an explicit conditional over boolean short-circuiting when
-   it improves readability.
+   relevant code.
 
-7. A generic public entry point such as `call` is never acceptable. Methods must describe their specific
-   behavior.
+7. Name each public entry point after the domain operation it performs.
+   Use names such as `replay_catalog`, `record_reading_session`, or
+   `sync_book_editions`. Generic entry points such as `call`, `record`,
+   and `sync` are prohibited.
 
 8. Use a class when an object owns state, lifecycle, or dependencies. Use a
    module or `ActiveSupport::Concern` for stateless behavior shared by
@@ -57,8 +57,8 @@ current conversation take precedence.
    methods or act as a namespace.
 
 10. Use Service Objects (`app/services`) for multi-step or cross-model
-    operations. Prefer a small public entry point such as `call` or `record`
-    over exposing internal implementation details.
+    operations. Expose a small public API with domain-specific method names
+    as required by rule 7. Keep internal steps private.
 
 11. Extract nested or repetitive logic into private methods. Keep public
     methods short, focused, and high-level.
@@ -67,11 +67,17 @@ current conversation take precedence.
     access, and other cases that should stop processing, so the main flow
     remains easy to follow. Extract a branch into an intention-revealing
     private method when it represents a separate responsibility. Keep simple
-    `if`/`else` branches when they express alternatives clearly; do not replace
-    nesting with dense compound conditions or nested ternaries. Preserve
-    authorization checks, transaction boundaries, side effects, and return
-    values when flattening existing code. Apply this guidance to new or
-    changed logic; do not refactor unrelated code solely to reduce nesting.
+    `if`/`else` branches when they express alternatives clearly. Use `&.`
+    for a nil-safe lookup, such as `refresh&.fetch("identity")`. Do not use
+    an optional object as the first operand of an `&&` chain to guard later
+    access to that object. Use a guard clause or an explicit branch when the
+    remaining check depends on that lookup. Split dense `&&` or `||` chains
+    into named checks or guard clauses. Avoid nested ternaries. Simple
+    boolean checks and defaults such as
+    `manifest.dig("catalog", "records") || {}` are fine. Preserve authorization
+    checks, transaction boundaries, side effects, and return values when
+    restructuring conditions. Apply this guidance to new or changed logic
+    within the task scope.
 
 12. Handle N+1 query problems explicitly. Use `includes`, `eager_load`, or
     `preload` when fetching associations. Bullet warnings in development or
@@ -166,6 +172,19 @@ current conversation take precedence.
     they trigger downstream work. Use stronger guarantees when correctness,
     security, or an explicit requirement needs them.
 
+## Demo data imports
+
+- Never run or recommend `bin/rails db:seed` in production. Use the
+  Rails console to invoke the simulator or use an existing Rake task
+  dedicated to demo data.
+- Apply the same conflict policy to every model in every environment
+  where the simulator is enabled. Treat existing records as authoritative. Reuse a
+  record when its identity is clear, preserving its attributes and
+  associations.
+- If a conflict cannot be resolved safely, skip the affected record and
+  any demo records that depend on it. Report what was skipped and why,
+  and continue importing unrelated records.
+
 ## Semantic HTML
 
 - Use semantic HTML for newly created markup, including Rails ERB views,
@@ -216,9 +235,8 @@ current conversation take precedence.
   when it fits: attachments, normalizations, validations, associations,
   scopes, instance methods, and class methods.
 
-- `app/services` — plain Ruby objects for multi-step or cross-model
-  operations. Prefer a focused public method such as `call`, `record`, or
-  `sync`.
+- `app/services` — plain Ruby service objects. See rules 7 and 10 for public
+  method names and visibility.
 
 - `app/jobs` — Solid Queue background jobs. Long-running or external API work
   belongs here rather than inside requests or callbacks.
@@ -258,9 +276,6 @@ current conversation take precedence.
 
 - Organize tests under `test/{models,controllers,policies,services,jobs,
   mailers,integration}`, mirroring the application structure.
-
-- Any behavior change is incomplete without a test that proves the expected
-  behavior.
 
 - Test user-visible behavior and important boundaries, not only private
   implementation details.
