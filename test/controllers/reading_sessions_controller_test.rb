@@ -37,6 +37,17 @@ class ReadingSessionsControllerTest < ActionDispatch::IntegrationTest
     assert_select ".reading-detail-history-footer"
   end
 
+  test "empty reading history has no duplicate add button and keeps the reading record form" do
+    sign_in users(:leika)
+
+    get book_reading_journal_path(books(:pragmatic))
+
+    assert_response :success
+    assert_select ".reading-detail-empty-state a", count: 0
+    assert_select "body", text: /Add first reading record/, count: 0
+    assert_select "#reading-record form.reading-detail-form input[type='submit'][value='Save Entry']", count: 1
+  end
+
   test "history page shows badges and finished books sections" do
     sign_in users(:leika)
     get reading_sessions_path
