@@ -312,7 +312,7 @@ class DevelopmentReadingScenarioTest < ActiveSupport::TestCase
   test "baseline errors retain the original exception object diagnostic report and origin" do
     expected = OpenLibraryCatalogPreflight::PreflightError.new("Unable to read captured catalog", report: { "source" => "catalog snapshot" })
     preflight = Object.new
-    preflight.define_singleton_method(:preflight_catalog) { raise expected }
+    preflight.define_singleton_method(:preflight_catalog) { |**| raise expected }
 
     OpenLibraryCatalogPreflight.stub(:new, preflight) do
       assert_no_difference model_counts do

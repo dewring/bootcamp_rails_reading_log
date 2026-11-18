@@ -14,6 +14,7 @@ class OpenLibraryCatalogReplay
       @scenario_manifest.save_scenario
       @plan.fetch("books").each { |entry| import_catalog_entry(entry) }
       record_catalog_counts
+      record_skipped_book_conflicts
       record_skipped_edition_conflicts
       @manifest.fetch("catalog")["status"] = "complete"
       @scenario_manifest.save_scenario
@@ -38,7 +39,7 @@ class OpenLibraryCatalogReplay
 
   def with_catalog_context
     @scenario_manifest.with_exclusive_access do
-      @plan = OpenLibraryCatalogPreflight.new(snapshot_path: @snapshot_path, manifest_path: @scenario_manifest.path).preflight_catalog
+      @plan = OpenLibraryCatalogPreflight.new(snapshot_path: @snapshot_path, manifest_path: @scenario_manifest.path).preflight_catalog(skip_book_conflicts: true)
       load_catalog_records
       @manifest = @scenario_manifest.prepare_scenario(snapshot_id: @plan.fetch("snapshot_id"))
       @manifest["catalog"] ||= planned_catalog
@@ -48,7 +49,7 @@ class OpenLibraryCatalogReplay
   end
 
   def load_catalog_records
-    book_keys = @plan.fetch("books").map { |entry| entry.fetch("book_attributes").fetch("ol_work_key") }
+    book_keys = @plan.fetch("books").filter_map { |entry| entry.dig("book_attributes", "ol_work_key") unless entry["book_skip"] }
     edition_keys = @plan.fetch("books").filter_map { |entry| entry["edition_attributes"]&.fetch("ol_edition_key") }
     @books = Book.where(ol_work_key: book_keys).index_by(&:ol_work_key)
     @editions = BookEdition.where(ol_edition_key: edition_keys).index_by(&:ol_edition_key)
@@ -91,6 +92,8 @@ class OpenLibraryCatalogReplay
 
   def verify_recorded_rows
     @plan.fetch("books").each do |entry|
+      next if entry["book_skip"]
+
       key = entry.fetch("book_attributes").fetch("ol_work_key")
       pair = @manifest.fetch("catalog").fetch("records").fetch(key)
       book = @books[key]
@@ -129,6 +132,12 @@ class OpenLibraryCatalogReplay
     key = book_attributes.fetch("ol_work_key")
     edition_attributes = entry["edition_attributes"]
     pair = @manifest.fetch("catalog").fetch("records").fetch(key)
+    if entry["book_skip"]
+      pair.fetch("book").merge!("result" => "skipped", "reason" => "book_unavailable", "conflicts" => entry.fetch("book_skip"))
+      pair["edition"] = entry.fetch("edition_skip").merge("result" => "skipped") if entry["edition_skip"]
+      @scenario_manifest.save_scenario
+      return
+    end
     book = @books[key]
     edition = edition_attributes && @editions[edition_attributes.fetch("ol_edition_key")]
     book_result = book ? "reused" : "imported"
@@ -192,6 +201,16 @@ class OpenLibraryCatalogReplay
       next unless edition["result"] == "skipped" && edition["edition_key"]
 
       edition.except("result").merge("work_key" => work_key)
+    end
+  end
+
+  def record_skipped_book_conflicts
+    catalog = @manifest.fetch("catalog")
+    catalog["skipped_book_conflicts"] = catalog.fetch("records").filter_map do |work_key, pair|
+      book = pair.fetch("book")
+      next unless book["result"] == "skipped"
+
+      { "work_key" => work_key, "record_id" => book["id"], "conflicts" => book.fetch("conflicts") }
     end
   end
 end

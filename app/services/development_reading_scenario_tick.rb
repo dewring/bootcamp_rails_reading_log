@@ -36,7 +36,7 @@ class DevelopmentReadingScenarioTick
     end
 
     @scenario_manifest.with_exclusive_access do
-      catalog = OpenLibraryCatalogPreflight.new(snapshot_path: @snapshot_path, manifest_path: @scenario_manifest.path).preflight_catalog
+      catalog = OpenLibraryCatalogPreflight.new(snapshot_path: @snapshot_path, manifest_path: @scenario_manifest.path).preflight_catalog(skip_book_conflicts: true)
       @baseline = DevelopmentReadingScenarioPlan.new(catalog: catalog, as_of: @as_of).build_baseline
       @manifest = @scenario_manifest.prepare_scenario(snapshot_id: catalog.fetch("snapshot_id"))
       unless @manifest["baseline"] && @manifest.dig("community", "status") == "saved"
@@ -44,20 +44,27 @@ class DevelopmentReadingScenarioTick
       end
       @bootstrap.preflight_bootstrap
       @catalog.preflight_catalog
+      @references = DevelopmentReadingScenarioActivity::References.new(manifest: @manifest).load_references
+      @users = @references.users.values.index_by(&:id)
+      @books = @references.books.values.compact.index_by(&:id)
       @tick = @manifest.dig("ticks", name) || Plan.new(baseline: @baseline, manifest: @manifest, as_of: @as_of, name: name).build_tick
+      @tick.fetch("reading_sessions").each_value do |record|
+        unless @books.key?(record.dig("expected_attributes", "book_id"))
+          record.merge!("result" => "skipped", "reason" => "book_unavailable")
+        end
+      end
       @inventory = Inventory.new(tick: @tick)
       @inventory.verify_tick
       @reading.preflight_reading
       @community.preflight_community
-      @references = DevelopmentReadingScenarioActivity::References.new(manifest: @manifest).load_references
-      @users = @references.users.values.index_by(&:id)
-      @books = @references.books.values.index_by(&:id)
       yield
     end
   end
 
   def import_sessions
     @tick.fetch("reading_sessions").each do |identity, record|
+      next if record["result"] == "skipped"
+
       row = @inventory.matches.fetch("reading_sessions")[identity]
       result = row ? "reused" : "imported"
       work_key = @books.fetch(record.dig("expected_attributes", "book_id")).ol_work_key

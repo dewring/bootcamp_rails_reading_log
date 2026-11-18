@@ -6,6 +6,7 @@ class DevelopmentReadingScenarioActivity::Inventory
     @manifest = manifest
     @users = references.users
     @books = references.books
+    @available_book_ids = @books.values.compact.map(&:id).to_set
     @edition_ids = references.edition_ids
     @reading = @manifest["reading"] || planned_reading
   end
@@ -26,7 +27,7 @@ class DevelopmentReadingScenarioActivity::Inventory
   end
 
   def state_counts
-    @library_matches.values.map(&:status).tally
+    @library_matches.values.compact.map(&:status).tally
   end
 
   def counts
@@ -94,19 +95,26 @@ class DevelopmentReadingScenarioActivity::Inventory
   end
 
   def resolved_pair(entry)
-    { "user_id" => @users.fetch(entry.fetch("reader")).id, "book_id" => @books.fetch(entry.fetch("work_key")).id }
+    { "user_id" => @users.fetch(entry.fetch("reader")).id, "book_id" => @books.fetch(entry.fetch("work_key"))&.id }
   end
 
   def match_rows(records, rows, library: false)
     rows_by_id = rows.index_by(&:id)
     records.to_h do |identity, record|
-      row = if record["id"]
+      row = if unavailable_book?(record)
+        record.merge!("result" => "skipped", "reason" => "book_unavailable")
+        nil
+      elsif record["id"]
         find_saved_reading_record(identity, record, rows_by_id, library: library)
       else
         find_interrupted_reading_record(identity, record, rows, library: library)
       end
       [ identity, row ]
     end
+  end
+
+  def unavailable_book?(record)
+    !@available_book_ids.include?(record.dig("expected_attributes", "book_id"))
   end
 
   def find_saved_reading_record(identity, record, rows_by_id, library:)
@@ -134,7 +142,7 @@ class DevelopmentReadingScenarioActivity::Inventory
   end
 
   def verify_no_unrecorded_rows(rows, matches, label)
-    extras = rows.map(&:id) - matches.compact.map(&:id)
+    extras = rows.select { |row| @available_book_ids.include?(row.book_id) }.map(&:id) - matches.compact.map(&:id)
     raise DevelopmentReadingScenarioActivity::ActivityError, "Unrecorded #{label} rows for scenario accounts: IDs #{extras}; review without deleting data." if extras.any?
   end
 

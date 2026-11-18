@@ -20,8 +20,12 @@ class DevelopmentReadingScenarioGenres
   end
 
   def seed_genres
-    book_ids = @manifest.fetch("catalog").fetch("records").values.map { |pair| pair.fetch("book").fetch("id") }
+    book_ids = @manifest.fetch("catalog").fetch("records").values.filter_map do |pair|
+      book = pair.fetch("book")
+      book["id"] unless book["result"] == "skipped"
+    end
     @books = Book.where(id: book_ids).order(:id).to_a
+    @available_book_ids = @books.map(&:id).to_set
     @rows = BookGenre.where(book_id: book_ids).index_by { |row| [ row.book_id, row.genre_id ] }
     @manifest["book_genres"] ||= { "status" => "pending", "records" => planned_links }
     records = @manifest.fetch("book_genres").fetch("records")
@@ -70,6 +74,10 @@ class DevelopmentReadingScenarioGenres
 
   def reconcile_recorded_links(records)
     records.each_value do |record|
+      unless @available_book_ids.include?(record.fetch("book_id"))
+        record.merge!("result" => "skipped", "reason" => "book_unavailable")
+        next
+      end
       next unless record["id"]
 
       row = @rows[link_pair(record)]

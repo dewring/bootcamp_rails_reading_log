@@ -13,8 +13,11 @@ class DevelopmentReadingScenarioActivity::References
     @users = user_records.transform_values do |record|
       users.fetch(record.fetch("id"))
     end
-    @books = book_records.transform_values do |pair|
-      books.fetch(pair.fetch("book").fetch("id"))
+    @books = book_records.to_h do |work_key, pair|
+      record = pair.fetch("book")
+      book = books[record["id"]]
+      book = nil if record["result"] == "skipped" || book&.ol_work_key != work_key
+      [ work_key, book ]
     end
     recorded_edition_ids = book_records.values.filter_map { |pair| pair.fetch("edition")["id"] }
     editions = BookEdition.where(id: recorded_edition_ids).index_by(&:id)

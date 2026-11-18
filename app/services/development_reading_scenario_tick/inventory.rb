@@ -39,6 +39,8 @@ class DevelopmentReadingScenarioTick::Inventory
   end
 
   def matching_record(rows, record, group, identity)
+    return if record["result"] == "skipped"
+
     if record["id"]
       row = rows.find { |candidate| candidate.id == record.fetch("id") }
       raise DevelopmentReadingScenarioTick::TickError, "Recorded tick #{group} #{identity} (ID #{record.fetch('id')}) is missing; no automatic recreation is allowed." unless row

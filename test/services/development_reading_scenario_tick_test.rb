@@ -190,7 +190,7 @@ class DevelopmentReadingScenarioTickTest < ActiveSupport::TestCase
   test "scenario services preserve the original catalog error and diagnostic report without writes" do
     failure = OpenLibraryCatalogPreflight::PreflightError.new("Captured catalog is unavailable", report: { "snapshot" => "missing" })
     preflight = Object.new
-    preflight.define_singleton_method(:preflight_catalog) { raise failure }
+    preflight.define_singleton_method(:preflight_catalog) { |**| raise failure }
     saved = @paths.fetch(:manifest_path).read
     operations = [
       -> { @tick.advance_scenario(tick: "tick1") },

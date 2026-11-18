@@ -9,6 +9,45 @@ class ProductionDemoScenarioTest < ActionDispatch::IntegrationTest
     ActiveJob::QueueAdapters::TestAdapter.new
   end
 
+  test "a full import preserves an unresolved legacy book and continues after another book is deleted" do
+    legacy = Book.create!(title: "The Great Gatsby", author: "F. Scott Fitzgerald")
+    before = legacy.attributes
+    Dir.mktmpdir("demo-book-conflicts-") do |directory|
+      variables = ENV.to_h.merge("ALLOW_PRODUCTION_SCENARIO" => "true", "READING_SCENARIO_AS_OF" => "2026-11-17T20:00:00Z")
+      ENV.stub(:[], variables.method(:[])) do
+        Rails.env.stub(:production?, true) do
+          scenario = DevelopmentReadingScenario.new(
+            manifest_path: File.join(directory, "manifest.json"), lock_path: File.join(directory, "scenario.lock"),
+            password: "synthetic-scenario-test-password"
+          )
+          first = scenario.seed_scenario
+          assert_equal 99, first.dig("baseline", "actual_counts", "books")
+          conflict = first.dig("catalog", "skipped_book_conflicts").sole
+          assert_equal "/works/OL468431W", conflict.fetch("work_key")
+          assert_equal [ legacy.id ], conflict.fetch("conflicts").first.fetch("record_ids")
+
+          recorded_books = first.dig("catalog", "records").values.filter_map { |pair| pair.dig("book", "id") }
+          deleted = Book.where(id: recorded_books)
+            .where(id: ReadingSession.select(:book_id))
+            .where.not(id: BookClub.where.not(current_book_id: nil).select(:current_book_id)).first!
+          deleted.destroy!
+
+          assert_no_difference [ "Book.count", "ReadingSession.count", "Review.count", "Reaction.count" ] do
+            replayed = scenario.seed_scenario
+            assert_equal "complete", replayed.dig("baseline", "status")
+            assert_equal 98, replayed.dig("baseline", "actual_counts", "books")
+            assert_equal [ "/works/OL468431W", deleted.ol_work_key ].sort, replayed.dig("catalog", "skipped_book_conflicts").pluck("work_key").sort
+            skipped_sessions = replayed.dig("reading", "records", "reading_sessions").values.select { |row| row.dig("expected_attributes", "book_id") == deleted.id }
+            assert skipped_sessions.any?
+            assert skipped_sessions.all? { |row| row["reason"] == "book_unavailable" }
+          end
+        end
+      end
+    end
+    assert_equal before, legacy.reload.attributes
+    assert_not_requested :any, /https?:/
+  end
+
   test "the recorded catalog demo renders multiple single and unenrolled challenge readers and all genre filters" do
     Dir.mktmpdir("production-demo-") do |directory|
       variables = ENV.to_h.merge("ALLOW_PRODUCTION_SCENARIO" => "true", "READING_SCENARIO_AS_OF" => "2026-11-17T20:00:00Z")

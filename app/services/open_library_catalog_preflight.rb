@@ -18,7 +18,7 @@ class OpenLibraryCatalogPreflight
     @manifest_path = Pathname.new(manifest_path)
   end
 
-  def preflight_catalog
+  def preflight_catalog(skip_book_conflicts: false)
     unless ReadingScenarioEnvironment.enabled?
       raise PreflightError, "Catalog preflight is only available in development or production with ALLOW_PRODUCTION_SCENARIO=true"
     end
@@ -29,8 +29,9 @@ class OpenLibraryCatalogPreflight
     load_reviewed_identities
     @entries = selected_documents.map { |key, doc| catalog_entry(key, doc) }
     inspect_existing_records
+    mark_unavailable_books if skip_book_conflicts
     report = { "snapshot_id" => @snapshot.fetch("snapshot_id"), "books" => @entries, "conflicts" => @conflicts }
-    if @conflicts.any?
+    if !skip_book_conflicts && @conflicts.any?
       raise PreflightError.new("Catalog conflicts require explicit review; no records were changed.", report: report)
     end
     report
@@ -41,6 +42,27 @@ class OpenLibraryCatalogPreflight
   end
 
   private
+
+  def mark_unavailable_books
+    by_work = @conflicts.group_by { |conflict| conflict.fetch("work_key") }
+    @entries.each do |entry|
+      key = entry.dig("book_attributes", "ol_work_key")
+      record = @recorded_catalog.dig(key, "book")
+      conflicts = by_work.fetch(key, [])
+      if record&.fetch("id", nil) && record["id"] != entry["existing_book_id"]
+        conflicts = conflicts + [ { "reason" => "recorded_book_unavailable", "record_ids" => [ record["id"] ] } ]
+      end
+      conflicts = record.fetch("conflicts") if record&.fetch("result", nil) == "skipped"
+      next if conflicts.empty?
+
+      entry["book_status"] = "skipped"
+      entry["book_skip"] = conflicts
+      edition_key = entry.dig("edition_attributes", "ol_edition_key") || entry.dig("edition_skip", "edition_key")
+      if edition_key
+        skip_edition(entry, { "edition_key" => edition_key, "reason" => "book_unavailable" })
+      end
+    end
+  end
 
   def load_reviewed_identities
     @reviewed_identities = {}

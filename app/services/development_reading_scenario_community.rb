@@ -33,7 +33,7 @@ class DevelopmentReadingScenarioCommunity
 
   def with_community_context
     @scenario_manifest.with_exclusive_access do
-      catalog = OpenLibraryCatalogPreflight.new(snapshot_path: @snapshot_path, manifest_path: @scenario_manifest.path).preflight_catalog
+      catalog = OpenLibraryCatalogPreflight.new(snapshot_path: @snapshot_path, manifest_path: @scenario_manifest.path).preflight_catalog(skip_book_conflicts: true)
       @plan = DevelopmentReadingScenarioPlan.new(catalog: catalog, as_of: @as_of).build_baseline
       @manifest = @scenario_manifest.prepare_scenario(snapshot_id: catalog.fetch("snapshot_id"))
       load_references
@@ -49,7 +49,8 @@ class DevelopmentReadingScenarioCommunity
     users = @manifest.fetch("bootstrap").fetch("records").fetch("users")
     @users = User.where(id: users.values.map { |record| record.fetch("id") }).includes(avatar_attachment: :blob).index_by(&:id)
     @user_ids = users.transform_values { |record| record.fetch("id") }
-    @book_ids = @manifest.fetch("catalog").fetch("records").transform_values { |pair| pair.fetch("book").fetch("id") }
+    @book_ids = DevelopmentReadingScenarioActivity::References.new(manifest: @manifest).load_references.books.transform_values { |book| book&.id }
+    @available_book_ids = @book_ids.values.compact.to_set
   end
 
   def planned_community
@@ -104,6 +105,11 @@ class DevelopmentReadingScenarioCommunity
   end
 
   def match_record(group, identity, record)
+    if group == "reviews" && !@available_book_ids.include?(record.dig("expected_attributes", "book_id"))
+      record.merge!("result" => "skipped", "reason" => "book_unavailable")
+      return
+    end
+
     if record["id"]
       row = @rows.fetch(group).find { |candidate| candidate.id == record.fetch("id") }
       raise CommunityError, "Recorded #{group} #{identity} (ID #{record.fetch('id')}) is missing; no automatic recreation is allowed." unless row
@@ -129,6 +135,7 @@ class DevelopmentReadingScenarioCommunity
 
   def verify_record(row, group, identity, record)
     expected = resolved_attributes(record)
+    expected.delete("current_book_id") if group == "book_clubs" && record["id"]
     unless attributes_for(row).slice(*expected.keys) == expected
       raise CommunityError, "Recorded #{group} #{identity} (ID #{row.id}) changed; no automatic overwrite is allowed."
     end
@@ -144,7 +151,9 @@ class DevelopmentReadingScenarioCommunity
     MODELS.each_key do |group|
       selected = @matches.fetch(group).values.compact.map(&:id)
       selected.concat(@tick_messages.values.compact.map(&:id)) if group == "club_messages"
-      extras = @rows.fetch(group).map(&:id) - selected
+      rows = @rows.fetch(group)
+      rows = rows.select { |row| @available_book_ids.include?(row.book_id) } if group == "reviews"
+      extras = rows.map(&:id) - selected
       raise CommunityError, "Unrecorded #{group}: record IDs #{extras}; review without deleting data." if extras.any?
     end
   end
@@ -194,6 +203,8 @@ class DevelopmentReadingScenarioCommunity
   def import_records(group)
     model = MODELS.fetch(group)
     @community.fetch("records").fetch(group).each do |identity, record|
+      next if record["result"] == "skipped"
+
       row = @matches.fetch(group)[identity]
       result = row ? "reused" : "imported"
       model.transaction(requires_new: true) do

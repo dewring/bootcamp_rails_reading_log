@@ -42,7 +42,7 @@ class DevelopmentReadingScenarioActivity
 
   def with_reading_context
     @scenario_manifest.with_exclusive_access do
-      catalog = OpenLibraryCatalogPreflight.new(snapshot_path: @snapshot_path, manifest_path: @scenario_manifest.path).preflight_catalog
+      catalog = OpenLibraryCatalogPreflight.new(snapshot_path: @snapshot_path, manifest_path: @scenario_manifest.path).preflight_catalog(skip_book_conflicts: true)
       @plan = DevelopmentReadingScenarioPlan.new(catalog: catalog, as_of: @as_of).build_baseline
       @manifest = @scenario_manifest.prepare_scenario(snapshot_id: catalog.fetch("snapshot_id"))
       @references = References.new(manifest: @manifest).load_references
@@ -62,6 +62,8 @@ class DevelopmentReadingScenarioActivity
 
   def import_library_entries
     @reading.fetch("records").fetch("user_books").each do |identity, record|
+      next if record["result"] == "skipped"
+
       row = @inventory.library_matches[identity]
       result = row ? "reused" : "imported"
       UserBook.transaction(requires_new: true) do
@@ -83,6 +85,8 @@ class DevelopmentReadingScenarioActivity
     @plan.fetch("reading_sessions").each do |entry|
       identity = entry.fetch("identity")
       record = @reading.fetch("records").fetch("reading_sessions").fetch(identity)
+      next if record["result"] == "skipped"
+
       row = @inventory.session_matches[identity]
       result = row ? "reused" : "imported"
       if !row && @references.update_pending_session_edition(record, work_key: entry.fetch("work_key"))

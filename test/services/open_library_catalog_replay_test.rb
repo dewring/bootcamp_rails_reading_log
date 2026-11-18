@@ -163,17 +163,19 @@ class OpenLibraryCatalogReplayTest < ActiveSupport::TestCase
     assert_equal edition_before, edition.reload.attributes
   end
 
-  test "a collision in the last planned Work stops replay before any database insert or manifest creation" do
+  test "a collision in the last planned work is reported while other works import" do
     legacy = Book.create!(title: @docs.last.fetch("title"), author: @docs.last.fetch("author_name").first)
     before = legacy.attributes
     write_snapshot
 
-    assert_no_difference [ "Book.count", "BookEdition.count" ] do
-      assert_raises(OpenLibraryCatalogPreflight::PreflightError) { replay_catalog }
-    end
+    result = replay_catalog
+    skip = result.dig("catalog", "skipped_book_conflicts").sole
+    assert_equal @docs.last.fetch("key"), skip.fetch("work_key")
+    assert_equal [ legacy.id ], skip.fetch("conflicts").sole.fetch("record_ids")
+    assert_equal 99, result.dig("catalog", "actual_counts", "books")
 
     assert_equal before, legacy.reload.attributes
-    assert_not @manifest_path.exist?
+    assert_not Book.exists?(ol_work_key: @docs.last.fetch("key"))
     assert_not_requested :any, /https?:/
   end
 
@@ -255,11 +257,12 @@ class OpenLibraryCatalogReplayTest < ActiveSupport::TestCase
     missing_id = missing.id
     missing.destroy!
 
-    assert_no_difference [ "Book.count", "BookEdition.count" ] do
-      error = assert_raises(OpenLibraryCatalogReplay::ReplayError) { replay_catalog }
-      assert_includes error.message, missing_id.to_s
-      assert_includes error.message, "no automatic recreation"
-    end
+    result = replay_catalog
+    skip = result.dig("catalog", "skipped_book_conflicts").sole
+    assert_equal missing_id, skip.fetch("record_id")
+    assert_equal "recorded_book_unavailable", skip.fetch("conflicts").sole.fetch("reason")
+    assert_equal 99, result.dig("catalog", "actual_counts", "books")
+    assert_not Book.exists?(ol_work_key: @docs.first.fetch("key"))
   end
 
   test "replay preserves an edited edition with the same key and book without adding rows" do

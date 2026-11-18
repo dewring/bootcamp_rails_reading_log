@@ -91,7 +91,7 @@ class DevelopmentReadingScenarioReactions
   private
 
   def prepare_reactions
-    catalog = OpenLibraryCatalogPreflight.new(snapshot_path: @snapshot_path, manifest_path: @scenario_manifest.path).preflight_catalog
+    catalog = OpenLibraryCatalogPreflight.new(snapshot_path: @snapshot_path, manifest_path: @scenario_manifest.path).preflight_catalog(skip_book_conflicts: true)
     @manifest = @scenario_manifest.prepare_scenario(snapshot_id: catalog.fetch("snapshot_id"))
     unless @manifest.dig("baseline", "status") == "complete"
       raise ReactionsError, "Run DevelopmentReadingScenario.new.seed_scenario in the Rails console to prepare the Day 1 baseline."
@@ -127,13 +127,15 @@ class DevelopmentReadingScenarioReactions
   def load_books
     records = @manifest.fetch("catalog").fetch("records")
     ids = records.values.map { |pair| pair.fetch("book").fetch("id") }
-    unless records.length == 100 && ids.uniq.length == 100
-      raise ReactionsError, "The manifest must identify 100 distinct scenario books; review before seeding."
+    unless records.length == 100 && ids.compact.uniq.length == ids.compact.length
+      raise ReactionsError, "The manifest must identify 100 distinct scenario works; review before seeding."
     end
     books = Book.where(id: ids).index_by(&:id)
+    @unavailable_book_ids = Set.new
     @book_ids = records.to_h do |key, pair|
-      id = pair.fetch("book").fetch("id")
-      raise ReactionsError, "Scenario Work #{key} (ID #{id}) is missing or changed." unless books[id]&.ol_work_key == key
+      record = pair.fetch("book")
+      id = record.fetch("id")
+      @unavailable_book_ids.add(id) if record["result"] == "skipped" || books[id]&.ol_work_key != key
 
       [ key, id ]
     end
@@ -141,7 +143,7 @@ class DevelopmentReadingScenarioReactions
     raise ReactionsError, "Required reaction anchors are missing from the manifest: #{missing.join(', ')}" if missing.any?
     tie_c_id = @book_ids.fetch(ANCHORS.fetch("tie_c").fetch("work_key"))
     tie_d_id = @book_ids.fetch(ANCHORS.fetch("tie_d").fetch("work_key"))
-    unless tie_c_id < tie_d_id
+    unless @unavailable_book_ids.include?(tie_c_id) || @unavailable_book_ids.include?(tie_d_id) || tie_c_id < tie_d_id
       raise ReactionsError, "Reaction anchors require tie_c.id < tie_d.id; preserve the books and review their identities."
     end
   end
@@ -200,7 +202,7 @@ class DevelopmentReadingScenarioReactions
       row = by_pair[pair]
       # A recorded timestamp change belongs to its original row, even if the pair has since been replaced.
       replacement_after_refresh = refresh && refresh.fetch("identity") == identity && refresh.fetch("reaction_id") != row&.id
-      row = nil if replacement_after_refresh || demo_ids.include?(row&.id)
+      row = nil if replacement_after_refresh || demo_ids.include?(row&.id) || @unavailable_book_ids.include?(pair.last)
       [ identity, row ]
     end
     verify_discovery_demo(by_id, baseline_ids: saved_ids)
@@ -327,6 +329,7 @@ class DevelopmentReadingScenarioReactions
 
   def reaction_skip_reason(record)
     expected_pair = record.fetch("expected_attributes").values_at("user_id", "book_id")
+    return "book_unavailable" if @unavailable_book_ids.include?(expected_pair.last)
     row = @reaction_rows_by_pair[expected_pair]
     return "discovery_demo_pair_in_use" if row && @discovery_reaction_ids.include?(row.id)
     return unless record["id"]
