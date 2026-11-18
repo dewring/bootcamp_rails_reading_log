@@ -83,6 +83,25 @@ class OpenLibraryCatalogReplayTest < ActiveSupport::TestCase
     assert_equal before, edition.reload.attributes
   end
 
+  test "invalid work links in source editions do not prevent unrelated catalog imports or replay" do
+    @docs.first.fetch("editions").fetch("docs").first["work_key"] = [ "/works/OL999999W" ]
+    @docs[2]["editions"] = { "docs" => [ { "key" => "/books/OL153001M" } ] }
+    @docs[3]["editions"] = { "docs" => [ { "key" => "/books/OL153003M" } ] }
+    write_snapshot
+
+    result = replay_catalog
+
+    assert_equal({ "books" => 100, "book_editions" => 1 }, result.dig("catalog", "actual_counts"))
+    reasons = result.dig("catalog", "skipped_edition_conflicts").map { |entry| entry.fetch("reason") }.tally
+    assert_equal({ "edition_work_mismatch" => 1, "edition_selected_for_multiple_works" => 2 }, reasons)
+    assert BookEdition.exists?(ol_edition_key: "/books/OL153003M")
+    assert_no_difference [ "Book.count", "BookEdition.count" ] do
+      replayed = replay_catalog
+      assert_equal result.dig("catalog", "skipped_edition_conflicts"), replayed.dig("catalog", "skipped_edition_conflicts")
+      assert_equal recorded_ids(result), recorded_ids(replayed)
+    end
+  end
+
   test "repeating replay preserves IDs and existing record attributes without duplicate rows" do
     write_snapshot
     first = replay_catalog

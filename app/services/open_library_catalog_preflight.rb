@@ -147,8 +147,8 @@ class OpenLibraryCatalogPreflight
       "subjects" => doc["subject"].is_a?(Array) ? doc["subject"].select { |subject| subject.is_a?(String) } : nil,
       "total_pages" => pages
     }
-    edition = representative_edition(key, doc)
-    {
+    edition, edition_skip = representative_edition(key, doc)
+    entry = {
       "book_attributes" => attributes,
       "edition_attributes" => edition,
       "page_estimate_source" => pages ? "number_of_pages_median" : nil,
@@ -156,6 +156,8 @@ class OpenLibraryCatalogPreflight
       "book_status" => "pending",
       "edition_status" => edition ? "pending" : "skipped"
     }
+    skip_edition(entry, edition_skip) if edition_skip
+    entry
   end
 
   def representative_edition(work_key, doc)
@@ -167,11 +169,11 @@ class OpenLibraryCatalogPreflight
     key = normalized_edition_key(edition["key"])
     invalid_snapshot("representative Edition for #{work_key} needs its own valid key") unless key
     if edition.key?("work_key") && !Array(edition["work_key"]).any? { |value| normalized_work_key(value) == work_key }
-      add_conflict("edition_work_mismatch", work_key: work_key, edition_key: key)
+      return [ nil, { "edition_key" => key, "reason" => "edition_work_mismatch" } ]
     end
     date = first_text(edition["publish_date"])
     year = Array(edition["publish_year"]).find { |value| value.is_a?(Integer) && value.positive? }
-    {
+    attributes = {
       "ol_edition_key" => key,
       "title" => first_text(edition["title"]),
       "isbn" => first_text(edition["isbn"]),
@@ -181,6 +183,7 @@ class OpenLibraryCatalogPreflight
       "format" => first_text(edition["format"]),
       "page_count" => nil
     }
+    [ attributes, nil ]
   end
 
   def inspect_existing_records
@@ -202,8 +205,9 @@ class OpenLibraryCatalogPreflight
     @entries.select { |entry| entry["edition_attributes"] }.group_by { |entry| entry.fetch("edition_attributes").fetch("ol_edition_key") }.each do |key, entries|
       next if entries.one?
 
-      add_conflict("edition_selected_for_multiple_works", edition_key: key,
-        work_keys: entries.map { |entry| entry.fetch("book_attributes").fetch("ol_work_key") })
+      work_keys = entries.map { |entry| entry.fetch("book_attributes").fetch("ol_work_key") }
+      details = { "edition_key" => key, "reason" => "edition_selected_for_multiple_works", "work_keys" => work_keys }
+      entries.each { |entry| skip_edition(entry, details) }
     end
   end
 

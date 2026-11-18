@@ -263,23 +263,28 @@ class OpenLibraryCatalogPreflightTest < ActiveSupport::TestCase
     assert_equal before, edition.reload.attributes
   end
 
-  test "a returned representative Edition that names another Work is rejected" do
+  test "a returned representative edition that names another work is skipped" do
     @docs.first.fetch("editions").fetch("docs").first["work_key"] = [ "/works/OL999999W" ]
     write_snapshot
 
-    error = assert_read_only_failure
-
-    assert_equal "edition_work_mismatch", error.report.fetch("conflicts").first.fetch("reason")
+    report = preflight_catalog
+    assert_empty report.fetch("conflicts")
+    entry = report.fetch("books").first
+    assert_equal "edition_work_mismatch", entry.dig("edition_skip", "reason")
+    assert_nil entry.fetch("edition_attributes")
   end
 
-  test "one representative Edition selected under two Works is reported before import" do
+  test "a representative edition selected under two works is skipped for both" do
     @docs[1]["editions"] = { "docs" => [ { "key" => "/books/OL142000M" } ] }
     write_snapshot
 
-    error = assert_read_only_failure
-
-    conflict = error.report.fetch("conflicts").find { |entry| entry.fetch("reason") == "edition_selected_for_multiple_works" }
-    assert_equal [ "/works/OL142000W", "/works/OL142001W" ], conflict.fetch("work_keys")
+    report = preflight_catalog
+    assert_empty report.fetch("conflicts")
+    report.fetch("books").first(2).each do |entry|
+      assert_nil entry.fetch("edition_attributes")
+      assert_equal "edition_selected_for_multiple_works", entry.dig("edition_skip", "reason")
+      assert_equal [ "/works/OL142000W", "/works/OL142001W" ], entry.dig("edition_skip", "work_keys")
+    end
   end
 
   test "source edits after capture are rejected before database writes" do
