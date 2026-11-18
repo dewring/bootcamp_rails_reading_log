@@ -105,26 +105,32 @@ class DevelopmentReadingScenarioActivity::Inventory
   def match_rows(records, rows, library: false)
     rows_by_id = rows.index_by(&:id)
     records.to_h do |identity, record|
-      row = if !@available_user_ids.include?(record.dig("expected_attributes", "user_id"))
-        record.merge!("result" => "skipped", "reason" => "account_unavailable")
-        nil
-      elsif unavailable_book?(record)
-        record.merge!("result" => "skipped", "reason" => "book_unavailable")
-        nil
-      elsif record["result"] == "skipped"
-        nil
-      elsif record["id"]
-        find_saved_reading_record(record, rows_by_id)
-      else
-        find_interrupted_reading_record(record, rows, library: library)
-      end
+      row = match_reading_record(record, rows_by_id, rows, library: library)
       record["origin"] = "existing" if @first_import && library && row
       [ identity, row ]
     end
   end
 
-  def unavailable_book?(record)
-    !@available_book_ids.include?(record.dig("expected_attributes", "book_id"))
+  def match_reading_record(record, rows_by_id, rows, library:)
+    reason = unavailable_reading_dependency(record.fetch("expected_attributes"))
+    if reason
+      record.merge!("result" => "skipped", "reason" => reason)
+      return
+    end
+    return if record["result"] == "skipped"
+
+    if record["id"]
+      find_saved_reading_record(record, rows_by_id)
+    else
+      find_interrupted_reading_record(record, rows, library: library)
+    end
+  end
+
+  def unavailable_reading_dependency(attributes)
+    return "account_unavailable" unless @available_user_ids.include?(attributes["user_id"])
+    return "book_unavailable" unless @available_book_ids.include?(attributes["book_id"])
+
+    nil
   end
 
   def find_saved_reading_record(record, rows_by_id)
