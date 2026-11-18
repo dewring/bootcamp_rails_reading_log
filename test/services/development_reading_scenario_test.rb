@@ -222,15 +222,14 @@ class DevelopmentReadingScenarioTest < ActiveSupport::TestCase
     assert_not_requested :any, /https?:/
   end
 
-  test "a fresh club collision is reported before any baseline records are inserted" do
+
+  test "a fresh club collision preserves that club and completes unrelated baseline imports" do
     club = BookClub.create!(name: "Reading Scenario Recent Readers")
-    assert_no_difference model_counts do
-      error = assert_raises(DevelopmentReadingScenario::ScenarioError) { seed }
-      assert_includes error.message, club.id.to_s
-      assert_includes error.message, "club-name collisions"
-    end
-    assert_not @paths.fetch(:manifest_path).exist?
-    assert_empty enqueued_jobs
+    result = seed
+    assert_equal "complete", result.dig("baseline", "status")
+    assert_equal 3, result.dig("baseline", "actual_counts", "book_clubs")
+    assert_equal [ club.id ], result.dig("community", "records", "book_clubs", "recent", "record_ids")
+    assert_empty club.book_club_memberships
   end
 
   test "a synthetic identity collision is reported before books genres or badges are inserted" do
@@ -273,18 +272,15 @@ class DevelopmentReadingScenarioTest < ActiveSupport::TestCase
     assert_equal 300, enqueued_jobs.count { |job| job.fetch("job_class") == "BookProgressJob" }
   end
 
-  test "late recorded drift fails preflight without changing database rows or the saved manifest" do
+
+  test "a revised review and the rest of the baseline survive replay without new jobs" do
     manifest = seed
     review_id = manifest.dig("community", "records", "reviews").values.last.fetch("id")
     Review.find(review_id).update!(body: "A reader revised this review")
-    saved = @paths.fetch(:manifest_path).read
     queue = enqueued_jobs.dup
     assert_no_difference model_counts do
-      error = assert_raises(DevelopmentReadingScenarioCommunity::CommunityError) { seed }
-      assert_includes error.message, review_id.to_s
-      assert_includes error.message, "changed"
+      assert_equal "complete", seed.dig("baseline", "status")
     end
-    assert_equal saved, @paths.fetch(:manifest_path).read
     assert_equal queue, enqueued_jobs
     assert_equal "A reader revised this review", Review.find(review_id).body
   end

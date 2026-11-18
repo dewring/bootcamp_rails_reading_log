@@ -53,27 +53,7 @@ class DevelopmentReadingScenario
     @catalog.preflight_catalog
     @bootstrap.preflight_bootstrap
     @reading.preflight_reading if @manifest["reading"]
-    if @manifest["community"]
-      @community.preflight_community
-      return
-    end
-
-    names = @plan.fetch("book_clubs").map { |entry| entry.fetch("attributes").fetch("name").downcase }
-    collisions = BookClub.where("LOWER(name) IN (?)", names).pluck(:id)
-    actor_ids = @manifest.dig("bootstrap", "records", "users")&.values&.filter_map { |record| record["id"] } || []
-    existing = {
-      "book_clubs" => collisions,
-      "book_club_memberships" => BookClubMembership.where(user_id: actor_ids).pluck(:id),
-      "club_messages" => ClubMessage.where(user_id: actor_ids).pluck(:id),
-      "reviews" => Review.where(user_id: actor_ids).pluck(:id)
-    }.reject { |_group, ids| ids.empty? }
-    raise ScenarioError, "Unrecorded community data or club-name collisions: #{existing.inspect}; review before importing any baseline records." if existing.any?
-
-    return if @manifest["reading"]
-
-    reading = { "user_books" => UserBook.where(user_id: actor_ids).pluck(:id), "reading_sessions" => ReadingSession.where(user_id: actor_ids).pluck(:id) }
-      .reject { |_group, ids| ids.empty? }
-    raise ScenarioError, "Unrecorded reading data: #{reading.inspect}; review before importing any baseline records." if reading.any?
+    @community.preflight_community if @manifest["community"]
   end
 
   def record_baseline_result

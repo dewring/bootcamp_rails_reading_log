@@ -158,22 +158,23 @@ class DevelopmentReadingScenarioActivityTest < ActiveSupport::TestCase
     interrupt_after_session_commit
     first = ReadingSession.where.not(user_id: @initial_user_ids).sole
     duplicate = ReadingSession.create!(first.attributes.except("id", "created_at", "updated_at"))
-    assert_no_difference [ "UserBook.count", "ReadingSession.count" ] do
-      error = assert_raises(DevelopmentReadingScenarioActivity::ActivityError) { replay }
-      assert_includes error.message, "Ambiguous"
-      assert_includes error.message, first.id.to_s
-      assert_includes error.message, duplicate.id.to_s
-    end
+    result = replay
+    conflict = records(result, "reading_sessions").values.find { |entry| entry["reason"] == "ambiguous_reading_payload" }
+    assert_equal [ first.id, duplicate.id ].sort, conflict.fetch("record_ids")
+    assert_equal 299, result.dig("reading", "actual_counts", "reading_sessions")
+    assert ReadingSession.exists?(first.id)
+    assert ReadingSession.exists?(duplicate.id)
   end
 
-  test "a deleted recorded session is refused rather than recreated" do
+  test "a deleted recorded session is skipped rather than recreated" do
     manifest = replay
     id = records(manifest, "reading_sessions").values.first.fetch("id")
     ReadingSession.find(id).destroy!
     assert_no_difference [ "UserBook.count", "ReadingSession.count" ] do
-      error = assert_raises(DevelopmentReadingScenarioActivity::ActivityError) { replay }
-      assert_includes error.message, id.to_s
-      assert_includes error.message, "missing"
+      result = replay
+      skipped = records(result, "reading_sessions").values.find { |entry| entry["id"] == id }
+      assert_equal "recorded_reading_row_missing", skipped.fetch("reason")
+      assert_equal 299, result.dig("reading", "actual_counts", "reading_sessions")
     end
   end
 
@@ -197,27 +198,33 @@ class DevelopmentReadingScenarioActivityTest < ActiveSupport::TestCase
     assert tick_sessions.all? { |session| ReadingSession.exists?(session.id) }
   end
 
-  test "an edited recorded session is refused before any replay writes" do
+  test "an edited recorded session is reused without changing the note" do
     manifest = replay
     id = records(manifest, "reading_sessions").values.last.fetch("id")
     ReadingSession.find(id).update!(notes: "User edited journal")
     assert_no_difference [ "UserBook.count", "ReadingSession.count" ] do
-      error = assert_raises(DevelopmentReadingScenarioActivity::ActivityError) { replay }
-      assert_includes error.message, id.to_s
-      assert_includes error.message, "changed"
+      assert_equal 300, replay.dig("reading", "actual_counts", "reading_sessions")
     end
     assert_equal "User edited journal", ReadingSession.find(id).notes
   end
 
-  test "unrecorded reading activity on a synthetic account is refused before baseline writes" do
+  test "unrelated readings are reported and a matching shelf keeps its existing state" do
     user = User.find_by!(email: "reader01@example.test")
     book = Book.find_by!(ol_work_key: @plan.fetch("user_books").first.fetch("work_key"))
     session = ReadingSession.create!(user: user, book: book, read_on: Date.current, pages_read: 3)
-    assert_no_difference [ "UserBook.count", "ReadingSession.count" ] do
-      error = assert_raises(DevelopmentReadingScenarioActivity::ActivityError) { replay }
-      assert_includes error.message, session.id.to_s
-      assert_includes error.message, "Unrecorded"
-    end
+    planned = @plan.fetch("reading_sessions").first
+    shelf_user = User.find_by!(email: "#{planned.fetch('reader')}@example.test")
+    shelf_book = Book.find_by!(ol_work_key: planned.fetch("work_key"))
+    shelf = UserBook.create!(user: shelf_user, book: shelf_book, status: "want_to_read")
+    before = shelf.attributes
+
+    result = replay
+
+    assert_equal [ session.id ], result.dig("reading", "unplanned_record_ids", "reading_sessions")
+    skips = records(result, "reading_sessions").values.count { |entry| entry["reason"] == "existing_shelf_preserved" }
+    assert_operator skips, :>, 0
+    assert_equal 300 - skips, result.dig("reading", "actual_counts", "reading_sessions")
+    assert_equal before, shelf.reload.attributes
   end
 
   test "non-development replay refuses before creating reading rows" do

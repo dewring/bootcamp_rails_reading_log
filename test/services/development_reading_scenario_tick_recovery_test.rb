@@ -89,11 +89,11 @@ class DevelopmentReadingScenarioTickRecoveryTest < ActiveSupport::TestCase
     assert_equal queue, enqueued_jobs
   end
 
-  test "ambiguous committed session candidates are reported before any remaining tick writes" do
+  test "ambiguous committed sessions are skipped while other tick records are imported" do
     interrupt_checkpoint_when { scenario_sessions.count > 300 }
     first = scenario_sessions.order(:id).last
     duplicate = ReadingSession.create!(first.attributes.except("id", "created_at", "updated_at"))
-    assert_ambiguous_without_writes(first, duplicate)
+    assert_ambiguous_tick_skipped(first, duplicate)
   end
 
   test "advancing again recovers the last committed post and finalizes the tick without another command" do
@@ -112,43 +112,38 @@ class DevelopmentReadingScenarioTickRecoveryTest < ActiveSupport::TestCase
     assert_equal({ "reading_sessions" => 303, "club_messages" => 82 }, completed.dig("ticks", "tick1", "scenario_counts"))
   end
 
-  test "ambiguous committed post candidates are reported before any remaining tick writes" do
+  test "ambiguous committed posts are skipped while other tick records are imported" do
     interrupt_checkpoint_when { scenario_posts.count > 80 }
     first = scenario_posts.order(:id).last
     duplicate = ClubMessage.create!(first.attributes.except("id", "created_at", "updated_at"))
-    assert_ambiguous_without_writes(first, duplicate)
+    assert_ambiguous_tick_skipped(first, duplicate)
   end
 
-  test "edited or deleted known tick events are refused instead of overwritten or recreated" do
+
+  test "an edited tick session is preserved and a deleted tick message is skipped" do
     manifest = advance
     session = ReadingSession.find(tick_ids(manifest).fetch("reading_sessions").fetch("reading3"))
-    original = session.notes
     session.update!(notes: "A reader revised the private note")
-    assert_no_difference [ "ReadingSession.count", "ClubMessage.count" ] do
-      error = assert_raises(DevelopmentReadingScenarioTick::TickError) { advance }
-      assert_includes error.message, session.id.to_s
-      assert_includes error.message, "changed"
-    end
-    session.update!(notes: original)
     post_id = tick_ids(manifest).fetch("club_messages").fetch("discussion2")
     ClubMessage.find(post_id).destroy!
     assert_no_difference [ "ReadingSession.count", "ClubMessage.count" ] do
-      error = assert_raises(DevelopmentReadingScenarioTick::TickError) { advance }
-      assert_includes error.message, post_id.to_s
-      assert_includes error.message, "missing"
+      replayed = advance
+      skipped = tick_records(replayed, "club_messages").fetch("discussion2")
+      assert_equal "recorded_community_row_missing", skipped.fetch("reason")
+      assert_equal post_id, skipped.fetch("id")
+      assert_equal 1, replayed.dig("ticks", "tick1", "actual_counts", "club_messages")
     end
+    assert_equal "A reader revised the private note", session.reload.notes
   end
 
-  test "a matching event without saved tick intent is refused rather than adopted" do
-    ReadingSession.create!(user: User.find_by!(email: "reader08@example.test"), book: club("steady").current_book,
+
+  test "an exact existing tick session is reused while unrelated activity continues" do
+    existing = ReadingSession.create!(user: User.find_by!(email: "reader08@example.test"), book: club("steady").current_book,
       read_on: Date.new(2026, 10, 30), pages_read: 16,
       notes: "Synthetic journal. Follow-up reading: I revisited a passage and compared it with my earlier notes.")
-    saved = @paths.fetch(:manifest_path).read
-    assert_no_difference [ "ReadingSession.count", "ClubMessage.count" ] do
-      error = assert_raises(DevelopmentReadingScenarioActivity::ActivityError) { advance }
-      assert_includes error.message, "Unrecorded"
+    assert_difference({ "ReadingSession.count" => 2, "ClubMessage.count" => 2 }) do
+      assert_equal existing.id, tick_ids(advance).fetch("reading_sessions").fetch("reading1")
     end
-    assert_equal saved, @paths.fetch(:manifest_path).read
   end
 
   test "validation failure is checkpointed and resumes after its cause is resolved" do
@@ -190,16 +185,14 @@ class DevelopmentReadingScenarioTickRecoveryTest < ActiveSupport::TestCase
     end
   end
 
-  def assert_ambiguous_without_writes(first, duplicate)
-    saved = @paths.fetch(:manifest_path).read
-    queue = enqueued_jobs.dup
-    assert_no_difference [ "ReadingSession.count", "ClubMessage.count" ] do
-      error = assert_raises(DevelopmentReadingScenarioTick::TickError) { advance }
-      assert_includes error.message, "Ambiguous"
-      assert_includes error.message, first.id.to_s
-      assert_includes error.message, duplicate.id.to_s
-    end
-    assert_equal saved, @paths.fetch(:manifest_path).read
-    assert_equal queue, enqueued_jobs
+  def assert_ambiguous_tick_skipped(first, duplicate)
+    group = first.is_a?(ReadingSession) ? "reading_sessions" : "club_messages"
+    completed = advance
+    reason = group == "reading_sessions" ? "ambiguous_reading_payload" : "ambiguous_community_identity"
+    conflict = tick_records(completed, group).values.find { |row| row["reason"] == reason }
+    assert_equal [ first.id, duplicate.id ].sort, conflict.fetch("record_ids")
+    assert_equal "complete", completed.dig("ticks", "tick1", "status")
+    assert first.class.exists?(first.id)
+    assert duplicate.class.exists?(duplicate.id)
   end
 end

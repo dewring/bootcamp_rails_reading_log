@@ -1,6 +1,4 @@
 class DevelopmentReadingScenarioActivity
-  class ActivityError < StandardError; end
-
   def initialize(snapshot_path: Rails.root.join("db/seeds/open_library_catalog.json"),
     manifest_path: DevelopmentReadingScenarioManifest::DEFAULT_PATH,
     lock_path: DevelopmentReadingScenarioManifest::DEFAULT_LOCK_PATH,
@@ -88,6 +86,17 @@ class DevelopmentReadingScenarioActivity
       next if record["result"] == "skipped"
 
       row = @inventory.session_matches[identity]
+      library_identity = "#{entry.fetch('reader')}/#{entry.fetch('work_key')}"
+      unless row || @inventory.library_matches[library_identity]
+        record.merge!("result" => "skipped", "reason" => "library_entry_unavailable")
+        @scenario_manifest.save_scenario
+        next
+      end
+      if !row && @reading.dig("records", "user_books", library_identity, "origin") == "existing"
+        record.merge!("result" => "skipped", "reason" => "existing_shelf_preserved")
+        @scenario_manifest.save_scenario
+        next
+      end
       result = row ? "reused" : "imported"
       if !row && @references.update_pending_session_edition(record, work_key: entry.fetch("work_key"))
         @scenario_manifest.save_scenario

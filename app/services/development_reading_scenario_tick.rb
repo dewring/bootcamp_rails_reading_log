@@ -17,7 +17,11 @@ class DevelopmentReadingScenarioTick
 
   def advance_scenario(tick:)
     with_tick_context(tick) do
-      return @manifest.deep_dup if @tick.fetch("status") == "complete"
+      if @tick.fetch("status") == "complete"
+        return @manifest.deep_dup if @tick["actual_counts"] == @inventory.saved_counts
+
+        return record_tick_result
+      end
 
       @manifest["ticks"] ||= {}
       @manifest.fetch("ticks")[tick] = @tick
@@ -53,11 +57,37 @@ class DevelopmentReadingScenarioTick
           record.merge!("result" => "skipped", "reason" => "book_unavailable")
         end
       end
-      @inventory = Inventory.new(tick: @tick)
-      @inventory.verify_tick
       @reading.preflight_reading
       @community.preflight_community
+      reject_unavailable_tick_posts
+      @inventory = Inventory.new(tick: @tick)
+      @inventory.verify_tick
+      reject_ticks_for_unavailable_shelves
       yield
+    end
+  end
+
+  def reject_unavailable_tick_posts
+    clubs = @manifest.fetch("community").fetch("records").fetch("book_clubs")
+    club_ids = clubs.values.filter_map { |record| record["id"] unless record["result"] == "skipped" }.to_set
+    @tick.fetch("club_messages").each_value do |record|
+      next if club_ids.include?(record.dig("expected_attributes", "book_club_id"))
+
+      record.merge!("result" => "skipped", "reason" => "club_unavailable")
+    end
+  end
+
+  def reject_ticks_for_unavailable_shelves
+    shelves = @manifest.fetch("reading").fetch("records").fetch("user_books")
+    @tick.fetch("reading_sessions").each do |identity, record|
+      next if record["result"] == "skipped" || @inventory.matches.fetch("reading_sessions")[identity]
+
+      shelf = shelves.fetch(record.fetch("library_identity"))
+      if shelf["origin"] == "existing"
+        record.merge!("result" => "skipped", "reason" => "existing_shelf_preserved")
+      elsif shelf["result"] == "skipped"
+        record.merge!("result" => "skipped", "reason" => "library_entry_unavailable")
+      end
     end
   end
 
@@ -100,6 +130,8 @@ class DevelopmentReadingScenarioTick
 
   def import_posts
     @tick.fetch("club_messages").each do |identity, record|
+      next if record["result"] == "skipped"
+
       row = @inventory.matches.fetch("club_messages")[identity]
       result = row ? "reused" : "imported"
       ClubMessage.transaction(requires_new: true) do
@@ -122,9 +154,9 @@ class DevelopmentReadingScenarioTick
 
   def record_tick_result
     @reading.reconcile_reading
-    club_ids = @manifest.fetch("community").fetch("records").fetch("book_clubs").values.map { |record| record.fetch("id") }
+    community = @community.preflight_community
     totals = { "reading_sessions" => @manifest.dig("reading", "actual_counts", "reading_sessions"),
-      "club_messages" => ClubMessage.where(book_club_id: club_ids).count }
+      "club_messages" => community.dig("actual_counts", "club_messages_with_ticks") }
     @tick["actual_counts"] = @inventory.saved_counts
     @tick["baseline_counts"] = { "reading_sessions" => 300, "club_messages" => 80 }
     @tick["scenario_counts"] = totals
