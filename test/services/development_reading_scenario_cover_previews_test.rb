@@ -32,6 +32,38 @@ class DevelopmentReadingScenarioCoverPreviewsTest < ActiveSupport::TestCase
     assert_not_requested :any, /https?:/
   end
 
+  test "a first preview run skips an unavailable book and can queue its cover once when it becomes available" do
+    initial = prepare_previews
+    key = @docs.first.fetch("key")
+    clear_enqueued_jobs
+
+    result = prepare_subset(unavailable_key: key, reset_previews: true)
+    assert_equal [ key ], result.dig("cover_previews", "unavailable_book_work_keys")
+    assert_equal "book_unavailable", records(result).fetch(key).fetch("skip_reason")
+    assert_equal({ "skipped" => 1, "queued" => 11 }, result.dig("cover_previews", "actual_counts", "statuses"))
+    assert_equal 11, cover_jobs.length
+
+    recovered = prepare_subset(unavailable_key: nil)
+    assert_empty recovered.dig("cover_previews", "unavailable_book_work_keys")
+    assert_equal records(initial).fetch(key).fetch("book_id"), records(recovered).fetch(key).fetch("book_id")
+    assert_equal 12, cover_jobs.length
+    prepare_subset(unavailable_key: nil)
+    assert_equal 12, cover_jobs.length
+  end
+
+  test "replay reports an unavailable preview book without rescheduling the other covers" do
+    initial = prepare_previews
+    key = @docs.first.fetch("key")
+    queued = cover_jobs.dup
+
+    result = prepare_subset(unavailable_key: key)
+
+    assert_equal [ key ], result.dig("cover_previews", "unavailable_book_work_keys")
+    assert_equal "book_unavailable", records(result).fetch(key).fetch("skip_reason")
+    assert_equal records(initial).fetch(key).fetch("job_id"), records(result).fetch(key).fetch("job_id")
+    assert_equal queued, cover_jobs
+  end
+
   test "an existing preview is reused without replacing its image or queueing another download" do
     doc = @docs.first
     book = Book.create!(ol_work_key: doc.fetch("key"), title: doc.fetch("title"), author: doc.fetch("author_name").first, total_pages: 1000)
@@ -98,5 +130,19 @@ class DevelopmentReadingScenarioCoverPreviewsTest < ActiveSupport::TestCase
     assert_equal retrying.fetch("job_id"), cover_jobs.first.fetch("job_id")
     prepare_previews
     assert_equal 1, cover_jobs.length
+  end
+  private
+
+  def prepare_subset(unavailable_key:, reset_previews: false)
+    store = DevelopmentReadingScenarioManifest.new(path: @paths.fetch(:manifest_path), lock_path: @paths.fetch(:lock_path))
+    snapshot = JSON.parse(@paths.fetch(:snapshot_path).read)
+    in_development do
+      store.with_exclusive_access do
+        manifest = store.prepare_scenario(snapshot_id: snapshot.fetch("snapshot_id"))
+        manifest.delete("cover_previews") if reset_previews
+        books = Book.where.not(id: @initial_books).where.not(ol_work_key: unavailable_key).with_attached_cover_image.index_by(&:ol_work_key)
+        DevelopmentReadingScenarioCoverPreviews.new(snapshot: snapshot, books: books, manifest: manifest, scenario_manifest: store).prepare_previews
+      end
+    end
   end
 end
