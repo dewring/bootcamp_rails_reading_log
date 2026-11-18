@@ -49,7 +49,8 @@ class OpenLibraryCatalogPreflight
       key = entry.dig("book_attributes", "ol_work_key")
       record = @recorded_catalog.dig(key, "book")
       conflicts = by_work.fetch(key, [])
-      if record&.fetch("id", nil) && record["id"] != entry["existing_book_id"]
+      recorded_book_id = record&.fetch("id", nil)
+      if recorded_book_id && recorded_book_id != entry["existing_book_id"]
         conflicts = conflicts + [ { "reason" => "recorded_book_unavailable", "record_ids" => [ record["id"] ] } ]
       end
       conflicts = record.fetch("conflicts") if record&.fetch("result", nil) == "skipped"
@@ -276,8 +277,9 @@ class OpenLibraryCatalogPreflight
     end
 
     existing = @existing_editions.select { |edition| normalized_edition_key(edition.ol_edition_key) == key }
-    if recorded&.fetch("id", nil) && existing.none? { |edition| edition.id == recorded.fetch("id") }
-      skip_edition(entry, { "edition_key" => key, "record_ids" => [ recorded.fetch("id") ], "reason" => "recorded_edition_unavailable" })
+    recorded_edition_id = recorded&.fetch("id", nil)
+    if recorded_edition_id && existing.none? { |edition| edition.id == recorded_edition_id }
+      skip_edition(entry, { "edition_key" => key, "record_ids" => [ recorded_edition_id ], "reason" => "recorded_edition_unavailable" })
       return
     end
     return if existing.empty?

@@ -122,7 +122,7 @@ class DevelopmentReadingScenarioChallenges
 
   def recorded_enrollment(rows, record, expected)
     row = rows.find { |candidate| candidate.id == record.fetch("id") }
-    if row && row.user_id == expected.fetch("user_id") && row.challenge_id == expected.fetch("challenge_id")
+    if row&.user_id == expected.fetch("user_id") && row&.challenge_id == expected.fetch("challenge_id")
       return row
     end
 

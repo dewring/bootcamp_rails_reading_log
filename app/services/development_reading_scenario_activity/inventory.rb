@@ -60,7 +60,9 @@ class DevelopmentReadingScenarioActivity::Inventory
   def adjust_pending_shelves_for_existing_reading
     active_pairs = @session_rows.map { |row| [ row.user_id, row.book_id ] }.to_set
     @reading.fetch("records").fetch("user_books").each do |identity, record|
-      next if @library_matches[identity] || record["result"] == "skipped" || record["initial_status"] != "want_to_read"
+      next if @library_matches[identity]
+      next if record["result"] == "skipped"
+      next unless record["initial_status"] == "want_to_read"
 
       pair = record.fetch("expected_attributes").values_at("user_id", "book_id")
       record["initial_status"] = "reading" if active_pairs.include?(pair)

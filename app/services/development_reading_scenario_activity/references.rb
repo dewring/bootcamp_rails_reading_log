@@ -25,9 +25,11 @@ class DevelopmentReadingScenarioActivity::References
       edition_record = pair.fetch("edition")
       edition = editions[edition_record["id"]]
       expected_key = edition_record.dig("expected_attributes", "ol_edition_key")
-      if edition && edition.book_id == pair.fetch("book").fetch("id") && edition.ol_edition_key == expected_key
-        edition.id
-      end
+      next if edition.nil?
+      next unless edition.book_id == pair.fetch("book").fetch("id")
+      next unless edition.ol_edition_key == expected_key
+
+      edition.id
     end
     self
   end

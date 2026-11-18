@@ -112,7 +112,7 @@ class OpenLibraryCatalogReplay
   def verify_recorded_row(record, row, key)
     if record["id"]
       row_key = row.is_a?(Book) ? row.ol_work_key : row&.ol_edition_key
-      unless row && row.id == record.fetch("id") && row_key == key
+      unless row&.id == record.fetch("id") && row_key == key
         raise ReplayError, "Recorded #{key} (ID #{record.fetch('id')}) is missing or its identity changed; no automatic recreation is allowed."
       end
 

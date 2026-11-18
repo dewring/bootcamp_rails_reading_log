@@ -38,7 +38,7 @@ class DevelopmentReadingScenarioTick::Inventory
     if record["id"]
       row = rows.find { |candidate| candidate.id == record.fetch("id") }
       keys = group == "reading_sessions" ? [ "user_id", "book_id" ] : [ "user_id", "book_club_id" ]
-      return row if row && row.attributes.slice(*keys) == expected.slice(*keys)
+      return row if row&.attributes&.slice(*keys) == expected.slice(*keys)
 
       record.merge!("result" => "skipped", "reason" => row ? "tick_identity_changed" : "recorded_tick_row_missing")
       return

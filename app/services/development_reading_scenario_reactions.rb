@@ -42,7 +42,7 @@ class DevelopmentReadingScenarioReactions
       end
       action = @reactions[REFRESH_ACTION] ||= planned_old_hit_refresh
       row = @matches.fetch(action.fetch("identity"))
-      unless row && row.id == action.fetch("reaction_id")
+      if row.nil? || row.id != action.fetch("reaction_id")
         raise ReactionsError, "The selected old_hit reaction is missing or its identity changed."
       end
       verify_reaction(row, action.fetch("identity"), @reactions.fetch("records").fetch(action.fetch("identity")))
@@ -194,11 +194,7 @@ class DevelopmentReadingScenarioReactions
     by_pair = rows.index_by { |row| reaction_pair(row) }
     refresh = @reactions[REFRESH_ACTION]
     @matches = @reactions.fetch("records").to_h do |identity, record|
-      pair = record.fetch("expected_attributes").values_at("user_id", "book_id")
-      row = by_pair[pair]
-      # A recorded timestamp change belongs to its original row, even if the pair has since been replaced.
-      replacement_after_refresh = refresh && refresh.fetch("identity") == identity && refresh.fetch("reaction_id") != row&.id
-      row = nil if replacement_after_refresh || demo_ids.include?(row&.id) || @unavailable_book_ids.include?(pair.last) || @unavailable_reader_ids.include?(pair.first)
+      row = match_baseline_reaction(identity, record, by_pair, refresh: refresh, demo_ids: demo_ids)
       [ identity, row ]
     end
     reconcile_discovery_demo(by_id, baseline_ids: saved_ids)
@@ -206,6 +202,20 @@ class DevelopmentReadingScenarioReactions
     @reaction_rows_by_id = by_id
     @discovery_reaction_ids = demo_ids
     @reaction_rows_by_pair = by_pair
+  end
+
+  def match_baseline_reaction(identity, record, by_pair, refresh:, demo_ids:)
+    user_id, book_id = record.fetch("expected_attributes").values_at("user_id", "book_id")
+    row = by_pair[[ user_id, book_id ]]
+    return if demo_ids.include?(row&.id)
+    return if @unavailable_reader_ids.include?(user_id)
+    return if @unavailable_book_ids.include?(book_id)
+
+    # A recorded timestamp change belongs to its original row.
+    return row unless refresh&.fetch("identity") == identity
+    return row if refresh.fetch("reaction_id") == row&.id
+
+    nil
   end
 
   def reaction_pair(row)
@@ -302,7 +312,9 @@ class DevelopmentReadingScenarioReactions
     saved = Reaction.transaction(requires_new: true) do
       if row
         current = Reaction.lock.find_by(id: row.id)
-        current if current && reaction_pair(current) == expected.values_at("user_id", "book_id")
+        next if current.nil?
+
+        current if reaction_pair(current) == expected.values_at("user_id", "book_id")
       else
         Reaction.create!(expected)
       end
@@ -336,7 +348,7 @@ class DevelopmentReadingScenarioReactions
     return "account_unavailable" if @unavailable_reader_ids.include?(expected_pair.first)
     return "book_unavailable" if @unavailable_book_ids.include?(expected_pair.last)
     row = @reaction_rows_by_pair[expected_pair]
-    return "discovery_demo_pair_in_use" if row && @discovery_reaction_ids.include?(row.id)
+    return "discovery_demo_pair_in_use" if @discovery_reaction_ids.include?(row&.id)
     return unless record["id"]
 
     if @reaction_rows_by_id.key?(record.fetch("id"))

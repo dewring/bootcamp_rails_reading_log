@@ -154,6 +154,8 @@ class DevelopmentReadingScenarioBootstrap
   end
 
   def recorded_user_matches?(record, row)
+    return false if row.nil?
+
     keys = [ "email", "role", "account_status", "encrypted_password" ]
     (record["id"].nil? || record["id"] == row.id) &&
       row.attributes.slice(*keys) == record.fetch("expected_attributes").slice(*keys)
@@ -193,8 +195,8 @@ class DevelopmentReadingScenarioBootstrap
     # Badge type is unique. The existing name and description belong to the catalog.
     return if group == "badges" && row&.badge_type == identity
 
-    return if group == "users" && row && recorded_user_matches?(record, row)
-    if record["id"] && (!row || row.id != record.fetch("id"))
+    return if group == "users" && recorded_user_matches?(record, row)
+    if record["id"] && row&.id != record.fetch("id")
       raise BootstrapError, "Recorded #{group} #{identity} (ID #{record.fetch('id')}) is missing or changed; no automatic recreation is allowed."
     end
     return unless row
