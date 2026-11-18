@@ -212,21 +212,21 @@ class OpenLibraryCatalogReplayTest < ActiveSupport::TestCase
     assert inspected
   end
 
-  test "a changed recorded row is detected before writing an unfinished later Work" do
+  test "an edited recorded book keeps its metadata while replay imports unfinished works" do
     write_snapshot
     interrupt_after_first_work
     changed = Book.find_by!(ol_work_key: @docs.first.fetch("key"))
     changed.update!(description: "An explicit developer edit")
-    before = @manifest_path.binread
-    rows_before = Book.order(:id).map(&:attributes)
+    before = changed.attributes.except("updated_at")
 
-    error = assert_raises(OpenLibraryCatalogReplay::ReplayError) { replay_catalog }
+    result = replay_catalog
 
-    assert_includes error.message, "changed"
-    assert_includes error.message, changed.id.to_s
-    assert_equal rows_before, Book.order(:id).map(&:attributes)
-    assert_equal before, @manifest_path.binread
-    assert_not Book.exists?(ol_work_key: @docs[1].fetch("key"))
+    assert_equal before, changed.reload.attributes.except("updated_at")
+    record = catalog_records(result).fetch(changed.ol_work_key).fetch("book")
+    assert_equal changed.id, record.fetch("id")
+    assert_equal "reused", record.fetch("result")
+    assert_equal changed.description, record.dig("expected_attributes", "description")
+    assert Book.exists?(ol_work_key: @docs[1].fetch("key"))
   end
 
   test "a recorded missing Book is not silently recreated on resume" do
@@ -243,19 +243,21 @@ class OpenLibraryCatalogReplayTest < ActiveSupport::TestCase
     end
   end
 
-  test "a changed recorded Edition is detected before replay mutates any row" do
+  test "replay preserves an edited edition with the same key and book without adding rows" do
     write_snapshot
     replay_catalog
     edition = BookEdition.find_by!(ol_edition_key: "/books/OL153000M")
     edition.update!(publisher: "Developer corrected publisher")
-    before = @manifest_path.binread
+    before = edition.attributes
 
     assert_no_difference [ "Book.count", "BookEdition.count" ] do
-      error = assert_raises(OpenLibraryCatalogReplay::ReplayError) { replay_catalog }
-      assert_includes error.message, edition.id.to_s
-      assert_includes error.message, "changed"
+      result = replay_catalog
+      record = catalog_records(result).fetch(@docs.first.fetch("key")).fetch("edition")
+      assert_equal edition.id, record.fetch("id")
+      assert_equal "reused", record.fetch("result")
+      assert_equal edition.publisher, record.dig("expected_attributes", "publisher")
     end
-    assert_equal before, @manifest_path.binread
+    assert_equal before, edition.reload.attributes
   end
 
   test "a different snapshot is refused without replacing the original manifest" do

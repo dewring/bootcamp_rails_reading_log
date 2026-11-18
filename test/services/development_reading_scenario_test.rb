@@ -185,16 +185,16 @@ class DevelopmentReadingScenarioTest < ActiveSupport::TestCase
     assert_not_requested :any, /https?:/
   end
 
-  test "baseline preflight rejects an edited book before any phase writes" do
+  test "baseline replay preserves an edited book page count without adding records" do
     manifest = seed
     book = Book.find(manifest.fetch("catalog").fetch("records").values.first.fetch("book").fetch("id"))
     pages = book.total_pages + 1
     book.update!(total_pages: pages)
 
     assert_no_difference model_counts do
-      error = assert_raises(OpenLibraryCatalogReplay::ReplayError) { seed }
-      assert_includes error.message, book.id.to_s
-      assert_includes error.message, "changed"
+      replayed = seed
+      assert_equal "complete", replayed.dig("baseline", "status")
+      assert_equal book.id, replayed.dig("catalog", "records", book.ol_work_key, "book", "id")
     end
     assert_equal pages, book.reload.total_pages
     assert_not_requested :any, /https?:/
