@@ -557,6 +557,27 @@ class BookControllerTest < ActionDispatch::IntegrationTest
     assert_select "#catalog-sort-menu a[href*='sort=title'][href*='q=Book'][href*='genre=Fiction']", text: "Title A-Z", count: 1
   end
 
+  test "catalog only offers sorting by information shown on the cards" do
+    sign_in users(:leika)
+
+    get books_path
+
+    assert_response :success
+    assert_equal [ "Title A-Z", "Author" ], css_select("#catalog-sort-menu a.catalog-sort-option").map { |option| option.text.strip }
+    assert_select "#catalog-sort-menu a[href*='sort=total_pages']", count: 0
+  end
+
+  test "an unsupported page count sort falls back to title order" do
+    sign_in users(:leika)
+    Book.create!(title: "Aaa Short Title", author: "Zed Author", total_pages: 999)
+
+    get books_path, params: { sort: "total_pages" }
+
+    assert_response :success
+    assert_equal Book.order(:title).limit(10).pluck(:title), assigns(:books).map(&:title)
+    assert_select ".catalog-sort-trigger span", text: "Title A-Z", count: 1
+  end
+
   test "active genre filter link clears the genre on the next click" do
     sign_in users(:leika)
 

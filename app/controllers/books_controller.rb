@@ -1,7 +1,8 @@
 class BooksController < ApplicationController
   include LogsRecordNotFound
 
-  SORTABLE_COLUMNS = [ "title", "author", "total_pages" ].freeze
+  # Only columns shown on catalog cards, so readers can see why books are in this order.
+  SORTABLE_COLUMNS = [ "title", "author" ].freeze
 
   before_action :authenticate_user!, only: [ :discover, :most_recent_session, :search, :import, :quick_add ]
   rescue_from ActiveRecord::RecordNotFound, with: :not_found

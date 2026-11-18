@@ -101,7 +101,7 @@
         <h1 id="catalog-title">Books</h1>
         <p>Showing <%= @pagy.count %> books</p>
       </div>
-      <% sort_options = [["Title A-Z", "title"], ["Author", "author"], ["Page count", "total_pages"]] %>
+      <% sort_options = [["Title A-Z", "title"], ["Author", "author"]] %>
       <% selected_sort = sort_options.find { |_, value| value == params[:sort] } || sort_options.first %>
       <div class="catalog-sort-form" data-controller="nav-menu" data-action="click@document->nav-menu#closeOnOutsideClick keydown.esc@document->nav-menu#closeOnEscape">
         <span class="catalog-sort-label">Sort by:</span>
