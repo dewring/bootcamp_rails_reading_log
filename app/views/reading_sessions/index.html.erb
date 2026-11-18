@@ -96,7 +96,8 @@
                               class: "my-log-book-cover",
                               alt: "Cover of #{user_book.book.title}" %>
                       <% else %>
-                        <div class="my-log-book-cover my-log-book-cover--empty" aria-hidden="true">📚</div>
+                        <%= render "books/cover_fallback", title: user_book.book.title, author: user_book.book.author,
+                              seed: user_book.book.id, size: :medium, sizing_class: "my-log-book-cover" %>
                       <% end %>
                       <strong><%= user_book.book.title %></strong>
                       <span><%= user_book.book.author %></span>

@@ -616,6 +616,33 @@ class BookControllerTest < ActionDispatch::IntegrationTest
     assert_select "form[action='#{admin_books_path}'] input[name='book[title]']"
   end
 
+  test "catalog shows a pastel title cover with the title and author for a book without a cover image" do
+    sign_in users(:leika)
+    book = books(:refactoring)
+
+    get books_path
+
+    assert_response :success
+    assert_select ".book-cover-fallback.book-cover-fallback--medium.book-list-no-cover[role='img'][aria-label='Cover of #{book.title}']", count: 1 do
+      assert_select ".book-cover-fallback-surface[class*='book-cover-fallback--tone-']", count: 1
+      assert_select ".book-cover-fallback-title", text: book.title, count: 1
+      assert_select ".book-cover-fallback-author", text: book.author, count: 1
+    end
+    assert_no_match "📚", response.body
+  end
+
+  test "book detail shows a large fallback cover for a book without a cover image" do
+    sign_in users(:leika)
+    book = books(:refactoring)
+
+    get book_path(book)
+
+    assert_response :success
+    assert_select ".book-detail-cover-frame .book-cover-fallback--large[aria-label='Cover of #{book.title}']", count: 1 do
+      assert_select ".book-cover-fallback-title", text: book.title
+    end
+  end
+
   test "catalog cards do not show Add to Log actions" do
     sign_in users(:leika)
 

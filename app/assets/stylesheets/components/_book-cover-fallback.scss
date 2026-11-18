@@ -1,0 +1,102 @@
+@use "../foundation/tokens";
+
+// ── Book cover fallback ────────────────────────────────────
+// Pastel cover with a spine, shown when a book has no cover image.
+// Each screen's own cover class (passed as sizing_class) sets the width,
+// height, radius, and shadow; this component fills that box. The tone and
+// layout live on the inner surface so screen classes that set display or
+// background on the cover box do not override them.
+.book-cover-fallback {
+  position: relative;
+  overflow: hidden;
+}
+
+.book-cover-fallback-surface {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  box-sizing: border-box;
+  padding: 14px 14px 14px 26px;
+  border-left: 12px solid rgba(44, 38, 35, 0.1);
+  color: tokens.$ink;
+  text-align: left;
+}
+
+.book-cover-fallback--tone-0 { background: #f9d9d6; }
+.book-cover-fallback--tone-1 { background: #fbe7c6; }
+.book-cover-fallback--tone-2 { background: #d8ead3; }
+.book-cover-fallback--tone-3 { background: #d5e5f2; }
+.book-cover-fallback--tone-4 { background: #e3daf2; }
+.book-cover-fallback--tone-5 { background: #f6e1ec; }
+
+.book-cover-fallback-heading {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.book-cover-fallback-title {
+  display: -webkit-box;
+  overflow: hidden;
+  font-family: "Fraunces", Georgia, "Times New Roman", serif;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 5;
+}
+
+.book-cover-fallback-rule {
+  display: block;
+  width: 24px;
+  height: 2px;
+  background: tokens.$accent;
+}
+
+.book-cover-fallback-author {
+  overflow: hidden;
+  color: tokens.$text-muted;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.book-cover-fallback--large {
+  .book-cover-fallback-surface {
+    padding: 20px 20px 20px 32px;
+  }
+
+  .book-cover-fallback-heading {
+    gap: 13px;
+  }
+
+  .book-cover-fallback-title {
+    font-size: 22px;
+  }
+
+  .book-cover-fallback-author {
+    font-size: 12px;
+  }
+}
+
+.book-cover-fallback--small {
+  .book-cover-fallback-surface {
+    align-items: center;
+    justify-content: center;
+    padding: 6px;
+    border-left-width: 6px;
+  }
+
+  .book-cover-fallback-initial {
+    font-family: "Fraunces", Georgia, "Times New Roman", serif;
+    font-size: 28px;
+    font-weight: 600;
+    line-height: 1;
+  }
+}

@@ -107,13 +107,6 @@
   transition: transform 180ms ease;
 }
 
-.my-log-book-cover--empty {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: tokens.$text-muted;
-  font-size: 30px;
-}
 
 .my-log-carousel-arrow {
   position: absolute;

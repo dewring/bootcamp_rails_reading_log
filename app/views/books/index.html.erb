@@ -142,7 +142,8 @@
                 <% if book.cover_image.attached? %>
                   <%= image_tag book.cover_image, class: "book-list-image", alt: book.title %>
                 <% else %>
-                  <div class="book-list-no-cover">📚</div>
+                  <%= render "books/cover_fallback", title: book.title, author: book.author, seed: book.id,
+                        size: :medium, sizing_class: "book-list-no-cover" %>
                 <% end %>
               <% end %>
             </div>

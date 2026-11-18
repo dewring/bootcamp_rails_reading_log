@@ -13,6 +13,9 @@
   <div class="home-hero-cover">
     <% if @featured_book&.cover_image&.attached? %>
       <%= image_tag @featured_book.cover_image.variant(resize_to_fill: [180, 260]), alt: @featured_book.title %>
+    <% elsif @featured_book %>
+      <%= render "books/cover_fallback", title: @featured_book.title, author: @featured_book.author,
+            seed: @featured_book.id, size: :medium, sizing_class: "home-hero-fallback-cover" %>
     <% else %>
       <div class="home-hero-no-cover" aria-label="No featured book cover">📚</div>
     <% end %>

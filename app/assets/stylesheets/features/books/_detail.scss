@@ -533,12 +533,7 @@
 .book-detail-edition-no-cover {
   width: 64px;
   height: 94px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   border-radius: 5px;
-  background: tokens.$gray-light;
-  font-size: 1.5rem;
 }
 
 @media (max-width: 960px) {

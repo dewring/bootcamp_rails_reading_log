@@ -6,7 +6,8 @@
               class: "reviews-card-cover",
               alt: "Cover of #{review.book.title}" %>
       <% else %>
-        <div class="reviews-card-cover reviews-card-cover--empty" aria-hidden="true">📚</div>
+        <%= render "books/cover_fallback", title: review.book.title, author: review.book.author,
+              seed: review.book.id, size: :small, sizing_class: "reviews-card-cover" %>
       <% end %>
     <% end %>
 

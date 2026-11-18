@@ -5,7 +5,8 @@
             class: "reading-detail-cover",
             alt: "Cover of #{@book.title}" %>
     <% else %>
-      <div class="reading-detail-cover reading-detail-cover--empty" aria-label="No cover available">📚</div>
+      <%= render "books/cover_fallback", title: @book.title, author: @book.author, seed: @book.id,
+            size: :large, sizing_class: "reading-detail-cover" %>
     <% end %>
   </div>
 

@@ -29,7 +29,8 @@
       <% if @book.cover_image.attached? %>
         <%= image_tag @book.cover_image.variant(resize_to_limit: [ 250, 368 ]), class: "book-show-image book-detail-cover-image", alt: "Cover of #{@book.title}" %>
       <% else %>
-        <div class="book-show-no-cover book-detail-no-cover" aria-label="No cover available">📚</div>
+        <%= render "books/cover_fallback", title: @book.title, author: @book.author, seed: @book.id,
+              size: :large, sizing_class: "book-detail-no-cover" %>
       <% end %>
     </div>
 
@@ -273,7 +274,8 @@
                 <% if edition.cover_image.attached? %>
                   <%= image_tag edition.cover_image, alt: "Cover of #{edition.title.presence || @book.title}" %>
                 <% else %>
-                  <div class="book-detail-edition-no-cover" aria-label="No cover available">📚</div>
+                  <%= render "books/cover_fallback", title: edition.title.presence || @book.title, author: @book.author,
+                        seed: @book.id, size: :small, sizing_class: "book-detail-edition-no-cover" %>
                 <% end %>
               </div>
               <div class="book-detail-edition-text">

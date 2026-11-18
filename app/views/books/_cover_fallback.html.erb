@@ -1,0 +1,19 @@
+<%# locals: (title:, author:, seed:, size:, sizing_class: nil) -%>
+<%# Stands in for a missing cover image. role="img" keeps it one image with an accessible name, like the cover image it replaces. %>
+<%= tag.div class: [ "book-cover-fallback", "book-cover-fallback--#{size}", sizing_class ],
+            role: "img",
+            aria: { label: "Cover of #{title}" } do %>
+  <span class="book-cover-fallback-surface book-cover-fallback--tone-<%= book_cover_fallback_tone(seed) %>">
+    <% if size == :small %>
+      <span class="book-cover-fallback-initial"><%= book_cover_fallback_initial(title) %></span>
+    <% else %>
+      <span class="book-cover-fallback-heading">
+        <span class="book-cover-fallback-title"><%= title %></span>
+        <span class="book-cover-fallback-rule"></span>
+      </span>
+      <% if author.present? %>
+        <span class="book-cover-fallback-author"><%= author %></span>
+      <% end %>
+    <% end %>
+  </span>
+<% end %>
