@@ -168,6 +168,19 @@ class OpenLibraryCatalogPreflightTest < ActiveSupport::TestCase
     assert_equal before, [ keyed.reload.attributes, legacy.reload.attributes ]
   end
 
+  test "a verified keyed book is reused even when a lookalike has a different work key" do
+    keyed = create_selected_book
+    lookalike = create_selected_book(ol_work_key: "/works/OL999999W")
+    before = [ keyed.attributes, lookalike.attributes ]
+    write_snapshot
+
+    report = preflight_catalog
+
+    assert_empty report.fetch("conflicts")
+    assert_equal keyed.id, report.fetch("books").first.fetch("existing_book_id")
+    assert_equal before, [ keyed.reload.attributes, lookalike.reload.attributes ]
+  end
+
   test "a legacy unkeyed book is reported by ID without adding a duplicate or assigning its key" do
     legacy = Book.create!(title: @docs.first.fetch("title").titleize, author: "Gabriel García Márquez".titleize)
     before = legacy.attributes

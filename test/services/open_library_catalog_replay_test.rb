@@ -235,7 +235,7 @@ class OpenLibraryCatalogReplayTest < ActiveSupport::TestCase
     write_snapshot
     interrupt_after_first_work
     changed = Book.find_by!(ol_work_key: @docs.first.fetch("key"))
-    changed.update!(description: "An explicit developer edit")
+    changed.update!(title: "A corrected title", author: "A corrected author", description: "An explicit developer edit")
     before = changed.attributes.except("updated_at")
 
     result = replay_catalog
