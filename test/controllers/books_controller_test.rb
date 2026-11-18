@@ -561,15 +561,19 @@ class BookControllerTest < ActionDispatch::IntegrationTest
     assert_select "a.catalog-genre-option:not(.is-active)[href*='genre=Fantasy']", count: 1
   end
 
-  test "catalog sidebar exposes the Figma find dropdown options" do
+  test "catalog sidebar shows Open Library and Search ISBN as visible links instead of a dropdown" do
     sign_in users(:leika)
 
     get books_path
 
     assert_response :success
-    assert_select "button.catalog-dropdown-trigger[aria-controls='catalog-find-menu']", count: 1
-    assert_select "#catalog-find-menu a[href='#{search_books_path}']", text: "Open Library", count: 1
-    assert_select "#catalog-find-menu a[href='#{quick_add_books_path}']", text: "Search ISBN", count: 1
+    assert_select "nav.catalog-find-new-books[aria-labelledby='catalog-find-new-books-label']", count: 1 do
+      assert_select "#catalog-find-new-books-label", text: "Find New Books", count: 1
+      assert_select "a.catalog-external-link[href='#{search_books_path}']", text: "Open Library", count: 1
+      assert_select "a.catalog-external-link[href='#{quick_add_books_path}']", text: "Search ISBN", count: 1
+      assert_select "button", count: 0
+    end
+    assert_select "#catalog-find-menu", count: 0
   end
 
   test "catalog search uses a wide input and a separate search button" do

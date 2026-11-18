@@ -1,24 +1,22 @@
 <div class="catalog-page">
   <aside class="catalog-sidebar" aria-label="Catalog filters">
-    <div class="catalog-sidebar-section catalog-dropdown" data-controller="nav-menu" data-action="click@document->nav-menu#closeOnOutsideClick keydown.esc@document->nav-menu#closeOnEscape">
-      <p class="catalog-sidebar-label">Find Option</p>
-      <button type="button"
-              class="catalog-sidebar-select catalog-dropdown-trigger"
-              data-nav-menu-target="trigger"
-              data-action="click->nav-menu#toggle"
-              aria-expanded="false"
-              aria-controls="catalog-find-menu">
-        <span>Open Library</span>
-        <%= image_tag "catalog-chevron-down.svg", class: "catalog-chevron", alt: "", aria: { hidden: true } %>
-      </button>
-      <div id="catalog-find-menu"
-           class="catalog-dropdown-menu"
-           data-nav-menu-target="menu"
-           hidden>
-        <%= link_to "Open Library", search_books_path, class: "catalog-dropdown-option" %>
-        <%= link_to "Search ISBN", quick_add_books_path, class: "catalog-dropdown-option" %>
-      </div>
-    </div>
+    <nav class="catalog-sidebar-section catalog-find-new-books" aria-labelledby="catalog-find-new-books-label">
+      <p id="catalog-find-new-books-label" class="catalog-sidebar-label">Find New Books</p>
+      <%= link_to search_books_path, class: "catalog-external-link" do %>
+        <span class="catalog-external-link-lead">
+          <%= image_tag "catalog-open-library.svg", class: "catalog-external-link-icon", alt: "", aria: { hidden: true } %>
+          <span>Open Library</span>
+        </span>
+        <%= image_tag "arrow-right.svg", class: "catalog-external-link-arrow", alt: "", aria: { hidden: true } %>
+      <% end %>
+      <%= link_to quick_add_books_path, class: "catalog-external-link" do %>
+        <span class="catalog-external-link-lead">
+          <%= image_tag "catalog-isbn-search.svg", class: "catalog-external-link-icon", alt: "", aria: { hidden: true } %>
+          <span>Search ISBN</span>
+        </span>
+        <%= image_tag "arrow-right.svg", class: "catalog-external-link-arrow", alt: "", aria: { hidden: true } %>
+      <% end %>
+    </nav>
 
     <div class="catalog-sidebar-section catalog-dropdown catalog-filter-dropdown" data-controller="nav-menu" data-action="click@document->nav-menu#closeOnOutsideClick keydown.esc@document->nav-menu#closeOnEscape">
       <p class="catalog-sidebar-label">Filter Option</p>
