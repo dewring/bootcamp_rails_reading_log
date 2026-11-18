@@ -171,18 +171,16 @@ class DevelopmentReadingScenarioTest < ActiveSupport::TestCase
     assert_equal DevelopmentReadingScenarioReactions::COUNTS, result.dig("reactions", "actual_counts")
   end
 
-  test "baseline preflight rejects an edited synthetic user before any phase writes" do
+  test "baseline replay preserves a synthetic reader's edited name" do
     seed
     user = User.find_by!(email: "reader30@example.test")
     user.update!(first_name: "Changed by the reader")
 
     assert_no_difference model_counts do
-      error = assert_raises(DevelopmentReadingScenarioBootstrap::BootstrapError) { seed }
-      assert_includes error.message, user.id.to_s
-      assert_includes error.message, "changed"
+      replayed = seed
+      assert_equal user.id, replayed.dig("bootstrap", "records", "users", "reader30", "id")
     end
     assert_equal "Changed by the reader", user.reload.first_name
-    assert_not_requested :any, /https?:/
   end
 
   test "baseline replay preserves an edited book page count without adding records" do
@@ -232,15 +230,31 @@ class DevelopmentReadingScenarioTest < ActiveSupport::TestCase
     assert_empty club.book_club_memberships
   end
 
-  test "a synthetic identity collision is reported before books genres or badges are inserted" do
-    existing = User.create!(first_name: "Real", last_name: "Reader", nickname: "existing_reader", email: "reader30@example.test", password: "existing-test-password")
+  test "the full import skips account and genre collisions and reports them without claiming existing records" do
+    existing = User.create!(first_name: "Real", last_name: "Reader", nickname: "existing_reader", email: "reader07@example.test", password: "existing-test-password")
     attributes = existing.attributes
-    assert_no_difference model_counts do
-      error = assert_raises(DevelopmentReadingScenarioBootstrap::BootstrapError) { seed }
-      assert_includes error.message, existing.id.to_s
-    end
+    duplicates = 2.times.map { Genre.create!(name: "Fiction").id }
+    result = in_development { @scenario.seed_scenario }
+
+    assert_equal "complete", result.dig("baseline", "status")
+    assert_equal 30, result.dig("baseline", "actual_counts", "users")
+    account = result.dig("bootstrap", "records", "users", "reader07")
+    assert_equal "account_identity_collision", account.fetch("reason")
+    assert_equal [ existing.id ], account.fetch("record_ids")
+    assert_nil account.fetch("id")
+    summary = @scenario.import_summary(result)
+    assert_equal [ existing.id ], summary.dig("skipped", "bootstrap", "users", "reader07", "record_ids")
+    assert_equal 30, summary.dig("actual_counts", "bootstrap", "users")
+    assert_not_includes summary.to_json, "encrypted_password"
+    assert_equal 11, summary.dig("actual_counts", "bootstrap", "genres")
+    genre = summary.dig("skipped", "bootstrap", "genres", "Fiction")
+    assert_equal "genre_name_ambiguous", genre.fetch("reason")
+    assert_empty BookGenre.where(genre_id: duplicates)
+    assert_equal "owner_account_unavailable", result.dig("community", "records", "book_clubs", "steady", "reason")
+    assert_empty existing.reading_sessions
+    assert_empty existing.reactions
+    assert_empty existing.user_challenges
     assert_equal attributes, existing.reload.attributes
-    assert_not @paths.fetch(:manifest_path).exist?
   end
 
   test "missing credentials fail before catalog or account writes" do

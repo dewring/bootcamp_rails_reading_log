@@ -64,9 +64,6 @@ class DevelopmentReadingScenarioBootstrap
   end
 
   def planned_bootstrap
-    @existing.fetch("users").each do |identity, rows|
-      refuse_collision("users", identity, rows) if rows.any?
-    end
     records = { "genres" => {}, "badges" => {}, "users" => {} }
     @plan.fetch("genres").each do |attributes|
       key = attributes.fetch("name")
@@ -78,6 +75,14 @@ class DevelopmentReadingScenarioBootstrap
     end
     @plan.fetch("users").each do |entry|
       identity = entry.fetch("identity")
+      collisions = @existing.fetch("users").fetch(identity)
+      if collisions.any?
+        records.fetch("users")[identity] = {
+          "id" => nil, "result" => "skipped", "reason" => "account_identity_collision",
+          "record_ids" => collisions.map(&:id).sort, "expected_attributes" => entry.fetch("attributes").deep_dup
+        }
+        next
+      end
       user = prepare_new_user(entry.fetch("attributes"))
       @prepared_records.fetch("users")[identity] = user
       records.fetch("users")[identity] = {
@@ -90,8 +95,7 @@ class DevelopmentReadingScenarioBootstrap
 
   def planned_record(group, identity, attributes)
     rows = @existing.fetch(group).fetch(identity)
-    refuse_collision(group, identity, rows) if rows.length > 1
-    row = rows.first
+    row = rows.first if rows.one?
     {
       "id" => row&.id, "origin" => row ? "reused" : "imported", "result" => row ? "reused" : nil,
       "expected_attributes" => row ? recorded_attributes(row) : attributes.deep_dup
@@ -102,12 +106,63 @@ class DevelopmentReadingScenarioBootstrap
     @bootstrap.fetch("records").each do |group, records|
       records.each do |identity, record|
         rows = @existing.fetch(group).fetch(identity)
+        if group == "users"
+          reconcile_user(identity, record, rows)
+          next
+        end
+        if group == "genres"
+          reconcile_genre(identity, record, rows)
+          next
+        end
         refuse_collision(group, identity, rows) if rows.length > 1
         reconcile_badge(identity, record, rows.first) if group == "badges"
         next if record["result"] == "skipped"
 
         verify_recorded_row(group, identity, record, rows.first)
       end
+    end
+  end
+
+  def reconcile_genre(identity, record, rows)
+    row = rows.find { |candidate| candidate.id == record["id"] }
+    row ||= rows.first if rows.one?
+    if row
+      record.merge!("id" => row.id, "result" => "reused", "origin" => "reused") if row.id != record["id"] || record["result"] == "skipped"
+      record.except!("reason", "record_ids")
+      @existing.fetch("genres")[identity] = [ row ]
+    elsif rows.any? || record["id"]
+      reason = rows.any? ? "genre_name_ambiguous" : "recorded_genre_missing"
+      record.merge!("result" => "skipped", "reason" => reason, "record_ids" => rows.map(&:id).sort)
+      @existing.fetch("genres")[identity] = []
+    end
+  end
+
+  def reconcile_user(identity, record, rows)
+    if record["result"] == "skipped"
+      @existing.fetch("users")[identity] = []
+      return
+    end
+
+    verify_recorded_credentials(identity, record)
+    row = rows.find { |candidate| recorded_user_matches?(record, candidate) }
+    return @existing.fetch("users")[identity] = [ row ] if row
+    return if rows.empty? && !record["id"]
+
+    reason = rows.empty? ? "recorded_account_missing" : "account_identity_or_credentials_changed"
+    record.merge!("result" => "skipped", "reason" => reason, "record_ids" => rows.map(&:id).sort)
+    @existing.fetch("users")[identity] = []
+  end
+
+  def recorded_user_matches?(record, row)
+    keys = [ "email", "role", "account_status", "encrypted_password" ]
+    (record["id"].nil? || record["id"] == row.id) &&
+      row.attributes.slice(*keys) == record.fetch("expected_attributes").slice(*keys)
+  end
+
+  def verify_recorded_credentials(identity, record)
+    password_hash = record.fetch("expected_attributes")["encrypted_password"]
+    unless password_hash.is_a?(String) && password_hash.present?
+      raise BootstrapError, "Recorded credentials for #{identity} are missing; no automatic account adoption is allowed."
     end
   end
 
@@ -134,15 +189,11 @@ class DevelopmentReadingScenarioBootstrap
   end
 
   def verify_recorded_row(group, identity, record, row)
+    return if group == "genres" && row&.name == identity
     # Badge type is unique. The existing name and description belong to the catalog.
     return if group == "badges" && row&.badge_type == identity
 
-    if group == "users"
-      password_hash = record.fetch("expected_attributes")["encrypted_password"]
-      unless password_hash.is_a?(String) && password_hash.present?
-        raise BootstrapError, "Recorded credentials for #{identity} are missing; no automatic account adoption is allowed."
-      end
-    end
+    return if group == "users" && row && recorded_user_matches?(record, row)
     if record["id"] && (!row || row.id != record.fetch("id"))
       raise BootstrapError, "Recorded #{group} #{identity} (ID #{record.fetch('id')}) is missing or changed; no automatic recreation is allowed."
     end

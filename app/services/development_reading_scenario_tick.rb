@@ -49,11 +49,13 @@ class DevelopmentReadingScenarioTick
       @bootstrap.preflight_bootstrap
       @catalog.preflight_catalog
       @references = DevelopmentReadingScenarioActivity::References.new(manifest: @manifest).load_references
-      @users = @references.users.values.index_by(&:id)
+      @users = @references.users.values.compact.index_by(&:id)
       @books = @references.books.values.compact.index_by(&:id)
       @tick = @manifest.dig("ticks", name) || Plan.new(baseline: @baseline, manifest: @manifest, as_of: @as_of, name: name).build_tick
       @tick.fetch("reading_sessions").each_value do |record|
-        unless @books.key?(record.dig("expected_attributes", "book_id"))
+        if !@users.key?(record.dig("expected_attributes", "user_id"))
+          record.merge!("result" => "skipped", "reason" => "account_unavailable")
+        elsif !@books.key?(record.dig("expected_attributes", "book_id"))
           record.merge!("result" => "skipped", "reason" => "book_unavailable")
         end
       end
@@ -71,6 +73,10 @@ class DevelopmentReadingScenarioTick
     clubs = @manifest.fetch("community").fetch("records").fetch("book_clubs")
     club_ids = clubs.values.filter_map { |record| record["id"] unless record["result"] == "skipped" }.to_set
     @tick.fetch("club_messages").each_value do |record|
+      unless @users.key?(record.dig("expected_attributes", "user_id"))
+        record.merge!("result" => "skipped", "reason" => "account_unavailable")
+        next
+      end
       next if club_ids.include?(record.dig("expected_attributes", "book_club_id"))
 
       record.merge!("result" => "skipped", "reason" => "club_unavailable")

@@ -24,6 +24,29 @@ class DevelopmentReadingScenario
     end
   end
 
+  def import_summary(manifest)
+    grouped_sections = [ "bootstrap", "reading", "community", "challenges" ]
+    flat_sections = [ "book_genres", "reactions" ]
+    sections = manifest.slice(*grouped_sections, *flat_sections)
+    counts = sections.transform_values { |section| section["actual_counts"] || section["actual_count"] }
+    skipped = sections.to_h do |name, section|
+      records = section.fetch("records")
+      entries = if grouped_sections.include?(name)
+        records.transform_values { |group| skipped_records(group) }.reject { |_group, conflicts| conflicts.empty? }
+      else
+        skipped_records(records)
+      end
+      [ name, entries ]
+    end
+    catalog = manifest.fetch("catalog")
+    counts["catalog"] = catalog.fetch("actual_counts")
+    skipped["catalog"] = catalog.slice("skipped_book_conflicts", "skipped_edition_conflicts").reject { |_group, entries| entries.empty? }
+    counts["cover_previews"] = manifest.dig("cover_previews", "actual_counts") if manifest["cover_previews"]
+    skipped["cover_previews"] = skipped_cover_previews(manifest.dig("cover_previews", "records") || {})
+    skipped["discovery_demo"] = skipped_records(manifest.dig("reactions", "discovery_demo", "records") || {})
+    { "actual_counts" => counts, "skipped" => skipped.reject { |_section, entries| entries.empty? } }
+  end
+
   def seed_baseline
     unless ReadingScenarioEnvironment.enabled?
       raise ScenarioError, "Scenario seed replay requires development or production with ALLOW_PRODUCTION_SCENARIO=true"
@@ -34,7 +57,6 @@ class DevelopmentReadingScenario
       @plan = DevelopmentReadingScenarioPlan.new(catalog: catalog, as_of: @as_of).build_baseline
       @manifest = @scenario_manifest.prepare_scenario(snapshot_id: catalog.fetch("snapshot_id"))
       @challenges = DevelopmentReadingScenarioChallenges.new(plan: @plan, manifest: @manifest, scenario_manifest: @scenario_manifest)
-      @challenges.preflight_challenges
       preflight_baseline
       @bootstrap.bootstrap_scenario
       @catalog.replay_catalog
@@ -48,6 +70,22 @@ class DevelopmentReadingScenario
   end
 
   private
+
+  def skipped_cover_previews(records)
+    records.filter_map do |identity, record|
+      next unless record["skip_reason"]
+
+      [ identity, { "id" => record["book_id"], "reason" => record.fetch("skip_reason") } ]
+    end.to_h
+  end
+
+  def skipped_records(records)
+    records.filter_map do |identity, record|
+      next unless record["result"] == "skipped"
+
+      [ identity, record.slice("id", "reason", "record_ids", "conflicts", "edition_key") ]
+    end.to_h
+  end
 
   def preflight_baseline
     @catalog.preflight_catalog

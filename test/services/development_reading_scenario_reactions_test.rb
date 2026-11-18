@@ -110,16 +110,23 @@ class DevelopmentReadingScenarioReactionsTest < ActiveSupport::TestCase
     assert_no_enqueued_jobs only: ReactionTotalsJob
   end
 
-  test "changed or missing recorded discovery demo reactions stop replay without repair" do
+  test "replay reports edited and deleted discovery demo reactions while completing baseline reactions" do
     seed
     book = Book.create!(title: "Discovery demo book", author: "Demo author")
     reaction = Reaction.create!(user_id: @reader_ids.first, book: book, kind: "love")
     record_discovery_demo(reaction)
     reaction.update!(kind: "laugh")
-    assert_seed_refuses_changes("changed")
+    manifest = seed
+    record = manifest.dig("reactions", "discovery_demo", "records").values.first
+    assert_equal "recorded_discovery_reaction_changed", record.fetch("reason")
+    assert_equal "laugh", reaction.reload.kind
 
     reaction.destroy!
-    assert_seed_refuses_changes("missing")
+    manifest = seed
+    record = manifest.dig("reactions", "discovery_demo", "records").values.first
+    assert_equal "recorded_discovery_reaction_missing", record.fetch("reason")
+    assert_equal 160, manifest.dig("reactions", "actual_counts", "book_reactions")
+    assert_not Reaction.exists?(reaction.id)
   end
 
   test "discovery demo records cannot claim real readers or baseline reactions" do
@@ -442,10 +449,13 @@ class DevelopmentReadingScenarioReactionsTest < ActiveSupport::TestCase
     assert_equal "love", saved_manifest.dig("reactions", "records", identity, "expected_attributes", "kind")
   end
 
-  test "inactive readers and missing required anchor keys are refused before reaction writes" do
+  test "inactive readers are skipped while a malformed inventory with a missing anchor key is rejected" do
     reader = User.find(@reader_ids.first)
     reader.update!(account_status: "suspended")
-    assert_seed_refuses_changes("inactive")
+    result = seed
+    assert_empty Reaction.where(user: reader)
+    assert result.dig("reactions", "records").values.any? { |record| record["reason"] == "account_unavailable" }
+    assert_operator result.dig("reactions", "actual_counts", "book_reactions"), :<, 160
     reader.update!(account_status: "active")
     manifest = saved_manifest
     records = manifest.fetch("catalog").fetch("records")
@@ -456,7 +466,7 @@ class DevelopmentReadingScenarioReactionsTest < ActiveSupport::TestCase
     assert_seed_refuses_changes("Required reaction anchors")
   end
 
-  test "tie anchor ID ordering is checked without renumbering or rewriting books" do
+  test "tie anchors retain existing book IDs regardless of their order" do
     key = DevelopmentReadingScenarioReactions::ANCHORS.fetch("tie_c").fetch("work_key")
     original = Book.find(@book_ids.fetch(key))
     attributes = original.attributes.except("id", "created_at", "updated_at")
@@ -466,7 +476,7 @@ class DevelopmentReadingScenarioReactionsTest < ActiveSupport::TestCase
     manifest.fetch("catalog").fetch("records").fetch(key).fetch("book")["id"] = replacement.id
     write_manifest(manifest)
 
-    assert_seed_refuses_changes("tie_c.id < tie_d.id")
+    assert_equal 160, seed.dig("reactions", "actual_counts", "book_reactions")
     assert_equal attributes, replacement.reload.attributes.except("id", "created_at", "updated_at")
   end
 

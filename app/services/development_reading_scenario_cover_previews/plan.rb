@@ -17,10 +17,10 @@ class DevelopmentReadingScenarioCoverPreviews::Plan
     missing = if missing_work_key
       entries.find { |entry| entry.fetch("work_key") == missing_work_key }
     else
-      entries.reverse.find { |entry| entry["cover_id"].nil? && !attached?(entry) } || entries.reverse.find { |entry| !attached?(entry) }
+      entries.reverse.find { |entry| entry["cover_id"].nil? && !attached?(entry) } || entries.reverse.find { |entry| !attached?(entry) } || entries.last
     end
-    unless missing && !attached?(missing)
-      raise DevelopmentReadingScenarioCoverPreviews::PreviewError, "A selected book must remain without an attached cover; no images were removed automatically."
+    unless missing
+      raise DevelopmentReadingScenarioCoverPreviews::PreviewError, "The recorded cover preview work is absent from the snapshot."
     end
     records = entries.reject { |entry| entry.fetch("work_key") == missing.fetch("work_key") || entry["cover_id"].nil? }.first(LIMIT).to_h do |entry|
       [ entry.fetch("work_key"), entry.except("work_key").merge("job_id" => nil, "status" => "planned") ]

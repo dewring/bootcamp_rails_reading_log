@@ -11,7 +11,7 @@ class DevelopmentReadingScenarioActivity::References
     users = User.where(id: user_records.values.map { |record| record.fetch("id") }).index_by(&:id)
     books = Book.where(id: book_records.values.map { |pair| pair.fetch("book").fetch("id") }).index_by(&:id)
     @users = user_records.transform_values do |record|
-      users.fetch(record.fetch("id"))
+      users[record["id"]] unless record["result"] == "skipped"
     end
     @books = book_records.to_h do |work_key, pair|
       record = pair.fetch("book")

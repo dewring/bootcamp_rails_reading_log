@@ -5,6 +5,7 @@ class DevelopmentReadingScenarioActivity::Inventory
     @plan = plan
     @manifest = manifest
     @users = references.users
+    @available_user_ids = @users.values.compact.map(&:id).to_set
     @books = references.books
     @available_book_ids = @books.values.compact.map(&:id).to_set
     @edition_ids = references.edition_ids
@@ -75,8 +76,8 @@ class DevelopmentReadingScenarioActivity::Inventory
   end
 
   def load_reading_rows
-    @library_rows = UserBook.where(user_id: @users.values.map(&:id)).to_a
-    @session_rows = ReadingSession.where(user_id: @users.values.map(&:id)).to_a
+    @library_rows = UserBook.where(user_id: @available_user_ids.to_a).to_a
+    @session_rows = ReadingSession.where(user_id: @available_user_ids.to_a).to_a
   end
 
   def planned_reading
@@ -98,13 +99,16 @@ class DevelopmentReadingScenarioActivity::Inventory
   end
 
   def resolved_pair(entry)
-    { "user_id" => @users.fetch(entry.fetch("reader")).id, "book_id" => @books.fetch(entry.fetch("work_key"))&.id }
+    { "user_id" => @users.fetch(entry.fetch("reader"))&.id, "book_id" => @books.fetch(entry.fetch("work_key"))&.id }
   end
 
   def match_rows(records, rows, library: false)
     rows_by_id = rows.index_by(&:id)
     records.to_h do |identity, record|
-      row = if unavailable_book?(record)
+      row = if !@available_user_ids.include?(record.dig("expected_attributes", "user_id"))
+        record.merge!("result" => "skipped", "reason" => "account_unavailable")
+        nil
+      elsif unavailable_book?(record)
         record.merge!("result" => "skipped", "reason" => "book_unavailable")
         nil
       elsif record["result"] == "skipped"

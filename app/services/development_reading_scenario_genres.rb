@@ -26,6 +26,9 @@ class DevelopmentReadingScenarioGenres
     end
     @books = Book.where(id: book_ids).order(:id).to_a
     @available_book_ids = @books.map(&:id).to_set
+    @available_genre_ids = @manifest.fetch("bootstrap").fetch("records").fetch("genres").transform_values do |record|
+      record["id"] unless record["result"] == "skipped"
+    end
     @rows = BookGenre.where(book_id: book_ids).index_by { |row| [ row.book_id, row.genre_id ] }
     @manifest["book_genres"] ||= { "status" => "pending", "records" => planned_links }
     records = @manifest.fetch("book_genres").fetch("records")
@@ -48,10 +51,9 @@ class DevelopmentReadingScenarioGenres
   private
 
   def planned_links
-    genres = @manifest.fetch("bootstrap").fetch("records").fetch("genres")
     @books.flat_map do |book|
       genre_names(book.subjects).map do |name|
-        genre_id = genres.fetch(name).fetch("id")
+        genre_id = @available_genre_ids.fetch(name)
         existing = @rows[[ book.id, genre_id ]]
         [ "#{book.ol_work_key}/#{name}", {
           "id" => existing&.id, "book_id" => book.id, "genre_id" => genre_id,
@@ -73,10 +75,19 @@ class DevelopmentReadingScenarioGenres
   end
 
   def reconcile_recorded_links(records)
-    records.each_value do |record|
+    records.each do |identity, record|
       unless @available_book_ids.include?(record.fetch("book_id"))
         record.merge!("result" => "skipped", "reason" => "book_unavailable")
         next
+      end
+      genre_id = @available_genre_ids.fetch(identity.split("/").last)
+      unless genre_id && (record["genre_id"].nil? || record["genre_id"] == genre_id)
+        record.merge!("result" => "skipped", "reason" => "genre_unavailable")
+        next
+      end
+      if record["genre_id"].nil?
+        record["genre_id"] = genre_id
+        record.except!("result", "reason")
       end
       next unless record["id"]
 

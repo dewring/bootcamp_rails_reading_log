@@ -47,8 +47,9 @@ class DevelopmentReadingScenarioCommunity
 
   def load_references
     users = @manifest.fetch("bootstrap").fetch("records").fetch("users")
-    @users = User.where(id: users.values.map { |record| record.fetch("id") }).includes(avatar_attachment: :blob).index_by(&:id)
-    @user_ids = users.transform_values { |record| record.fetch("id") }
+    ids = users.values.filter_map { |record| record["id"] unless record["result"] == "skipped" }
+    @users = User.where(id: ids).includes(avatar_attachment: :blob).index_by(&:id)
+    @user_ids = users.transform_values { |record| record["id"] if @users.key?(record["id"]) }
     @book_ids = DevelopmentReadingScenarioActivity::References.new(manifest: @manifest).load_references.books.transform_values { |book| book&.id }
     @available_book_ids = @book_ids.values.compact.to_set
   end
@@ -99,6 +100,12 @@ class DevelopmentReadingScenarioCommunity
   end
 
   def match_record(group, identity, record)
+    if group == "book_clubs" && !@users.key?(record["owner_id"])
+      return skip_community_record(record, "owner_account_unavailable")
+    end
+    if group != "book_clubs" && !@users.key?(record.dig("expected_attributes", "user_id"))
+      return skip_community_record(record, "account_unavailable")
+    end
     if group == "reviews" && !@available_book_ids.include?(record.dig("expected_attributes", "book_id"))
       record.merge!("result" => "skipped", "reason" => "book_unavailable")
       return
