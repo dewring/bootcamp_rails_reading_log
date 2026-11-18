@@ -5,7 +5,7 @@ class BooksController < ApplicationController
 
   before_action :authenticate_user!, only: [ :discover, :most_recent_session, :search, :import, :quick_add ]
   rescue_from ActiveRecord::RecordNotFound, with: :not_found
-  before_action :set_book, only: [ :show, :most_recent_session ]
+  before_action :set_book, only: [ :show, :reaction_panels, :most_recent_session ]
 
   def index
     authorize Book
@@ -41,18 +41,31 @@ class BooksController < ApplicationController
     authorize @book
     response.headers["Cache-Control"] = "no-store"
 
-    @reviews = policy_scope(@book.reviews).order(created_at: :desc)
-    unless request.format.turbo_stream?
-      editions = Rails.cache.fetch("book:#{@book.id}:editions:list", expires_in: 1.day) do
-        editions = @book.book_editions.includes(cover_image_attachment: :blob).order(:id).to_a
-        with_cover, without_cover = editions.partition { |edition| edition.cover_image.attached? }
-        with_cover + without_cover
-      end
-      @edition_for_details = editions.find { |edition| edition.publish_year.present? || edition.language.present? } || editions.first
-      @editions_pagy, @book_editions = pagy(:offset, editions, limit: 6, page_key: "editions_page", fragment: "book-detail-editions")
-      @reviews = @reviews.includes(:user)
+    @reviews = policy_scope(@book.reviews).includes(user: { avatar_attachment: :blob }).order(created_at: :desc)
+    editions = Rails.cache.fetch("book:#{@book.id}:editions:list", expires_in: 1.day) do
+      editions = @book.book_editions.includes(cover_image_attachment: :blob).order(:id).to_a
+      with_cover, without_cover = editions.partition { |edition| edition.cover_image.attached? }
+      with_cover + without_cover
     end
+    @edition_for_details = editions.find { |edition| edition.publish_year.present? || edition.language.present? } || editions.first
+    @editions_pagy, @book_editions = pagy(:offset, editions, limit: 6, page_key: "editions_page", fragment: "book-detail-editions")
     load_reaction_panels
+  end
+
+  # Connection recovery for live reactions: after the reaction stream
+  # reconnects, the page fetches only its reaction panels as Turbo Stream
+  # replacements. This lives apart from #show because form submissions that
+  # redirect back to the book page keep a Turbo Stream Accept header, and
+  # #show must still answer them with the full HTML page.
+  def reaction_panels
+    authorize @book, :show?
+    response.headers["Cache-Control"] = "no-store"
+
+    @reviews = policy_scope(@book.reviews).order(created_at: :desc)
+    load_reaction_panels
+    respond_to do |format|
+      format.turbo_stream
+    end
   end
 
   def most_recent_session

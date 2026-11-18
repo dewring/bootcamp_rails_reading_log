@@ -142,7 +142,7 @@ class BookReactionPanelsTest < ActionDispatch::IntegrationTest
     @review.reactions.create!(user: @reader, kind: "love")
     sign_in @reader
 
-    queries = review_reaction_queries { get book_path(@book), as: :turbo_stream }
+    queries = review_reaction_queries { get reaction_panels_book_path(@book), as: :turbo_stream }
 
     assert_response :success
     assert_equal "text/vnd.turbo-stream.html", response.media_type
@@ -152,6 +152,24 @@ class BookReactionPanelsTest < ActionDispatch::IntegrationTest
     assert_select "turbo-stream[target='reaction_panel_book_#{@book.id}'] button[aria-pressed='true']", text: "👍 1"
     assert_select "turbo-stream[target='reaction_panel_review_#{@review.id}'] button[aria-pressed='true']", text: "❤️ 1"
     assert_select "textarea, .book-detail-review-composer, main", count: 0
+  end
+
+  test "the book page answers a request that also accepts Turbo Streams with the full HTML page" do
+    sign_in @reader
+
+    get book_path(@book), headers: { "Accept" => "text/vnd.turbo-stream.html, text/html, application/xhtml+xml" }
+
+    assert_response :success
+    assert_equal "text/html", response.media_type
+    assert_select "main.book-detail-page[data-reaction-stream-refresh-url-value='#{reaction_panels_book_path(@book)}']", count: 1
+  end
+
+  test "reaction panel recovery only answers Turbo Stream requests" do
+    sign_in @reader
+
+    get reaction_panels_book_path(@book)
+
+    assert_response :not_acceptable
   end
 
   private

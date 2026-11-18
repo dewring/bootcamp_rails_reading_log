@@ -12,6 +12,7 @@ Rails.application.routes.draw do
   resources :books, only: [ :index, :show ] do
     member do
       get :most_recent_session
+      get :reaction_panels
     end
     collection do
       get :discover

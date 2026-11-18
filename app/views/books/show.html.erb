@@ -15,7 +15,7 @@
 
 <main class="book-detail-page" data-controller="reaction-stream"
       data-action="turbo:frame-missing->reaction-stream#frameMissing turbo:fetch-request-error->reaction-stream#frameError"
-      data-reaction-stream-refresh-url-value="<%= book_path(@book) %>"
+      data-reaction-stream-refresh-url-value="<%= reaction_panels_book_path(@book) %>"
       data-reaction-stream-signed-stream-name-value="<%= Turbo::StreamsChannel.signed_stream_name("book_reactions_#{@book.id}") %>">
   <p role="status" data-reaction-stream-status hidden></p>
   <nav class="book-detail-breadcrumb" aria-label="Breadcrumb">
@@ -224,6 +224,7 @@
                 <%= f.radio_button :rating,
                                    rating,
                                    id: "book_review_rating_#{rating}",
+                                   required: true,
                                    data: { action: "change->review-composer#updateRating" } %>
                 <label for="book_review_rating_<%= rating %>"
                        aria-label="<%= rating %> out of 5 stars"
