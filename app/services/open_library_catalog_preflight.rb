@@ -239,21 +239,21 @@ class OpenLibraryCatalogPreflight
     key = entry.fetch("edition_attributes").fetch("ol_edition_key")
     work_key = entry.fetch("book_attributes").fetch("ol_work_key")
     recorded = @recorded_catalog.dig(work_key, "edition")
-    if recorded&.fetch("reason", nil) == "conflicting_edition_identity"
+    if recorded&.fetch("result", nil) == "skipped" && recorded["edition_key"] == key
       skip_edition(entry, recorded.except("result"))
       return
     end
 
     existing = @existing_editions.select { |edition| normalized_edition_key(edition.ol_edition_key) == key }
+    if recorded&.fetch("id", nil) && existing.none? { |edition| edition.id == recorded.fetch("id") }
+      skip_edition(entry, { "edition_key" => key, "record_ids" => [ recorded.fetch("id") ], "reason" => "recorded_edition_unavailable" })
+      return
+    end
     return if existing.empty?
 
     unless existing.one? && existing.first.ol_edition_key == key && existing.first.book_id == entry["existing_book_id"]
       details = { "edition_key" => key, "record_ids" => existing.map(&:id), "book_ids" => existing.map(&:book_id) }
-      if recorded
-        add_conflict("conflicting_edition_identity", **details.symbolize_keys)
-      else
-        skip_edition(entry, details.merge("reason" => "conflicting_edition_identity"))
-      end
+      skip_edition(entry, details.merge("reason" => "conflicting_edition_identity"))
       return
     end
     entry["existing_edition_id"] = existing.first.id

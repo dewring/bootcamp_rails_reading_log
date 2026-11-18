@@ -47,6 +47,11 @@ pp demo.fetch("baseline").slice("status", "actual_counts")
 pp demo.dig("catalog", "skipped_edition_conflicts")
 ```
 
+The edition report includes conflicts found on replay, such as a missing
+recorded edition or an edition linked to a different book.
+판본 보고서에는 재실행 중 확인한 충돌도 표시된다. 예를 들어 기록된
+판본이 사라졌거나 다른 책에 연결된 경우가 포함된다.
+
 To add another batch, use the application container shell / 추가 활동은 앱 컨테이너 셸에서 실행한다:
 
 ```bash

@@ -152,6 +152,7 @@ class OpenLibraryCatalogReplay
     @editions[edition.ol_edition_key] = edition if edition
     record_saved_row(pair.fetch("book"), book, book_result)
     record_saved_row(pair.fetch("edition"), edition, edition_result) if edition
+    pair["edition"] = entry.fetch("edition_skip").merge("result" => "skipped") if entry["edition_skip"]
     @scenario_manifest.save_scenario
   rescue ActiveRecord::RecordInvalid => error
     kind = error.record.is_a?(BookEdition) ? "edition" : "book"
@@ -188,7 +189,7 @@ class OpenLibraryCatalogReplay
     catalog = @manifest.fetch("catalog")
     catalog["skipped_edition_conflicts"] = catalog.fetch("records").filter_map do |work_key, pair|
       edition = pair.fetch("edition")
-      next unless edition["reason"] == "conflicting_edition_identity"
+      next unless edition["result"] == "skipped" && edition["edition_key"]
 
       edition.except("result").merge("work_key" => work_key)
     end
