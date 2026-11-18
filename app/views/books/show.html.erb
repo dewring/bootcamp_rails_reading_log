@@ -144,22 +144,13 @@
         <h2 id="book-detail-reviews-title">Reader reflections</h2>
         <p>What BookNook readers are saying about this book.</p>
       </div>
-      <% if user_signed_in? %>
-        <% if can_edit_review %>
-          <button type="button"
-                  class="book-detail-button book-detail-button-secondary"
-                  data-action="click->review-composer#open">
-            <%= image_tag "review-message-square.svg", alt: "", aria: { hidden: true } %>
-            <span>Edit my Review</span>
-          </button>
-        <% elsif can_write_review && @reviews.any? %>
-          <button type="button"
-                  class="book-detail-button book-detail-button-secondary"
-                  data-action="click->review-composer#open">
-            <%= image_tag "review-message-square.svg", alt: "", aria: { hidden: true } %>
-            <span>Write a Review</span>
-          </button>
-        <% end %>
+      <% if can_write_review && @reviews.any? %>
+        <button type="button"
+                class="book-detail-button book-detail-button-secondary"
+                data-action="click->review-composer#open">
+          <%= image_tag "review-message-square.svg", alt: "", aria: { hidden: true } %>
+          <span>Write a Review</span>
+        </button>
       <% end %>
     </div>
 
@@ -180,12 +171,18 @@
     <% else %>
       <div class="book-detail-review-grid">
         <% @reviews.each do |review| %>
-          <article id="<%= dom_id(review) %>" class="book-detail-review-card">
+          <% editable_review = can_edit_review && review == my_review %>
+          <article id="<%= dom_id(review) %>" class="<%= class_names("book-detail-review-card", "book-detail-review-card--own" => editable_review) %>">
             <div class="book-detail-review-header">
               <div class="book-detail-reviewer">
                 <%= render "users/avatar", user: review.user, variant: :review %>
                 <div>
-                  <strong><%= review.user.nickname %></strong>
+                  <span class="book-detail-reviewer-name">
+                    <strong><%= review.user.nickname %></strong>
+                    <% if editable_review %>
+                      <span class="book-detail-review-owner-badge">Your review</span>
+                    <% end %>
+                  </span>
                   <time datetime="<%= review.created_at.iso8601 %>"><%= review.created_at.strftime("%b %-d, %Y") %></time>
                 </div>
               </div>
@@ -194,8 +191,18 @@
               <% end %>
             </div>
             <p><%= review.body %></p>
-            <% counts = @reaction_types.to_h { |type| [ type.key, @review_reaction_counts.fetch([ review.id, type.key ], 0) ] } %>
-            <%= render "reactions/panel", target: review, types: @reaction_types, counts: counts, selected: @review_reaction_selections[review.id], errors: [] %>
+            <div class="book-detail-review-footer">
+              <% counts = @reaction_types.to_h { |type| [ type.key, @review_reaction_counts.fetch([ review.id, type.key ], 0) ] } %>
+              <%= render "reactions/panel", target: review, types: @reaction_types, counts: counts, selected: @review_reaction_selections[review.id], errors: [] %>
+              <% if editable_review %>
+                <button type="button"
+                        class="book-detail-button book-detail-button-secondary book-detail-review-edit"
+                        data-action="click->review-composer#open">
+                  <%= image_tag "detail-pencil.svg", alt: "", aria: { hidden: true } %>
+                  <span>Edit review</span>
+                </button>
+              <% end %>
+            </div>
           </article>
         <% end %>
       </div>

@@ -125,15 +125,22 @@ class BookControllerTest < ActionDispatch::IntegrationTest
     assert_select ".book-detail-reviewer strong", text: /leika/, count: 0
     assert_select ".book-detail-section-heading button[data-action='click->review-composer#open']", text: /Write a Review/
     assert_select ".book-detail-review-composer[data-review-composer-target='composer'][hidden]", count: 1
+    assert_select ".book-detail-review-card--own", count: 0
+    assert_select "button.book-detail-review-edit", count: 0
   end
 
-  test "review owner sees an inline edit composer without an edit-page link" do
+  test "review owner edits from a button inside their own review card instead of the section header" do
     sign_in users(:leika)
 
     get book_path(books(:refactoring))
 
     assert_response :success
-    assert_select "button.book-detail-button[data-action='click->review-composer#open']", text: /Edit my Review/, count: 1
+    assert_select "##{dom_id(reviews(:review1))}.book-detail-review-card--own", count: 1 do
+      assert_select ".book-detail-review-owner-badge", text: "Your review", count: 1
+      assert_select ".book-detail-review-footer button.book-detail-review-edit[data-action='click->review-composer#open']", text: /Edit review/, count: 1
+    end
+    assert_select ".book-detail-section-heading button", count: 0
+    assert_select "button.book-detail-review-edit", count: 1
     assert_select "a[href='#{edit_book_review_path(books(:refactoring), reviews(:review1))}']", count: 0
     assert_select ".book-detail-review-composer h3", text: "Edit a review", count: 1
     assert_select ".book-detail-review-composer form[action='#{book_review_path(books(:refactoring), reviews(:review1))}']", count: 1

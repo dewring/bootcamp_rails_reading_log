@@ -25,6 +25,21 @@ class ReviewSubmissionTest < ApplicationSystemTestCase
     assert_equal 4, users(:jaina).reviews.find_by!(book: @book).rating
   end
 
+  test "the Edit review button in the reader's own card opens the composer and updates that review" do
+    review = reviews(:review1)
+    login_as review.user, scope: :user
+
+    visit book_path(@book)
+    within("##{ActionView::RecordIdentifier.dom_id(review)}") { click_button "Edit review" }
+    find("label[for='book_review_rating_5']").click
+    fill_in "review[body]", with: "Even better on a second read."
+    click_button "Update Review"
+
+    assert_text "Review updated!"
+    assert_selector "##{ActionView::RecordIdentifier.dom_id(review)} p", text: "Even better on a second read."
+    assert_equal 5, review.reload.rating
+  end
+
   test "submitting a review without a rating is blocked on the book page and keeps the typed text" do
     visit book_path(@book)
     click_button "Write a Review"
