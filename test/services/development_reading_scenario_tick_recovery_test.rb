@@ -18,6 +18,29 @@ class DevelopmentReadingScenarioTickRecoveryTest < ActiveSupport::TestCase
     assert_not_requested :any, /https?:/
   end
 
+  test "an unavailable edition is omitted from a tick session and the committed session can be recovered" do
+    key = club("steady").current_book.ol_work_key
+    edition = BookEdition.create!(book: books(:refactoring), ol_edition_key: "/books/OL185000M")
+    path = @paths.fetch(:manifest_path)
+    manifest = JSON.parse(path.read)
+    manifest.dig("catalog", "records", key)["edition"] = {
+      "id" => edition.id, "expected_attributes" => { "ol_edition_key" => edition.ol_edition_key }
+    }
+    path.write(JSON.pretty_generate(manifest))
+
+    interrupt_checkpoint_when { scenario_sessions.count > 300 }
+    committed = scenario_sessions.order(:id).last
+    assert_nil committed.book_edition_id
+    pending = tick_records(JSON.parse(path.read), "reading_sessions").fetch("reading1")
+    assert_nil pending.fetch("expected_attributes").fetch("book_edition_id")
+
+    completed = advance
+
+    assert_equal committed.id, tick_ids(completed).fetch("reading_sessions").fetch("reading1")
+    assert_equal 303, scenario_sessions.count
+    assert_equal books(:refactoring).id, edition.reload.book_id
+  end
+
   test "an interrupted named batch resumes on a later date without adopting the previous batch" do
     travel_to Time.zone.local(2026, 11, 16, 12) do
       first = in_development { @tick.advance_scenario(tick: "demo1") }

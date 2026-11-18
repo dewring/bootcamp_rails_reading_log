@@ -85,6 +85,9 @@ class DevelopmentReadingScenarioActivity
       record = @reading.fetch("records").fetch("reading_sessions").fetch(identity)
       row = @inventory.session_matches[identity]
       result = row ? "reused" : "imported"
+      if !row && @references.update_pending_session_edition(record, work_key: entry.fetch("work_key"))
+        @scenario_manifest.save_scenario
+      end
       ReadingSession.transaction(requires_new: true) do
         if row
           row.lock!

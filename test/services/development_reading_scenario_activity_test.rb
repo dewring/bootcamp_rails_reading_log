@@ -34,6 +34,25 @@ class DevelopmentReadingScenarioActivityTest < ActiveSupport::TestCase
     FileUtils.remove_entry(@directory)
   end
 
+  test "new baseline sessions omit a recorded edition that now belongs to another book" do
+    key = @plan.fetch("reading_sessions").first.fetch("work_key")
+    edition = BookEdition.create!(book: books(:refactoring), ol_edition_key: "/books/OL185000M")
+    path = @paths.fetch(:manifest_path)
+    manifest = JSON.parse(path.read)
+    manifest.dig("catalog", "records", key)["edition"] = {
+      "id" => edition.id, "expected_attributes" => { "ol_edition_key" => edition.ol_edition_key }
+    }
+    path.write(JSON.pretty_generate(manifest))
+
+    result = replay
+
+    sessions = ReadingSession.where(book_id: Book.find_by!(ol_work_key: key).id)
+    assert sessions.any?
+    assert_equal [ nil ], sessions.distinct.pluck(:book_edition_id)
+    assert_equal 300, result.dig("reading", "actual_counts", "baseline_reading_sessions")
+    assert_equal books(:refactoring).id, edition.reload.book_id
+  end
+
   test "offline replay creates the planned library and dated sessions and preserves callbacks on rerun" do
     original_sessions = ReadingSession.where(user_id: @initial_user_ids).order(:id).map(&:attributes)
     manifest = replay

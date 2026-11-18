@@ -60,6 +60,10 @@ class DevelopmentReadingScenarioTick
     @tick.fetch("reading_sessions").each do |identity, record|
       row = @inventory.matches.fetch("reading_sessions")[identity]
       result = row ? "reused" : "imported"
+      work_key = @books.fetch(record.dig("expected_attributes", "book_id")).ol_work_key
+      if !row && @references.update_pending_session_edition(record, work_key: work_key)
+        @scenario_manifest.save_scenario
+      end
       ReadingSession.transaction(requires_new: true) do
         if row
           row.lock!
