@@ -37,6 +37,21 @@ class ReadingSessionsControllerTest < ActionDispatch::IntegrationTest
     assert_select ".reading-detail-history-footer"
   end
 
+  test "reading journal has no Continue Reading button and keeps the Finished action and record form" do
+    sign_in users(:leika)
+    book = books(:refactoring)
+    user_book = users(:leika).user_books.find_by!(book: book)
+
+    get book_reading_journal_path(book)
+
+    assert_response :success
+    assert_select ".reading-detail-actions a[href='#reading-record']", count: 0
+    assert_select ".reading-detail-actions", text: /Continue Reading/, count: 0
+    assert_select ".reading-detail-actions form[action='#{user_book_path(user_book)}'] button", text: /Finished/, count: 1
+    assert_select "#reading-record form.reading-detail-form", count: 1
+    assert_select ".reading-detail-history-footer p", text: /Save a new entry in Reading record/
+  end
+
   test "empty reading history has no duplicate add button and keeps the reading record form" do
     sign_in users(:leika)
 
