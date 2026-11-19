@@ -144,7 +144,7 @@ class HomeDiscoveryTest < ApplicationSystemTestCase
     Flipper.disable(:discovery_experiment_running_v1)
     page.go_back
 
-    assert_selector "h1", text: "Summer Reading Challenge — Join Now"
+    assert_selector ".home-hero .home-hero-badge", text: "BOOK OF THE DAY"
     assert_no_selector ".home-trending-hero"
     assert_selector ".home-trending .trending-total", count: 8
   end
