@@ -31,7 +31,6 @@
         <ul class="notification-list">
           <% notifications.each do |notification| %>
             <li id="<%= dom_id(notification) %>" class="<%= "notification-unread" if notification.unread? %>">
-              <span class="notification-indicator" aria-hidden="true"></span>
               <div class="notification-content">
                 <% notification_url = notification.url %>
                 <% if notification_url.present? %>

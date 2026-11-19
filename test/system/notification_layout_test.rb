@@ -29,7 +29,43 @@ class NotificationLayoutTest < ApplicationSystemTestCase
     assert_notification_refresh_positions(admin_root_path, ".admin-topbar-actions", 390)
   end
 
+  test "read and unread notification text starts at the same left edge without an empty dot slot" do
+    book_club = BookClub.create!(name: "Alignment Society")
+    unread = create_notification(users(:admin), book_club)
+    read = create_notification(users(:admin), book_club)
+    read.mark_as_read!
+
+    visit books_path
+    find("button[aria-label='Notifications']").hover
+    assert_selector "#notifications_dropdown", visible: true
+
+    offsets = page.evaluate_script(<<~JS, ActionView::RecordIdentifier.dom_id(unread), ActionView::RecordIdentifier.dom_id(read))
+      [arguments[0], arguments[1]].map(id => {
+        // Measure the message from the list edge, so a shrunken or shifted
+        // row is caught as well as extra space inside the row.
+        const row = document.getElementById(id)
+        const list = row.closest(".notification-list")
+        const message = row.querySelector(".notification-content > a, .notification-content > span")
+        return message.getBoundingClientRect().left - list.getBoundingClientRect().left
+      })
+    JS
+    assert_in_delta offsets.first, offsets.last, 0.5
+    assert_in_delta 12, offsets.last, 0.5
+    assert_selector "##{ActionView::RecordIdentifier.dom_id(unread)}.notification-unread"
+    assert_equal "rgb(231, 126, 120) 3px 0px 0px 0px inset",
+      find("##{ActionView::RecordIdentifier.dom_id(unread)}").style("box-shadow").fetch("box-shadow")
+    assert_no_selector ".notification-indicator"
+  end
+
   private
+
+  def create_notification(recipient, book_club)
+    BookClubPickNotifier.with(
+      record: book_club,
+      book_club_name: book_club.name,
+      book_title: "The Left Hand of Darkness"
+    ).deliver(recipient, enqueue_job: false).notifications.first
+  end
 
   def assert_notification_refresh_positions(path, controls_selector, width)
     page.current_window.resize_to(width, 1000)
