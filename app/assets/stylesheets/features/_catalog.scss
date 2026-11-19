@@ -602,10 +602,16 @@
     font-size: 0.75rem;
 }
 
+// auto-fill keeps empty column tracks, so one to four books stay in the first
+// columns at full-row width instead of stretching across the row (auto-fit
+// collapsed the empty tracks). Each column is at least a fifth of the row,
+// so a full desktop row still holds at most five books.
 .catalog-page .book-list {
+  --catalog-grid-gap: 1.5rem;
+
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(152px, 1fr));
-  gap: 2rem 1.5rem;
+  grid-template-columns: repeat(auto-fill, minmax(max(152px, calc((100% - 4 * var(--catalog-grid-gap)) / 5)), 1fr));
+  gap: 2rem var(--catalog-grid-gap);
 }
 
 .catalog-page .book-list-item {
