@@ -64,7 +64,11 @@
               </button>
             </div>
           <% else %>
-            <p class="my-log-empty-shelf">No badges available yet.</p>
+            <div class="my-log-empty-shelf">
+              <%= render "shared/empty_state", size: :compact, icon: "history-award.svg",
+                    title: "No badges available yet",
+                    message: "Badges you can earn will appear here." %>
+            </div>
           <% end %>
         </section>
 
@@ -114,7 +118,11 @@
               </button>
             </div>
           <% else %>
-            <p class="my-log-empty-shelf">No finished books yet.</p>
+            <div class="my-log-empty-shelf">
+              <%= render "shared/empty_state", size: :compact,
+                    title: "No finished books yet",
+                    message: "Books you finish will be collected here." %>
+            </div>
           <% end %>
         </section>
       </div>

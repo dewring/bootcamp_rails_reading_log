@@ -46,9 +46,9 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
     get dashboard_path
 
     assert_response :success
-    assert_select ".my-log-section--reading .my-log-empty-shelf", text: "No books in progress yet."
+    assert_select ".my-log-section--reading .my-log-empty-shelf .empty-state--compact .empty-state-title", text: "No books in progress yet"
     assert_select ".my-log-section--reading .my-log-empty-shelf a", count: 0
-    assert_select ".my-log-section--want-to-read .my-log-empty-shelf", text: "No books saved for later yet."
+    assert_select ".my-log-section--want-to-read .my-log-empty-shelf .empty-state--compact .empty-state-title", text: "No books saved for later yet"
     assert_select ".my-log-section--want-to-read .my-log-empty-shelf a", count: 0
   end
 end

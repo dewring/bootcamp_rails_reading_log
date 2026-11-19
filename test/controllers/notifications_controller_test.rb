@@ -18,6 +18,18 @@ class NotificationsControllerTest < ActionDispatch::IntegrationTest
     assert notification.reload.read?
   end
 
+  test "an empty notification panel shows the designed caught-up state" do
+    sign_in users(:admin)
+
+    get notifications_path, headers: { "Turbo-Frame" => "notifications_frame" }
+
+    assert_response :success
+    assert_select "#notifications_dropdown .empty-state.empty-state--compact" do
+      assert_select ".empty-state-title", text: "You're all caught up"
+    end
+    assert_select ".notification-list", count: 0
+  end
+
   test "frame refresh returns only the signed in user's latest notifications and unread count without marking them as read" do
     own_notification = create_notification(users(:leika))
     other_notification = create_notification(users(:jaina))

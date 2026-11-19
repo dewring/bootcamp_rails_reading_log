@@ -51,7 +51,11 @@
       </button>
     </div>
   <% else %>
-    <% empty_message = shelf_class == "my-log-section--reading" ? "No books in progress yet." : "No books saved for later yet." %>
-    <p class="my-log-empty-shelf"><%= empty_message %></p>
+    <% reading_shelf = shelf_class == "my-log-section--reading" %>
+    <div class="my-log-empty-shelf">
+      <%= render "shared/empty_state", size: :compact,
+            title: reading_shelf ? "No books in progress yet" : "No books saved for later yet",
+            message: reading_shelf ? "Books you start reading will show up on this shelf." : "Books you mark as Want to Read will wait here." %>
+    </div>
   <% end %>
 </section>

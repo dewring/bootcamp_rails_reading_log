@@ -73,7 +73,7 @@ class ReadingSessionsControllerTest < ActionDispatch::IntegrationTest
     assert_select ".history-badge-card", count: Badge.count
     assert_select "#history-finished-title", text: "Finished books"
     assert_select "a.my-log-navigation-item--active[href='#{reading_sessions_path}']", text: "History"
-    assert_select ".my-log-empty-shelf", text: "No finished books yet."
+    assert_select ".my-log-empty-shelf .empty-state--compact .empty-state-title", text: "No finished books yet"
     assert_select ".my-log-empty-shelf a", count: 0
     assert_select ".history-position", count: 0
     assert_select ".my-log-season-note strong", text: /finished book/

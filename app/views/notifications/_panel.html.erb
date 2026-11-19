@@ -26,7 +26,9 @@
       </header>
 
       <% if notifications.empty? %>
-        <p>No notifications yet.</p>
+        <%= render "shared/empty_state", size: :compact, icon: "empty-bell.svg",
+              title: "You're all caught up",
+              message: "Club picks, replies, and other updates will show up here." %>
       <% else %>
         <ul class="notification-list">
           <% notifications.each do |notification| %>
