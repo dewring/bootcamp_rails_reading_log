@@ -148,4 +148,26 @@ class Admin::ReviewsControllerTest < ActionDispatch::IntegrationTest
     assert_nil Review.find_by(id: review.id)
     assert Review.exists?(reviews(:review1).id)
   end
+
+  test "reviews sort newest or oldest first and keep the order on filter and record links" do
+    sign_in users(:admin)
+    older_book = Book.create!(title: "Sorting Fixture Book", author: "Sort Author")
+    older = Review.create!(user: users(:jaina), book: older_book, rating: 4, body: "Older thoughts", created_at: 3.years.ago)
+
+    get admin_reviews_path, params: { sort: "submitted", direction: "asc" }
+
+    assert_response :success
+    assert_equal older, assigns(:reviews).first
+    assert_equal assigns(:reviews).map(&:created_at).sort, assigns(:reviews).map(&:created_at)
+    assert_select "button[aria-controls='admin-reviews-sort-menu']", text: "Submitted · Oldest first"
+    assert_select "#admin-reviews-sort-menu a.is-selected[href*='direction=asc']", text: "Oldest first", count: 1
+    assert_select "#admin-reviews-rating-menu a[href*='direction=asc']", count: 7
+    assert_select "a.admin-review-select[href*='direction=asc']", minimum: 1
+    assert_select "form.admin-reviews-search input[name='direction'][value='asc']", count: 1
+
+    get admin_reviews_path
+
+    assert_equal assigns(:reviews).map(&:created_at).sort.reverse, assigns(:reviews).map(&:created_at)
+    assert_select "button[aria-controls='admin-reviews-sort-menu']", text: "Submitted · Newest first"
+  end
 end
