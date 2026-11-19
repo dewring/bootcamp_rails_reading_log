@@ -2,6 +2,13 @@ class Admin::BookClubsController < ApplicationController
   include RequireAuthenticatedAdmin
   include AdminListSorting
   layout "admin"
+
+  SORT_FIELDS = {
+    "updated" => [ "Updated", :date ],
+    "name" => [ "Club name", :text ],
+    "members" => [ "Members", :count ]
+  }.freeze
+  SORT_COLUMNS = { "updated" => [ :updated_at ], "name" => [ :name ], "members" => [ :book_club_memberships_count ] }.freeze
   before_action :set_book_club, only: [ :update, :destroy ]
 
   def index
@@ -48,10 +55,10 @@ class Admin::BookClubsController < ApplicationController
 
   def load_workspace
     @query = params[:q].to_s.strip
-    select_admin_list_sort
+    select_admin_list_sort(SORT_FIELDS)
     @club_scope = policy_scope([ :admin, BookClub ]).matching_admin_text(@query)
       .preload(:current_book, book_club_memberships: :user)
-    @pagy, @book_clubs = pagy(:offset, @club_scope.order(admin_list_order([ :name ])), limit: 4)
+    @pagy, @book_clubs = pagy(:offset, @club_scope.order(admin_list_order(SORT_COLUMNS.fetch(@sort))), limit: 4)
   end
 
   def selected_club

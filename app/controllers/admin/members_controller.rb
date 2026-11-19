@@ -3,6 +3,9 @@ class Admin::MembersController < ApplicationController
   include AdminListSorting
   layout "admin"
 
+  SORT_FIELDS = { "updated" => [ "Updated", :date ], "name" => [ "Member name", :text ] }.freeze
+  SORT_COLUMNS = { "updated" => [ :updated_at ], "name" => [ :first_name, :last_name ] }.freeze
+
   def index
     authorize [ :admin, User ]
     load_members
@@ -56,10 +59,10 @@ class Admin::MembersController < ApplicationController
     statuses = [ "active", "suspended" ]
     statuses.push("invited") if policy([ :admin, User ]).create?
     @status = params[:status].to_s if statuses.include?(params[:status])
-    select_admin_list_sort
+    select_admin_list_sort(SORT_FIELDS)
     @members_scope = policy_scope([ :admin, User ]).matching_member_text(@query)
     @members_scope = @members_scope.where(account_status: @status) if @status
-    @pagy, @members = pagy(:offset, @members_scope.order(admin_list_order([ :first_name, :last_name ])), limit: 4)
+    @pagy, @members = pagy(:offset, @members_scope.order(admin_list_order(SORT_COLUMNS.fetch(@sort))), limit: 4)
   end
 
   def load_activity

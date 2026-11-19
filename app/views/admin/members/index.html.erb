@@ -35,8 +35,8 @@
             <%= render "admin/shared/sort_menu",
                   menu_id: "admin-member-sort-menu",
                   menu_label: "Member sorting",
-                  current_label: admin_list_sort_label(@sort, @direction, name_label: "Member name"),
-                  groups: admin_list_sort_groups(name_label: "Member name", current_sort: @sort, current_direction: @direction) { |sort, direction|
+                  current_label: admin_list_sort_label(@sort_fields, @sort, @direction),
+                  groups: admin_list_sort_groups(@sort_fields, current_sort: @sort, current_direction: @direction) { |sort, direction|
                     admin_members_path(q: @query.presence, status: @status, sort: sort, direction: direction)
                   },
                   wrapper_class: "admin-reviews-rating-filter",

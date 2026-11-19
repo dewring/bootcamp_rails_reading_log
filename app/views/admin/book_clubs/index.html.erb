@@ -27,8 +27,8 @@
             <%= render "admin/shared/sort_menu",
                   menu_id: "admin-clubs-sort-menu",
                   menu_label: "Book club sorting",
-                  current_label: admin_list_sort_label(@sort, @direction, name_label: "Club name"),
-                  groups: admin_list_sort_groups(name_label: "Club name", current_sort: @sort, current_direction: @direction) { |sort, direction|
+                  current_label: admin_list_sort_label(@sort_fields, @sort, @direction),
+                  groups: admin_list_sort_groups(@sort_fields, current_sort: @sort, current_direction: @direction) { |sort, direction|
                     admin_book_clubs_path(q: @query.presence, sort: sort, direction: direction)
                   },
                   wrapper_class: "admin-clubs-sort-filter",

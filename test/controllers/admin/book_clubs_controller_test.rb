@@ -80,13 +80,14 @@ class Admin::BookClubsControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     assert_select ".admin-clubs-sort-filter button[aria-expanded='false'][aria-controls='admin-clubs-sort-menu']", text: "Club name · A–Z"
-    assert_select "nav#admin-clubs-sort-menu[hidden] a", count: 4
+    assert_select "nav#admin-clubs-sort-menu[hidden] a", count: 6
     assert_select "nav#admin-clubs-sort-menu a[aria-current='true']", text: "A–Z"
     assert_select "nav#admin-clubs-sort-menu a" do |links|
       links.each do |link|
         query = Rack::Utils.parse_query(URI.parse(link["href"]).query)
         assert_equal "Sci-Fi", query["q"]
-        assert_equal ([ "A–Z", "Z–A" ].include?(link.text) ? "name" : "updated"), query["sort"]
+        expected_sort = { "A–Z" => "name", "Z–A" => "name", "Most first" => "members", "Fewest first" => "members" }.fetch(link.text, "updated")
+        assert_equal expected_sort, query["sort"]
         assert_nil query["page"]
         assert_nil query["club_id"]
       end
@@ -183,12 +184,16 @@ class Admin::BookClubsControllerTest < ActionDispatch::IntegrationTest
   test "book club sort direction matches the selected option" do
     sign_in users(:admin)
     BookClub.create!(name: "Alpha Readers")
-    BookClub.create!(name: "Zeta Readers")
+    busy_club = BookClub.create!(name: "Zeta Readers")
+    busy_club.book_club_memberships.create!(user: users(:leika), role: "owner")
+    busy_club.book_club_memberships.create!(user: users(:jaina))
 
     {
       { sort: "name", direction: "asc" } => [ { name: :asc, id: :asc }, "Club name · A–Z" ],
       { sort: "name", direction: "desc" } => [ { name: :desc, id: :desc }, "Club name · Z–A" ],
-      { sort: "updated", direction: "asc" } => [ { updated_at: :asc, id: :asc }, "Updated · Oldest first" ]
+      { sort: "updated", direction: "asc" } => [ { updated_at: :asc, id: :asc }, "Updated · Oldest first" ],
+      { sort: "members", direction: "desc" } => [ { book_club_memberships_count: :desc, id: :desc }, "Members · Most first" ],
+      { sort: "members", direction: "asc" } => [ { book_club_memberships_count: :asc, id: :asc }, "Members · Fewest first" ]
     }.each do |options, (expected_order, label)|
       get admin_book_clubs_path, params: options
 
