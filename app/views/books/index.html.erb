@@ -58,9 +58,9 @@
         <% Genre::GENRES.each do |genre| %>
           <% genre_active = params[:genre] == genre %>
           <% genre_path = if genre_active
-                            books_path(q: params[:q], sort: params[:sort], filter: params[:filter])
+                            books_path(q: params[:q], sort: params[:sort], direction: params[:direction], filter: params[:filter])
                           else
-                            books_path(q: params[:q], sort: params[:sort], genre: genre, filter: params[:filter])
+                            books_path(q: params[:q], sort: params[:sort], direction: params[:direction], genre: genre, filter: params[:filter])
                           end %>
           <%= link_to genre_path,
                 class: "catalog-genre-option #{'is-active' if genre_active}",
@@ -85,6 +85,7 @@
         </div>
         <%= hidden_field_tag :genre, params[:genre] if params[:genre].present? %>
         <%= hidden_field_tag :sort, params[:sort] if params[:sort].present? %>
+        <%= hidden_field_tag :direction, params[:direction] if params[:direction].present? %>
         <%= hidden_field_tag :filter, params[:filter] if params[:filter].present? %>
         <%= f.submit "Search", class: "catalog-search-submit" %>
       <% end %>
@@ -101,8 +102,6 @@
         <h1 id="catalog-title">Books</h1>
         <p>Showing <%= @pagy.count %> books</p>
       </div>
-      <% sort_options = [["Title A-Z", "title"], ["Author", "author"]] %>
-      <% selected_sort = sort_options.find { |_, value| value == params[:sort] } || sort_options.first %>
       <div class="catalog-sort-form" data-controller="nav-menu" data-action="click@document->nav-menu#closeOnOutsideClick keydown.esc@document->nav-menu#closeOnEscape">
         <span class="catalog-sort-label">Sort by:</span>
         <div class="catalog-sort-dropdown">
@@ -112,18 +111,24 @@
                   data-action="click->nav-menu#toggle"
                   aria-expanded="false"
                   aria-controls="catalog-sort-menu">
-            <span><%= selected_sort.first %></span>
+            <span><%= catalog_sort_label(@catalog_sort, @catalog_direction) %></span>
             <%= image_tag "catalog-chevron-down.svg", class: "catalog-chevron catalog-sort-chevron", alt: "", aria: { hidden: true } %>
           </button>
           <div id="catalog-sort-menu"
                class="catalog-sort-menu"
                data-nav-menu-target="menu"
                hidden>
-            <% sort_options.each do |label, value| %>
-              <%= link_to label,
-                    books_path(q: params[:q], genre: params[:genre], sort: value),
-                    class: "catalog-sort-option #{'is-selected' if selected_sort.last == value}",
-                    aria: { current: ("page" if selected_sort.last == value) } %>
+            <% BooksHelper::CATALOG_SORT_FIELDS.each do |sort, field_label| %>
+              <div class="catalog-sort-group" role="group" aria-labelledby="catalog-sort-group-<%= sort %>">
+                <p id="catalog-sort-group-<%= sort %>" class="catalog-sort-group-label"><%= field_label %></p>
+                <% BooksHelper::CATALOG_SORT_DIRECTION_LABELS.each_key do |direction| %>
+                  <% selected = @catalog_sort == sort && @catalog_direction == direction %>
+                  <%= link_to catalog_sort_label(sort, direction),
+                        books_path(q: params[:q], genre: params[:genre], sort: sort, direction: direction),
+                        class: class_names("catalog-sort-option", "is-selected" => selected),
+                        aria: { current: ("page" if selected) } %>
+                <% end %>
+              </div>
             <% end %>
           </div>
         </div>

@@ -446,7 +446,7 @@ class BookControllerTest < ActionDispatch::IntegrationTest
       assert_select ".catalog-filter-dropdown .catalog-dropdown-trigger span", text: "All Books", count: 1
       assert_select "#catalog-filter-menu a.is-selected", count: 0
       assert_select "#catalog-filter-menu a[aria-current='page']", count: 0
-      assert_select ".catalog-sort-trigger span", text: options[:sort] == "author" ? "Author" : "Title A-Z", count: 1
+      assert_select ".catalog-sort-trigger span", text: options[:sort] == "author" ? "Author A–Z" : "Title A–Z", count: 1
     end
   end
 
@@ -553,8 +553,8 @@ class BookControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_select ".catalog-sort-form[data-controller='nav-menu']", count: 1
     assert_select "button.catalog-sort-trigger[aria-controls='catalog-sort-menu']", text: /Author/, count: 1
-    assert_select "#catalog-sort-menu a.catalog-sort-option.is-selected[href*='sort=author']", text: "Author", count: 1
-    assert_select "#catalog-sort-menu a[href*='sort=title'][href*='q=Book'][href*='genre=Fiction']", text: "Title A-Z", count: 1
+    assert_select "#catalog-sort-menu a.catalog-sort-option.is-selected[href*='sort=author'][href*='direction=asc']", text: "Author A–Z", count: 1
+    assert_select "#catalog-sort-menu a[href*='sort=title'][href*='direction=asc'][href*='q=Book'][href*='genre=Fiction']", text: "Title A–Z", count: 1
   end
 
   test "catalog only offers sorting by information shown on the cards" do
@@ -563,7 +563,7 @@ class BookControllerTest < ActionDispatch::IntegrationTest
     get books_path
 
     assert_response :success
-    assert_equal [ "Title A-Z", "Author" ], css_select("#catalog-sort-menu a.catalog-sort-option").map { |option| option.text.strip }
+    assert_equal [ "Title A–Z", "Title Z–A", "Author A–Z", "Author Z–A" ], css_select("#catalog-sort-menu a.catalog-sort-option").map { |option| option.text.strip }
     assert_select "#catalog-sort-menu a[href*='sort=total_pages']", count: 0
   end
 
@@ -575,7 +575,47 @@ class BookControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     assert_equal Book.order(:title).limit(10).pluck(:title), assigns(:books).map(&:title)
-    assert_select ".catalog-sort-trigger span", text: "Title A-Z", count: 1
+    assert_select ".catalog-sort-trigger span", text: "Title A–Z", count: 1
+  end
+
+  test "catalog sort direction matches the selected option for titles and authors" do
+    sign_in users(:leika)
+    alpha = Book.create!(title: "Direction Alpha", author: "Ziggy Writer")
+    omega = Book.create!(title: "Direction Omega", author: "Abby Writer")
+
+    {
+      { sort: "title", direction: "asc" } => [ [ alpha, omega ], "Title A–Z" ],
+      { sort: "title", direction: "desc" } => [ [ omega, alpha ], "Title Z–A" ],
+      { sort: "author", direction: "asc" } => [ [ omega, alpha ], "Author A–Z" ],
+      { sort: "author", direction: "desc" } => [ [ alpha, omega ], "Author Z–A" ]
+    }.each do |options, (expected_books, label)|
+      get books_path, params: { q: "Direction" }.merge(options)
+
+      assert_response :success
+      assert_equal expected_books.map(&:id), assigns(:books).map(&:id), "#{label} returned the wrong order"
+      assert_select ".catalog-sort-trigger span", text: label, count: 1
+      assert_select "#catalog-sort-menu a.is-selected[aria-current='page']", text: label, count: 1
+    end
+  end
+
+  test "an unknown sort direction falls back to ascending" do
+    sign_in users(:leika)
+
+    get books_path, params: { sort: "title", direction: "sideways" }
+
+    assert_response :success
+    assert_select ".catalog-sort-trigger span", text: "Title A–Z", count: 1
+  end
+
+  test "search and genre links keep the selected sort direction" do
+    sign_in users(:leika)
+
+    get books_path, params: { sort: "author", direction: "desc" }
+
+    assert_response :success
+    assert_select ".catalog-search-form input[type='hidden'][name='direction'][value='desc']", count: 1
+    assert_select "a.catalog-genre-option[href*='sort=author'][href*='direction=desc']", minimum: 1
+    assert_select "#catalog-sort-menu .catalog-sort-group[role='group']", count: 2
   end
 
   test "active genre filter link clears the genre on the next click" do

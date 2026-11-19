@@ -1,5 +1,13 @@
 module BooksHelper
   BOOK_COVER_FALLBACK_TONE_COUNT = 6
+  CATALOG_SORT_FIELDS = { "title" => "Title", "author" => "Author" }.freeze
+  CATALOG_SORT_DIRECTION_LABELS = { "asc" => "A–Z", "desc" => "Z–A" }.freeze
+
+  # Names both the field and the direction, so the sort control always says
+  # exactly how the catalog is ordered (for example "Author Z–A").
+  def catalog_sort_label(sort, direction)
+    "#{CATALOG_SORT_FIELDS.fetch(sort)} #{CATALOG_SORT_DIRECTION_LABELS.fetch(direction)}"
+  end
 
   # Picks one of the pastel fallback tones from a stable seed (such as a book
   # id) so the same book keeps the same color on every page and reload.

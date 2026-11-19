@@ -3,6 +3,7 @@ class BooksController < ApplicationController
 
   # Only columns shown on catalog cards, so readers can see why books are in this order.
   SORTABLE_COLUMNS = [ "title", "author" ].freeze
+  SORT_DIRECTIONS = [ "asc", "desc" ].freeze
 
   before_action :authenticate_user!, only: [ :discover, :most_recent_session, :search, :import, :quick_add ]
   rescue_from ActiveRecord::RecordNotFound, with: :not_found
@@ -22,6 +23,8 @@ class BooksController < ApplicationController
       books
     end
     @books = @books.joins(:genres).where(genres: { name: params[:genre] }) if params[:genre].present?
+    @catalog_sort = params[:sort].presence_in(SORTABLE_COLUMNS) || "title"
+    @catalog_direction = params[:direction].presence_in(SORT_DIRECTIONS) || "asc"
     @books = apply_catalog_order(@books).preload(:genres)
     @pagy, @books = pagy(:offset, @books, limit: 10)
 
@@ -175,8 +178,7 @@ class BooksController < ApplicationController
     when "new_books"
       books.order(created_at: :desc)
     else
-      sort_col = SORTABLE_COLUMNS.include?(params[:sort]) ? params[:sort] : "title"
-      books.order(sort_col)
+      books.order(@catalog_sort => @catalog_direction)
     end
   end
 
