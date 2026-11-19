@@ -353,12 +353,63 @@ class HomeControllerTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "book of the day banner links to that book and to a random book" do
+    travel_to(Date.new(2026, 11, 18)) do
+      get root_path
+    end
+
+    book = assigns(:book_of_the_day)
+    assert_response :success
+    assert_select ".home-hero .home-hero-badge", text: "BOOK OF THE DAY"
+    assert_select ".home-hero h1#home-hero-title", text: book.title
+    assert_select ".home-hero .home-hero-author", text: "by #{book.author}"
+    assert_select ".home-hero a.home-hero-cta[href='#{book_path(book)}']", text: "View Book", count: 1
+    assert_select ".home-hero a.home-hero-secondary[href='#{discover_books_path}']", text: "Pick a Random Book", count: 1
+    assert_select ".home-hero a[href='#{books_path}']", count: 0
+    assert_select ".home-hero", text: /Summer Reading Challenge/, count: 0
+  end
+
+  test "book of the day stays the same within a day and moves to the next book the next day" do
+    books = Book.order(:id).to_a
+    day = Date.new(2026, 11, 18)
+
+    picks = [ day, day, day + 1 ].map do |date|
+      travel_to(date.noon) { get root_path }
+      assigns(:book_of_the_day)
+    end
+
+    assert_equal books[day.jd % books.size], picks.first
+    assert_equal picks.first, picks.second
+    assert_equal books[(day + 1).jd % books.size], picks.third
+  end
+
+  test "book of the day prefers a book with a cover and a description" do
+    showcase = Book.create!(title: "Showcase Pick", author: "Cover Author", description: "A story with art and words.")
+    showcase.cover_image.attach(fixture_file_upload("cover_test.jpg", "image/jpeg"))
+
+    get root_path
+
+    assert_equal showcase, assigns(:book_of_the_day)
+    assert_select ".home-hero-copy p", text: "A story with art and words."
+    assert_select ".home-hero-cover img[alt='Cover of Showcase Pick']", count: 1
+  end
+
+  test "home hides the book of the day banner when the catalog is empty" do
+    Book.destroy_all
+
+    get root_path
+
+    assert_response :success
+    assert_nil assigns(:book_of_the_day)
+    assert_select ".home-hero", count: 0
+  end
+
   test "homepage loads successfully" do
     get root_path
 
     assert_response :success
     assert_select "section.home-hero[aria-labelledby='home-hero-title']"
-    assert_select "h1#home-hero-title", "Summer Reading Challenge — Join Now"
+    assert_select "h1#home-hero-title", assigns(:book_of_the_day).title
     assert_select "section.home-section", count: 3
     assert_select "h2", text: "Most Read"
     assert_select "h2", text: "New Books"

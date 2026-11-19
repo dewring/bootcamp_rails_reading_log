@@ -15,6 +15,19 @@ module BooksHelper
     Zlib.crc32(seed.to_s) % BOOK_COVER_FALLBACK_TONE_COUNT
   end
 
+  # Open Library descriptions end with a "([source](url))" credit; this returns
+  # only the reader-facing text.
+  def book_description_without_source(book)
+    book.description.to_s.gsub(/\(\[source\]\(.*?\)\)/, "").strip
+  end
+
+  # A short plain-text teaser for banners: drops the source credit and the
+  # Markdown emphasis markers (** and __) that Open Library descriptions use.
+  def book_description_excerpt(book, length: 160)
+    plain_text = book_description_without_source(book).gsub(/(\*\*|__)/, "").squish
+    truncate(plain_text, length: length, separator: " ")
+  end
+
   def book_cover_fallback_initial(title)
     title.to_s[/[[:alnum:]]/].to_s.upcase
   end

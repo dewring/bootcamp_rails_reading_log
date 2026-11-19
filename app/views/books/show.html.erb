@@ -4,7 +4,7 @@
   average_rating = ratings.any? ? format("%.1f", ratings.sum.to_f / ratings.size) : "0.0"
   rounded_rating = average_rating.to_f.round
   description = @book.description.to_s
-  main_description = description.gsub(/\(\[source\]\(.*?\)\)/, "").strip
+  main_description = book_description_without_source(@book)
   source_match = description.match(/\(\[source\]\((.*?)\)\)/)
   publication_details = [
     ("Published #{@edition_for_details.publish_year}" if @edition_for_details&.publish_year.present?),

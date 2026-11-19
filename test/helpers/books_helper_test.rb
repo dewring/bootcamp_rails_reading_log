@@ -19,6 +19,21 @@ class BooksHelperTest < ActionView::TestCase
     assert_equal "I", book_cover_fallback_initial("\"I Don't Love You Anymore\"")
   end
 
+  test "book_description_excerpt removes the source credit and Markdown emphasis" do
+    book = Book.new(description: "**Before It Ends with Us**, it started with Atlas. ([source](https://example.com))")
+
+    assert_equal "Before It Ends with Us, it started with Atlas.", book_description_excerpt(book)
+  end
+
+  test "book_description_excerpt shortens long descriptions at a word boundary" do
+    book = Book.new(description: "word " * 60)
+
+    excerpt = book_description_excerpt(book, length: 40)
+
+    assert_operator excerpt.length, :<=, 40
+    assert excerpt.end_with?("word...")
+  end
+
   test "small fallback cover shows only the title initial" do
     render partial: "books/cover_fallback",
            locals: { title: "A Gentle Reminder", author: "Bianca Sparacino", seed: 1, size: :small }

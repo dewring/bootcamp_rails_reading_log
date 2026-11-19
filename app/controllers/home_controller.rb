@@ -10,12 +10,24 @@ class HomeController < ApplicationController
       book_most_read.limit(8)  # genre 없을 때
     end
     @new_books = books.includes([ :cover_image_attachment ]).order(created_at: :desc).limit(8).to_a
-    @featured_book = @new_books.first || @most_read.first
+    @book_of_the_day = book_of_the_day(books)
     @trending_books = cached_trending_books(books)
     prepare_discovery_presentation
   end
 
   private
+
+  # Every reader sees the same pick for the whole day, so the banner stays put
+  # across reloads and changes once a day. Books with a cover and a description
+  # come first so the banner has artwork and copy to show.
+  def book_of_the_day(books)
+    showcase = books.joins(:cover_image_attachment).where.not(description: [ nil, "" ])
+    candidates = showcase.exists? ? showcase : books
+    count = candidates.count
+    return if count.zero?
+
+    candidates.order(:id).offset(Date.current.jd % count).first
+  end
 
   def prepare_discovery_presentation
     # The layout depends on the reader and current flags; do not reuse HTTP-cached HTML.
