@@ -1,6 +1,10 @@
 class Admin::ChallengesController < ApplicationController
   include RequireAuthenticatedAdmin
+  include AdminListSorting
   layout "admin", only: [ :index, :create ]
+
+  SORT_FIELDS = { "starts" => [ "Start date", :date ], "name" => [ "Name", :text ] }.freeze
+  SORT_COLUMNS = { "starts" => [ :starts_at ], "name" => [ :title ] }.freeze
 
   before_action :set_challenge, only: [ :update, :destroy ]
 
@@ -43,8 +47,10 @@ class Admin::ChallengesController < ApplicationController
   private
 
   def load_challenges
-    challenges = policy_scope(Challenge).order(starts_at: :desc, created_at: :desc, id: :desc)
-    @pagy, @challenges = pagy(:offset, challenges, limit: 4)
+    @status = params[:status].presence_in(Challenge::SCHEDULE_STATUSES)
+    select_admin_list_sort(SORT_FIELDS)
+    challenges = policy_scope(Challenge).with_schedule_status(@status).order(admin_list_order(SORT_COLUMNS.fetch(@sort)))
+    @pagy, @challenges = pagy(:offset, challenges, limit: 10)
   end
 
   def selected_challenge

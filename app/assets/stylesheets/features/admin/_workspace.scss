@@ -291,6 +291,50 @@
   font-size: 23px;
 }
 
+// Status filter and sort pills in the challenge list toolbar.
+.admin-challenge-filters {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+
+  .admin-select-dropdown {
+    position: relative;
+  }
+
+  .admin-select-trigger {
+    width: auto;
+    height: 32px;
+    gap: 6px;
+    padding: 0 12px;
+    border-radius: 999px;
+    font-size: 12px;
+
+    &.is-active {
+      background: #fdf1ef;
+      color: tokens.$accent;
+      font-weight: 700;
+    }
+
+    img {
+      width: 8px;
+      height: 8px;
+    }
+  }
+
+  .admin-select-menu {
+    right: 0;
+    left: auto;
+    width: 180px;
+
+    .catalog-dropdown-option {
+      padding: 7px 10px;
+      font-size: 12px;
+      line-height: 16px;
+    }
+  }
+}
+
 .admin-record-toolbar p {
   margin: 4px 0 0;
   color: tokens.$text-muted;
