@@ -368,4 +368,27 @@ class BookClubsControllerTest < ActionDispatch::IntegrationTest
     assert_response :redirect
     assert_nil book_club.reload.current_book
   end
+
+  test "overview shows designed empty states for a club without picks" do
+    club = BookClub.create!(name: "Fresh Circle")
+    club.book_club_memberships.create!(user: users(:leika), role: "owner")
+    sign_in users(:leika)
+
+    get book_club_path(club)
+
+    assert_response :success
+    assert_select ".book-club-past-picks-card .empty-state--compact .empty-state-title", text: "No past picks yet"
+    assert_select ".book-club-current-pick-empty .empty-state--compact .empty-state-title", text: "No book picked yet"
+    assert_select ".book-club-current-pick-deadline", count: 0
+  end
+
+  test "book club directory shows a designed empty state when there are no clubs" do
+    BookClub.destroy_all
+    sign_in users(:leika)
+
+    get book_clubs_path
+
+    assert_response :success
+    assert_select ".empty-state.empty-state--panel h2.empty-state-title", text: "No book clubs yet"
+  end
 end

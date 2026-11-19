@@ -14,10 +14,9 @@
   </div>
 
   <% if @book_clubs.empty? %>
-    <article class="book-clubs-empty-state">
-      <h2>No book clubs yet.</h2>
-      <p>Create the first welcoming space for a shared reading journey.</p>
-    </article>
+    <%= render "shared/empty_state", heading_level: 2, icon: "empty-users.svg",
+          title: "No book clubs yet",
+          message: "Create the first welcoming space for a shared reading journey." %>
   <% else %>
     <section class="book-club-directory" aria-label="Book club directory">
       <% @book_clubs.each do |book_club| %>

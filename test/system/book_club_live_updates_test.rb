@@ -78,8 +78,8 @@ class BookClubLiveUpdatesTest < ApplicationSystemTestCase
     assert_discussion_drafts_and_scroll
 
     update_pick_from_owner(book_title: "", deadline: "")
-    assert_selector "#current_pick_book_club_#{@club.id}", text: "No current pick yet."
-    assert_selector "#current_pick_book_club_#{@club.id}", text: "No reading deadline"
+    assert_selector "#current_pick_book_club_#{@club.id} .empty-state-title", text: "No book picked yet"
+    assert_no_selector "#current_pick_book_club_#{@club.id} .book-club-current-pick-deadline"
     assert_discussion_drafts_and_scroll
   end
 
@@ -132,7 +132,7 @@ class BookClubLiveUpdatesTest < ApplicationSystemTestCase
           assert_selector "#current_pick_book_club_#{@club.id} time[datetime='#{deadline}']"
           assert_equal deadline, @club.reload.reading_deadline&.iso8601
         else
-          assert_selector "#current_pick_book_club_#{@club.id}", text: "No reading deadline"
+          assert_no_selector "#current_pick_book_club_#{@club.id} time"
           assert_nil @club.reload.reading_deadline
         end
       end

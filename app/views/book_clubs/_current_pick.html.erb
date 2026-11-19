@@ -19,14 +19,19 @@
       <p><%= book_club.current_book.author %><% if variant == :discussion && book_club.current_book.total_pages.present? %> · <%= pluralize(book_club.current_book.total_pages, "page") %><% end %></p>
     <% else %>
       <h2>Current pick</h2>
-      <p>No current pick yet.</p>
+      <%= render "shared/empty_state", size: :compact,
+            title: "No book picked yet",
+            message: "The club owner chooses the next read." %>
     <% end %>
-    <p class="book-club-current-pick-deadline">
-      <% if book_club.reading_deadline %>
-        Reading deadline: <time datetime="<%= book_club.reading_deadline.iso8601 %>"><%= book_club.reading_deadline.to_fs(:long) %></time>
-      <% else %>
-        No reading deadline
-      <% end %>
-    </p>
+    <%# Without a pick, "No reading deadline" adds nothing, so the line only shows when there is something to say. %>
+    <% if book_club.current_book || book_club.reading_deadline %>
+      <p class="book-club-current-pick-deadline">
+        <% if book_club.reading_deadline %>
+          Reading deadline: <time datetime="<%= book_club.reading_deadline.iso8601 %>"><%= book_club.reading_deadline.to_fs(:long) %></time>
+        <% else %>
+          No reading deadline
+        <% end %>
+      </p>
+    <% end %>
   </div>
 </article>

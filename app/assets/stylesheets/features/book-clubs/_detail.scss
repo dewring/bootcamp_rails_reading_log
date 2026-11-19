@@ -266,12 +266,19 @@ main.container:has(> [data-controller~="club-discussion"] > .book-club-detail-pa
 }
 
 .book-club-current-pick-empty {
+  display: grid;
+  gap: 10px;
   padding: 20px;
 
+  // Without a book, "Current pick" is a small label above the empty state.
   h2 {
-    margin: 0 0 4px;
-    font-family: "Fraunces", Georgia, serif;
-    font-size: 22px;
+    margin: 0;
+    color: tokens.$text-muted;
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
   }
 
   p {
@@ -412,8 +419,7 @@ main.container:has(> [data-controller~="club-discussion"] > .book-club-detail-pa
   gap: 12px;
 }
 
-.book-club-more-members,
-.book-club-muted-copy {
+.book-club-more-members {
   color: tokens.$accent !important;
   font-size: 10px !important;
 }
