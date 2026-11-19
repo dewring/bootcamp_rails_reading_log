@@ -55,7 +55,7 @@ class Admin::ChallengesControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_select "aside.admin-detail-panel", count: 0
     assert_select ".admin-workspace--no-selection", count: 1
-    assert_select ".admin-table-empty", text: "No challenges created yet."
+    assert_select ".admin-table-empty .empty-state--compact .empty-state-title", text: "No challenges created yet"
     assert_select ".admin-pagination", text: /Showing\s+0\s+of\s+0/
     assert_select ".admin-pagination a, .admin-pagination button", count: 0
   end
@@ -163,5 +163,15 @@ class Admin::ChallengesControllerTest < ActionDispatch::IntegrationTest
 
     assert_redirected_to admin_root_path(challenge_id: challenge.id)
     assert_equal "Pages Every Morning", challenge.reload.title
+  end
+
+  test "a status filter with no matches explains it and offers to clear the filter" do
+    sign_in users(:admin)
+
+    get admin_root_path, params: { status: "inactive", sort: "name", direction: "asc" }
+
+    assert_response :success
+    assert_select ".admin-table-empty .empty-state-title", text: "No inactive challenges"
+    assert_select ".admin-table-empty a.empty-state-action[href='#{admin_root_path(sort: "name", direction: "asc")}']", text: "Clear filter"
   end
 end

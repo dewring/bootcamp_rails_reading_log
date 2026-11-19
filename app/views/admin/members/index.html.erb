@@ -60,7 +60,7 @@
         <section class="admin-review-detail admin-member-detail" aria-labelledby="admin-member-detail-title">
           <div class="admin-member-heading"><div><p class="admin-eyebrow"><%= @is_invitation ? "NEW MEMBER" : "SELECTED RECORD" %></p><h2 id="admin-member-detail-title"><%= @is_invitation ? "Invite a member" : "Member profile" %></h2></div><% if @selected_member&.persisted? %><span class="admin-member-status admin-member-status--<%= @selected_member.account_status %>"><%= @selected_member.account_status.capitalize %></span><% end %></div>
           <p class="admin-review-detail-intro"><%= @is_invitation ? "Send a password setup link to a new member." : "Review and update the selected member’s record." %></p>
-          <% if @selected_member %><%= render "form", member: @selected_member %><% else %><p class="admin-review-detail-empty">Select a member to manage their account.</p><% end %>
+          <% if @selected_member %><%= render "form", member: @selected_member %><% else %><div class="admin-review-detail-empty"><%= render "shared/empty_state", size: :compact, icon: "empty-users.svg", title: "No member selected", message: "Select a member to manage their account." %></div><% end %>
         </section>
       </div>
     </main>

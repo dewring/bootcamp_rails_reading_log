@@ -91,7 +91,18 @@
                 <% end %>
                 <% if @challenges.empty? %>
                   <tr>
-                    <td colspan="4" class="admin-table-empty"><%= @status ? "No #{@status} challenges." : "No challenges created yet." %></td>
+                    <td colspan="4" class="admin-table-empty">
+                      <% if @status %>
+                        <%= render "shared/empty_state", size: :compact, icon: "empty-trophy.svg",
+                              title: "No #{@status} challenges",
+                              message: "Try another status or clear the filter.",
+                              action_label: "Clear filter", action_path: admin_root_path(sort: @sort, direction: @direction) %>
+                      <% else %>
+                        <%= render "shared/empty_state", size: :compact, icon: "empty-trophy.svg",
+                              title: "No challenges created yet",
+                              message: "Add a challenge to give readers a goal to work toward." %>
+                      <% end %>
+                    </td>
                   </tr>
                 <% end %>
               </tbody>

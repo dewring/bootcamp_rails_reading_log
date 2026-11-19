@@ -77,7 +77,12 @@
               </article>
             <% end %>
             <% if @books.empty? %>
-              <p class="admin-catalog-empty">No books match these filters.</p>
+              <div class="admin-catalog-empty">
+                <%= render "shared/empty_state", size: :compact, icon: "empty-search.svg",
+                      title: "No books match these filters",
+                      message: "Try another title, author, or genre.",
+                      action_label: "Clear filters", action_path: admin_catalog_path %>
+              </div>
             <% end %>
           </div>
 
@@ -133,7 +138,9 @@
             <% end %>
           <% else %>
             <div class="admin-catalog-detail-empty">
-              <p>Select a book from the list to review and update its catalog record.</p>
+              <%= render "shared/empty_state", size: :compact,
+                    title: "No book selected",
+                    message: "Select a book from the list to review and update its catalog record." %>
             </div>
           <% end %>
         </aside>

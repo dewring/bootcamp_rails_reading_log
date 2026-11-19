@@ -52,7 +52,18 @@
               </article>
             <% end %>
             <% if @book_clubs.empty? %>
-              <div class="admin-clubs-empty"><h2><%= @query.present? ? "No matching clubs" : "No book clubs yet" %></h2><p><%= @query.present? ? "Try another club name, owner, or book." : "Create a club to start a reading community." %></p></div>
+              <div class="admin-clubs-empty">
+                <% if @query.present? %>
+                  <%= render "shared/empty_state", heading_level: 2, icon: "empty-search.svg",
+                        title: "No matching clubs",
+                        message: "Try another club name, owner, or book.",
+                        action_label: "Clear search", action_path: admin_book_clubs_path(sort: @sort, direction: @direction) %>
+                <% else %>
+                  <%= render "shared/empty_state", heading_level: 2, icon: "empty-users.svg",
+                        title: "No book clubs yet",
+                        message: "Create a club to start a reading community." %>
+                <% end %>
+              </div>
             <% end %>
           </div>
           <footer class="admin-clubs-pagination">
@@ -68,7 +79,11 @@
           <% if @detail_club %>
             <%= render "form", club: @detail_club %>
           <% else %>
-            <p class="admin-club-detail-empty">Select a club or create a new one to manage its details.</p>
+            <div class="admin-club-detail-empty">
+              <%= render "shared/empty_state", size: :compact, icon: "empty-users.svg",
+                    title: "No club selected",
+                    message: "Select a club or create a new one to manage its details." %>
+            </div>
           <% end %>
         </section>
       </div>

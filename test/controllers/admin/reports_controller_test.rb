@@ -299,4 +299,18 @@ class Admin::ReportsControllerTest < ActionDispatch::IntegrationTest
       links.each { |link| assert_includes link["href"], "direction=asc" }
     end
   end
+
+  test "an empty leaderboard period shows the designed empty state in the table" do
+    sign_in users(:admin)
+
+    travel_to Time.zone.local(2030, 1, 15, 12, 0) do
+      get admin_report_path, params: { period: "today" }
+    end
+
+    assert_response :success
+    assert_select ".admin-report-table td.admin-report-empty[colspan='6'] .empty-state--compact" do
+      assert_select ".empty-state-title", text: "No reading activity"
+      assert_select ".empty-state-message", text: /No reading sessions in this period\./
+    end
+  end
 end

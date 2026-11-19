@@ -13,7 +13,11 @@
   <tbody>
     <% if rows.empty? %>
       <tr>
-        <td colspan="6">No reactions were created or changed in this period.</td>
+        <td colspan="6" class="admin-report-empty">
+          <%= render "shared/empty_state", size: :compact, icon: "empty-chart.svg",
+                title: "No reaction activity",
+                message: "No reactions were created or changed in this period. Try a longer period." %>
+        </td>
       </tr>
     <% end %>
     <% rows.each do |row| %>

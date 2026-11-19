@@ -67,8 +67,16 @@
             <% end %>
             <% if @reviews.empty? %>
               <div class="admin-reviews-empty">
-                <h2><%= @query.present? || @rating ? "No matching reviews" : "No reviews yet" %></h2>
-                <p><%= @query.present? || @rating ? "Try another nickname, title, author, phrase, or rating." : "Reader reviews will appear here when they are submitted." %></p>
+                <% if @query.present? || @rating %>
+                  <%= render "shared/empty_state", heading_level: 2, icon: "empty-search.svg",
+                        title: "No matching reviews",
+                        message: "Try another nickname, title, author, phrase, or rating.",
+                        action_label: "Clear filters", action_path: admin_reviews_path(sort: @sort, direction: @direction) %>
+                <% else %>
+                  <%= render "shared/empty_state", heading_level: 2, icon: "empty-message.svg",
+                        title: "No reviews yet",
+                        message: "Reader reviews will appear here when they are submitted." %>
+                <% end %>
               </div>
             <% end %>
           </div>
@@ -96,7 +104,11 @@
               <%= button_to "Delete review", admin_review_path(review, q: @query.presence, rating: @rating, sort: @sort, direction: @direction), method: :delete, class: "admin-review-delete-button", data: { turbo_confirm: "Permanently delete this review by #{review.user.nickname}?" } %>
             </div>
           <% else %>
-            <p class="admin-review-detail-empty">Select a review from the list to see its details.</p>
+            <div class="admin-review-detail-empty">
+              <%= render "shared/empty_state", size: :compact, icon: "empty-message.svg",
+                    title: "No review selected",
+                    message: "Select a review from the list to see its details." %>
+            </div>
           <% end %>
         </section>
       </div>
