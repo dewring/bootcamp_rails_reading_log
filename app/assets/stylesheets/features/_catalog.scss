@@ -674,3 +674,96 @@
 .catalog-page .pagy.series-nav {
   margin-top: 2rem;
 }
+
+// ── Catalog on narrow screens ──────────────────────────────
+// The fixed 280px sidebar pushed the book list off small screens. Below
+// 800px the sidebar stacks above the results (the same approach as the My
+// Log sidebar), the discovery links sit side by side, and genres become
+// wrapping chips instead of a two-column checkbox list.
+@media (max-width: 800px) {
+  // The page keeps its full-height minimum; the sidebar row hugs its
+  // content so the extra height goes to the results instead.
+  .catalog-page {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto 1fr;
+  }
+
+  .catalog-sidebar {
+    gap: 18px;
+    padding: 18px 16px;
+    border-right: 0;
+    border-bottom: 1px solid tokens.$gray-mid;
+  }
+
+  .catalog-find-new-books {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+
+    .catalog-sidebar-label {
+      grid-column: 1 / -1;
+    }
+  }
+
+  .catalog-genres {
+    gap: 8px;
+  }
+
+  .catalog-genre-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .catalog-genre-option {
+    padding: 6px 10px;
+    border: 1px solid tokens.$gray-mid;
+    border-radius: 999px;
+    background: #fff;
+    font-size: 12px;
+    font-weight: 500;
+
+    > span:not(.catalog-checkbox) {
+      overflow: visible;
+    }
+
+    .catalog-checkbox {
+      display: none !important;
+    }
+
+    &.is-active {
+      border-color: tokens.$accent;
+      background: #fdf1ef;
+      color: tokens.$accent !important;
+      font-weight: 700;
+    }
+  }
+
+  .catalog-content {
+    padding: 16px;
+  }
+
+  .catalog-search-row {
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+
+  .catalog-active-filters-slot {
+    flex: 0 0 auto;
+    width: auto;
+    height: auto;
+
+    &:not(:has(.catalog-active-filters)) {
+      display: none;
+    }
+  }
+
+  .catalog-results-header {
+    flex-wrap: wrap;
+  }
+
+  .catalog-sort-form {
+    margin-right: 0;
+  }
+}
