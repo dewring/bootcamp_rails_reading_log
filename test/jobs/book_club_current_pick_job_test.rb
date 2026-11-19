@@ -69,8 +69,8 @@ class BookClubCurrentPickJobTest < ActiveJob::TestCase
     end
 
     assert_equal 1, streams.size
-    assert_includes streams.first.text, "No current pick yet."
-    assert_includes streams.first.text, "No reading deadline"
+    assert_includes streams.first.text, "No book picked yet"
+    assert_not_includes streams.first.text, "No reading deadline"
     assert_nil streams.first.at_css("template time")
   end
 end

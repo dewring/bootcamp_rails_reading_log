@@ -165,4 +165,19 @@ class BookClubLeaderboardsControllerTest < ActionDispatch::IntegrationTest
     assert_select "h1", text: "Leaderboard"
     assert_select ".book-club-member-status", text: "Administrator view"
   end
+
+  test "leaderboard shows a designed empty state before a pick and before any pages are logged" do
+    club = BookClub.create!(name: "Quiet Circle")
+    club.book_club_memberships.create!(user: users(:leika), role: "owner")
+    sign_in users(:leika)
+
+    get book_club_leaderboard_path(club)
+
+    assert_select ".book-club-leaderboard-empty .empty-state--compact .empty-state-title", text: "No current pick yet"
+
+    club.update!(current_book: books(:pragmatic))
+    get book_club_leaderboard_path(club)
+
+    assert_select ".book-club-leaderboard-empty .empty-state--compact .empty-state-title", text: "No pages logged yet"
+  end
 end

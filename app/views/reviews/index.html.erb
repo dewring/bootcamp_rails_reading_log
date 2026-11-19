@@ -28,7 +28,10 @@
             </div>
             <%= render "shared/pagination", pagy: @pagy %>
           <% else %>
-            <p class="reviews-empty-state">You have not written any reviews yet. <%= link_to "Browse the catalog", books_path %> to find a book.</p>
+            <%= render "shared/empty_state", heading_level: 3, icon: "empty-message.svg",
+                  title: "No reviews yet",
+                  message: "Reviews you write on book pages will be collected here.",
+                  action_label: "Browse the catalog", action_path: books_path %>
           <% end %>
         </section>
       </div>

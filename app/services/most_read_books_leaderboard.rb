@@ -17,15 +17,16 @@ class MostReadBooksLeaderboard
 
   Row = Data.define(:rank, :book, :pages_read, :sessions, :readers)
 
-  def initialize(dates:, sort:)
+  def initialize(dates:, sort:, direction: nil)
     @dates = dates
     @sort = selected_sort(sort)
+    @direction = selected_direction(direction)
   end
 
   def ranked_activity
     ranked_relation(book_activity)
       .joins(:book)
-      .order(Arel.sql("rank ASC, books.title ASC, books.id ASC"))
+      .order(rank_order, Arel.sql("books.title ASC, books.id ASC"))
   end
 
   def rows(activity = ranked_activity)

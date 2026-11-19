@@ -57,18 +57,13 @@
         <h4>No reading records yet</h4>
         <p>Once you save a reading session, it will appear here as a record of your progress.</p>
       </div>
-      <% unless finished %>
-        <%= link_to "#reading-record", class: "reading-detail-save action-button action-button--primary" do %>
-          Add first reading record
-        <% end %>
-      <% end %>
     </div>
   <% end %>
 
   <div class="reading-detail-history-footer">
     <div>
       <strong>Reading history</strong>
-      <p><%= history_available ? "Your reading history is up to date. Continue reading to add the next session to this timeline." : "Your reading history is empty. Continue reading and save your first entry to start building this timeline." %></p>
+      <p><%= history_available ? "Your reading history is up to date. Save a new entry in Reading record to add the next session to this timeline." : "Your reading history is empty. Save your first entry in Reading record to start building this timeline." %></p>
     </div>
   </div>
 </section>

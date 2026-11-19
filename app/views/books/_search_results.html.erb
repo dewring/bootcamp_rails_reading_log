@@ -7,7 +7,8 @@
           <% if result["cover_i"] %>
             <%= image_tag "https://covers.openlibrary.org/b/id/#{result["cover_i"]}-M.jpg", class: "book-list-image" %>
           <% else %>
-            <div class="book-list-no-cover">📚</div>
+            <%= render "books/cover_fallback", title: result["title"], author: result["author_name"]&.first,
+                  seed: result["key"], size: :small, sizing_class: "book-list-no-cover" %>
           <% end %>
         </div>
 

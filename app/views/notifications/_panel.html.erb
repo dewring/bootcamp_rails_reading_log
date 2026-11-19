@@ -26,12 +26,13 @@
       </header>
 
       <% if notifications.empty? %>
-        <p>No notifications yet.</p>
+        <%= render "shared/empty_state", size: :compact, icon: "empty-bell.svg",
+              title: "You're all caught up",
+              message: "Club picks, replies, and other updates will show up here." %>
       <% else %>
         <ul class="notification-list">
           <% notifications.each do |notification| %>
             <li id="<%= dom_id(notification) %>" class="<%= "notification-unread" if notification.unread? %>">
-              <span class="notification-indicator" aria-hidden="true"></span>
               <div class="notification-content">
                 <% notification_url = notification.url %>
                 <% if notification_url.present? %>

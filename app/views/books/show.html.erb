@@ -4,7 +4,7 @@
   average_rating = ratings.any? ? format("%.1f", ratings.sum.to_f / ratings.size) : "0.0"
   rounded_rating = average_rating.to_f.round
   description = @book.description.to_s
-  main_description = description.gsub(/\(\[source\]\(.*?\)\)/, "").strip
+  main_description = book_description_without_source(@book)
   source_match = description.match(/\(\[source\]\((.*?)\)\)/)
   publication_details = [
     ("Published #{@edition_for_details.publish_year}" if @edition_for_details&.publish_year.present?),
@@ -15,7 +15,7 @@
 
 <main class="book-detail-page" data-controller="reaction-stream"
       data-action="turbo:frame-missing->reaction-stream#frameMissing turbo:fetch-request-error->reaction-stream#frameError"
-      data-reaction-stream-refresh-url-value="<%= book_path(@book) %>"
+      data-reaction-stream-refresh-url-value="<%= reaction_panels_book_path(@book) %>"
       data-reaction-stream-signed-stream-name-value="<%= Turbo::StreamsChannel.signed_stream_name("book_reactions_#{@book.id}") %>">
   <p role="status" data-reaction-stream-status hidden></p>
   <nav class="book-detail-breadcrumb" aria-label="Breadcrumb">
@@ -29,7 +29,8 @@
       <% if @book.cover_image.attached? %>
         <%= image_tag @book.cover_image.variant(resize_to_limit: [ 250, 368 ]), class: "book-show-image book-detail-cover-image", alt: "Cover of #{@book.title}" %>
       <% else %>
-        <div class="book-show-no-cover book-detail-no-cover" aria-label="No cover available">📚</div>
+        <%= render "books/cover_fallback", title: @book.title, author: @book.author, seed: @book.id,
+              size: :large, sizing_class: "book-detail-no-cover" %>
       <% end %>
     </div>
 
@@ -143,22 +144,13 @@
         <h2 id="book-detail-reviews-title">Reader reflections</h2>
         <p>What BookNook readers are saying about this book.</p>
       </div>
-      <% if user_signed_in? %>
-        <% if can_edit_review %>
-          <button type="button"
-                  class="book-detail-button book-detail-button-secondary"
-                  data-action="click->review-composer#open">
-            <%= image_tag "review-message-square.svg", alt: "", aria: { hidden: true } %>
-            <span>Edit my Review</span>
-          </button>
-        <% elsif can_write_review && @reviews.any? %>
-          <button type="button"
-                  class="book-detail-button book-detail-button-secondary"
-                  data-action="click->review-composer#open">
-            <%= image_tag "review-message-square.svg", alt: "", aria: { hidden: true } %>
-            <span>Write a Review</span>
-          </button>
-        <% end %>
+      <% if can_write_review && @reviews.any? %>
+        <button type="button"
+                class="book-detail-button book-detail-button-secondary"
+                data-action="click->review-composer#open">
+          <%= image_tag "review-message-square.svg", alt: "", aria: { hidden: true } %>
+          <span>Write a Review</span>
+        </button>
       <% end %>
     </div>
 
@@ -179,12 +171,18 @@
     <% else %>
       <div class="book-detail-review-grid">
         <% @reviews.each do |review| %>
-          <article id="<%= dom_id(review) %>" class="book-detail-review-card">
+          <% editable_review = can_edit_review && review == my_review %>
+          <article id="<%= dom_id(review) %>" class="<%= class_names("book-detail-review-card", "book-detail-review-card--own" => editable_review) %>">
             <div class="book-detail-review-header">
               <div class="book-detail-reviewer">
                 <%= render "users/avatar", user: review.user, variant: :review %>
                 <div>
-                  <strong><%= review.user.nickname %></strong>
+                  <span class="book-detail-reviewer-name">
+                    <strong><%= review.user.nickname %></strong>
+                    <% if editable_review %>
+                      <span class="book-detail-review-owner-badge">Your review</span>
+                    <% end %>
+                  </span>
                   <time datetime="<%= review.created_at.iso8601 %>"><%= review.created_at.strftime("%b %-d, %Y") %></time>
                 </div>
               </div>
@@ -193,8 +191,18 @@
               <% end %>
             </div>
             <p><%= review.body %></p>
-            <% counts = @reaction_types.to_h { |type| [ type.key, @review_reaction_counts.fetch([ review.id, type.key ], 0) ] } %>
-            <%= render "reactions/panel", target: review, types: @reaction_types, counts: counts, selected: @review_reaction_selections[review.id], errors: [] %>
+            <div class="book-detail-review-footer">
+              <% counts = @reaction_types.to_h { |type| [ type.key, @review_reaction_counts.fetch([ review.id, type.key ], 0) ] } %>
+              <%= render "reactions/panel", target: review, types: @reaction_types, counts: counts, selected: @review_reaction_selections[review.id], errors: [] %>
+              <% if editable_review %>
+                <button type="button"
+                        class="book-detail-button book-detail-button-secondary book-detail-review-edit"
+                        data-action="click->review-composer#open">
+                  <%= image_tag "detail-pencil.svg", alt: "", aria: { hidden: true } %>
+                  <span>Edit review</span>
+                </button>
+              <% end %>
+            </div>
           </article>
         <% end %>
       </div>
@@ -223,6 +231,7 @@
                 <%= f.radio_button :rating,
                                    rating,
                                    id: "book_review_rating_#{rating}",
+                                   required: true,
                                    data: { action: "change->review-composer#updateRating" } %>
                 <label for="book_review_rating_<%= rating %>"
                        aria-label="<%= rating %> out of 5 stars"
@@ -273,7 +282,8 @@
                 <% if edition.cover_image.attached? %>
                   <%= image_tag edition.cover_image, alt: "Cover of #{edition.title.presence || @book.title}" %>
                 <% else %>
-                  <div class="book-detail-edition-no-cover" aria-label="No cover available">📚</div>
+                  <%= render "books/cover_fallback", title: edition.title.presence || @book.title, author: @book.author,
+                        seed: @book.id, size: :small, sizing_class: "book-detail-edition-no-cover" %>
                 <% end %>
               </div>
               <div class="book-detail-edition-text">

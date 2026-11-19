@@ -57,26 +57,47 @@ class Admin::BooksControllerTest < ActionDispatch::IntegrationTest
     assert_select ".admin-catalog-filters button", text: /Status/, count: 0
   end
 
-  test "record actions and pagination preserve the catalog query" do
+  test "record actions and page links preserve the catalog query, sort, and direction" do
     genre = genres(:fiction)
-    6.times { |number| Book.create!(title: "Catalog #{number}", author: "Catalog Author", genres: [ genre ]) }
+    12.times { |number| Book.create!(title: "Catalog #{format('%02d', number)}", author: "Catalog Author", genres: [ genre ]) }
 
-    get admin_catalog_path, params: { q: "Catalog", genre: "Fiction", page: 1 }
+    get admin_catalog_path, params: { q: "Catalog", genre: "Fiction", sort: "title", direction: "desc", page: 1 }
 
-    assert_select ".admin-catalog-record", count: 4
+    assert_select ".admin-catalog-record", count: 10
     assert_select "a[aria-label^='Edit Catalog']" do |links|
       links.each do |link|
         query = Rack::Utils.parse_query(URI.parse(link["href"]).query)
         assert_equal "Catalog", query["q"]
         assert_equal "Fiction", query["genre"]
+        assert_equal "desc", query["direction"]
         assert_equal "1", query["page"]
       end
     end
-    assert_select "a.admin-catalog-load-more" do |links|
+    assert_select ".admin-catalog-list-footer nav.pagy a[href*='page=2']", minimum: 1 do |links|
       query = Rack::Utils.parse_query(URI.parse(links.first["href"]).query)
-      assert_equal "2", query["page"]
       assert_equal "Catalog", query["q"]
       assert_equal "Fiction", query["genre"]
+      assert_equal "title", query["sort"]
+      assert_equal "desc", query["direction"]
+    end
+    assert_select "a.admin-catalog-load-more", count: 0
+  end
+
+  test "catalog sort options order books by title or author in either direction" do
+    Book.create!(title: "Aardvark Tales", author: "Zed Writer")
+    Book.create!(title: "Zebra Tales", author: "Abby Writer")
+
+    {
+      { sort: "title", direction: "asc" } => [ { title: :asc, id: :asc }, "Title · A–Z" ],
+      { sort: "title", direction: "desc" } => [ { title: :desc, id: :desc }, "Title · Z–A" ],
+      { sort: "author", direction: "asc" } => [ { author: :asc, title: :asc, id: :asc }, "Author · A–Z" ],
+      { sort: "author", direction: "desc" } => [ { author: :desc, title: :desc, id: :desc }, "Author · Z–A" ]
+    }.each do |options, (expected_order, label)|
+      get admin_catalog_path, params: options
+
+      assert_response :success
+      assert_equal Book.reorder(expected_order).limit(10).pluck(:id), assigns(:books).map(&:id), "#{label} returned the wrong order"
+      assert_select "button[aria-controls='admin-catalog-sort-menu']", text: label
     end
   end
 

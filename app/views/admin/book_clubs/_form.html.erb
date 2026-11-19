@@ -4,6 +4,7 @@
 <%= form_with model: [:admin, club], class: "admin-club-form" do |f| %>
   <%= hidden_field_tag :q, @query if @query.present? %>
   <%= hidden_field_tag :sort, @sort %>
+  <%= hidden_field_tag :direction, @direction %>
   <%= hidden_field_tag :page, params[:page] if params[:page].present? %>
   <div class="admin-club-field-grid">
     <div class="admin-field"><%= f.label :name, "Club name" %><%= f.text_field :name, required: true %></div>
@@ -13,7 +14,7 @@
     <div class="admin-field admin-club-description"><%= f.label :description %><%= f.text_area :description, rows: 4 %></div>
   </div>
   <div class="admin-club-form-actions">
-    <%= link_to "Cancel", admin_book_clubs_path(club_id: (club.id if club.persisted?), q: @query.presence, sort: @sort, page: params[:page]), class: "admin-secondary-button" if @is_new_club %>
+    <%= link_to "Cancel", admin_book_clubs_path(club_id: (club.id if club.persisted?), q: @query.presence, sort: @sort, direction: @direction, page: params[:page]), class: "admin-secondary-button" if @is_new_club %>
     <%= f.submit club.persisted? ? "Save changes" : "Create Club", class: "admin-primary-button" %>
   </div>
 <% end %>

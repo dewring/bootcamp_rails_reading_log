@@ -2,12 +2,16 @@
   <% if book_club.current_book.nil? %>
     <div class="book-club-leaderboard-empty">
       <h2>Leaderboard</h2>
-      <p>Set a current pick to start the leaderboard.</p>
+      <%= render "shared/empty_state", size: :compact, icon: "empty-trophy.svg",
+            title: "No current pick yet",
+            message: "Set a current pick to start the leaderboard." %>
     </div>
   <% elsif leaderboard.empty? %>
     <div class="book-club-leaderboard-empty">
       <h2>Leaderboard</h2>
-      <p>No pages logged for the current pick yet.</p>
+      <%= render "shared/empty_state", size: :compact, icon: "empty-trophy.svg",
+            title: "No pages logged yet",
+            message: "Readers who log pages for the current pick will be ranked here." %>
     </div>
   <% else %>
     <% first_reader, second_reader, third_reader = leaderboard[0], leaderboard[1], leaderboard[2] %>

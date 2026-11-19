@@ -449,6 +449,50 @@
   }
 }
 
+// The reader's own review is outlined and carries its edit action, so it is
+// clear which review the composer will change.
+.book-detail-review-card--own {
+  border-color: rgba(231, 126, 120, 0.45);
+}
+
+.book-detail-reviewer-name {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.book-detail-review-owner-badge {
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: #fdf1ef;
+  color: tokens.$accent;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.book-detail-review-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.book-detail-review-edit {
+  min-height: 32px;
+  margin: 0;
+  padding: 0 14px;
+  font-size: 13px;
+
+  img {
+    width: 14px;
+    height: 14px;
+  }
+}
+
 .book-detail-empty {
   margin-bottom: 0;
   color: tokens.$text-muted;
@@ -533,12 +577,7 @@
 .book-detail-edition-no-cover {
   width: 64px;
   height: 94px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   border-radius: 5px;
-  background: tokens.$gray-light;
-  font-size: 1.5rem;
 }
 
 @media (max-width: 960px) {

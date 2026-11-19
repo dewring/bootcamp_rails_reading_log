@@ -33,7 +33,8 @@
                       class: "my-log-book-cover",
                       alt: "Cover of #{user_book.book.title}" %>
               <% else %>
-                <div class="my-log-book-cover my-log-book-cover--empty" aria-hidden="true">📚</div>
+                <%= render "books/cover_fallback", title: user_book.book.title, author: user_book.book.author,
+                      seed: user_book.book.id, size: :medium, sizing_class: "my-log-book-cover" %>
               <% end %>
               <strong><%= user_book.book.title %></strong>
               <span><%= user_book.book.author %></span>
@@ -50,7 +51,11 @@
       </button>
     </div>
   <% else %>
-    <% empty_message = shelf_class == "my-log-section--reading" ? "No books in progress yet." : "No books saved for later yet." %>
-    <p class="my-log-empty-shelf"><%= empty_message %></p>
+    <% reading_shelf = shelf_class == "my-log-section--reading" %>
+    <div class="my-log-empty-shelf">
+      <%= render "shared/empty_state", size: :compact,
+            title: reading_shelf ? "No books in progress yet" : "No books saved for later yet",
+            message: reading_shelf ? "Books you start reading will show up on this shelf." : "Books you mark as Want to Read will wait here." %>
+    </div>
   <% end %>
 </section>

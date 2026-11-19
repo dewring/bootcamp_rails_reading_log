@@ -1,6 +1,10 @@
 class Admin::BooksController < ApplicationController
   include RequireAuthenticatedAdmin
+  include AdminListSorting
   layout "admin", only: [ :index ]
+
+  SORT_FIELDS = { "title" => [ "Title", :text ], "author" => [ "Author", :text ] }.freeze
+  SORT_COLUMNS = { "title" => [ :title ], "author" => [ :author, :title ] }.freeze
   before_action :set_book, only: [ :edit, :update, :destroy ]
 
   def index
@@ -61,8 +65,9 @@ class Admin::BooksController < ApplicationController
       books = books.where("books.title ILIKE :query OR books.author ILIKE :query", query: query)
     end
     books = books.joins(:genres).where(genres: { name: params[:genre] }).distinct if params[:genre].present?
-    books = books.order(:title, :id)
-    @pagy, @books = pagy(:offset, books, limit: 4)
+    select_admin_list_sort(SORT_FIELDS)
+    books = books.order(admin_list_order(SORT_COLUMNS.fetch(@sort)))
+    @pagy, @books = pagy(:offset, books, limit: 10)
   end
 
   def selected_book

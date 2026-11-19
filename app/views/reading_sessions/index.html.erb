@@ -64,7 +64,11 @@
               </button>
             </div>
           <% else %>
-            <p class="my-log-empty-shelf">No badges available yet.</p>
+            <div class="my-log-empty-shelf">
+              <%= render "shared/empty_state", size: :compact, icon: "history-award.svg",
+                    title: "No badges available yet",
+                    message: "Badges you can earn will appear here." %>
+            </div>
           <% end %>
         </section>
 
@@ -96,7 +100,8 @@
                               class: "my-log-book-cover",
                               alt: "Cover of #{user_book.book.title}" %>
                       <% else %>
-                        <div class="my-log-book-cover my-log-book-cover--empty" aria-hidden="true">📚</div>
+                        <%= render "books/cover_fallback", title: user_book.book.title, author: user_book.book.author,
+                              seed: user_book.book.id, size: :medium, sizing_class: "my-log-book-cover" %>
                       <% end %>
                       <strong><%= user_book.book.title %></strong>
                       <span><%= user_book.book.author %></span>
@@ -113,7 +118,11 @@
               </button>
             </div>
           <% else %>
-            <p class="my-log-empty-shelf">No finished books yet.</p>
+            <div class="my-log-empty-shelf">
+              <%= render "shared/empty_state", size: :compact,
+                    title: "No finished books yet",
+                    message: "Books you finish will be collected here." %>
+            </div>
           <% end %>
         </section>
       </div>

@@ -441,6 +441,9 @@
 .notification-list {
   display: flex !important;
   flex-direction: column;
+  // The panel sits inside the nav list, whose `.nav-inner ul` rule centers its
+  // items; stretch the rows so short read notifications are not shrunk and centered.
+  align-items: stretch !important;
   gap: 12px !important;
   max-height: 24rem;
   margin: 0 !important;
@@ -448,12 +451,15 @@
   overflow-y: auto;
   list-style: none;
 
+  // Read and unread rows share the same left padding so their text lines up;
+  // unread rows are marked by their background and a coral left bar instead
+  // of a dot that left an empty slot on read rows.
   > li {
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     gap: 12px;
     margin: 0;
-    padding: 8px;
+    padding: 8px 8px 8px 12px;
     border-radius: 8px;
     background: transparent;
     font-size: 13px;
@@ -461,6 +467,7 @@
     &.notification-unread {
       border-left: 0;
       background: #fdf1ef;
+      box-shadow: inset 3px 0 0 tokens.$accent;
     }
   }
 
@@ -476,21 +483,8 @@
   }
 }
 
-.notification-indicator {
-  display: block;
-  flex: 0 0 8px;
-  width: 8px;
-  height: 8px;
-  margin-top: 4px;
-  border-radius: 4px;
-  background: transparent;
-}
-
-.notification-unread .notification-indicator {
-  background: tokens.$accent;
-}
-
 .notification-content {
+  flex: 1 1 auto;
   min-width: 0;
 
   a,

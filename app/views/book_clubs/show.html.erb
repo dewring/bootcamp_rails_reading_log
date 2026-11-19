@@ -39,7 +39,9 @@
         <section class="book-club-overview-card book-club-past-picks-card">
           <h2>Past picks</h2>
           <% if @past_picks.empty? %>
-            <p class="book-club-muted-copy">No past picks yet.</p>
+            <%= render "shared/empty_state", size: :compact,
+                  title: "No past picks yet",
+                  message: "Books the club finishes reading will be listed here." %>
           <% else %>
             <div class="book-club-past-picks-list">
               <% @past_picks.each do |entry| %>

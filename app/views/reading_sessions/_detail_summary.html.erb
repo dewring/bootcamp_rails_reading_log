@@ -5,7 +5,8 @@
             class: "reading-detail-cover",
             alt: "Cover of #{@book.title}" %>
     <% else %>
-      <div class="reading-detail-cover reading-detail-cover--empty" aria-label="No cover available">📚</div>
+      <%= render "books/cover_fallback", title: @book.title, author: @book.author, seed: @book.id,
+            size: :large, sizing_class: "reading-detail-cover" %>
     <% end %>
   </div>
 
@@ -30,20 +31,14 @@
             <span>Delete</span>
           <% end %>
         <% end %>
-      <% else %>
-        <%= link_to "#reading-record", class: "reading-detail-action reading-detail-action--primary action-button action-button--primary" do %>
-          <%= image_tag "reading-book-open.svg", alt: "" %>
-          <span>Continue Reading</span>
-        <% end %>
-        <% if user_book %>
-          <%= button_to user_book_path(user_book),
-                method: :patch,
-                params: { user_book: { status: "finished" } },
-                form: { class: "reading-detail-inline-form" },
-                class: "reading-detail-action reading-detail-action--finished action-button action-button--active action-button--compact" do %>
-            <%= image_tag "reading-check-circle.svg", alt: "" %>
-            <span>Finished</span>
-          <% end %>
+      <% elsif user_book %>
+        <%= button_to user_book_path(user_book),
+              method: :patch,
+              params: { user_book: { status: "finished" } },
+              form: { class: "reading-detail-inline-form" },
+              class: "reading-detail-action reading-detail-action--finished action-button action-button--active action-button--compact" do %>
+          <%= image_tag "reading-check-circle.svg", alt: "" %>
+          <span>Finished</span>
         <% end %>
       <% end %>
     </div>

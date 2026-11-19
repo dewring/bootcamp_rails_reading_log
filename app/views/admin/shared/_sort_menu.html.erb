@@ -1,0 +1,23 @@
+<%# locals: (menu_id:, menu_label:, current_label:, groups:, wrapper_class:, trigger_class:, trigger_aria:) -%>
+<%# Shared admin sort dropdown. Options are grouped by field, and each option names its direction. %>
+<div class="<%= class_names(wrapper_class, "admin-select-dropdown") %>" data-controller="nav-menu" data-action="dropdown:opened@window->nav-menu#closeIfAnother click@document->nav-menu#closeOnOutsideClick keydown.esc@document->nav-menu#closeOnEscape">
+  <%= tag.button type: "button",
+        class: class_names(trigger_class, "admin-select-trigger"),
+        data: { nav_menu_target: "trigger", action: "click->nav-menu#toggle" },
+        aria: { expanded: "false", controls: menu_id, **trigger_aria } do %>
+    <span><%= current_label %></span>
+    <%= image_tag "catalog-chevron-down.svg", alt: "", aria: { hidden: true } %>
+  <% end %>
+  <nav id="<%= menu_id %>" class="catalog-dropdown-menu admin-select-menu admin-sort-menu" data-nav-menu-target="menu" aria-label="<%= menu_label %>" hidden>
+    <% groups.each_with_index do |group, index| %>
+      <div class="admin-sort-group" role="group" aria-labelledby="<%= menu_id %>-group-<%= index %>">
+        <p id="<%= menu_id %>-group-<%= index %>" class="admin-sort-group-label"><%= group[:label] %></p>
+        <% group[:options].each do |option| %>
+          <%= link_to option[:label], option[:path],
+                class: class_names("catalog-dropdown-option", "is-selected" => option[:selected]),
+                aria: { current: ("true" if option[:selected]) } %>
+        <% end %>
+      </div>
+    <% end %>
+  </nav>
+</div>

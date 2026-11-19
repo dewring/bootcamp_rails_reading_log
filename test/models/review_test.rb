@@ -21,4 +21,10 @@ class ReviewTest < ActiveSupport::TestCase
     @review.rating = 6
     assert_not @review.valid?
   end
+  test "a review without a rating explains that a star rating must be selected" do
+    @review.rating = nil
+
+    assert_not @review.valid?
+    assert_includes @review.errors.full_messages, "Rating must be selected (0 to 5 stars)"
+  end
 end

@@ -98,10 +98,10 @@ class Admin::ReportsControllerTest < ActionDispatch::IntegrationTest
     assert_select ".admin-report-table th[aria-sort='descending']", text: "Sessions"
     assert_select ".admin-report-table tbody tr:first-child th[scope='row']", text: /#{books(:pragmatic).title}/
     assert_select ".admin-report-table tbody tr:first-child td:last-child", text: "18.2%"
-    assert_select "button[aria-controls='admin-report-sort-menu'][aria-expanded='false']", text: /Sessions/
+    assert_select "button[aria-controls='admin-report-sort-menu'][aria-expanded='false']", text: "Sessions · Highest first"
     assert_select "nav#admin-report-sort-menu[hidden]" do
-      assert_select "a[aria-current='true']", text: /Sessions/
-      assert_select "a", count: 3 do |links|
+      assert_select ".admin-sort-group[aria-labelledby] a[aria-current='true'][href*='sort=sessions'][href*='direction=desc']", text: "Highest first"
+      assert_select "a", count: 6 do |links|
         links.each do |link|
           query = Rack::Utils.parse_nested_query(URI.parse(link["href"]).query)
           assert_equal "custom", query["period"]
@@ -127,7 +127,7 @@ class Admin::ReportsControllerTest < ActionDispatch::IntegrationTest
       query = Rack::Utils.parse_nested_query(uri.query)
 
       assert_equal admin_report_path, uri.path
-      assert_equal({ "tab" => "power_users", "sort" => "pages_read" }, query)
+      assert_equal({ "tab" => "power_users", "sort" => "pages_read", "direction" => "desc" }, query)
     end
   end
 
@@ -150,7 +150,7 @@ class Admin::ReportsControllerTest < ActionDispatch::IntegrationTest
         assert_equal "active_days", query["sort"]
       end
     end
-    assert_select "#admin-report-sort-menu a", count: 4 do |links|
+    assert_select "#admin-report-sort-menu a", count: 8 do |links|
       links.each do |link|
         query = Rack::Utils.parse_nested_query(URI.parse(link["href"]).query)
         assert_equal "power_users", query["tab"]
@@ -278,6 +278,39 @@ class Admin::ReportsControllerTest < ActionDispatch::IntegrationTest
           end
         end
       end
+    end
+  end
+
+  test "lowest first lists the smallest value first and marks the column ascending" do
+    sign_in users(:admin)
+    ReadingSession.create!(user: users(:leika), book: books(:refactoring), read_on: Date.new(2026, 11, 5), pages_read: 90)
+    ReadingSession.create!(user: users(:jaina), book: books(:pragmatic), read_on: Date.new(2026, 11, 5), pages_read: 10)
+
+    travel_to Time.zone.local(2026, 11, 11, 18, 0) do
+      get admin_report_path, params: { period: "last_7_days", sort: "pages_read", direction: "asc" }
+    end
+
+    assert_response :success
+    assert_select ".admin-report-table tbody tr:first-child th[scope='row']", text: /#{books(:pragmatic).title}/
+    assert_select ".admin-report-table th[aria-sort='ascending']", text: "Pages"
+    assert_select "button[aria-controls='admin-report-sort-menu']", text: "Pages read · Lowest first"
+    assert_select "#admin-report-sort-menu a.is-selected[href*='sort=pages_read'][href*='direction=asc']", text: "Lowest first", count: 1
+    assert_select "#admin-report-period-menu a" do |links|
+      links.each { |link| assert_includes link["href"], "direction=asc" }
+    end
+  end
+
+  test "an empty leaderboard period shows the designed empty state in the table" do
+    sign_in users(:admin)
+
+    travel_to Time.zone.local(2030, 1, 15, 12, 0) do
+      get admin_report_path, params: { period: "today" }
+    end
+
+    assert_response :success
+    assert_select ".admin-report-table td.admin-report-empty[colspan='6'] .empty-state--compact" do
+      assert_select ".empty-state-title", text: "No reading activity"
+      assert_select ".empty-state-message", text: /No reading sessions in this period\./
     end
   end
 end

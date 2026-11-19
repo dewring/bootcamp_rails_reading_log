@@ -4,7 +4,9 @@
 # Sort keys come from each leaderboard's fixed RANK_EXPRESSIONS, so request
 # params never reach the query text. Rank the full result before pagination.
 module RankedLeaderboard
-  attr_reader :sort
+  RANK_DIRECTIONS = [ "desc", "asc" ].freeze
+
+  attr_reader :sort, :direction
 
   def sort_options
     self.class::SORT_OPTIONS
@@ -17,6 +19,16 @@ module RankedLeaderboard
     return requested if self.class::RANK_EXPRESSIONS.key?(requested)
 
     self.class::DEFAULT_SORT
+  end
+
+  def selected_direction(requested_direction)
+    requested_direction.to_s.presence_in(RANK_DIRECTIONS) || "desc"
+  end
+
+  # Highest first ("desc") keeps rank 1 on top. Lowest first reverses the list,
+  # while every row keeps its rank number, so "1" always means the highest value.
+  def rank_order
+    direction == "asc" ? Arel.sql("rank DESC") : Arel.sql("rank ASC")
   end
 
   def rank_expression

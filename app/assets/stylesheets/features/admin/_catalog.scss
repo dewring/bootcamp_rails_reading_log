@@ -235,17 +235,17 @@
   .admin-catalog-delete { color: #d9383a !important; }
 
   .admin-catalog-list-footer {
+    flex-direction: column;
     justify-content: center;
-    gap: 4px;
+    gap: 10px;
     padding: 12px 0 0;
     font-size: 12px;
     line-height: 15px;
-  }
 
-  .admin-catalog-load-more {
-    color: tokens.$text-muted !important;
-    font-size: 12px;
-    font-weight: 400;
+    .pagy.series-nav {
+      margin: 0;
+      gap: 4px;
+    }
   }
 
   .admin-catalog-detail-intro {

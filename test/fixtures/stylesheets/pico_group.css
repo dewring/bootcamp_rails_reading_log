@@ -1,0 +1,28 @@
+/* Pico CSS v2.1.1 group rules, MIT license.
+ * Source: https://cdn.jsdelivr.net/npm/@picocss/pico@2.1.1/css/pico.css
+ * Kept locally so layout tests do not request external stylesheets. */
+:root {
+  --pico-spacing: 1rem;
+  --pico-border-radius: 0.25rem;
+}
+[role=search],
+[role=group] {
+  display: inline-flex;
+  position: relative;
+  width: 100%;
+  margin-bottom: var(--pico-spacing);
+  border-radius: var(--pico-border-radius);
+  box-shadow: var(--pico-group-box-shadow, 0 0 0 rgba(0, 0, 0, 0));
+  vertical-align: middle;
+  transition: box-shadow var(--pico-transition);
+}
+[role=search] > *,
+[role=search] input:not([type=checkbox], [type=radio]),
+[role=search] select,
+[role=group] > *,
+[role=group] input:not([type=checkbox], [type=radio]),
+[role=group] select {
+  position: relative;
+  flex: 1 1 auto;
+  margin-bottom: 0;
+}

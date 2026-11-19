@@ -23,13 +23,13 @@ class HomeDiscoveryControllerTest < ActionDispatch::IntegrationTest
     Rails.cache = @previous_cache
   end
 
-  test "control keeps the challenge hero and eight ranked cards with aggregate reaction totals" do
+  test "control keeps the book of the day hero and eight ranked cards with aggregate reaction totals" do
     sign_in @reader
 
     get root_path
 
     assert_response :success
-    assert_select "h1", text: "Summer Reading Challenge — Join Now"
+    assert_select ".home-hero .home-hero-badge", text: "BOOK OF THE DAY"
     assert_select ".home-trending .trending-book-card", count: 8
     assert_select ".home-trending .trending-total", count: 8
     assert_select ".home-trending .trending-rank[aria-label='Rank 1']", count: 1
@@ -102,7 +102,7 @@ class HomeDiscoveryControllerTest < ActionDispatch::IntegrationTest
     Flipper.disable(:discovery_experiment_running_v1)
     get root_path
 
-    assert_select "h1", text: "Summer Reading Challenge — Join Now"
+    assert_select ".home-hero .home-hero-badge", text: "BOOK OF THE DAY"
     assert_select ".home-trending a.book-card", count: 8
     assert_select ".home-trending .trending-rank, .home-trending .trending-total", count: 16
     assert_select ".home-trending-hero", count: 0
@@ -129,7 +129,7 @@ class HomeDiscoveryControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_select ".home-trending-hero", count: 0
     assert_select ".home-trending .trending-rank, .home-trending .trending-total", count: 16
-    assert_select "h1", text: "Summer Reading Challenge — Join Now"
+    assert_select ".home-hero .home-hero-badge", text: "BOOK OF THE DAY"
   end
 
   test "a suspended signed in user retains the existing Devise sign in redirect" do
@@ -142,14 +142,14 @@ class HomeDiscoveryControllerTest < ActionDispatch::IntegrationTest
     assert_redirected_to new_user_session_path
   end
 
-  test "an empty ranking preserves the challenge hero and empty Trending state" do
+  test "an empty ranking preserves the book of the day hero and empty Trending state" do
     sign_in @reader
     Flipper.enable_percentage_of_actors(:discovery_hero_trending_v1, 100)
     Reaction.delete_all
 
     get root_path
 
-    assert_select "h1", text: "Summer Reading Challenge — Join Now"
+    assert_select ".home-hero .home-hero-badge", text: "BOOK OF THE DAY"
     assert_select ".home-trending .empty-state", count: 1
     assert_select ".home-trending-hero", count: 0
   end

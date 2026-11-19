@@ -125,15 +125,22 @@ class BookControllerTest < ActionDispatch::IntegrationTest
     assert_select ".book-detail-reviewer strong", text: /leika/, count: 0
     assert_select ".book-detail-section-heading button[data-action='click->review-composer#open']", text: /Write a Review/
     assert_select ".book-detail-review-composer[data-review-composer-target='composer'][hidden]", count: 1
+    assert_select ".book-detail-review-card--own", count: 0
+    assert_select "button.book-detail-review-edit", count: 0
   end
 
-  test "review owner sees an inline edit composer without an edit-page link" do
+  test "review owner edits from a button inside their own review card instead of the section header" do
     sign_in users(:leika)
 
     get book_path(books(:refactoring))
 
     assert_response :success
-    assert_select "button.book-detail-button[data-action='click->review-composer#open']", text: /Edit my Review/, count: 1
+    assert_select "##{dom_id(reviews(:review1))}.book-detail-review-card--own", count: 1 do
+      assert_select ".book-detail-review-owner-badge", text: "Your review", count: 1
+      assert_select ".book-detail-review-footer button.book-detail-review-edit[data-action='click->review-composer#open']", text: /Edit review/, count: 1
+    end
+    assert_select ".book-detail-section-heading button", count: 0
+    assert_select "button.book-detail-review-edit", count: 1
     assert_select "a[href='#{edit_book_review_path(books(:refactoring), reviews(:review1))}']", count: 0
     assert_select ".book-detail-review-composer h3", text: "Edit a review", count: 1
     assert_select ".book-detail-review-composer form[action='#{book_review_path(books(:refactoring), reviews(:review1))}']", count: 1
@@ -439,7 +446,7 @@ class BookControllerTest < ActionDispatch::IntegrationTest
       assert_select ".catalog-filter-dropdown .catalog-dropdown-trigger span", text: "All Books", count: 1
       assert_select "#catalog-filter-menu a.is-selected", count: 0
       assert_select "#catalog-filter-menu a[aria-current='page']", count: 0
-      assert_select ".catalog-sort-trigger span", text: options[:sort] == "author" ? "Author" : "Title A-Z", count: 1
+      assert_select ".catalog-sort-trigger span", text: options[:sort] == "author" ? "Author A–Z" : "Title A–Z", count: 1
     end
   end
 
@@ -546,8 +553,69 @@ class BookControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_select ".catalog-sort-form[data-controller='nav-menu']", count: 1
     assert_select "button.catalog-sort-trigger[aria-controls='catalog-sort-menu']", text: /Author/, count: 1
-    assert_select "#catalog-sort-menu a.catalog-sort-option.is-selected[href*='sort=author']", text: "Author", count: 1
-    assert_select "#catalog-sort-menu a[href*='sort=title'][href*='q=Book'][href*='genre=Fiction']", text: "Title A-Z", count: 1
+    assert_select "#catalog-sort-menu a.catalog-sort-option.is-selected[href*='sort=author'][href*='direction=asc']", text: "Author A–Z", count: 1
+    assert_select "#catalog-sort-menu a[href*='sort=title'][href*='direction=asc'][href*='q=Book'][href*='genre=Fiction']", text: "Title A–Z", count: 1
+  end
+
+  test "catalog only offers sorting by information shown on the cards" do
+    sign_in users(:leika)
+
+    get books_path
+
+    assert_response :success
+    assert_equal [ "Title A–Z", "Title Z–A", "Author A–Z", "Author Z–A" ], css_select("#catalog-sort-menu a.catalog-sort-option").map { |option| option.text.strip }
+    assert_select "#catalog-sort-menu a[href*='sort=total_pages']", count: 0
+  end
+
+  test "an unsupported page count sort falls back to title order" do
+    sign_in users(:leika)
+    Book.create!(title: "Aaa Short Title", author: "Zed Author", total_pages: 999)
+
+    get books_path, params: { sort: "total_pages" }
+
+    assert_response :success
+    assert_equal Book.order(:title).limit(10).pluck(:title), assigns(:books).map(&:title)
+    assert_select ".catalog-sort-trigger span", text: "Title A–Z", count: 1
+  end
+
+  test "catalog sort direction matches the selected option for titles and authors" do
+    sign_in users(:leika)
+    alpha = Book.create!(title: "Direction Alpha", author: "Ziggy Writer")
+    omega = Book.create!(title: "Direction Omega", author: "Abby Writer")
+
+    {
+      { sort: "title", direction: "asc" } => [ [ alpha, omega ], "Title A–Z" ],
+      { sort: "title", direction: "desc" } => [ [ omega, alpha ], "Title Z–A" ],
+      { sort: "author", direction: "asc" } => [ [ omega, alpha ], "Author A–Z" ],
+      { sort: "author", direction: "desc" } => [ [ alpha, omega ], "Author Z–A" ]
+    }.each do |options, (expected_books, label)|
+      get books_path, params: { q: "Direction" }.merge(options)
+
+      assert_response :success
+      assert_equal expected_books.map(&:id), assigns(:books).map(&:id), "#{label} returned the wrong order"
+      assert_select ".catalog-sort-trigger span", text: label, count: 1
+      assert_select "#catalog-sort-menu a.is-selected[aria-current='page']", text: label, count: 1
+    end
+  end
+
+  test "an unknown sort direction falls back to ascending" do
+    sign_in users(:leika)
+
+    get books_path, params: { sort: "title", direction: "sideways" }
+
+    assert_response :success
+    assert_select ".catalog-sort-trigger span", text: "Title A–Z", count: 1
+  end
+
+  test "search and genre links keep the selected sort direction" do
+    sign_in users(:leika)
+
+    get books_path, params: { sort: "author", direction: "desc" }
+
+    assert_response :success
+    assert_select ".catalog-search-form input[type='hidden'][name='direction'][value='desc']", count: 1
+    assert_select "a.catalog-genre-option[href*='sort=author'][href*='direction=desc']", minimum: 1
+    assert_select "#catalog-sort-menu .catalog-sort-group[role='group']", count: 2
   end
 
   test "active genre filter link clears the genre on the next click" do
@@ -561,15 +629,19 @@ class BookControllerTest < ActionDispatch::IntegrationTest
     assert_select "a.catalog-genre-option:not(.is-active)[href*='genre=Fantasy']", count: 1
   end
 
-  test "catalog sidebar exposes the Figma find dropdown options" do
+  test "catalog sidebar shows Open Library and Search ISBN as visible links instead of a dropdown" do
     sign_in users(:leika)
 
     get books_path
 
     assert_response :success
-    assert_select "button.catalog-dropdown-trigger[aria-controls='catalog-find-menu']", count: 1
-    assert_select "#catalog-find-menu a[href='#{search_books_path}']", text: "Open Library", count: 1
-    assert_select "#catalog-find-menu a[href='#{quick_add_books_path}']", text: "Search ISBN", count: 1
+    assert_select "nav.catalog-find-new-books[aria-labelledby='catalog-find-new-books-label']", count: 1 do
+      assert_select "#catalog-find-new-books-label", text: "Find New Books", count: 1
+      assert_select "a.catalog-external-link[href='#{search_books_path}']", text: "Open Library", count: 1
+      assert_select "a.catalog-external-link[href='#{quick_add_books_path}']", text: "Search ISBN", count: 1
+      assert_select "button", count: 0
+    end
+    assert_select "#catalog-find-menu", count: 0
   end
 
   test "catalog search uses a wide input and a separate search button" do
@@ -610,6 +682,57 @@ class BookControllerTest < ActionDispatch::IntegrationTest
     get admin_catalog_path(new_book: true)
     assert_response :success
     assert_select "form[action='#{admin_books_path}'] input[name='book[title]']"
+  end
+
+  test "catalog shows a pastel title cover with the title and author for a book without a cover image" do
+    sign_in users(:leika)
+    book = books(:refactoring)
+
+    get books_path
+
+    assert_response :success
+    assert_select ".book-cover-fallback.book-cover-fallback--medium.book-list-no-cover[role='img'][aria-label='Cover of #{book.title}']", count: 1 do
+      assert_select ".book-cover-fallback-surface[class*='book-cover-fallback--tone-']", count: 1
+      assert_select ".book-cover-fallback-title", text: book.title, count: 1
+      assert_select ".book-cover-fallback-author", text: book.author, count: 1
+    end
+    assert_no_match "📚", response.body
+  end
+
+  test "book detail shows a large fallback cover for a book without a cover image" do
+    sign_in users(:leika)
+    book = books(:refactoring)
+
+    get book_path(book)
+
+    assert_response :success
+    assert_select ".book-detail-cover-frame .book-cover-fallback--large[aria-label='Cover of #{book.title}']", count: 1 do
+      assert_select ".book-cover-fallback-title", text: book.title
+    end
+  end
+
+  test "catalog search without results explains it and offers to clear the filters" do
+    sign_in users(:leika)
+
+    get books_path, params: { q: "zzz-no-such-book" }
+
+    assert_response :success
+    assert_select ".book-list", count: 0
+    assert_select ".empty-state.empty-state--panel" do
+      assert_select "h2.empty-state-title", text: "No books match your search"
+      assert_select "a.empty-state-action[href='#{books_path}']", text: "Clear filters"
+    end
+  end
+
+  test "an empty catalog says so without a clear-filters action" do
+    sign_in users(:leika)
+    Book.destroy_all
+
+    get books_path
+
+    assert_response :success
+    assert_select ".empty-state h2.empty-state-title", text: "No books in the catalog yet"
+    assert_select ".empty-state a", count: 0
   end
 
   test "catalog cards do not show Add to Log actions" do

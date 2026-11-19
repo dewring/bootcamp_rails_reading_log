@@ -3,7 +3,7 @@
 <% if @hero_trending %>
   <%= render "home/trending_hero" %>
 <% else %>
-  <%= render "home/hero" %>
+  <%= render "home/hero" if @book_of_the_day %>
   <%= render "home/trending" %>
 <% end %>
 
@@ -25,7 +25,9 @@
     </div>
   <% end %>
   <% if @most_read.empty? %>
-    <p class="empty-state">No books found for this genre.</p>
+    <%= render "shared/empty_state", size: :compact,
+          title: "No books in this genre yet",
+          message: "Try another genre, or choose Reset to see every book." %>
   <% else %>
     <div class="home-carousel-track">
       <div class="book-row">

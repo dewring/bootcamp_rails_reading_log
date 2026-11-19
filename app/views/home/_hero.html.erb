@@ -1,20 +1,39 @@
+<% book = @book_of_the_day %>
+<% summary = book_description_excerpt(book) %>
+<% genres = book.genres.to_a %>
 <section class="home-hero" aria-labelledby="home-hero-title">
   <div class="home-hero-content">
-    <span class="home-hero-badge">SUMMER EVENT</span>
+    <span class="home-hero-badge">BOOK OF THE DAY</span>
 
     <div class="home-hero-copy">
-      <h1 id="home-hero-title">Summer Reading Challenge — Join Now</h1>
-      <p>Track your journeys, earn exclusive badges, and join virtual discussions with readers worldwide. This season's journey awaits.</p>
+      <h1 id="home-hero-title"><%= book.title %></h1>
+      <p class="home-hero-author">by <%= book.author %></p>
+      <% if summary.present? %>
+        <p><%= summary %></p>
+      <% end %>
     </div>
 
-    <%= link_to "Start Your Challenge", books_path, class: "home-hero-cta" %>
+    <% if genres.any? %>
+      <ul class="home-hero-genres" aria-label="Genres">
+        <% genres.each do |genre| %>
+          <li><%= genre.name %></li>
+        <% end %>
+      </ul>
+    <% end %>
+
+    <div class="home-hero-actions">
+      <%= link_to "View Book", book_path(book), class: "home-hero-cta" %>
+      <%# Discover opens a random catalog book that is not in the reader's log yet. %>
+      <%= link_to "Pick a Random Book", discover_books_path, class: "home-hero-secondary" %>
+    </div>
   </div>
 
   <div class="home-hero-cover">
-    <% if @featured_book&.cover_image&.attached? %>
-      <%= image_tag @featured_book.cover_image.variant(resize_to_fill: [180, 260]), alt: @featured_book.title %>
+    <% if book.cover_image.attached? %>
+      <%= image_tag book.cover_image.variant(resize_to_fill: [180, 260]), alt: "Cover of #{book.title}" %>
     <% else %>
-      <div class="home-hero-no-cover" aria-label="No featured book cover">📚</div>
+      <%= render "books/cover_fallback", title: book.title, author: book.author,
+            seed: book.id, size: :medium, sizing_class: "home-hero-fallback-cover" %>
     <% end %>
   </div>
 </section>

@@ -1,24 +1,22 @@
 <div class="catalog-page">
   <aside class="catalog-sidebar" aria-label="Catalog filters">
-    <div class="catalog-sidebar-section catalog-dropdown" data-controller="nav-menu" data-action="click@document->nav-menu#closeOnOutsideClick keydown.esc@document->nav-menu#closeOnEscape">
-      <p class="catalog-sidebar-label">Find Option</p>
-      <button type="button"
-              class="catalog-sidebar-select catalog-dropdown-trigger"
-              data-nav-menu-target="trigger"
-              data-action="click->nav-menu#toggle"
-              aria-expanded="false"
-              aria-controls="catalog-find-menu">
-        <span>Open Library</span>
-        <%= image_tag "catalog-chevron-down.svg", class: "catalog-chevron", alt: "", aria: { hidden: true } %>
-      </button>
-      <div id="catalog-find-menu"
-           class="catalog-dropdown-menu"
-           data-nav-menu-target="menu"
-           hidden>
-        <%= link_to "Open Library", search_books_path, class: "catalog-dropdown-option" %>
-        <%= link_to "Search ISBN", quick_add_books_path, class: "catalog-dropdown-option" %>
-      </div>
-    </div>
+    <nav class="catalog-sidebar-section catalog-find-new-books" aria-labelledby="catalog-find-new-books-label">
+      <p id="catalog-find-new-books-label" class="catalog-sidebar-label">Find New Books</p>
+      <%= link_to search_books_path, class: "catalog-external-link" do %>
+        <span class="catalog-external-link-lead">
+          <%= image_tag "catalog-open-library.svg", class: "catalog-external-link-icon", alt: "", aria: { hidden: true } %>
+          <span>Open Library</span>
+        </span>
+        <%= image_tag "arrow-right.svg", class: "catalog-external-link-arrow", alt: "", aria: { hidden: true } %>
+      <% end %>
+      <%= link_to quick_add_books_path, class: "catalog-external-link" do %>
+        <span class="catalog-external-link-lead">
+          <%= image_tag "catalog-isbn-search.svg", class: "catalog-external-link-icon", alt: "", aria: { hidden: true } %>
+          <span>Search ISBN</span>
+        </span>
+        <%= image_tag "arrow-right.svg", class: "catalog-external-link-arrow", alt: "", aria: { hidden: true } %>
+      <% end %>
+    </nav>
 
     <div class="catalog-sidebar-section catalog-dropdown catalog-filter-dropdown" data-controller="nav-menu" data-action="click@document->nav-menu#closeOnOutsideClick keydown.esc@document->nav-menu#closeOnEscape">
       <p class="catalog-sidebar-label">Filter Option</p>
@@ -60,9 +58,9 @@
         <% Genre::GENRES.each do |genre| %>
           <% genre_active = params[:genre] == genre %>
           <% genre_path = if genre_active
-                            books_path(q: params[:q], sort: params[:sort], filter: params[:filter])
+                            books_path(q: params[:q], sort: params[:sort], direction: params[:direction], filter: params[:filter])
                           else
-                            books_path(q: params[:q], sort: params[:sort], genre: genre, filter: params[:filter])
+                            books_path(q: params[:q], sort: params[:sort], direction: params[:direction], genre: genre, filter: params[:filter])
                           end %>
           <%= link_to genre_path,
                 class: "catalog-genre-option #{'is-active' if genre_active}",
@@ -87,6 +85,7 @@
         </div>
         <%= hidden_field_tag :genre, params[:genre] if params[:genre].present? %>
         <%= hidden_field_tag :sort, params[:sort] if params[:sort].present? %>
+        <%= hidden_field_tag :direction, params[:direction] if params[:direction].present? %>
         <%= hidden_field_tag :filter, params[:filter] if params[:filter].present? %>
         <%= f.submit "Search", class: "catalog-search-submit" %>
       <% end %>
@@ -103,8 +102,6 @@
         <h1 id="catalog-title">Books</h1>
         <p>Showing <%= @pagy.count %> books</p>
       </div>
-      <% sort_options = [["Title A-Z", "title"], ["Author", "author"], ["Page count", "total_pages"]] %>
-      <% selected_sort = sort_options.find { |_, value| value == params[:sort] } || sort_options.first %>
       <div class="catalog-sort-form" data-controller="nav-menu" data-action="click@document->nav-menu#closeOnOutsideClick keydown.esc@document->nav-menu#closeOnEscape">
         <span class="catalog-sort-label">Sort by:</span>
         <div class="catalog-sort-dropdown">
@@ -114,18 +111,24 @@
                   data-action="click->nav-menu#toggle"
                   aria-expanded="false"
                   aria-controls="catalog-sort-menu">
-            <span><%= selected_sort.first %></span>
+            <span><%= catalog_sort_label(@catalog_sort, @catalog_direction) %></span>
             <%= image_tag "catalog-chevron-down.svg", class: "catalog-chevron catalog-sort-chevron", alt: "", aria: { hidden: true } %>
           </button>
           <div id="catalog-sort-menu"
                class="catalog-sort-menu"
                data-nav-menu-target="menu"
                hidden>
-            <% sort_options.each do |label, value| %>
-              <%= link_to label,
-                    books_path(q: params[:q], genre: params[:genre], sort: value),
-                    class: "catalog-sort-option #{'is-selected' if selected_sort.last == value}",
-                    aria: { current: ("page" if selected_sort.last == value) } %>
+            <% BooksHelper::CATALOG_SORT_FIELDS.each do |sort, field_label| %>
+              <div class="catalog-sort-group" role="group" aria-labelledby="catalog-sort-group-<%= sort %>">
+                <p id="catalog-sort-group-<%= sort %>" class="catalog-sort-group-label"><%= field_label %></p>
+                <% BooksHelper::CATALOG_SORT_DIRECTION_LABELS.each_key do |direction| %>
+                  <% selected = @catalog_sort == sort && @catalog_direction == direction %>
+                  <%= link_to catalog_sort_label(sort, direction),
+                        books_path(q: params[:q], genre: params[:genre], sort: sort, direction: direction),
+                        class: class_names("catalog-sort-option", "is-selected" => selected),
+                        aria: { current: ("page" if selected) } %>
+                <% end %>
+              </div>
             <% end %>
           </div>
         </div>
@@ -133,7 +136,16 @@
     </div>
 
     <% if @books.empty? %>
-      <p class="catalog-empty-state">No books in the catalog yet.</p>
+      <% if [ params[:q], params[:genre], params[:filter] ].any?(&:present?) %>
+        <%= render "shared/empty_state", heading_level: 2, icon: "empty-search.svg",
+              title: "No books match your search",
+              message: "Try another title, author, or keyword, or clear the filters.",
+              action_label: "Clear filters", action_path: books_path %>
+      <% else %>
+        <%= render "shared/empty_state", heading_level: 2,
+              title: "No books in the catalog yet",
+              message: "Books added from Open Library or by ISBN will appear here." %>
+      <% end %>
     <% else %>
       <div class="book-list">
         <% @books.each do |book| %>
@@ -144,7 +156,8 @@
                 <% if book.cover_image.attached? %>
                   <%= image_tag book.cover_image, class: "book-list-image", alt: book.title %>
                 <% else %>
-                  <div class="book-list-no-cover">📚</div>
+                  <%= render "books/cover_fallback", title: book.title, author: book.author, seed: book.id,
+                        size: :medium, sizing_class: "book-list-no-cover" %>
                 <% end %>
               <% end %>
             </div>

@@ -57,6 +57,33 @@ class ReviewsControllerTest < ActionDispatch::IntegrationTest
     post book_reviews_path(books(:refactoring)), params: { review: { rating: 4, body: "Great!" } }
     assert_redirected_to book_path(books(:refactoring))
   end
+  test "a Turbo review submission redirects to the full HTML book page with the confirmation" do
+    sign_in users(:admin)
+    turbo_form_headers = { "Accept" => "text/vnd.turbo-stream.html, text/html, application/xhtml+xml" }
+
+    post book_reviews_path(books(:refactoring)),
+         params: { review: { rating: 4, body: "Great!" } },
+         headers: turbo_form_headers
+    assert_redirected_to book_path(books(:refactoring))
+    follow_redirect!(headers: turbo_form_headers)
+
+    assert_response :success
+    assert_equal "text/html", response.media_type
+    assert_select ".flash-notification", text: /Review added!/
+    assert_select ".book-detail-review-card p", text: "Great!"
+  end
+
+  test "a review without a rating is not saved and the form shows why" do
+    sign_in users(:admin)
+
+    assert_no_difference "Review.count" do
+      post book_reviews_path(books(:refactoring)), params: { review: { body: "No stars" } }
+    end
+
+    assert_response :unprocessable_entity
+    assert_select "#error_explanation li", text: "Rating must be selected (0 to 5 stars)"
+  end
+
   test "user cannot review twice to same book" do
     sign_in users(:leika)
     post book_reviews_path(books(:refactoring)), params: { review: { rating: 4, body: "Great!" } }
@@ -85,5 +112,18 @@ class ReviewsControllerTest < ActionDispatch::IntegrationTest
 
     assert_redirected_to root_path
     assert_equal previous_body, review.reload.body
+  end
+
+  test "reviews page shows a designed empty state with a catalog link when the reader has no reviews" do
+    sign_in users(:admin)
+
+    get reviews_path
+
+    assert_response :success
+    assert_select ".reviews-card", count: 0
+    assert_select ".empty-state.empty-state--panel" do
+      assert_select "h3.empty-state-title", text: "No reviews yet"
+      assert_select "a.empty-state-action[href='#{books_path}']", text: "Browse the catalog"
+    end
   end
 end

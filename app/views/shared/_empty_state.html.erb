@@ -1,0 +1,20 @@
+<%# locals: (title:, message:, icon: "reading-book-open-empty.svg", size: :panel, heading_level: 3, action_label: nil, action_path: nil) -%>
+<%# Shared empty state. Panel fills a whole list or section and gets a real heading at the level the
+    surrounding page needs; compact fits shelves, cards, dropdowns, and table rows, where the title is
+    a short lead-in under an existing heading, so it stays a paragraph. %>
+<%= tag.div class: [ "empty-state", "empty-state--#{size}" ] do %>
+  <span class="empty-state-icon" aria-hidden="true">
+    <%= image_tag icon, alt: "" %>
+  </span>
+  <div class="empty-state-copy">
+    <% if size == :panel %>
+      <%= content_tag "h#{heading_level}", title, class: "empty-state-title" %>
+    <% else %>
+      <p class="empty-state-title"><%= title %></p>
+    <% end %>
+    <p class="empty-state-message"><%= message %></p>
+    <% if action_label && action_path %>
+      <%= link_to action_label, action_path, class: "empty-state-action" %>
+    <% end %>
+  </div>
+<% end %>

@@ -3,8 +3,10 @@
     <h2 id="home-trending-title">Trending</h2>
   </header>
   <% if @trending_books.empty? %>
-    <p class="empty-state">No books have qualifying reactions in the last seven days.</p>
-    <%= link_to "Browse the ordinary book catalog", books_path %>
+    <%= render "shared/empty_state", size: :compact, icon: "challenges-library.svg",
+          title: "Nothing is trending yet",
+          message: "No books have qualifying reactions in the last seven days.",
+          action_label: "Browse the catalog", action_path: books_path %>
   <% else %>
     <div class="home-carousel-track">
       <div class="book-row">

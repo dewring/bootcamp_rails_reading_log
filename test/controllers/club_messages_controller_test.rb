@@ -312,7 +312,8 @@ class ClubMessagesControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_select ".book-club-current-pick-card--discussion .book-club-current-pick-empty" do
       assert_select "h2", text: "Current pick"
-      assert_select "p", text: "No current pick yet."
+      assert_select ".empty-state.empty-state--compact .empty-state-title", text: "No book picked yet"
+      assert_select ".book-club-current-pick-deadline", count: 0
     end
   end
 
@@ -325,7 +326,7 @@ class ClubMessagesControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_select "turbo-frame##{frame_id}[target='_top']" do
       assert_select "a", text: /Refresh/, count: 0
-      assert_select ".book-club-current-pick-deadline", text: "No reading deadline"
+      assert_select ".empty-state-title", text: "No book picked yet"
       assert_select "[data-controller='club-discussion'], form, turbo-cable-stream-source", count: 0
     end
     assert_select "[data-controller='club-discussion']", count: 1

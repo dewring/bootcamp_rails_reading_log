@@ -31,6 +31,31 @@
               <h2 id="admin-records-title">All challenges</h2>
               <p><%= @pagy.count %> records · Updated today</p>
             </div>
+            <div class="admin-challenge-filters" aria-label="Challenge filters">
+              <div class="admin-select-dropdown" data-controller="nav-menu" data-action="dropdown:opened@window->nav-menu#closeIfAnother click@document->nav-menu#closeOnOutsideClick keydown.esc@document->nav-menu#closeOnEscape">
+                <button type="button" class="admin-select-trigger <%= 'is-active' if @status %>" data-nav-menu-target="trigger" data-action="click->nav-menu#toggle" aria-expanded="false" aria-controls="admin-challenge-status-menu" aria-label="Filter challenges by status">
+                  <span><%= @status ? @status.capitalize : "All statuses" %></span>
+                  <%= image_tag "catalog-chevron-down.svg", alt: "", aria: { hidden: true } %>
+                </button>
+                <nav id="admin-challenge-status-menu" class="catalog-dropdown-menu admin-select-menu" data-nav-menu-target="menu" aria-label="Challenge status" hidden>
+                  <% [ [ "All statuses", nil ], *Challenge::SCHEDULE_STATUSES.map { |status| [ status.capitalize, status ] } ].each do |label, status| %>
+                    <%= link_to label, admin_root_path(status: status, sort: @sort, direction: @direction),
+                          class: class_names("catalog-dropdown-option", "is-selected" => @status == status),
+                          aria: { current: ("true" if @status == status) } %>
+                  <% end %>
+                </nav>
+              </div>
+              <%= render "admin/shared/sort_menu",
+                    menu_id: "admin-challenge-sort-menu",
+                    menu_label: "Challenge sorting",
+                    current_label: admin_list_sort_label(@sort_fields, @sort, @direction),
+                    groups: admin_list_sort_groups(@sort_fields, current_sort: @sort, current_direction: @direction) { |sort, direction|
+                      admin_root_path(status: @status, sort: sort, direction: direction)
+                    },
+                    wrapper_class: nil,
+                    trigger_class: nil,
+                    trigger_aria: { label: "Sort challenges" } %>
+            </div>
           </div>
 
           <div class="admin-table-wrap">
@@ -45,10 +70,10 @@
               </thead>
               <tbody>
                 <% @challenges.each do |challenge| %>
-                  <% status = if !challenge.active? then "Inactive" elsif challenge.ends_at < Time.current then "Expired" elsif challenge.starts_at > Time.current then "Upcoming" else "Ongoing" end %>
+                  <% status = challenge.schedule_status.capitalize %>
                   <tr class="<%= "is-selected" if @selected_challenge == challenge %>">
                     <td>
-                      <%= link_to admin_root_path(challenge_id: challenge.id, page: @pagy.page), class: "admin-challenge-name" do %>
+                      <%= link_to admin_root_path(challenge_id: challenge.id, status: @status, sort: @sort, direction: @direction, page: @pagy.page), class: "admin-challenge-name" do %>
                         <strong><%= challenge.title %></strong>
                         <span><%= challenge.goal_summary %></span>
                       <% end %>
@@ -66,7 +91,18 @@
                 <% end %>
                 <% if @challenges.empty? %>
                   <tr>
-                    <td colspan="4" class="admin-table-empty">No challenges created yet.</td>
+                    <td colspan="4" class="admin-table-empty">
+                      <% if @status %>
+                        <%= render "shared/empty_state", size: :compact, icon: "empty-trophy.svg",
+                              title: "No #{@status} challenges",
+                              message: "Try another status or clear the filter.",
+                              action_label: "Clear filter", action_path: admin_root_path(sort: @sort, direction: @direction) %>
+                      <% else %>
+                        <%= render "shared/empty_state", size: :compact, icon: "empty-trophy.svg",
+                              title: "No challenges created yet",
+                              message: "Add a challenge to give readers a goal to work toward." %>
+                      <% end %>
+                    </td>
                   </tr>
                 <% end %>
               </tbody>
@@ -87,7 +123,7 @@
                 <h2 id="admin-detail-title"><%= @is_new_challenge ? "New challenge" : "Edit challenge" %></h2>
               </div>
               <% unless @is_new_challenge %>
-                <% status = if !@detail_challenge.active? then "Inactive" elsif @detail_challenge.ends_at < Time.current then "Expired" elsif @detail_challenge.starts_at > Time.current then "Upcoming" else "Ongoing" end %>
+                <% status = @detail_challenge.schedule_status.capitalize %>
                 <span class="admin-status-badge admin-status-badge--<%= status.downcase %>"><%= status %></span>
               <% end %>
             </div>

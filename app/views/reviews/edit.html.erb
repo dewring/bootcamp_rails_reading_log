@@ -4,10 +4,12 @@
     <p><%= @book.title %> by <%= @book.author %></p>
   </div>
 
+  <%= render "devise/shared/error_messages", resource: @review %>
+
   <%= form_with model: [@book, @review], html: { class: "form" } do |f| %>
     <div class="field">
       <%= f.label :rating, "Rating (0–5)" %>
-      <%= f.number_field :rating, min: 0, max: 5 %>
+      <%= f.number_field :rating, min: 0, max: 5, required: true %>
     </div>
 
     <div class="field">

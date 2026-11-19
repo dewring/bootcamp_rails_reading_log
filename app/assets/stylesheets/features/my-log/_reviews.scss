@@ -126,15 +126,6 @@
   object-fit: cover;
 }
 
-.reviews-card-cover--empty {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #eee7e1;
-  box-shadow: none;
-  font-size: 24px;
-}
-
 .reviews-card-content {
   display: flex;
   min-width: 0;
@@ -252,15 +243,5 @@
 
   &:hover {
     background: #fdf1ef;
-  }
-}
-
-.reviews-empty-state {
-  margin: 0;
-  color: tokens.$text-muted;
-  font-size: 14px;
-
-  a {
-    color: tokens.$accent;
   }
 }
