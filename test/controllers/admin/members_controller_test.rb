@@ -106,7 +106,8 @@ class Admin::MembersControllerTest < ActionDispatch::IntegrationTest
     assert_select "button[aria-controls='admin-member-status-menu']", text: "Invited"
     assert_select "#admin-member-status-menu a.is-selected[aria-current='true']", text: "Invited", count: 1
     assert_select "input[name='q'][value='leika']"
-    assert_select "#admin-member-sort-menu a.is-selected", text: "Member name"
+    assert_select "#admin-member-sort-menu a.is-selected", text: "A–Z"
+    assert_select "button[aria-controls='admin-member-sort-menu']", text: "Member name · A–Z"
   end
 
   test "search and status filters preserve query and exclude unrelated selection" do
@@ -235,5 +236,35 @@ class Admin::MembersControllerTest < ActionDispatch::IntegrationTest
     assert_empty ReadingSession.where(user_id: reader.id)
     assert_empty UserBook.where(user_id: reader.id)
     assert_empty Review.where(user_id: reader.id)
+  end
+
+  test "member sort direction matches the selected option for names and update dates" do
+    sign_in users(:admin)
+
+    {
+      { sort: "name", direction: "asc" } => [ { first_name: :asc, last_name: :asc, id: :asc }, "Member name · A–Z" ],
+      { sort: "name", direction: "desc" } => [ { first_name: :desc, last_name: :desc, id: :desc }, "Member name · Z–A" ],
+      { sort: "updated", direction: "desc" } => [ { updated_at: :desc, id: :desc }, "Updated · Newest first" ],
+      { sort: "updated", direction: "asc" } => [ { updated_at: :asc, id: :asc }, "Updated · Oldest first" ]
+    }.each do |options, (expected_order, label)|
+      get admin_members_path, params: options
+
+      assert_response :success
+      expected_ids = assigns(:members_scope).reorder(expected_order).limit(4).pluck(:id)
+      assert_equal expected_ids, assigns(:members).map(&:id), "#{label} returned the wrong order"
+      assert_select "button[aria-controls='admin-member-sort-menu']", text: label
+      assert_select "#admin-member-sort-menu a.is-selected[href*='direction=#{options[:direction]}'][href*='sort=#{options[:sort]}']", count: 1
+    end
+  end
+
+  test "member links and search keep the selected sort direction" do
+    sign_in users(:admin)
+
+    get admin_members_path, params: { sort: "name", direction: "desc" }
+
+    assert_response :success
+    assert_select "form.admin-reviews-search input[name='direction'][value='desc']", count: 1
+    assert_select "#admin-member-status-menu a[href*='direction=desc']", minimum: 1
+    assert_select "a.admin-review-select[href*='sort=name'][href*='direction=desc']", minimum: 1
   end
 end

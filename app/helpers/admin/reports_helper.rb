@@ -20,7 +20,7 @@ module Admin::ReportsHelper
 
   # aria-sort tells screen readers which column the leaderboard is ranked by.
   def report_aria_sort(leaderboard, sort_key)
-    return "descending" if leaderboard.sort == sort_key
+    return report_sort_aria_direction(leaderboard.direction) if leaderboard.sort == sort_key
 
     "none"
   end
@@ -41,5 +41,30 @@ module Admin::ReportsHelper
 
   def report_freshness_label(status)
     REPORT_FRESHNESS_LABELS.fetch(status)
+  end
+
+  REPORT_DIRECTION_LABELS = { "desc" => "Highest first", "asc" => "Lowest first" }.freeze
+
+  # Trigger text naming the metric and direction, e.g. "Pages read · Highest first".
+  def report_sort_label(leaderboard)
+    metric = leaderboard.sort_options.find { |_, value| value == leaderboard.sort }.first
+    "#{metric} · #{REPORT_DIRECTION_LABELS.fetch(leaderboard.direction)}"
+  end
+
+  # One menu group per metric, each offering highest and lowest first.
+  def report_sort_groups(leaderboard, &path_for)
+    leaderboard.sort_options.map do |label, sort|
+      options = REPORT_DIRECTION_LABELS.map do |direction, direction_label|
+        selected = leaderboard.sort == sort && leaderboard.direction == direction
+        { label: direction_label, path: path_for.call(sort, direction), selected: selected }
+      end
+      { label: label, options: options }
+    end
+  end
+
+  private
+
+  def report_sort_aria_direction(direction)
+    direction == "asc" ? "ascending" : "descending"
   end
 end

@@ -84,4 +84,24 @@ class MostReadBooksLeaderboardTest < ActiveSupport::TestCase
     assert_equal 10, first_page.last.rank
     assert_equal [ 10, 10 ], second_page.map(&:rank)
   end
+
+  test "lowest first reverses the order while each book keeps its rank number" do
+    first, middle, last = build_books(3)
+    record_session(users(:leika), first, Date.new(2025, 1, 1), 50)
+    record_session(users(:leika), middle, Date.new(2025, 1, 1), 30)
+    record_session(users(:leika), last, Date.new(2025, 1, 1), 10)
+
+    leaderboard = MostReadBooksLeaderboard.new(dates: DATES, sort: "pages_read", direction: "asc")
+    rows = leaderboard.rows
+
+    assert_equal "asc", leaderboard.direction
+    assert_equal [ last, middle, first ], rows.map(&:book)
+    assert_equal [ 3, 2, 1 ], rows.map(&:rank)
+  end
+
+  test "an unknown direction falls back to highest first" do
+    leaderboard = MostReadBooksLeaderboard.new(dates: DATES, sort: nil, direction: "rank DESC; DROP TABLE books")
+
+    assert_equal "desc", leaderboard.direction
+  end
 end

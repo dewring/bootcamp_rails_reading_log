@@ -1,5 +1,6 @@
 class Admin::MembersController < ApplicationController
   include RequireAuthenticatedAdmin
+  include AdminListSorting
   layout "admin"
 
   def index
@@ -55,11 +56,10 @@ class Admin::MembersController < ApplicationController
     statuses = [ "active", "suspended" ]
     statuses.push("invited") if policy([ :admin, User ]).create?
     @status = params[:status].to_s if statuses.include?(params[:status])
-    @sort = params[:sort] == "name" ? "name" : "updated"
+    select_admin_list_sort
     @members_scope = policy_scope([ :admin, User ]).matching_member_text(@query)
     @members_scope = @members_scope.where(account_status: @status) if @status
-    order = @sort == "name" ? { first_name: :asc, last_name: :asc, id: :asc } : { updated_at: :desc, id: :desc }
-    @pagy, @members = pagy(:offset, @members_scope.order(order), limit: 4)
+    @pagy, @members = pagy(:offset, @members_scope.order(admin_list_order([ :first_name, :last_name ])), limit: 4)
   end
 
   def load_activity
@@ -74,6 +74,6 @@ class Admin::MembersController < ApplicationController
   end
 
   def filter_params
-    params.permit(:q, :status, :sort, :page).to_h.symbolize_keys
+    params.permit(:q, :status, :sort, :direction, :page).to_h.symbolize_keys
   end
 end

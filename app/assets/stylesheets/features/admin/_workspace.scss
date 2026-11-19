@@ -687,6 +687,35 @@
   }
 }
 
+// Grouped sort options (field label + directions). Pico styles [role="group"]
+// as an input group, so reset its margin, radius, and width here.
+.admin-sort-menu .admin-sort-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: auto;
+  margin: 0;
+  border-radius: 0;
+  box-shadow: none;
+
+  & + .admin-sort-group {
+    margin-top: 4px;
+    padding-top: 4px;
+    border-top: 1px solid tokens.$gray-mid;
+  }
+
+  .admin-sort-group-label {
+    margin: 0;
+    padding: 4px 10px 2px;
+    color: tokens.$text-muted;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    line-height: 1.3;
+    text-transform: uppercase;
+  }
+}
+
 .admin-field-grid {
   grid-template-columns: 1fr 1fr;
   gap: 10px;

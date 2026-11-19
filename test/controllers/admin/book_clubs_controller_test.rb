@@ -79,14 +79,14 @@ class Admin::BookClubsControllerTest < ActionDispatch::IntegrationTest
     get admin_book_clubs_path, params: { q: "Sci-Fi", sort: "name", club_id: @club.id }
 
     assert_response :success
-    assert_select ".admin-clubs-sort-filter button[aria-expanded='false'][aria-controls='admin-clubs-sort-menu']", text: "Club name"
-    assert_select "nav#admin-clubs-sort-menu[hidden] a", count: 2
-    assert_select "nav#admin-clubs-sort-menu a[aria-current='true']", text: "Club name"
+    assert_select ".admin-clubs-sort-filter button[aria-expanded='false'][aria-controls='admin-clubs-sort-menu']", text: "Club name · A–Z"
+    assert_select "nav#admin-clubs-sort-menu[hidden] a", count: 4
+    assert_select "nav#admin-clubs-sort-menu a[aria-current='true']", text: "A–Z"
     assert_select "nav#admin-clubs-sort-menu a" do |links|
       links.each do |link|
         query = Rack::Utils.parse_query(URI.parse(link["href"]).query)
         assert_equal "Sci-Fi", query["q"]
-        assert_equal (link.text == "Club name" ? "name" : "updated"), query["sort"]
+        assert_equal ([ "A–Z", "Z–A" ].include?(link.text) ? "name" : "updated"), query["sort"]
         assert_nil query["page"]
         assert_nil query["club_id"]
       end
@@ -94,7 +94,7 @@ class Admin::BookClubsControllerTest < ActionDispatch::IntegrationTest
     assert_select "a.admin-clubs-filter", text: "All records"
 
     get admin_book_clubs_path
-    assert_select "nav#admin-clubs-sort-menu a[aria-current='true']", text: "Recently updated"
+    assert_select "nav#admin-clubs-sort-menu a[aria-current='true'][href*='sort=updated'][href*='direction=desc']", text: "Newest first"
   end
 
   test "search matches club description owner and current book without duplicate clubs" do
@@ -178,5 +178,25 @@ class Admin::BookClubsControllerTest < ActionDispatch::IntegrationTest
       end
     end
     assert_redirected_to admin_book_clubs_path(q: "Sci-Fi", sort: "name")
+  end
+
+  test "book club sort direction matches the selected option" do
+    sign_in users(:admin)
+    BookClub.create!(name: "Alpha Readers")
+    BookClub.create!(name: "Zeta Readers")
+
+    {
+      { sort: "name", direction: "asc" } => [ { name: :asc, id: :asc }, "Club name · A–Z" ],
+      { sort: "name", direction: "desc" } => [ { name: :desc, id: :desc }, "Club name · Z–A" ],
+      { sort: "updated", direction: "asc" } => [ { updated_at: :asc, id: :asc }, "Updated · Oldest first" ]
+    }.each do |options, (expected_order, label)|
+      get admin_book_clubs_path, params: options
+
+      assert_response :success
+      expected_ids = assigns(:club_scope).reorder(expected_order).limit(4).pluck(:id)
+      assert_equal expected_ids, assigns(:book_clubs).map(&:id), "#{label} returned the wrong order"
+      assert_select ".admin-clubs-sort-filter button", text: label
+      assert_select "form.admin-clubs-search input[name='direction'][value='#{options[:direction]}']", count: 1
+    end
   end
 end

@@ -24,15 +24,16 @@ class PowerUsersLeaderboard
     end
   end
 
-  def initialize(dates:, sort:)
+  def initialize(dates:, sort:, direction: nil)
     @dates = dates
     @sort = selected_sort(sort)
+    @direction = selected_direction(direction)
   end
 
   def ranked_activity
     ranked_relation(reader_activity)
       .joins(:user)
-      .order(Arel.sql("rank ASC, COALESCE(NULLIF(users.nickname, ''), 'User #' || users.id) ASC, users.id ASC"))
+      .order(rank_order, Arel.sql("COALESCE(NULLIF(users.nickname, ''), 'User #' || users.id) ASC, users.id ASC"))
   end
 
   def rows(activity = ranked_activity)
