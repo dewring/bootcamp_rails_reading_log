@@ -136,7 +136,16 @@
     </div>
 
     <% if @books.empty? %>
-      <p class="catalog-empty-state">No books in the catalog yet.</p>
+      <% if [ params[:q], params[:genre], params[:filter] ].any?(&:present?) %>
+        <%= render "shared/empty_state", heading_level: 2, icon: "empty-search.svg",
+              title: "No books match your search",
+              message: "Try another title, author, or keyword, or clear the filters.",
+              action_label: "Clear filters", action_path: books_path %>
+      <% else %>
+        <%= render "shared/empty_state", heading_level: 2,
+              title: "No books in the catalog yet",
+              message: "Books added from Open Library or by ISBN will appear here." %>
+      <% end %>
     <% else %>
       <div class="book-list">
         <% @books.each do |book| %>

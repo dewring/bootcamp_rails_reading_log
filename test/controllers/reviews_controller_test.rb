@@ -113,4 +113,17 @@ class ReviewsControllerTest < ActionDispatch::IntegrationTest
     assert_redirected_to root_path
     assert_equal previous_body, review.reload.body
   end
+
+  test "reviews page shows a designed empty state with a catalog link when the reader has no reviews" do
+    sign_in users(:admin)
+
+    get reviews_path
+
+    assert_response :success
+    assert_select ".reviews-card", count: 0
+    assert_select ".empty-state.empty-state--panel" do
+      assert_select "h3.empty-state-title", text: "No reviews yet"
+      assert_select "a.empty-state-action[href='#{books_path}']", text: "Browse the catalog"
+    end
+  end
 end

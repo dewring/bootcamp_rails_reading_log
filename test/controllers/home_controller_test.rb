@@ -71,8 +71,11 @@ class HomeControllerTest < ActionDispatch::IntegrationTest
     get root_path
 
     assert_response :success
-    assert_select ".home-trending .empty-state", text: "No books have qualifying reactions in the last seven days."
-    assert_select ".home-trending a[href='#{books_path}']", text: "Browse the ordinary book catalog"
+    assert_select ".home-trending .empty-state.empty-state--compact" do
+      assert_select ".empty-state-title", text: "Nothing is trending yet"
+      assert_select ".empty-state-message", text: "No books have qualifying reactions in the last seven days."
+      assert_select "a.empty-state-action[href='#{books_path}']", text: "Browse the catalog"
+    end
     assert_select ".home-trending .book-card, .home-trending .home-view-all, .home-trending button", count: 0
   end
 
@@ -469,7 +472,8 @@ class HomeControllerTest < ActionDispatch::IntegrationTest
   test "most read shows empty state when no books match selected genre" do
     get root_path, params: { genre: "Poetry" }
     assert_response :success
-    assert_select "p.empty-state", "No books found for this genre."
+    assert_select ".home-section:not(.home-trending) .empty-state.empty-state--compact .empty-state-title", text: "No books in this genre yet"
+    assert_select ".home-section:not(.home-trending) .empty-state a", count: 0
   end
 
   test "home page renders resized cover variant when attached" do

@@ -711,6 +711,30 @@ class BookControllerTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "catalog search without results explains it and offers to clear the filters" do
+    sign_in users(:leika)
+
+    get books_path, params: { q: "zzz-no-such-book" }
+
+    assert_response :success
+    assert_select ".book-list", count: 0
+    assert_select ".empty-state.empty-state--panel" do
+      assert_select "h2.empty-state-title", text: "No books match your search"
+      assert_select "a.empty-state-action[href='#{books_path}']", text: "Clear filters"
+    end
+  end
+
+  test "an empty catalog says so without a clear-filters action" do
+    sign_in users(:leika)
+    Book.destroy_all
+
+    get books_path
+
+    assert_response :success
+    assert_select ".empty-state h2.empty-state-title", text: "No books in the catalog yet"
+    assert_select ".empty-state a", count: 0
+  end
+
   test "catalog cards do not show Add to Log actions" do
     sign_in users(:leika)
 

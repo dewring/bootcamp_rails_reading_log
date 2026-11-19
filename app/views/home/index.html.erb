@@ -25,7 +25,9 @@
     </div>
   <% end %>
   <% if @most_read.empty? %>
-    <p class="empty-state">No books found for this genre.</p>
+    <%= render "shared/empty_state", size: :compact,
+          title: "No books in this genre yet",
+          message: "Try another genre, or choose Reset to see every book." %>
   <% else %>
     <div class="home-carousel-track">
       <div class="book-row">
