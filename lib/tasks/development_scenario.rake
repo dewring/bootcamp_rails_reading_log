@@ -1,6 +1,9 @@
 namespace :development_scenario do
   desc "Reuse the demo catalog and readers and add a fresh round of reading activity"
-  task simulate_reading: :environment do
+  task simulate_reading: :environment do |_task, arguments|
+    if arguments.extras.any?
+      abort "Named ticks have been retired. Run development_scenario:simulate_reading without arguments to add a new round of activity."
+    end
     report = DevelopmentReadingScenario.new.seed_scenario
     abort report.fetch("reason") if report.fetch("status") == "stopped"
 
