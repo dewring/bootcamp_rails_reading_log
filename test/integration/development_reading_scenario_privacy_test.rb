@@ -61,7 +61,7 @@ class DevelopmentReadingScenarioPrivacyTest < ActionDispatch::IntegrationTest
 
     get book_club_club_messages_path(target)
     assert_response :success
-    assert_includes response.body, "Has anyone here read"
+    assert_select ".club-discussion-message-body", text: target.club_messages.sole.body
     assert_shared_content_is_private_safe(response.body)
     get book_club_leaderboard_path(target)
     assert_response :success

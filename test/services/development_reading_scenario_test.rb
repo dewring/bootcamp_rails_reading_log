@@ -50,6 +50,26 @@ class DevelopmentReadingScenarioTest < ActiveSupport::TestCase
     assert_empty real.reviews
   end
 
+  test "clubs reading the same book get different posts in each round and fresh posts on subsequent rounds" do
+    simulate
+    clubs = BookClub.where(id: JSON.parse(@path.read).fetch("simulation_clubs").values)
+    book = clubs.first.current_book
+    clubs.update_all(current_book_id: book.id)
+    require "faker"
+    Faker::Book.stub(:title, book.title) do
+      3.times do
+        previous_id = ClubMessage.maximum(:id)
+        simulate
+        posts = ClubMessage.where(book_club: clubs).where(id: (previous_id + 1)..)
+        assert_equal 4, posts.pluck(:body).uniq.size
+      end
+    end
+    clubs.each do |club|
+      bodies = club.club_messages.order(id: :desc).limit(3).pluck(:body)
+      assert_equal 3, bodies.uniq.size
+    end
+  end
+
   test "saturated review and reaction pairs leave sessions and discussions available" do
     assert_equal "complete", simulate.fetch("status")
     manifest = JSON.parse(@path.read)

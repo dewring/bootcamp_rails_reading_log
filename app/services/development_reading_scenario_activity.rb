@@ -1,4 +1,19 @@
 class DevelopmentReadingScenarioActivity
+  DISCUSSION_POSTS = [
+    "I went back to the first page of %{title} after finishing. It reads differently the second time.",
+    "Anyone listening to the audiobook? I keep wondering how the narrator says some of these names.",
+    "My library hold finally came through! How far is everyone into %{title}?",
+    "If you had to give %{title} a different title, what would you call it?",
+    "I have a spare copy of %{title}. Happy to bring it to the next meeting if anyone wants it.",
+    "What's one line you marked? Mine is still on a scrap of paper somewhere.",
+    "Would you hand %{title} to a friend without telling them what it's about first?",
+    "I read the first few pages of %{title} on my lunch break and nearly forgot to go back.",
+    "Can we save the ending for the second half of the meeting? I'm a few chapters behind.",
+    "My paperback has a map inside the cover. What extras did everyone else's edition come with?",
+    "Just finished %{title} on the bus. I need a day to sit with it before picking up anything else.",
+    "What would you put next to %{title} on a bookshop display? I'd love a slightly odd pairing."
+  ].freeze
+
   def initialize(manifest:, scenario_manifest:)
     @manifest = manifest
     @scenario_manifest = scenario_manifest
@@ -21,7 +36,7 @@ class DevelopmentReadingScenarioActivity
       @skipped["activity"] = "Reading activity needs an available demo reader and catalog book."
     else
       simulate_reader_activity(readers.values, books, kinds)
-      simulate_club_discussions(users, readers, books.values)
+      simulate_club_discussions(users, readers, books)
     end
     { "added" => @added, "skipped" => @skipped }
   end
@@ -66,6 +81,7 @@ class DevelopmentReadingScenarioActivity
   def simulate_club_discussions(users, readers, books)
     # Keep the existing club identities and owners when upgrading a Day 1 manifest.
     clubs = @manifest["simulation_clubs"] ||= {}
+    prompts = DISCUSSION_POSTS.shuffle
     [ "steady", "lapsed", "recent", "quiet" ].each_with_index do |identity, index|
       owner = readers[users.dig(format("reader%02d", 7 + index * 6), "id")]
       unless owner
@@ -73,7 +89,8 @@ class DevelopmentReadingScenarioActivity
         next
       end
       member_ids = (1..5).filter_map { |offset| users.dig(format("reader%02d", 7 + index * 6 + offset), "id") }
-      club = find_or_create_club(identity, owner, books.sample, clubs, member_ids & readers.keys)
+      book = books.values.sample
+      club = find_or_create_club(identity, owner, book, clubs, member_ids & readers.keys)
       next unless club
 
       members = club.book_club_memberships.where(user_id: readers.keys).pluck(:user_id)
@@ -83,12 +100,20 @@ class DevelopmentReadingScenarioActivity
       end
       author = readers.fetch(members.sample)
       add_activity("club_messages", author) do
-        ClubMessage.create!(book_club: club, user: author,
-          body: "Has anyone here read #{Faker::Book.title}? I'd love to compare notes at our next meeting.")
+        title = books.fetch(club.current_book_id, book).title
+        body = discussion_post(club, title, prompts)
+        ClubMessage.create!(book_club: club, user: author, body: body)
       end
     rescue ActiveRecord::RecordInvalid, ActiveRecord::RecordNotUnique, ActiveRecord::InvalidForeignKey, ActiveRecord::RecordNotFound => error
       @skipped["clubs/#{identity}"] = error.class.name.demodulize
     end
+  end
+
+  def discussion_post(club, title, prompts)
+    recent = club.club_messages.order(id: :desc).limit(6).pluck(:body)
+    prompt = prompts.find { |candidate| !recent.include?(format(candidate, title: title)) }
+    prompts.delete(prompt)
+    format(prompt, title: title)
   end
 
   def find_or_create_club(identity, owner, book, clubs, member_ids)
