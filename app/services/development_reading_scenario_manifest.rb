@@ -1,5 +1,4 @@
 require "fileutils"
-require "monitor"
 require "tempfile"
 
 class DevelopmentReadingScenarioManifest
@@ -12,37 +11,29 @@ class DevelopmentReadingScenarioManifest
 
   def initialize(path: DEFAULT_PATH,
     lock_path: DEFAULT_LOCK_PATH,
-    as_of: DevelopmentReadingScenarioPlan.default_reference_time)
+    as_of: DevelopmentReadingScenarioPlan.configured_reference_time)
     @path = Pathname.new(path)
     @lock_path = Pathname.new(lock_path)
     @as_of = as_of
-    @monitor = Monitor.new
   end
 
   def with_exclusive_access
     unless ReadingScenarioEnvironment.enabled?
       raise ManifestError, "Scenario writes require development or production with ALLOW_PRODUCTION_SCENARIO=true"
     end
-    raise ManifestError, "Another reading scenario operation is already running" unless @monitor.try_enter
+    return yield if @lock_owner == Thread.current
 
-    begin
-      # A coordinator may call catalog/bootstrap services with this same manifest on the same thread.
-      return yield if @lock_owner == Thread.current
+    FileUtils.mkdir_p(@lock_path.dirname)
+    File.open(@lock_path, File::RDWR | File::CREAT, 0o600) do |lock|
+      raise ManifestError, "Another reading scenario operation is already running" unless lock.flock(File::LOCK_EX | File::LOCK_NB)
 
-      FileUtils.mkdir_p(@lock_path.dirname)
-      File.open(@lock_path, File::RDWR | File::CREAT, 0o600) do |lock|
-        raise ManifestError, "Another reading scenario operation is already running" unless lock.flock(File::LOCK_EX | File::LOCK_NB)
-
+      @lock_owner = Thread.current
+      begin
+        yield
+      ensure
         @contents = nil
-        @lock_owner = Thread.current
-        begin
-          yield
-        ensure
-          @lock_owner = nil
-        end
+        @lock_owner = nil
       end
-    ensure
-      @monitor.exit
     end
   end
 
@@ -50,14 +41,18 @@ class DevelopmentReadingScenarioManifest
     require_exclusive_access
     expected = {
       "version" => 1, "scenario" => "reading_scenario", "snapshot_id" => snapshot_id,
-      "seed" => 15, "as_of" => @as_of.in_time_zone.iso8601(6),
+      "seed" => 15,
       "database" => ActiveRecord::Base.connection_db_config.database
     }
-    @contents ||= @path.exist? ? JSON.parse(@path.read) : expected.deep_dup
+    expected["as_of"] = @as_of.in_time_zone.iso8601(6) if @as_of
+    @contents ||= @path.exist? ? JSON.parse(@path.read) : expected.reverse_merge("as_of" => Time.current.iso8601(6))
     unless @contents.is_a?(Hash) && @contents.slice(*expected.keys) == expected
       raise ManifestError, "Snapshot, seed, reference time or database differs from the recorded reading scenario; no records were imported."
     end
+    Time.iso8601(@contents.fetch("as_of"))
     @contents
+  rescue KeyError, TypeError, ArgumentError
+    raise ManifestError, "The reading scenario manifest needs a valid reference time."
   rescue JSON::ParserError
     raise ManifestError, "The reading scenario manifest contains invalid JSON; preserve it and inspect the failure before replaying."
   end

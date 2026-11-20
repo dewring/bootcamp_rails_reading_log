@@ -3,47 +3,28 @@ class DevelopmentReadingScenarioBootstrap
 
   BOOTSTRAP_MODELS = { "genres" => Genre, "badges" => Badge, "users" => User }.freeze
 
-  def initialize(snapshot_path: Rails.root.join("db/seeds/open_library_catalog.json"),
-    manifest_path: DevelopmentReadingScenarioManifest::DEFAULT_PATH,
-    lock_path: DevelopmentReadingScenarioManifest::DEFAULT_LOCK_PATH,
-    as_of: DevelopmentReadingScenarioPlan.default_reference_time, password: ENV["DEVELOPMENT_SCENARIO_PASSWORD"], manifest: nil)
-    @snapshot_path = snapshot_path
-    @as_of = as_of
+  def initialize(plan:, manifest:, scenario_manifest:, password:)
+    @plan = plan
+    @manifest = manifest
+    @scenario_manifest = scenario_manifest
     @password = password
-    @scenario_manifest = manifest || DevelopmentReadingScenarioManifest.new(path: manifest_path, lock_path: lock_path, as_of: as_of)
   end
 
   def bootstrap_scenario
-    with_bootstrap_context do
-      @manifest["bootstrap"] = @bootstrap
-      @scenario_manifest.save_scenario
-      import_bootstrap_records
-      record_bootstrap_counts
-      @bootstrap["status"] = "complete"
-      @scenario_manifest.save_scenario
-      @manifest.deep_dup
-    end
-  end
-
-  def preflight_bootstrap
-    with_bootstrap_context { @bootstrap.deep_dup }
+    @prepared_users = {}
+    load_existing_records
+    @bootstrap = @manifest["bootstrap"] || planned_bootstrap
+    verify_recorded_rows
+    @manifest["bootstrap"] = @bootstrap
+    @scenario_manifest.save_scenario
+    import_bootstrap_records
+    record_bootstrap_counts
+    @bootstrap["status"] = @bootstrap.fetch("records").values.any? { |group| group.values.any? { |record| record["result"] == "failed" } } ? "partial" : "complete"
+    @scenario_manifest.save_scenario
+    @manifest
   end
 
   private
-
-  def with_bootstrap_context
-    @scenario_manifest.with_exclusive_access do
-      catalog = OpenLibraryCatalogPreflight.new(snapshot_path: @snapshot_path, manifest_path: @scenario_manifest.path).preflight_catalog(skip_book_conflicts: true)
-      @plan = DevelopmentReadingScenarioPlan.new(catalog: catalog, as_of: @as_of).build_baseline
-      @manifest = @scenario_manifest.prepare_scenario(snapshot_id: catalog.fetch("snapshot_id"))
-      @prepared_records = BOOTSTRAP_MODELS.transform_values { {} }
-      load_existing_records
-      @bootstrap = @manifest["bootstrap"] || planned_bootstrap
-      verify_recorded_rows
-      prepare_pending_records
-      yield
-    end
-  end
 
   def load_existing_records
     genres = Genre.where(name: @plan.fetch("genres").map { |entry| entry.fetch("name") }).order(:id).to_a
@@ -83,12 +64,15 @@ class DevelopmentReadingScenarioBootstrap
         }
         next
       end
-      user = prepare_new_user(entry.fetch("attributes"))
-      @prepared_records.fetch("users")[identity] = user
-      records.fetch("users")[identity] = {
-        "id" => nil, "origin" => "imported", "result" => nil,
-        "expected_attributes" => recorded_attributes(user).except("created_at")
-      }
+      record = { "id" => nil, "origin" => "imported", "expected_attributes" => entry.fetch("attributes").dup }
+      records.fetch("users")[identity] = record
+      begin
+        user = prepare_new_user(record.fetch("expected_attributes"))
+        @prepared_users[identity] = user
+        record["expected_attributes"] = recorded_attributes(user).except("created_at")
+      rescue BootstrapError, ActiveRecord::RecordInvalid => error
+        record.merge!("result" => "failed", "reason" => error.message)
+      end
     end
     { "status" => "pending", "expected_counts" => expected_counts, "records" => records }
   end
@@ -114,11 +98,7 @@ class DevelopmentReadingScenarioBootstrap
           reconcile_genre(identity, record, rows)
           next
         end
-        refuse_collision(group, identity, rows) if rows.length > 1
-        reconcile_badge(identity, record, rows.first) if group == "badges"
-        next if record["result"] == "skipped"
-
-        verify_recorded_row(group, identity, record, rows.first)
+        reconcile_badge(identity, record, rows.first)
       end
     end
   end
@@ -143,7 +123,13 @@ class DevelopmentReadingScenarioBootstrap
       return
     end
 
-    verify_recorded_credentials(identity, record)
+    if record.dig("expected_attributes", "encrypted_password").blank?
+      return if record["result"] == "failed" && rows.empty? && !record["id"]
+
+      record.merge!("result" => "skipped", "reason" => "recorded_credentials_missing")
+      @existing.fetch("users")[identity] = []
+      return
+    end
     row = rows.find { |candidate| recorded_user_matches?(record, candidate) }
     return @existing.fetch("users")[identity] = [ row ] if row
     return if rows.empty? && !record["id"]
@@ -159,13 +145,6 @@ class DevelopmentReadingScenarioBootstrap
     keys = [ "email", "role", "account_status", "encrypted_password" ]
     (record["id"].nil? || record["id"] == row.id) &&
       row.attributes.slice(*keys) == record.fetch("expected_attributes").slice(*keys)
-  end
-
-  def verify_recorded_credentials(identity, record)
-    password_hash = record.fetch("expected_attributes")["encrypted_password"]
-    unless password_hash.is_a?(String) && password_hash.present?
-      raise BootstrapError, "Recorded credentials for #{identity} are missing; no automatic account adoption is allowed."
-    end
   end
 
   def reconcile_badge(identity, record, row)
@@ -207,24 +186,6 @@ class DevelopmentReadingScenarioBootstrap
     end
   end
 
-  def prepare_pending_records
-    @bootstrap.fetch("records").each do |group, records|
-      records.each do |identity, record|
-        next if record["result"] == "skipped" || @existing.fetch(group).fetch(identity).any?
-
-        @prepared_records.fetch(group)[identity] ||= prepare_pending_record(group, record.fetch("expected_attributes"))
-      end
-    end
-  end
-
-  def prepare_pending_record(group, attributes)
-    return prepare_new_user(attributes) if group == "users"
-
-    row = BOOTSTRAP_MODELS.fetch(group).new(attributes)
-    row.validate!
-    row
-  end
-
   def prepare_new_user(attributes)
     unless @password.is_a?(String) && @password.present?
       raise BootstrapError, "Set DEVELOPMENT_SCENARIO_PASSWORD locally before creating synthetic accounts."
@@ -241,6 +202,15 @@ class DevelopmentReadingScenarioBootstrap
     user
   end
 
+  def pending_account(identity, attributes)
+    user = @prepared_users[identity] || prepare_new_user(attributes)
+    if attributes["encrypted_password"].blank?
+      attributes["encrypted_password"] = user.encrypted_password
+      @scenario_manifest.save_scenario
+    end
+    user
+  end
+
   def import_bootstrap_records
     BOOTSTRAP_MODELS.each do |group, model|
       @bootstrap.fetch("records").fetch(group).each do |identity, record|
@@ -253,7 +223,8 @@ class DevelopmentReadingScenarioBootstrap
             row.lock!
             verify_recorded_row(group, identity, record, row)
           else
-            row = @prepared_records.fetch(group).fetch(identity)
+            attributes = record.fetch("expected_attributes")
+            row = group == "users" ? pending_account(identity, attributes) : model.new(attributes)
             row.save!
           end
         end
@@ -261,13 +232,13 @@ class DevelopmentReadingScenarioBootstrap
         record["id"] = row.id
         record["result"] = result
         record["expected_attributes"] = recorded_attributes(row)
-        record.delete("errors")
+        record.except!("errors", "reason")
         @scenario_manifest.save_scenario
-      rescue ActiveRecord::RecordInvalid => error
-        record["result"] = "failed"
-        record["errors"] = error.record.errors.full_messages
+      rescue BootstrapError, ActiveRecord::RecordInvalid, ActiveRecord::RecordNotUnique, ActiveRecord::RecordNotFound => error
+        @existing.fetch(group)[identity] = []
+        reason = error.is_a?(ActiveRecord::StatementInvalid) ? "Identity already in use" : error.message
+        record.merge!("result" => "failed", "reason" => reason)
         @scenario_manifest.save_scenario
-        raise
       end
     end
   end
@@ -282,9 +253,5 @@ class DevelopmentReadingScenarioBootstrap
 
   def expected_counts
     { "genres" => @plan.fetch("genres").length, "badges" => @plan.fetch("badges").length, "users" => @plan.fetch("users").length }
-  end
-
-  def refuse_collision(group, identity, rows)
-    raise BootstrapError, "Identity collision for #{group} #{identity}: record IDs #{rows.map(&:id).join(', ')}. Review explicitly; no automatic merge or account takeover is allowed."
   end
 end

@@ -10,24 +10,21 @@ class DevelopmentReadingScenarioChallenges
     @manifest["challenges"] ||= planned_challenges
     # Save ownership intent before committing so a retry can recognize committed rows after a failed checkpoint.
     @scenario_manifest.save_scenario
-    working = @manifest.fetch("challenges").deep_dup
+    working = @manifest.fetch("challenges")
     user_ids = @manifest.fetch("bootstrap").fetch("records").fetch("users").values.filter_map do |record|
-      record["id"] unless record["result"] == "skipped"
+      record["id"] unless [ "skipped", "failed" ].include?(record["result"])
     end
     @available_user_ids = User.where(id: user_ids).pluck(:id).to_set
     recorded_ids = working.dig("records", "user_challenges").values.filter_map { |record| record["id"] }
     enrollments = UserChallenge.where(user_id: user_ids).or(UserChallenge.where(id: recorded_ids)).to_a
 
-    Challenge.transaction(requires_new: true) do
-      challenges = import_challenges(working)
-      import_enrollments(working, challenges, enrollments)
-    end
+    challenges = import_challenges(working)
+    import_enrollments(working, challenges, enrollments)
 
     working["status"] = "complete"
     working["actual_counts"] = working.fetch("records").transform_values do |records|
       records.values.count { |record| record["id"] && record["result"] != "skipped" }
     end
-    @manifest["challenges"] = working
     @scenario_manifest.save_scenario
     @manifest.deep_dup
   end
@@ -78,6 +75,9 @@ class DevelopmentReadingScenarioChallenges
       row ||= Challenge.create!(expected)
       record["id"] = row.id
       challenges[identity] = row
+      record.except!("result", "reason") if record["result"] == "failed"
+    rescue ActiveRecord::RecordInvalid, ActiveRecord::RecordNotUnique => error
+      record.merge!("result" => "failed", "reason" => error.class.name.demodulize)
     end
   end
 
@@ -91,8 +91,14 @@ class DevelopmentReadingScenarioChallenges
 
   def import_enrollments(working, challenges, rows)
     by_pair = rows.index_by { |row| [ row.user_id, row.challenge_id ] }
-    working.fetch("records").fetch("user_challenges").each_value do |record|
+    working.fetch("records").fetch("user_challenges").each do |identity, record|
+      if [ "account_unavailable", "challenge_skipped" ].include?(record["reason"])
+        record.except!("result", "reason")
+      end
       next if record["result"] == "skipped"
+
+      reader = identity.split("/").first
+      record.fetch("expected_attributes")["user_id"] ||= @manifest.dig("bootstrap", "records", "users", reader, "id")
 
       unless @available_user_ids.include?(record.dig("expected_attributes", "user_id"))
         record.merge!("result" => "skipped", "reason" => "account_unavailable")
@@ -117,6 +123,9 @@ class DevelopmentReadingScenarioChallenges
       row ||= UserChallenge.create!(expected)
       record["id"] = row.id
       record["expected_attributes"] = expected
+      record.except!("result", "reason") if record["result"] == "failed"
+    rescue ActiveRecord::RecordInvalid, ActiveRecord::RecordNotUnique, ActiveRecord::InvalidForeignKey => error
+      record.merge!("result" => "failed", "reason" => error.class.name.demodulize)
     end
   end
 

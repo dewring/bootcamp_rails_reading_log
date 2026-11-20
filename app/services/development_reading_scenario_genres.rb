@@ -22,16 +22,17 @@ class DevelopmentReadingScenarioGenres
   def seed_genres
     book_ids = @manifest.fetch("catalog").fetch("records").values.filter_map do |pair|
       book = pair.fetch("book")
-      book["id"] unless book["result"] == "skipped"
+      book["id"] unless [ "skipped", "failed" ].include?(book["result"])
     end
     @books = Book.where(id: book_ids).order(:id).to_a
     @available_book_ids = @books.map(&:id).to_set
     @available_genre_ids = @manifest.fetch("bootstrap").fetch("records").fetch("genres").transform_values do |record|
-      record["id"] unless record["result"] == "skipped"
+      record["id"] unless [ "skipped", "failed" ].include?(record["result"])
     end
     @rows = BookGenre.where(book_id: book_ids).index_by { |row| [ row.book_id, row.genre_id ] }
-    @manifest["book_genres"] ||= { "status" => "pending", "records" => planned_links }
+    @manifest["book_genres"] ||= { "status" => "pending", "records" => {} }
     records = @manifest.fetch("book_genres").fetch("records")
+    records.reverse_merge!(planned_links)
     reconcile_recorded_links(records)
     @scenario_manifest.save_scenario
 

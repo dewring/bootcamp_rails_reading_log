@@ -4,26 +4,15 @@ require "tmpdir"
 class DevelopmentReadingScenarioBootstrapTest < ActiveSupport::TestCase
   include ActiveJob::TestHelper
 
-  # Recovery and commit-callback checks need real commits; other tests use fixture rollbacks.
-  uses_transaction "test_an_account_committed_before_its_manifest_update_resumes_only_with_its_original_planned_Devise_hash",
-    "test_changed_scenario_credentials_stop_resume_before_unfinished_users_are_created",
-    "test_the_wrong_local_password_cannot_resume_creation_of_unfinished_synthetic_accounts",
-    "test_a_missing_recorded_password_hash_refuses_resume_without_adopting_an_account_by_public_attributes",
-    "test_a_user_edited_after_preflight_is_rechecked_before_its_replay_checkpoint_without_overwriting_the_edit",
-    "test_an_invalid_pending_badge_stops_setup_before_any_records_or_checkpoint_are_written",
-    "test_an_account_save_failure_preserves_the_original_exception_and_remains_resumable"
+  uses_transaction "test_an_account_committed_before_its_manifest_update_resumes_only_with_its_original_planned_Devise_hash"
 
   setup do
     @initial_user_ids = User.pluck(:id)
     @directory = Pathname.new(Dir.mktmpdir("booknook-scenario-bootstrap-"))
-    @snapshot_path = @directory.join("catalog.json")
     @manifest_path = @directory.join("state/reading_scenario.json")
     @lock_path = @directory.join("state/reading_scenario.lock")
     @password = "synthetic-scenario-test-password"
-    @docs = Array.new(100) do |index|
-      { "key" => "/works/OL#{155_000 + index}W", "title" => "Bootstrap source #{index + 1}", "author_name" => [ "Source Author" ] }
-    end
-    @bootstrap = build_bootstrap
+    @store = DevelopmentReadingScenarioManifest.new(path: @manifest_path, lock_path: @lock_path)
   end
 
   teardown do
@@ -31,7 +20,6 @@ class DevelopmentReadingScenarioBootstrapTest < ActiveSupport::TestCase
   end
 
   test "bootstrap creates 30 readers and one admin while retaining all genre and badge types" do
-    write_snapshot
     initial_users = User.count
     existing_genres = Genre.all.map(&:attributes)
     existing_badges = Badge.all.map(&:attributes)
@@ -64,12 +52,10 @@ class DevelopmentReadingScenarioBootstrapTest < ActiveSupport::TestCase
   end
 
   test "replaying completed bootstrap needs no password and preserves all IDs and record attributes" do
-    write_snapshot
     first = bootstrap_scenario
     before = User.order(:id).map(&:attributes)
-    without_password = build_bootstrap(password: nil)
 
-    second = Rails.stub(:env, "development".inquiry) { without_password.bootstrap_scenario }
+    second = bootstrap_scenario(password: nil)
 
     assert_equal bootstrap_ids(first), bootstrap_ids(second)
     assert_equal first.dig("bootstrap", "actual_counts"), second.dig("bootstrap", "actual_counts")
@@ -84,7 +70,6 @@ class DevelopmentReadingScenarioBootstrapTest < ActiveSupport::TestCase
       email: "reader01@example.test", password: @password, role: "user", account_status: "active"
     )
     before = collision.attributes
-    write_snapshot
 
     assert_difference "User.count", 30 do
       record = user_records(bootstrap_scenario).fetch("reader01")
@@ -101,7 +86,6 @@ class DevelopmentReadingScenarioBootstrapTest < ActiveSupport::TestCase
       first_name: "Existing", last_name: "Reader", nickname: "avery.morgan",
       email: "someone@example.test", password: @password, role: "user", account_status: "active"
     )
-    write_snapshot
 
     assert_difference "User.count", 30 do
       record = user_records(bootstrap_scenario).fetch("admin")
@@ -113,7 +97,6 @@ class DevelopmentReadingScenarioBootstrapTest < ActiveSupport::TestCase
 
 
   test "matching public attributes and a matching password do not authorize takeover of an existing account" do
-    write_snapshot
     attributes = scenario_plan.fetch("users").first.fetch("attributes")
     existing = User.create!(attributes.merge("password" => @password))
     before = existing.attributes
@@ -126,34 +109,17 @@ class DevelopmentReadingScenarioBootstrapTest < ActiveSupport::TestCase
     assert_equal before, existing.reload.attributes
   end
 
-  test "a missing password is refused before writing bootstrap records or a manifest" do
-    write_snapshot
-    bootstrap = build_bootstrap(password: nil)
-
-    assert_no_difference [ "Genre.count", "Badge.count", "User.count" ] do
-      Rails.stub(:env, "development".inquiry) do
-        error = assert_raises(DevelopmentReadingScenarioBootstrap::BootstrapError) { bootstrap.bootstrap_scenario }
-        assert_includes error.message, "DEVELOPMENT_SCENARIO_PASSWORD"
-      end
+  test "missing and invalid passwords leave the catalog usable and accounts can be created on retry" do
+    [ nil, "x" ].each do |password|
+      result = bootstrap_scenario(password: password)
+      assert_equal 0, result.dig("bootstrap", "actual_counts", "users")
+      assert_equal 5, result.dig("bootstrap", "actual_counts", "badges")
+      assert_predicate user_records(result).fetch("reader01").fetch("reason"), :present?
     end
-    assert_not @manifest_path.exist?
-  end
-
-  test "password validation remains active before any records are created" do
-    write_snapshot
-    bootstrap = build_bootstrap(password: "x")
-
-    assert_no_difference [ "Genre.count", "Badge.count", "User.count" ] do
-      Rails.stub(:env, "development".inquiry) do
-        error = assert_raises(ActiveRecord::RecordInvalid) { bootstrap.bootstrap_scenario }
-        assert_includes error.record.errors.attribute_names, :password
-      end
-    end
-    assert_not @manifest_path.exist?
+    assert_difference("User.count", 31) { bootstrap_scenario }
   end
 
   test "an account committed before its manifest update resumes only with its original planned Devise hash" do
-    write_snapshot
     interrupt_after_first_account_commit
     user = User.find_by!(email: "reader01@example.test")
     manifest = JSON.parse(@manifest_path.read)
@@ -172,7 +138,6 @@ class DevelopmentReadingScenarioBootstrapTest < ActiveSupport::TestCase
 
 
   test "replay skips an uncheckpointed account whose credentials changed and resumes other accounts" do
-    write_snapshot
     interrupt_after_first_account_commit
     user = User.find_by!(email: "reader01@example.test")
     user.update!(password: "a-different-synthetic-password")
@@ -187,37 +152,27 @@ class DevelopmentReadingScenarioBootstrapTest < ActiveSupport::TestCase
     assert User.exists?(email: "reader02@example.test")
   end
 
-  test "the wrong local password cannot resume creation of unfinished synthetic accounts" do
-    write_snapshot
+  test "a wrong password preserves the recovered account and leaves pending accounts retryable" do
     interrupt_after_first_account_commit
-    wrong_password = build_bootstrap(password: "another-local-test-password")
-    before = @manifest_path.binread
-
     assert_no_difference "User.count" do
-      Rails.stub(:env, "development".inquiry) do
-        error = assert_raises(DevelopmentReadingScenarioBootstrap::BootstrapError) { wrong_password.bootstrap_scenario }
-        assert_includes error.message, "password differs"
-      end
+      result = bootstrap_scenario(password: "another-local-test-password")
+      assert_equal "reused", user_records(result).fetch("reader01").fetch("result")
+      assert_match(/password differs/, user_records(result).fetch("reader02").fetch("reason"))
     end
-    assert_equal before, @manifest_path.binread
+    assert_difference("User.count", 30) { bootstrap_scenario }
   end
 
-  test "a missing recorded password hash refuses resume without adopting an account by public attributes" do
-    write_snapshot
+  test "a missing recorded credential skips only its account" do
     interrupt_after_first_account_commit
     manifest = JSON.parse(@manifest_path.read)
     user_records(manifest).fetch("reader01").fetch("expected_attributes").delete("encrypted_password")
     @manifest_path.write(JSON.pretty_generate(manifest))
-
-    assert_no_difference "User.count" do
-      error = assert_raises(DevelopmentReadingScenarioBootstrap::BootstrapError) { bootstrap_scenario }
-      assert_includes error.message, "Recorded credentials"
-      assert_includes error.message, "no automatic account adoption"
-    end
+    result = bootstrap_scenario
+    assert_equal "recorded_credentials_missing", user_records(result).fetch("reader01").fetch("reason")
+    assert_equal 30, result.dig("bootstrap", "actual_counts", "users")
   end
 
   test "a deleted recorded user is not silently recreated" do
-    write_snapshot
     manifest = bootstrap_scenario
     id = user_records(manifest).fetch("reader30").fetch("id")
     User.find(id).destroy!
@@ -231,7 +186,6 @@ class DevelopmentReadingScenarioBootstrapTest < ActiveSupport::TestCase
   end
 
   test "a user edited after preflight is rechecked before its replay checkpoint without overwriting the edit" do
-    write_snapshot
     manifest = bootstrap_scenario
     user = User.find(user_records(manifest).fetch("reader01").fetch("id"))
     original_rename = File.method(:rename)
@@ -255,7 +209,6 @@ class DevelopmentReadingScenarioBootstrapTest < ActiveSupport::TestCase
   test "a missing badge is recreated from the retained bootstrap defaults through normal validation" do
     missing = Badge.find_by!(badge_type: "first_session")
     missing.destroy!
-    write_snapshot
 
     manifest = bootstrap_scenario
 
@@ -271,7 +224,6 @@ class DevelopmentReadingScenarioBootstrapTest < ActiveSupport::TestCase
     existing = Badge.find_by!(badge_type: "week_streak")
     existing.update!(name: "First Session")
     before = existing.attributes
-    write_snapshot
 
     assert_difference "User.count", 31 do
       result = bootstrap_scenario.fetch("bootstrap")
@@ -286,7 +238,6 @@ class DevelopmentReadingScenarioBootstrapTest < ActiveSupport::TestCase
   end
 
   test "badge replay preserves edits and skips deleted types until a replacement exists" do
-    write_snapshot
     bootstrap_scenario
     missing = Badge.find_by!(badge_type: "first_session")
     missing.destroy!
@@ -312,67 +263,13 @@ class DevelopmentReadingScenarioBootstrapTest < ActiveSupport::TestCase
     assert_equal 5, result.dig("actual_counts", "badges")
   end
 
-  test "an invalid pending badge stops setup before any records or checkpoint are written" do
+  test "an invalid badge is reported while users import and the badge can be retried" do
     Badge.find_by!(badge_type: "first_session").destroy!
-    write_snapshot
     invalid = Badge.new(badge_type: "first_session")
-
-    Badge.stub(:new, invalid) do
-      assert_no_difference [ "Genre.count", "Badge.count", "User.count" ] do
-        error = assert_raises(ActiveRecord::RecordInvalid) { bootstrap_scenario }
-        assert_same invalid, error.record
-        assert_includes error.record.errors.attribute_names, :name
-      end
-    end
-    assert_not @manifest_path.exist?
-  end
-
-  test "an account save failure preserves the original exception and remains resumable" do
-    write_snapshot
-    factory = User.method(:new)
-    failure = nil
-    User.stub(:new, ->(*arguments) {
-      user = factory.call(*arguments)
-      user.define_singleton_method(:save!) do |*|
-        errors.add(:base, "Temporary account save failure")
-        failure = ActiveRecord::RecordInvalid.new(self)
-        raise failure
-      end
-      user
-    }) do
-      error = assert_raises(ActiveRecord::RecordInvalid) { bootstrap_scenario }
-      assert_same failure, error
-    end
-    manifest = JSON.parse(@manifest_path.read)
-    failed = user_records(manifest).fetch("reader01")
-    assert_equal "failed", failed.fetch("result")
-    assert_equal failure.record.errors.full_messages, failed.fetch("errors")
-
-    completed = bootstrap_scenario
-    assert_equal 31, completed.dig("bootstrap", "actual_counts", "users")
-    assert user_records(completed).values.none? { |record| record.key?("errors") }
-  end
-
-  test "catalog replay and bootstrap share one manifest and lock in a coordinated operation" do
-    write_snapshot
-    context = DevelopmentReadingScenarioManifest.new(path: @manifest_path, lock_path: @lock_path)
-    bootstrap = build_bootstrap(manifest: context)
-    replay = OpenLibraryCatalogReplay.new(snapshot_path: @snapshot_path, manifest: context)
-    combined = nil
-
-    Rails.stub(:env, "development".inquiry) do
-      context.with_exclusive_access do
-        bootstrap.bootstrap_scenario
-        combined = replay.replay_catalog
-      end
-    end
-
-    assert_equal "complete", combined.fetch("bootstrap").fetch("status")
-    assert_equal "complete", combined.fetch("catalog").fetch("status")
-    assert_equal 31, combined.fetch("bootstrap").fetch("actual_counts").fetch("users")
-    assert_equal 100, combined.fetch("catalog").fetch("actual_counts").fetch("books")
-    assert_equal combined, JSON.parse(@manifest_path.read)
-    assert_not_requested :any, /https?:/
+    result = Badge.stub(:new, invalid) { bootstrap_scenario }
+    assert_match(/Name/, result.dig("bootstrap", "records", "badges", "first_session", "reason"))
+    assert_equal 31, result.dig("bootstrap", "actual_counts", "users")
+    assert_difference("Badge.count", 1) { bootstrap_scenario }
   end
 
   test "a shared manifest rejects another thread while allowing same-thread coordination" do
@@ -408,7 +305,7 @@ class DevelopmentReadingScenarioBootstrapTest < ActiveSupport::TestCase
   test "non-development bootstrap refuses before filesystem writes or HTTP requests" do
     [ "test", "production" ].each do |environment|
       Rails.stub(:env, environment.inquiry) do
-        assert_raises(DevelopmentReadingScenarioManifest::ManifestError) { @bootstrap.bootstrap_scenario }
+        assert_raises(DevelopmentReadingScenarioManifest::ManifestError) { import_bootstrap }
       end
     end
 
@@ -422,34 +319,19 @@ class DevelopmentReadingScenarioBootstrapTest < ActiveSupport::TestCase
     ActiveJob::QueueAdapters::TestAdapter.new
   end
 
-  def build_bootstrap(password: @password, manifest: nil)
-    DevelopmentReadingScenarioBootstrap.new(
-      snapshot_path: @snapshot_path, manifest_path: @manifest_path,
-      lock_path: @lock_path, password: password, manifest: manifest
-    )
-  end
-
-  def write_snapshot
-    stub_request(:get, "https://openlibrary.org/search.json")
-      .with(query: hash_including(page: "1"))
-      .to_return(status: 200, body: { docs: @docs }.to_json)
-    Rails.stub(:env, "development".inquiry) do
-      OpenLibraryCatalogCapture.new(
-        snapshot_path: @snapshot_path, lock_path: @directory.join("capture.lock"), contact_email: "contact@example.test"
-      ).capture_catalog
-    end
-    WebMock.reset!
-  end
-
   def scenario_plan
-    Rails.stub(:env, "development".inquiry) do
-      catalog = OpenLibraryCatalogPreflight.new(snapshot_path: @snapshot_path).preflight_catalog
-      DevelopmentReadingScenarioPlan.new(catalog: catalog).build_baseline
-    end
+    DevelopmentReadingScenarioPlan.new.static_records
   end
 
-  def bootstrap_scenario
-    Rails.stub(:env, "development".inquiry) { @bootstrap.bootstrap_scenario }
+  def bootstrap_scenario(password: @password)
+    Rails.stub(:env, "development".inquiry) { import_bootstrap(password: password) }
+  end
+
+  def import_bootstrap(password: @password)
+    @store.with_exclusive_access do
+      manifest = @store.prepare_scenario(snapshot_id: "bootstrap-test")
+      DevelopmentReadingScenarioBootstrap.new(plan: scenario_plan, manifest: manifest, scenario_manifest: @store, password: password).bootstrap_scenario
+    end
   end
 
   def user_records(manifest)

@@ -25,11 +25,11 @@ class DevelopmentScenarioReadingTaskTest < ActiveSupport::TestCase
 
   test "a missing snapshot reports the capture prerequisite without creating activity" do
     Dir.mktmpdir("reading-task-") do |directory|
-      service = DevelopmentReadingScenarioTick.new(
+      service = DevelopmentReadingScenario.new(
         snapshot_path: File.join(directory, "missing.json"),
         manifest_path: File.join(directory, "manifest.json"), lock_path: File.join(directory, "scenario.lock")
       )
-      DevelopmentReadingScenarioTick.stub(:new, service) do
+      DevelopmentReadingScenario.stub(:new, service) do
         Rails.stub(:env, "development".inquiry) do
           assert_no_difference [ "ReadingSession.count", "ClubMessage.count" ] do
             assert_includes reading_task_error, "development_scenario:capture_catalog"
@@ -49,7 +49,7 @@ class DevelopmentScenarioReadingTaskTest < ActiveSupport::TestCase
       Rake::Task.define_task(:environment)
       load Rails.root.join("lib/tasks/development_scenario.rake")
       _output, message = capture_io do
-        error = assert_raises(SystemExit) { Rake::Task["development_scenario:simulate_reading"].invoke("demo1") }
+        error = assert_raises(SystemExit) { Rake::Task["development_scenario:simulate_reading"].invoke }
         assert_equal 1, error.status
       end
     end

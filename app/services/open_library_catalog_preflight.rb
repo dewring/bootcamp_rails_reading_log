@@ -71,6 +71,9 @@ class OpenLibraryCatalogPreflight
     return unless @manifest_path.exist?
 
     manifest = JSON.parse(@manifest_path.read)
+    unless manifest.is_a?(Hash)
+      raise DevelopmentReadingScenarioManifest::ManifestError, "The reading scenario manifest must contain a JSON object."
+    end
     return unless manifest["snapshot_id"] == @snapshot.fetch("snapshot_id") &&
       manifest["database"] == ActiveRecord::Base.connection_db_config.database
 

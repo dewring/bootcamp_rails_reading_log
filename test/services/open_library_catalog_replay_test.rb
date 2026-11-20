@@ -410,9 +410,8 @@ class OpenLibraryCatalogReplayTest < ActiveSupport::TestCase
 
     failure = ActiveRecord::RecordInvalid.new(failing_book)
     Book.stub(:create!, ->(*) { raise failure }) do
-      error = assert_raises(ActiveRecord::RecordInvalid) { replay_catalog }
-      assert_same failure, error
-      assert_same failing_book, error.record
+      result = replay_catalog
+      assert_equal 0, result.dig("catalog", "actual_counts", "books")
     end
 
     manifest = JSON.parse(@manifest_path.read)

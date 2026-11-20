@@ -7,8 +7,7 @@ class DevelopmentReadingScenarioChallengesTest < ActiveSupport::TestCase
   setup do
     @directory = Pathname.new(Dir.mktmpdir("booknook-challenges-"))
     @store = DevelopmentReadingScenarioManifest.new(path: @directory.join("manifest.json"), lock_path: @directory.join("scenario.lock"))
-    catalog = { "snapshot_id" => "challenge-test", "books" => Array.new(100) { |index| { "book_attributes" => { "ol_work_key" => "/works/OL#{300_000 + index}W" } } } }
-    @plan = DevelopmentReadingScenarioPlan.new(catalog: catalog).build_baseline
+    @plan = DevelopmentReadingScenarioPlan.new.static_records
     @users = @plan.fetch("users").to_h do |entry|
       user = User.create!(entry.fetch("attributes").merge("password" => "synthetic-scenario-test-password"))
       [ entry.fetch("identity"), { "id" => user.id } ]
@@ -183,7 +182,7 @@ class DevelopmentReadingScenarioChallengesTest < ActiveSupport::TestCase
     assert_equal result, seed_challenges.fetch("challenges")
   end
 
-  test "an enrollment failure rolls back the whole challenge phase and can be retried" do
+  test "an invalid enrollment leaves other enrollments in place and can be retried" do
     factory = UserChallenge.method(:create!)
     created = 0
     fail_second = ->(attributes) {
@@ -193,13 +192,9 @@ class DevelopmentReadingScenarioChallengesTest < ActiveSupport::TestCase
       factory.call(attributes)
     }
 
-    assert_no_difference [ "Challenge.count", "UserChallenge.count" ] do
-      UserChallenge.stub(:create!, fail_second) do
-        assert_raises(ActiveRecord::RecordInvalid) { seed_challenges }
-      end
-    end
-
-    assert_equal "complete", seed_challenges.dig("challenges", "status")
+    result = UserChallenge.stub(:create!, fail_second) { seed_challenges }
+    assert_equal 39, result.dig("challenges", "actual_counts", "user_challenges")
+    assert_difference("UserChallenge.count", 1) { seed_challenges }
   end
 
   test "recovery reuses existing enrollments by reader and challenge after a failed checkpoint" do
