@@ -27,7 +27,7 @@ class DevelopmentScenarioReadingTaskTest < ActiveSupport::TestCase
     Dir.mktmpdir("reading-task-") do |directory|
       service = DevelopmentReadingScenario.new(
         snapshot_path: File.join(directory, "missing.json"),
-        manifest_path: File.join(directory, "manifest.json"), lock_path: File.join(directory, "scenario.lock")
+        manifest_path: File.join(directory, "manifest.json")
       )
       DevelopmentReadingScenario.stub(:new, service) do
         Rails.stub(:env, "development".inquiry) do

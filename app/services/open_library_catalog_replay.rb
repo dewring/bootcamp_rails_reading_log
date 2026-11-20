@@ -3,36 +3,34 @@ class OpenLibraryCatalogReplay
 
   def initialize(snapshot_path: Rails.root.join("db/seeds/open_library_catalog.json"),
     manifest_path: DevelopmentReadingScenarioManifest::DEFAULT_PATH,
-    lock_path: DevelopmentReadingScenarioManifest::DEFAULT_LOCK_PATH,
     as_of: DevelopmentReadingScenarioPlan.configured_reference_time, manifest: nil)
     @snapshot_path = Pathname.new(snapshot_path)
-    @scenario_manifest = manifest || DevelopmentReadingScenarioManifest.new(path: manifest_path, lock_path: lock_path, as_of: as_of)
+    @scenario_manifest = manifest || DevelopmentReadingScenarioManifest.new(path: manifest_path, as_of: as_of)
   end
 
   def replay_catalog
-    @scenario_manifest.with_exclusive_access do
-      @plan = OpenLibraryCatalogPreflight.new(snapshot_path: @snapshot_path, manifest_path: @scenario_manifest.path).preflight_catalog(skip_book_conflicts: true)
-      load_catalog_records
-      @manifest = @scenario_manifest.prepare_scenario(snapshot_id: @plan.fetch("snapshot_id"))
-      @manifest["catalog"] ||= planned_catalog
-      @scenario_manifest.save_scenario
-      @plan.fetch("books").each { |entry| import_catalog_entry(entry) }
-      record_catalog_counts
-      record_skipped_book_conflicts
-      record_skipped_edition_conflicts
-      @manifest.fetch("catalog")["status"] = "complete"
-      @scenario_manifest.save_scenario
-      prepare_cover_previews
-      @manifest
-    end
+    preflight = OpenLibraryCatalogPreflight.new(snapshot_path: @snapshot_path, manifest_path: @scenario_manifest.path)
+    @plan = preflight.preflight_catalog(skip_book_conflicts: true)
+    load_catalog_records
+    @manifest = @scenario_manifest.prepare_scenario(snapshot_id: @plan.fetch("snapshot_id"))
+    @manifest["catalog"] ||= planned_catalog
+    @scenario_manifest.save_scenario(@manifest)
+    @plan.fetch("books").each { |entry| import_catalog_entry(entry) }
+    record_catalog_counts
+    record_skipped_book_conflicts
+    record_skipped_edition_conflicts
+    @manifest.fetch("catalog")["status"] = "complete"
+    @scenario_manifest.save_scenario(@manifest)
+    prepare_cover_previews(preflight.snapshot)
+    @manifest
   end
 
   private
 
-  def prepare_cover_previews
+  def prepare_cover_previews(snapshot)
     books = Book.where(id: @books.values.map(&:id)).with_attached_cover_image.index_by(&:ol_work_key)
     DevelopmentReadingScenarioCoverPreviews.new(
-      snapshot: JSON.parse(@snapshot_path.read), books: books,
+      snapshot: snapshot, books: books,
       manifest: @manifest, scenario_manifest: @scenario_manifest
     ).prepare_previews
   end
@@ -105,7 +103,7 @@ class OpenLibraryCatalogReplay
     if entry["book_skip"]
       pair.fetch("book").merge!("result" => "skipped", "reason" => "book_unavailable", "conflicts" => entry.fetch("book_skip"))
       pair["edition"] = entry.fetch("edition_skip").merge("result" => "skipped") if entry["edition_skip"]
-      @scenario_manifest.save_scenario
+      @scenario_manifest.save_scenario(@manifest)
       return
     end
     book = @books[key]
@@ -114,8 +112,6 @@ class OpenLibraryCatalogReplay
     edition_result = edition ? "reused" : "imported"
 
     Book.transaction(requires_new: true) do
-      book.lock! if book
-      edition.lock! if edition
       verify_recorded_row(pair.fetch("book"), book, key)
       verify_recorded_row(pair.fetch("edition"), edition, edition_attributes.fetch("ol_edition_key")) if edition_attributes
       if edition && edition.book_id != book&.id
@@ -132,7 +128,7 @@ class OpenLibraryCatalogReplay
     record_saved_row(pair.fetch("book"), book, book_result)
     record_saved_row(pair.fetch("edition"), edition, edition_result) if edition
     pair["edition"] = entry.fetch("edition_skip").merge("result" => "skipped") if entry["edition_skip"]
-    @scenario_manifest.save_scenario
+    @scenario_manifest.save_scenario(@manifest)
   rescue ActiveRecord::RecordInvalid, ActiveRecord::RecordNotUnique, ActiveRecord::RecordNotFound, ActiveRecord::InvalidForeignKey, ReplayError => error
     # A Work and its representative Edition commit together. Retry the pair on the next run.
     kind = error.is_a?(ActiveRecord::RecordInvalid) && error.record.is_a?(BookEdition) ? "edition" : "book"
@@ -140,7 +136,7 @@ class OpenLibraryCatalogReplay
     @books.delete(key)
     @editions.delete(edition_attributes.fetch("ol_edition_key")) if edition_attributes
     pair.fetch(kind).merge!("result" => "failed", "errors" => [ reason ])
-    @scenario_manifest.save_scenario
+    @scenario_manifest.save_scenario(@manifest)
   end
 
   def record_saved_row(record, row, result)

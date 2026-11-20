@@ -20,11 +20,9 @@ class OpenLibraryCatalogCapture
   MAX_RETRY_DELAY = 60
 
   def initialize(snapshot_path: Rails.root.join("db/seeds/open_library_catalog.json"),
-    lock_path: DevelopmentReadingScenarioManifest::DEFAULT_LOCK_PATH,
     contact_email: ENV["OPEN_LIBRARY_CONTACT_EMAIL"], client: OpenLibraryClient.new,
     clock: -> { Process.clock_gettime(Process::CLOCK_MONOTONIC) }, sleeper: ->(seconds) { sleep(seconds) })
     @snapshot_path = Pathname.new(snapshot_path)
-    @lock_path = Pathname.new(lock_path)
     @contact_email = contact_email
     @client = client
     @clock = clock
@@ -34,15 +32,9 @@ class OpenLibraryCatalogCapture
   def capture_catalog
     prepare_capture
     validate_capture_settings
-    FileUtils.mkdir_p(@lock_path.dirname)
-
-    File.open(@lock_path, File::RDWR | File::CREAT, 0o600) do |lock|
-      fail_capture("Another reading scenario operation is already running") unless lock.flock(File::LOCK_EX | File::LOCK_NB)
-
-      snapshot = collect_snapshot
-      save_snapshot(snapshot)
-      snapshot
-    end
+    snapshot = collect_snapshot
+    save_snapshot(snapshot)
+    snapshot
   end
 
   private

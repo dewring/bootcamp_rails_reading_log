@@ -9,7 +9,7 @@ class DevelopmentReadingScenarioChallenges
     load_challenge_candidates
     @manifest["challenges"] ||= planned_challenges
     # Save ownership intent before committing so a retry can recognize committed rows after a failed checkpoint.
-    @scenario_manifest.save_scenario
+    @scenario_manifest.save_scenario(@manifest)
     working = @manifest.fetch("challenges")
     user_ids = @manifest.fetch("bootstrap").fetch("records").fetch("users").values.filter_map do |record|
       record["id"] unless [ "skipped", "failed" ].include?(record["result"])
@@ -25,7 +25,7 @@ class DevelopmentReadingScenarioChallenges
     working["actual_counts"] = working.fetch("records").transform_values do |records|
       records.values.count { |record| record["id"] && record["result"] != "skipped" }
     end
-    @scenario_manifest.save_scenario
+    @scenario_manifest.save_scenario(@manifest)
     @manifest.deep_dup
   end
 

@@ -16,11 +16,11 @@ class DevelopmentReadingScenarioBootstrap
     @bootstrap = @manifest["bootstrap"] || planned_bootstrap
     verify_recorded_rows
     @manifest["bootstrap"] = @bootstrap
-    @scenario_manifest.save_scenario
+    @scenario_manifest.save_scenario(@manifest)
     import_bootstrap_records
     record_bootstrap_counts
     @bootstrap["status"] = @bootstrap.fetch("records").values.any? { |group| group.values.any? { |record| record["result"] == "failed" } } ? "partial" : "complete"
-    @scenario_manifest.save_scenario
+    @scenario_manifest.save_scenario(@manifest)
     @manifest
   end
 
@@ -169,23 +169,6 @@ class DevelopmentReadingScenarioBootstrap
     end
   end
 
-  def verify_recorded_row(group, identity, record, row)
-    return if group == "genres" && row&.name == identity
-    # Badge type is unique. The existing name and description belong to the catalog.
-    return if group == "badges" && row&.badge_type == identity
-
-    return if group == "users" && recorded_user_matches?(record, row)
-    if record["id"] && row&.id != record.fetch("id")
-      raise BootstrapError, "Recorded #{group} #{identity} (ID #{record.fetch('id')}) is missing or changed; no automatic recreation is allowed."
-    end
-    return unless row
-
-    expected = record.fetch("expected_attributes")
-    unless recorded_attributes(row).slice(*expected.keys) == expected
-      raise BootstrapError, "Recorded #{group} #{identity} (ID #{row.id}) changed; no overwrite or account takeover is allowed."
-    end
-  end
-
   def prepare_new_user(attributes)
     unless @password.is_a?(String) && @password.present?
       raise BootstrapError, "Set DEVELOPMENT_SCENARIO_PASSWORD locally before creating synthetic accounts."
@@ -206,7 +189,7 @@ class DevelopmentReadingScenarioBootstrap
     user = @prepared_users[identity] || prepare_new_user(attributes)
     if attributes["encrypted_password"].blank?
       attributes["encrypted_password"] = user.encrypted_password
-      @scenario_manifest.save_scenario
+      @scenario_manifest.save_scenario(@manifest)
     end
     user
   end
@@ -218,27 +201,22 @@ class DevelopmentReadingScenarioBootstrap
 
         row = @existing.fetch(group).fetch(identity).first
         result = row ? "reused" : "imported"
-        model.transaction(requires_new: true) do
-          if row
-            row.lock!
-            verify_recorded_row(group, identity, record, row)
-          else
-            attributes = record.fetch("expected_attributes")
-            row = group == "users" ? pending_account(identity, attributes) : model.new(attributes)
-            row.save!
-          end
+        unless row
+          attributes = record.fetch("expected_attributes")
+          row = group == "users" ? pending_account(identity, attributes) : model.new(attributes)
+          row.save!
         end
         @existing.fetch(group)[identity] = [ row ]
         record["id"] = row.id
         record["result"] = result
         record["expected_attributes"] = recorded_attributes(row)
         record.except!("errors", "reason")
-        @scenario_manifest.save_scenario
+        @scenario_manifest.save_scenario(@manifest)
       rescue BootstrapError, ActiveRecord::RecordInvalid, ActiveRecord::RecordNotUnique, ActiveRecord::RecordNotFound => error
         @existing.fetch(group)[identity] = []
         reason = error.is_a?(ActiveRecord::StatementInvalid) ? "Identity already in use" : error.message
         record.merge!("result" => "failed", "reason" => reason)
-        @scenario_manifest.save_scenario
+        @scenario_manifest.save_scenario(@manifest)
       end
     end
   end

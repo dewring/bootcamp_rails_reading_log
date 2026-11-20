@@ -6,7 +6,7 @@ class DevelopmentReadingScenarioChallengesTest < ActiveSupport::TestCase
 
   setup do
     @directory = Pathname.new(Dir.mktmpdir("booknook-challenges-"))
-    @store = DevelopmentReadingScenarioManifest.new(path: @directory.join("manifest.json"), lock_path: @directory.join("scenario.lock"))
+    @store = DevelopmentReadingScenarioManifest.new(path: @directory.join("manifest.json"))
     @plan = DevelopmentReadingScenarioPlan.new.static_records
     @users = @plan.fetch("users").to_h do |entry|
       user = User.create!(entry.fetch("attributes").merge("password" => "synthetic-scenario-test-password"))
@@ -14,7 +14,7 @@ class DevelopmentReadingScenarioChallengesTest < ActiveSupport::TestCase
     end
     with_scenario do |manifest|
       manifest["bootstrap"] = { "records" => { "users" => @users } }
-      @store.save_scenario
+      @store.save_scenario(manifest)
     end
   end
 
@@ -222,10 +222,8 @@ class DevelopmentReadingScenarioChallengesTest < ActiveSupport::TestCase
 
   def with_scenario
     Rails.stub(:env, "development".inquiry) do
-      @store.with_exclusive_access do
-        manifest = @store.prepare_scenario(snapshot_id: "challenge-test")
-        yield manifest
-      end
+      manifest = @store.prepare_scenario(snapshot_id: "challenge-test")
+      yield manifest
     end
   end
 

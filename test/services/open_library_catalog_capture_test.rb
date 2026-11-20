@@ -5,7 +5,6 @@ class OpenLibraryCatalogCaptureTest < ActiveSupport::TestCase
   setup do
     @directory = Pathname.new(Dir.mktmpdir("booknook-catalog-capture-"))
     @snapshot_path = @directory.join("snapshot/catalog.json")
-    @lock_path = @directory.join("state/reading_scenario.lock")
     @monotonic = 0.0
     @waits = []
     @capture = build_capture
@@ -293,22 +292,7 @@ class OpenLibraryCatalogCaptureTest < ActiveSupport::TestCase
     assert_not_requested :get, /openlibrary\.org/
   end
 
-  test "overlapping scenario operations are refused without an HTTP request or snapshot change" do
-    preserve_previous_snapshot
-    FileUtils.mkdir_p(@lock_path.dirname)
-
-    File.open(@lock_path, File::RDWR | File::CREAT, 0o600) do |lock|
-      assert lock.flock(File::LOCK_EX | File::LOCK_NB)
-
-      error = assert_capture_failure
-
-      assert_includes error.message, "already running"
-    end
-
-    assert_not_requested :get, /openlibrary\.org/
-  end
-
-  test "capture releases its lock after failure so a later attempt can succeed" do
+  test "capture can retry after an invalid response" do
     request = stub_page(1, body: "not JSON")
     assert_raises(OpenLibraryCatalogCapture::CaptureError) { capture_catalog }
     remove_request_stub(request)
@@ -322,7 +306,6 @@ class OpenLibraryCatalogCaptureTest < ActiveSupport::TestCase
   def build_capture(contact_email: "contact@example.test", client: OpenLibraryClient.new)
     OpenLibraryCatalogCapture.new(
       snapshot_path: @snapshot_path,
-      lock_path: @lock_path,
       contact_email: contact_email,
       client: client,
       clock: -> { @monotonic },

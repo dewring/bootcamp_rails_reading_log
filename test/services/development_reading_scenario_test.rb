@@ -7,8 +7,7 @@ class DevelopmentReadingScenarioTest < ActiveSupport::TestCase
   setup do
     @directory = Pathname.new(Dir.mktmpdir("reading-simulation-"))
     @path = @directory.join("manifest.json")
-    @lock = @directory.join("demo.lock")
-    @scenario = DevelopmentReadingScenario.new(manifest_path: @path, lock_path: @lock, password: "local-demo-password")
+    @scenario = DevelopmentReadingScenario.new(manifest_path: @path, password: "local-demo-password")
   end
 
   teardown { FileUtils.remove_entry(@directory) }
@@ -99,11 +98,7 @@ class DevelopmentReadingScenarioTest < ActiveSupport::TestCase
     assert_equal 2, ClubMessage.where(book_club_id: clubs.fetch("steady")).count
   end
 
-  test "an unsafe manifest and an overlapping run report why they stopped before writing" do
-    File.open(@lock, "w") do |lock|
-      lock.flock(File::LOCK_EX)
-      assert_no_difference("Book.count") { assert_match(/already running/, simulate.fetch("reason")) }
-    end
+  test "an unsafe manifest stops the simulator before writing" do
     @path.write("invalid json")
     assert_no_difference [ "User.count", "Book.count", "ReadingSession.count" ] do
       assert_match(/invalid JSON/, simulate.fetch("reason"))

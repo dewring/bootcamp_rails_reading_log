@@ -12,6 +12,8 @@ class OpenLibraryCatalogPreflight
     end
   end
 
+  attr_reader :snapshot
+
   def initialize(snapshot_path: Rails.root.join("db/seeds/open_library_catalog.json"),
     manifest_path: DevelopmentReadingScenarioManifest::DEFAULT_PATH)
     @snapshot_path = Pathname.new(snapshot_path)

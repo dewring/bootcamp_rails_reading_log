@@ -134,7 +134,7 @@ class DevelopmentReadingScenarioActivity
         member_ids.each { |id| club.book_club_memberships.create!(user_id: id, role: "member") }
       end
       clubs[identity] = club.id
-      @scenario_manifest.save_scenario
+      @scenario_manifest.save_scenario(@manifest)
       return club
     end
 

@@ -11,7 +11,6 @@ class OpenLibraryCatalogReplayTest < ActiveSupport::TestCase
     @directory = Pathname.new(Dir.mktmpdir("booknook-catalog-replay-"))
     @snapshot_path = @directory.join("catalog.json")
     @manifest_path = @directory.join("state/reading_scenario.json")
-    @lock_path = @directory.join("state/reading_scenario.lock")
     @as_of = Time.zone.local(2026, 10, 30, 12)
     @docs = Array.new(100) do |index|
       number = 153_000 + index
@@ -423,7 +422,7 @@ class OpenLibraryCatalogReplayTest < ActiveSupport::TestCase
   test "non-development replay refuses before filesystem writes or HTTP requests" do
     [ "test", "production" ].each do |environment|
       Rails.stub(:env, environment.inquiry) do
-        assert_raises(DevelopmentReadingScenarioManifest::ManifestError) { @replay.replay_catalog }
+        assert_raises(OpenLibraryCatalogPreflight::PreflightError) { @replay.replay_catalog }
       end
     end
 
@@ -431,26 +430,11 @@ class OpenLibraryCatalogReplayTest < ActiveSupport::TestCase
     assert_not_requested :any, /https?:/
   end
 
-  test "overlapping scenario operations refuse before creating a manifest or inserting rows" do
-    FileUtils.mkdir_p(@lock_path.dirname)
-
-    File.open(@lock_path, File::RDWR | File::CREAT, 0o600) do |lock|
-      assert lock.flock(File::LOCK_EX | File::LOCK_NB)
-      assert_no_difference [ "Book.count", "BookEdition.count" ] do
-        error = assert_raises(DevelopmentReadingScenarioManifest::ManifestError) { replay_catalog }
-        assert_includes error.message, "already running"
-      end
-    end
-
-    assert_not @manifest_path.exist?
-    assert_not_requested :any, /https?:/
-  end
-
   private
 
   def build_replay(as_of: @as_of)
     OpenLibraryCatalogReplay.new(
-      snapshot_path: @snapshot_path, manifest_path: @manifest_path, lock_path: @lock_path, as_of: as_of
+      snapshot_path: @snapshot_path, manifest_path: @manifest_path, as_of: as_of
     )
   end
 
@@ -460,7 +444,7 @@ class OpenLibraryCatalogReplayTest < ActiveSupport::TestCase
       .to_return(status: 200, body: { docs: @docs }.to_json)
     snapshot = Rails.stub(:env, "development".inquiry) do
       OpenLibraryCatalogCapture.new(
-        snapshot_path: @snapshot_path, lock_path: @directory.join("capture.lock"),
+        snapshot_path: @snapshot_path,
         contact_email: "contact@example.test"
       ).capture_catalog
     end

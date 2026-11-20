@@ -1,29 +1,26 @@
 class DevelopmentReadingScenario
   def initialize(snapshot_path: Rails.root.join("db/seeds/open_library_catalog.json"),
-    manifest_path: DevelopmentReadingScenarioManifest::DEFAULT_PATH, lock_path: DevelopmentReadingScenarioManifest::DEFAULT_LOCK_PATH,
+    manifest_path: DevelopmentReadingScenarioManifest::DEFAULT_PATH,
     as_of: nil, password: ENV["DEVELOPMENT_SCENARIO_PASSWORD"])
     @snapshot_path = snapshot_path
     @manifest_path = manifest_path
-    @lock_path = lock_path
     @as_of = as_of
     @password = password
   end
 
   def seed_scenario
     as_of = @as_of || DevelopmentReadingScenarioPlan.configured_reference_time
-    store = DevelopmentReadingScenarioManifest.new(path: @manifest_path, lock_path: @lock_path, as_of: as_of)
-    store.with_exclusive_access do
-      manifest = OpenLibraryCatalogReplay.new(snapshot_path: @snapshot_path, manifest: store, as_of: as_of).replay_catalog
-      plan = DevelopmentReadingScenarioPlan.new(as_of: Time.iso8601(manifest.fetch("as_of"))).static_records(
-        recorded_users: manifest.dig("bootstrap", "records", "users") || {}
-      )
-      inputs = { manifest: manifest, scenario_manifest: store }
-      DevelopmentReadingScenarioBootstrap.new(**inputs, plan: plan, password: @password).bootstrap_scenario
-      DevelopmentReadingScenarioGenres.new(**inputs).seed_genres
-      DevelopmentReadingScenarioChallenges.new(**inputs, plan: plan).seed_challenges
-      activity = DevelopmentReadingScenarioActivity.new(**inputs).simulate_reading
-      import_summary(manifest, activity)
-    end
+    store = DevelopmentReadingScenarioManifest.new(path: @manifest_path, as_of: as_of)
+    manifest = OpenLibraryCatalogReplay.new(snapshot_path: @snapshot_path, manifest: store, as_of: as_of).replay_catalog
+    plan = DevelopmentReadingScenarioPlan.new(as_of: Time.iso8601(manifest.fetch("as_of"))).static_records(
+      recorded_users: manifest.dig("bootstrap", "records", "users") || {}
+    )
+    inputs = { manifest: manifest, scenario_manifest: store }
+    DevelopmentReadingScenarioBootstrap.new(**inputs, plan: plan, password: @password).bootstrap_scenario
+    DevelopmentReadingScenarioGenres.new(**inputs).seed_genres
+    DevelopmentReadingScenarioChallenges.new(**inputs, plan: plan).seed_challenges
+    activity = DevelopmentReadingScenarioActivity.new(**inputs).simulate_reading
+    import_summary(manifest, activity)
   rescue DevelopmentReadingScenarioManifest::ManifestError, OpenLibraryCatalogPreflight::PreflightError,
     OpenLibraryCatalogReplay::ReplayError, DevelopmentReadingScenarioCoverPreviews::PreviewError,
     DevelopmentReadingScenarioBootstrap::BootstrapError, DevelopmentReadingScenarioPlan::ReferenceTimeError => error

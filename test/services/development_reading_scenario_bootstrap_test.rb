@@ -10,9 +10,8 @@ class DevelopmentReadingScenarioBootstrapTest < ActiveSupport::TestCase
     @initial_user_ids = User.pluck(:id)
     @directory = Pathname.new(Dir.mktmpdir("booknook-scenario-bootstrap-"))
     @manifest_path = @directory.join("state/reading_scenario.json")
-    @lock_path = @directory.join("state/reading_scenario.lock")
     @password = "synthetic-scenario-test-password"
-    @store = DevelopmentReadingScenarioManifest.new(path: @manifest_path, lock_path: @lock_path)
+    @store = DevelopmentReadingScenarioManifest.new(path: @manifest_path)
   end
 
   teardown do
@@ -185,7 +184,7 @@ class DevelopmentReadingScenarioBootstrapTest < ActiveSupport::TestCase
     end
   end
 
-  test "a user edited after preflight is rechecked before its replay checkpoint without overwriting the edit" do
+  test "replay preserves a profile edit made after it loads an existing user" do
     manifest = bootstrap_scenario
     user = User.find(user_records(manifest).fetch("reader01").fetch("id"))
     original_rename = File.method(:rename)
@@ -272,36 +271,6 @@ class DevelopmentReadingScenarioBootstrapTest < ActiveSupport::TestCase
     assert_difference("Badge.count", 1) { bootstrap_scenario }
   end
 
-  test "a shared manifest rejects another thread while allowing same-thread coordination" do
-    context = DevelopmentReadingScenarioManifest.new(path: @manifest_path, lock_path: @lock_path)
-
-    Rails.stub(:env, "development".inquiry) do
-      context.with_exclusive_access do
-        assert_equal :nested_access, context.with_exclusive_access { :nested_access }
-        error = Thread.new do
-          context.with_exclusive_access { :unexpected_access }
-        rescue DevelopmentReadingScenarioManifest::ManifestError => failure
-          failure
-        end.value
-        assert_instance_of DevelopmentReadingScenarioManifest::ManifestError, error
-        assert_includes error.message, "already running"
-      end
-    end
-  end
-
-  test "another process lock refuses bootstrap before database changes or manifest creation" do
-    FileUtils.mkdir_p(@lock_path.dirname)
-    File.open(@lock_path, File::RDWR | File::CREAT, 0o600) do |lock|
-      assert lock.flock(File::LOCK_EX | File::LOCK_NB)
-      assert_no_difference [ "User.count", "Genre.count", "Badge.count" ] do
-        assert_raises(DevelopmentReadingScenarioManifest::ManifestError) { bootstrap_scenario }
-      end
-    end
-
-    assert_not @manifest_path.exist?
-    assert_not_requested :any, /https?:/
-  end
-
   test "non-development bootstrap refuses before filesystem writes or HTTP requests" do
     [ "test", "production" ].each do |environment|
       Rails.stub(:env, environment.inquiry) do
@@ -328,11 +297,9 @@ class DevelopmentReadingScenarioBootstrapTest < ActiveSupport::TestCase
   end
 
   def import_bootstrap(password: @password)
-    @store.with_exclusive_access do
-      manifest = @store.prepare_scenario(snapshot_id: "bootstrap-test")
-      plan = DevelopmentReadingScenarioPlan.new.static_records(recorded_users: manifest.dig("bootstrap", "records", "users") || {})
-      DevelopmentReadingScenarioBootstrap.new(plan: plan, manifest: manifest, scenario_manifest: @store, password: password).bootstrap_scenario
-    end
+    manifest = @store.prepare_scenario(snapshot_id: "bootstrap-test")
+    plan = DevelopmentReadingScenarioPlan.new.static_records(recorded_users: manifest.dig("bootstrap", "records", "users") || {})
+    DevelopmentReadingScenarioBootstrap.new(plan: plan, manifest: manifest, scenario_manifest: @store, password: password).bootstrap_scenario
   end
 
   def user_records(manifest)

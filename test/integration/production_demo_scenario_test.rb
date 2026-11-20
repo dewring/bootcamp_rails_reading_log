@@ -17,7 +17,7 @@ class ProductionDemoScenarioTest < ActionDispatch::IntegrationTest
       ENV.stub(:[], variables.method(:[])) do
         Rails.env.stub(:production?, true) do
           scenario = DevelopmentReadingScenario.new(
-            manifest_path: File.join(directory, "manifest.json"), lock_path: File.join(directory, "scenario.lock"),
+            manifest_path: File.join(directory, "manifest.json"),
             password: "synthetic-scenario-test-password"
           )
           first = scenario.seed_scenario
@@ -50,7 +50,7 @@ class ProductionDemoScenarioTest < ActionDispatch::IntegrationTest
         Rails.env.stub(:production?, true) do
           manifest = DevelopmentReadingScenario.new(
             snapshot_path: Rails.root.join("db/seeds/open_library_catalog.json"),
-            manifest_path: File.join(directory, "manifest.json"), lock_path: File.join(directory, "scenario.lock"),
+            manifest_path: File.join(directory, "manifest.json"),
             password: "synthetic-scenario-test-password"
           ).seed_scenario
         end

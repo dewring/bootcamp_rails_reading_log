@@ -8,7 +8,7 @@ class DevelopmentReadingScenarioPrivacyTest < ActionDispatch::IntegrationTest
 
   setup do
     @directory = Pathname.new(Dir.mktmpdir("reading-privacy-"))
-    @scenario = DevelopmentReadingScenario.new(manifest_path: @directory.join("manifest.json"), lock_path: @directory.join("scenario.lock"), password: "demo-test-password")
+    @scenario = DevelopmentReadingScenario.new(manifest_path: @directory.join("manifest.json"), password: "demo-test-password")
     simulate
   end
 

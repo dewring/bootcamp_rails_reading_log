@@ -34,7 +34,7 @@ class DevelopmentReadingScenarioGenres
     records = @manifest.fetch("book_genres").fetch("records")
     records.reverse_merge!(planned_links)
     reconcile_recorded_links(records)
-    @scenario_manifest.save_scenario
+    @scenario_manifest.save_scenario(@manifest)
 
     active_records = records.values.reject { |record| record["result"] == "skipped" }
     missing = active_records.reject { |record| @rows.key?(link_pair(record)) }
@@ -45,7 +45,7 @@ class DevelopmentReadingScenarioGenres
     saved = BookGenre.where(book_id: book_ids).index_by { |row| [ row.book_id, row.genre_id ] }
     active_records.each { |record| record["id"] = saved.fetch(link_pair(record)).id }
     @manifest.fetch("book_genres").merge!("status" => "complete", "actual_count" => active_records.length)
-    @scenario_manifest.save_scenario
+    @scenario_manifest.save_scenario(@manifest)
     @manifest.deep_dup
   end
 
