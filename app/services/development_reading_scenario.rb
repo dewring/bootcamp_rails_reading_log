@@ -14,7 +14,9 @@ class DevelopmentReadingScenario
     store = DevelopmentReadingScenarioManifest.new(path: @manifest_path, lock_path: @lock_path, as_of: as_of)
     store.with_exclusive_access do
       manifest = OpenLibraryCatalogReplay.new(snapshot_path: @snapshot_path, manifest: store, as_of: as_of).replay_catalog
-      plan = DevelopmentReadingScenarioPlan.new(as_of: Time.iso8601(manifest.fetch("as_of"))).static_records
+      plan = DevelopmentReadingScenarioPlan.new(as_of: Time.iso8601(manifest.fetch("as_of"))).static_records(
+        recorded_users: manifest.dig("bootstrap", "records", "users") || {}
+      )
       inputs = { manifest: manifest, scenario_manifest: store }
       DevelopmentReadingScenarioBootstrap.new(**inputs, plan: plan, password: @password).bootstrap_scenario
       DevelopmentReadingScenarioGenres.new(**inputs).seed_genres

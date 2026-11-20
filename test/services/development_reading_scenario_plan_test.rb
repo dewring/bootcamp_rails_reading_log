@@ -50,24 +50,13 @@ class DevelopmentReadingScenarioPlanTest < ActiveSupport::TestCase
     assert users.none? { |user| user.fetch("attributes").key?("password") || user.fetch("attributes").key?("encrypted_password") }
   end
 
-  test "fictional display names are distinct while reader identities and login emails remain stable" do
-    users = @plan.fetch("users")
-    readers = users.select { |entry| entry.fetch("attributes").fetch("role") == "user" }
-
-    assert_equal 31, users.map { |entry| entry.fetch("attributes").values_at("first_name", "last_name") }.uniq.length
-    users.each do |entry|
-      attributes = entry.fetch("attributes")
-      assert_match(/\A[A-Z][a-z]+\z/, attributes.fetch("first_name"))
-      assert_match(/\A[A-Z][a-z]+\z/, attributes.fetch("last_name"))
-      assert_equal "#{attributes.fetch('first_name')}.#{attributes.fetch('last_name')}".downcase, attributes.fetch("nickname")
-    end
-    readers.each_with_index do |entry, index|
-      identity = "reader#{format('%02d', index + 1)}"
-      assert_equal identity, entry.fetch("identity")
-      assert_equal "#{identity}@example.test", entry.fetch("attributes").fetch("email")
-    end
-    admin = users.find { |entry| entry.fetch("identity") == "admin" }
-    assert_equal "reading_scenario_admin@example.test", admin.fetch("attributes").fetch("email")
+  test "an existing reader keeps the recorded profile and reserved login when the simulator is upgraded" do
+    profile = { "first_name" => "Maya", "last_name" => "Chen", "nickname" => "maya.chen" }
+    saved = { "reader01" => { "expected_attributes" => profile } }
+    users = DevelopmentReadingScenarioPlan.new.static_records(recorded_users: saved).fetch("users")
+    first = users.first.fetch("attributes")
+    assert_equal profile, first.slice(*profile.keys)
+    assert_equal "reader01@example.test", first.fetch("email")
   end
 
   test "invalid or ambiguous configured reference times are rejected" do

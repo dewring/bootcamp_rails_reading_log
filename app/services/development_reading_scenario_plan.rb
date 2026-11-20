@@ -1,13 +1,6 @@
 class DevelopmentReadingScenarioPlan
   class ReferenceTimeError < ArgumentError; end
 
-  READER_NAMES = [
-    "Maya Chen", "Liam Patel", "Sofia Rivera", "Noah Brooks", "Amelia Kim", "Ethan Wilson",
-    "Olivia Bennett", "Lucas Nguyen", "Isabella Ortiz", "Mason Clarke", "Charlotte Evans", "James Park",
-    "Harper Lewis", "Benjamin Shah", "Evelyn Reed", "Elijah Santos", "Abigail Turner", "Henry Zhao",
-    "Ella Mitchell", "Alexander Costa", "Grace Martin", "Daniel Ahmed", "Chloe Wright", "Samuel Ito",
-    "Nora Campbell", "David Okafor", "Lily Thompson", "Joseph Silva", "Zoe Anderson", "Gabriel Rossi"
-  ].freeze
   BADGES = [
     { "badge_type" => "first_session", "name" => "First Session", "description" => "Logged your first reading session." },
     { "badge_type" => "week_streak", "name" => "Week Streak", "description" => "Read for 7 or more days in a row." },
@@ -33,8 +26,9 @@ class DevelopmentReadingScenarioPlan
     @as_of = (as_of || Time.current).in_time_zone
   end
 
-  def static_records
-    @readers = readers
+  def static_records(recorded_users: {})
+    require "faker"
+    @readers = readers(recorded_users)
     challenges = challenge_entries
     {
       "as_of" => @as_of.iso8601(6),
@@ -80,19 +74,19 @@ class DevelopmentReadingScenarioPlan
     end
   end
 
-  def readers
-    READER_NAMES.each_with_index.map do |name, index|
-      number = format("%02d", index + 1)
-      first_name, last_name = name.split(" ", 2)
-      {
-        "identity" => "reader#{number}",
-        "attributes" => {
-          "first_name" => first_name, "last_name" => last_name,
-          "nickname" => name.downcase.tr(" ", "."), "email" => "reader#{number}@example.test",
-          "role" => "user", "account_status" => "active"
-        }
-      }
+  def readers(recorded_users)
+    (1..30).map do |number|
+      identity = format("reader%02d", number)
+      recorded = recorded_users.dig(identity, "expected_attributes")
+      profile = recorded ? recorded.slice("first_name", "last_name", "nickname") : new_reader_profile(number)
+      { "identity" => identity, "attributes" => profile.merge("email" => "#{identity}@example.test", "role" => "user", "account_status" => "active") }
     end
+  end
+
+  def new_reader_profile(number)
+    first_name = Faker::Name.first_name
+    last_name = Faker::Name.last_name
+    { "first_name" => first_name, "last_name" => last_name, "nickname" => "#{first_name}.#{last_name}".parameterize(separator: ".").concat(number.to_s) }
   end
 
   def administrator

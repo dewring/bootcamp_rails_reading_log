@@ -39,7 +39,7 @@ class DevelopmentReadingScenarioBootstrapTest < ActiveSupport::TestCase
     assert_equal 31, users.where(account_status: "active").count
     assert users.all? { |user| user.email.end_with?("@example.test") && user.valid_password?(@password) }
     reader = User.find(user_records(manifest).fetch("reader01").fetch("id"))
-    assert_equal [ "Maya", "Chen", "maya.chen" ], [ reader.first_name, reader.last_name, reader.nickname ]
+    assert_equal reader.attributes.slice("first_name", "last_name", "nickname"), user_records(manifest).dig("reader01", "expected_attributes").slice("first_name", "last_name", "nickname")
     admin = User.find(user_records(manifest).fetch("admin").fetch("id"))
     assert_equal [ "Avery", "Morgan", "avery.morgan" ], [ admin.first_name, admin.last_name, admin.nickname ]
     assert_equal 0, WebhookEndpoint.where(user_id: ids).count
@@ -330,7 +330,8 @@ class DevelopmentReadingScenarioBootstrapTest < ActiveSupport::TestCase
   def import_bootstrap(password: @password)
     @store.with_exclusive_access do
       manifest = @store.prepare_scenario(snapshot_id: "bootstrap-test")
-      DevelopmentReadingScenarioBootstrap.new(plan: scenario_plan, manifest: manifest, scenario_manifest: @store, password: password).bootstrap_scenario
+      plan = DevelopmentReadingScenarioPlan.new.static_records(recorded_users: manifest.dig("bootstrap", "records", "users") || {})
+      DevelopmentReadingScenarioBootstrap.new(plan: plan, manifest: manifest, scenario_manifest: @store, password: password).bootstrap_scenario
     end
   end
 
