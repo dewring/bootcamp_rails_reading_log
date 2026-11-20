@@ -28,11 +28,11 @@ module DevelopmentReadingScenarioCoverPreviewContext
 
   def write_preview_catalog(alternate: false)
     prefix = alternate ? "alternate" : "original"
-    @paths = { snapshot_path: @directory.join("#{prefix}-catalog.json"), manifest_path: @directory.join("#{prefix}-manifest.json"), lock_path: @directory.join("#{prefix}.lock") }
+    @paths = { snapshot_path: @directory.join("#{prefix}-catalog.json"), manifest_path: @directory.join("#{prefix}-manifest.json") }
     stub_request(:get, "https://openlibrary.org/search.json").with(query: hash_including(page: "1"))
       .to_return(status: 200, body: { docs: @docs }.to_json)
     in_development do
-      OpenLibraryCatalogCapture.new(snapshot_path: @paths.fetch(:snapshot_path), lock_path: @directory.join("capture.lock"), contact_email: "contact@example.test").capture_catalog
+      OpenLibraryCatalogCapture.new(snapshot_path: @paths.fetch(:snapshot_path), contact_email: "contact@example.test").capture_catalog
     end
     @catalog = OpenLibraryCatalogReplay.new(**@paths)
     WebMock.reset!

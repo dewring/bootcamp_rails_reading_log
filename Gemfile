@@ -16,6 +16,7 @@ gem "stimulus-rails"
 gem "dartsass-rails"
 # Build JSON APIs with ease [https://github.com/rails/jbuilder]
 gem "jbuilder"
+gem "faker", "~> 3.8", require: false
 gem "devise"
 gem "pundit"
 gem "mission_control-jobs"

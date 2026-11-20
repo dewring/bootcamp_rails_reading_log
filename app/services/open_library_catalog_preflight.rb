@@ -12,6 +12,8 @@ class OpenLibraryCatalogPreflight
     end
   end
 
+  attr_reader :snapshot
+
   def initialize(snapshot_path: Rails.root.join("db/seeds/open_library_catalog.json"),
     manifest_path: DevelopmentReadingScenarioManifest::DEFAULT_PATH)
     @snapshot_path = Pathname.new(snapshot_path)
@@ -71,6 +73,9 @@ class OpenLibraryCatalogPreflight
     return unless @manifest_path.exist?
 
     manifest = JSON.parse(@manifest_path.read)
+    unless manifest.is_a?(Hash)
+      raise DevelopmentReadingScenarioManifest::ManifestError, "The reading scenario manifest must contain a JSON object."
+    end
     return unless manifest["snapshot_id"] == @snapshot.fetch("snapshot_id") &&
       manifest["database"] == ActiveRecord::Base.connection_db_config.database
 

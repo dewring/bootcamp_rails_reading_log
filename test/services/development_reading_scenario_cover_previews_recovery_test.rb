@@ -67,15 +67,11 @@ class DevelopmentReadingScenarioCoverPreviewsRecoveryTest < ActiveSupport::TestC
     assert_equal queued, cover_jobs
   end
 
-  test "non-development and overlapping preparation are refused without enqueueing jobs or HTTP" do
+  test "non-development preparation is refused without enqueueing jobs or HTTP" do
     assert_not @paths.fetch(:manifest_path).exist?
-    assert_raises(DevelopmentReadingScenarioManifest::ManifestError) { @catalog.replay_catalog }
+    assert_raises(OpenLibraryCatalogPreflight::PreflightError) { @catalog.replay_catalog }
     Rails.stub(:env, "production".inquiry) do
-      assert_raises(DevelopmentReadingScenarioManifest::ManifestError) { @catalog.replay_catalog }
-    end
-    File.open(@paths.fetch(:lock_path), File::RDWR | File::CREAT, 0o600) do |lock|
-      lock.flock(File::LOCK_EX | File::LOCK_NB)
-      assert_raises(DevelopmentReadingScenarioManifest::ManifestError) { prepare_previews }
+      assert_raises(OpenLibraryCatalogPreflight::PreflightError) { @catalog.replay_catalog }
     end
 
     assert_empty cover_jobs
@@ -83,20 +79,21 @@ class DevelopmentReadingScenarioCoverPreviewsRecoveryTest < ActiveSupport::TestC
     assert_not_requested :any, /https?:/
   end
 
-  test "offline baseline replay and ticks preserve downloaded previews without further cover calls" do
+  test "repeated simulations preserve downloaded previews without further cover calls" do
     first = prepare_previews
     stub_cover_downloads
     perform_enqueued_jobs(only: CoverAttachJob)
     WebMock.reset!
     in_development do
       scenario = DevelopmentReadingScenario.new(**@paths, password: "synthetic-scenario-test-password")
-      scenario.seed_baseline
-      DevelopmentReadingScenarioTick.new(**@paths).advance_scenario(tick: "tick1")
-      replayed = scenario.seed_baseline
+      2.times do
+        report = scenario.seed_scenario
+        assert_equal 30, report.dig("added", "reading_sessions")
+        assert_equal 4, report.dig("added", "club_messages")
+      end
+      replayed = JSON.parse(@paths.fetch(:manifest_path).read)
       assert_equal first.fetch("cover_previews").fetch("missing_case"), replayed.fetch("cover_previews").fetch("missing_case")
       assert_equal records(first).transform_values { |record| record.fetch("job_id") }, records(replayed).transform_values { |record| record.fetch("job_id") }
-      assert_equal 303, replayed.dig("baseline", "actual_counts", "reading_sessions")
-      assert_equal 82, replayed.dig("baseline", "actual_counts", "club_messages")
     end
     assert_equal 12, Book.where.not(id: @initial_books).joins(:cover_image_attachment).count
     assert_empty cover_jobs

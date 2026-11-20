@@ -17,29 +17,23 @@ class ProductionDemoScenarioTest < ActionDispatch::IntegrationTest
       ENV.stub(:[], variables.method(:[])) do
         Rails.env.stub(:production?, true) do
           scenario = DevelopmentReadingScenario.new(
-            manifest_path: File.join(directory, "manifest.json"), lock_path: File.join(directory, "scenario.lock"),
+            manifest_path: File.join(directory, "manifest.json"),
             password: "synthetic-scenario-test-password"
           )
           first = scenario.seed_scenario
-          assert_equal 99, first.dig("baseline", "actual_counts", "books")
-          conflict = first.dig("catalog", "skipped_book_conflicts").sole
+          assert_equal 99, first.dig("static_counts", "books")
+          conflict = first.dig("skipped", "skipped_book_conflicts").sole
           assert_equal "/works/OL468431W", conflict.fetch("work_key")
           assert_equal [ legacy.id ], conflict.fetch("conflicts").first.fetch("record_ids")
 
-          recorded_books = first.dig("catalog", "records").values.filter_map { |pair| pair.dig("book", "id") }
-          deleted = Book.where(id: recorded_books)
-            .where(id: ReadingSession.select(:book_id))
+          deleted = Book.where.not(ol_work_key: nil).where(id: ReadingSession.select(:book_id))
             .where.not(id: BookClub.where.not(current_book_id: nil).select(:current_book_id)).first!
           deleted.destroy!
-
-          assert_no_difference [ "Book.count", "ReadingSession.count", "Review.count", "Reaction.count" ] do
+          assert_no_difference "Book.count" do
             replayed = scenario.seed_scenario
-            assert_equal "complete", replayed.dig("baseline", "status")
-            assert_equal 98, replayed.dig("baseline", "actual_counts", "books")
-            assert_equal [ "/works/OL468431W", deleted.ol_work_key ].sort, replayed.dig("catalog", "skipped_book_conflicts").pluck("work_key").sort
-            skipped_sessions = replayed.dig("reading", "records", "reading_sessions").values.select { |row| row.dig("expected_attributes", "book_id") == deleted.id }
-            assert skipped_sessions.any?
-            assert skipped_sessions.all? { |row| row["reason"] == "book_unavailable" }
+            assert_equal 98, replayed.dig("static_counts", "books")
+            assert_equal 30, replayed.dig("added", "reading_sessions")
+            assert_equal [ "/works/OL468431W", deleted.ol_work_key ].sort, replayed.dig("skipped", "skipped_book_conflicts").pluck("work_key").sort
           end
         end
       end
@@ -56,15 +50,14 @@ class ProductionDemoScenarioTest < ActionDispatch::IntegrationTest
         Rails.env.stub(:production?, true) do
           manifest = DevelopmentReadingScenario.new(
             snapshot_path: Rails.root.join("db/seeds/open_library_catalog.json"),
-            manifest_path: File.join(directory, "manifest.json"), lock_path: File.join(directory, "scenario.lock"),
+            manifest_path: File.join(directory, "manifest.json"),
             password: "synthetic-scenario-test-password"
           ).seed_scenario
         end
       end
 
       [ [ "reader01", 3 ], [ "reader11", 1 ], [ "reader21", 0 ] ].each do |identity, enrolled|
-        reader_id = manifest.dig("bootstrap", "records", "users", identity, "id")
-        reader = User.find(reader_id)
+        reader = User.find_by!(email: "#{identity}@example.test")
         sign_in reader
 
         get challenges_path
@@ -86,7 +79,7 @@ class ProductionDemoScenarioTest < ActionDispatch::IntegrationTest
         assert found.all? { |book| book.fetch("genres").any? { |genre| genre.fetch("name") == name } }
       end
 
-      assert_equal({ "challenges" => 6, "user_challenges" => 40 }, manifest.dig("challenges", "actual_counts"))
+      assert_equal({ "challenges" => 6, "user_challenges" => 40 }, manifest.fetch("static_counts").slice("challenges", "user_challenges"))
       assert_not_requested :any, /https?:/
     end
   end
