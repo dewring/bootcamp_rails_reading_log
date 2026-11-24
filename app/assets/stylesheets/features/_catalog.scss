@@ -109,6 +109,16 @@
   }
 }
 
+// Readers who cannot use Discover still see where it lives, without a link.
+.catalog-external-link--disabled {
+  cursor: default;
+  opacity: 0.6;
+
+  &:hover {
+    background: #faf1f0;
+  }
+}
+
 .catalog-external-link-lead {
   display: inline-flex;
   align-items: center;
@@ -182,17 +192,6 @@
     background: #fdf1ef;
     color: tokens.$accent !important;
     font-weight: 700;
-  }
-}
-
-.catalog-dropdown-option--disabled {
-  color: tokens.$ink;
-  cursor: default;
-
-  &:hover,
-  &:focus-visible {
-    background: #fff;
-    color: tokens.$ink !important;
   }
 }
 
