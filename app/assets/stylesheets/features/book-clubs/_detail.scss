@@ -229,12 +229,6 @@ main.container:has(> [data-controller~="club-discussion"] > .book-club-detail-pa
     object-fit: cover;
   }
 
-  .book-club-current-pick-placeholder {
-    width: 30px;
-    height: 30px;
-    object-fit: contain;
-    opacity: 0.55;
-  }
 }
 
 .book-club-current-pick-information {

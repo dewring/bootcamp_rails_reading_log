@@ -63,6 +63,24 @@ class ReadingSessionsControllerTest < ActionDispatch::IntegrationTest
     assert_select "#reading-record form.reading-detail-form input[type='submit'][value='Save Entry']", count: 1
   end
 
+  test "history page lists earned badges before locked badges, each group in id order" do
+    reader = users(:leika)
+    reader.user_badges.delete_all
+    reader.user_badges.create!(badge: badges(:bookworm), awarded_at: Time.current)
+    reader.user_badges.create!(badge: badges(:page_turner), awarded_at: Time.current)
+    sign_in reader
+
+    get reading_sessions_path
+
+    assert_response :success
+    earned_names = [ badges(:bookworm), badges(:page_turner) ].sort_by(&:id).map(&:name)
+    locked_names = [ badges(:first_session), badges(:week_streak), badges(:challenge_complete) ].sort_by(&:id).map(&:name)
+    rendered_names = css_select(".history-badge-card h3").map { |heading| heading.text.strip }
+    rendered_statuses = css_select(".history-badge-card .history-badge-status").map { |status| status.text.strip }
+    assert_equal earned_names + locked_names, rendered_names
+    assert_equal [ "Earned", "Earned", "Locked", "Locked", "Locked" ], rendered_statuses
+  end
+
   test "history page shows badges and finished books sections" do
     sign_in users(:leika)
     get reading_sessions_path

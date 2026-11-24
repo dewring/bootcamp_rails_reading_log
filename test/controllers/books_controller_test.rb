@@ -743,7 +743,25 @@ class BookControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_select "a[href*='user_books/new']", count: 0
     assert_select ".catalog-sidebar-footer", count: 0
-    assert_select "#catalog-filter-menu a[href='#{discover_books_path}']", text: "Discover", count: 1
+  end
+
+  test "guests see Discover under Find New Books as a disabled entry without a link" do
+    get books_path
+
+    assert_response :success
+    assert_select ".catalog-find-new-books a[href='#{discover_books_path}']", count: 0
+    assert_select ".catalog-find-new-books .catalog-external-link--disabled[aria-disabled='true']", text: /Discover/, count: 1
+  end
+
+  test "catalog lists Discover under Find New Books after Search ISBN, not in the filter menu" do
+    sign_in users(:leika)
+
+    get books_path
+
+    assert_response :success
+    assert_select "#catalog-filter-menu a[href='#{discover_books_path}']", count: 0
+    find_new_books_links = css_select(".catalog-find-new-books a.catalog-external-link").map { |link| link["href"] }
+    assert_equal [ search_books_path, quick_add_books_path, discover_books_path ], find_new_books_links
   end
 
   test "GET /books?page=2 returns different books than page 1" do

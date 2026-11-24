@@ -382,6 +382,47 @@ class BookClubsControllerTest < ActionDispatch::IntegrationTest
     assert_select ".book-club-current-pick-deadline", count: 0
   end
 
+  test "book club directory shows a generated cover for a pick without an image and a No pick cover for a club without a pick" do
+    BookClub.destroy_all
+    picked_book = books(:pragmatic)
+    BookClub.create!(name: "Picked Circle", current_book: picked_book)
+    BookClub.create!(name: "Unpicked Circle")
+    sign_in users(:leika)
+
+    get book_clubs_path
+
+    assert_response :success
+    assert_select ".book-club-directory-card", count: 2
+    assert_select ".book-club-directory-card", text: /Picked Circle/ do
+      assert_select ".book-club-directory-cover .book-cover-fallback[role='img'][aria-label='Cover of #{picked_book.title}']" do
+        assert_select ".book-cover-fallback-title", text: picked_book.title
+        assert_select ".book-cover-fallback-author", text: picked_book.author
+      end
+    end
+    assert_select ".book-club-directory-card", text: /Unpicked Circle/ do
+      assert_select ".book-club-directory-cover .book-club-no-pick-cover[role='img'][aria-label='No book picked yet']" do
+        assert_select ".book-cover-fallback-title", text: "No pick yet"
+        assert_select ".book-cover-fallback-rule, .book-cover-fallback-author", count: 0
+      end
+      assert_select ".book-club-directory-cover img", count: 0
+    end
+    assert_select ".book-club-directory-cover img[src*='book-open']", count: 0
+  end
+
+  test "club overview shows generated covers for the current pick and past picks without images" do
+    club = BookClub.create!(name: "Cover Circle", current_book: books(:pragmatic))
+    club.book_club_memberships.create!(user: users(:leika), role: "owner")
+    club.update!(current_book: books(:refactoring))
+    sign_in users(:leika)
+
+    get book_club_path(club)
+
+    assert_response :success
+    assert_select ".book-club-current-pick-cover .book-cover-fallback--medium[aria-label='Cover of #{books(:refactoring).title}']"
+    assert_select ".book-club-past-pick-cover .book-cover-fallback--small[aria-label='Cover of #{books(:pragmatic).title}']"
+    assert_select ".book-club-current-pick-cover img, .book-club-past-pick-cover img", count: 0
+  end
+
   test "book club directory shows a designed empty state when there are no clubs" do
     BookClub.destroy_all
     sign_in users(:leika)

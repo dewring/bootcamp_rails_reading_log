@@ -81,10 +81,15 @@ class ReadingSessionsController < ApplicationController
       .includes(book: { cover_image_attachment: :blob })
       .order(updated_at: :desc)
       .to_a
-    @badges = Badge.order(:id)
-    @earned_badge_ids = current_user.user_badges
-      .where(badge_id: @badges.select(:id))
-      .pluck(:badge_id)
+    @earned_badge_ids = current_user.user_badges.pluck(:badge_id)
+    @badges = earned_badges_first(Badge.order(:id).to_a)
+  end
+
+  # Earned badges lead the History carousel so readers see their achievements
+  # before the locked ones. Each group keeps the catalog order by id.
+  def earned_badges_first(badges)
+    earned_badges, locked_badges = badges.partition { |badge| @earned_badge_ids.include?(badge.id) }
+    earned_badges + locked_badges
   end
 
   def set_book

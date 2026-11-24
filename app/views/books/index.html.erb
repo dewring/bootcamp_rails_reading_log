@@ -16,6 +16,23 @@
         </span>
         <%= image_tag "arrow-right.svg", class: "catalog-external-link-arrow", alt: "", aria: { hidden: true } %>
       <% end %>
+      <%# Discover opens one random unread book, so it sits with the ways to find new books instead of the catalog filters. %>
+      <% if policy(Book).discover? %>
+        <%= link_to discover_books_path, class: "catalog-external-link" do %>
+          <span class="catalog-external-link-lead">
+            <%= image_tag "catalog-discover.svg", class: "catalog-external-link-icon", alt: "", aria: { hidden: true } %>
+            <span>Discover</span>
+          </span>
+          <%= image_tag "arrow-right.svg", class: "catalog-external-link-arrow", alt: "", aria: { hidden: true } %>
+        <% end %>
+      <% else %>
+        <span class="catalog-external-link catalog-external-link--disabled" aria-disabled="true">
+          <span class="catalog-external-link-lead">
+            <%= image_tag "catalog-discover.svg", class: "catalog-external-link-icon", alt: "", aria: { hidden: true } %>
+            <span>Discover</span>
+          </span>
+        </span>
+      <% end %>
     </nav>
 
     <div class="catalog-sidebar-section catalog-dropdown catalog-filter-dropdown" data-controller="nav-menu" data-action="click@document->nav-menu#closeOnOutsideClick keydown.esc@document->nav-menu#closeOnEscape">
@@ -41,14 +58,6 @@
         <%= link_to "Most Read", books_path(q: params[:q], genre: params[:genre], filter: "most_read"),
               class: "catalog-dropdown-option #{'is-selected' if selected_filter == 'most_read'}",
               aria: { current: ("page" if selected_filter == "most_read") } %>
-        <div class="catalog-dropdown-divider" aria-hidden="true"></div>
-        <% if policy(Book).discover? %>
-          <%= link_to "Discover", discover_books_path, class: "catalog-dropdown-option" %>
-        <% else %>
-          <div class="catalog-dropdown-option catalog-dropdown-option--disabled" aria-disabled="true">
-            Discover
-          </div>
-        <% end %>
       </div>
     </div>
 

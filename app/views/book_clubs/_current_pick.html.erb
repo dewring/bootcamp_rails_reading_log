@@ -6,7 +6,10 @@
         <%= image_tag book_club.current_book.cover_image.variant(resize_to_fill: [ 86, 124 ]),
               alt: "Cover of #{book_club.current_book.title}" %>
       <% else %>
-        <%= image_tag "book-open.svg", alt: "", class: "book-club-current-pick-placeholder" %>
+        <%# The discussion card shows a 44px cover, too narrow for a title, so it uses the initial-only fallback. %>
+        <%= render "books/cover_fallback", title: book_club.current_book.title, author: book_club.current_book.author,
+              seed: book_club.current_book.id, size: (variant == :discussion ? :small : :medium),
+              sizing_class: "book-club-cover-fill" %>
       <% end %>
     </div>
   <% end %>
