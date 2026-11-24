@@ -1,5 +1,6 @@
 require "test_helper"
 require "tmpdir"
+require_relative "support/chrome_storage_reset"
 
 # Selenium and Capybara communicate with local driver/server HTTP endpoints.
 WebMock.disable_net_connect!(allow_localhost: true)
