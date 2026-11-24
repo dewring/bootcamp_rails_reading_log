@@ -1,12 +1,8 @@
-<%# Fills the cover slot of a club with no current pick, in the same shape as the generated book covers. role="img" keeps it one image with an accessible name. %>
+<%# Fills the cover slot of a club with no current pick, in the same shape as the generated book covers but without the title rule and author line, so it does not read as a book. role="img" keeps it one image with an accessible name. %>
 <%= tag.div class: [ "book-cover-fallback", "book-cover-fallback--medium", "book-club-cover-fill", "book-club-no-pick-cover" ],
             role: "img",
             aria: { label: "No book picked yet" } do %>
   <span class="book-cover-fallback-surface">
-    <span class="book-cover-fallback-heading">
-      <span class="book-cover-fallback-title">No pick yet</span>
-      <span class="book-cover-fallback-rule"></span>
-    </span>
-    <span class="book-cover-fallback-author">Owner chooses next</span>
+    <span class="book-cover-fallback-title">No pick yet</span>
   </span>
 <% end %>

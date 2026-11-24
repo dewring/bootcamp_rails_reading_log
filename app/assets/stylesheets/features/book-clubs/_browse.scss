@@ -107,6 +107,7 @@ main.container:has(> .book-clubs-page) {
 // A club without a pick gets a muted cover so it reads as "nothing yet",
 // not as a book.
 .book-club-no-pick-cover .book-cover-fallback-surface {
+  justify-content: center;
   background: tokens.$gray-mid;
   color: tokens.$text-muted;
 }

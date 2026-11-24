@@ -400,7 +400,10 @@ class BookClubsControllerTest < ActionDispatch::IntegrationTest
       end
     end
     assert_select ".book-club-directory-card", text: /Unpicked Circle/ do
-      assert_select ".book-club-directory-cover .book-club-no-pick-cover[role='img'][aria-label='No book picked yet']"
+      assert_select ".book-club-directory-cover .book-club-no-pick-cover[role='img'][aria-label='No book picked yet']" do
+        assert_select ".book-cover-fallback-title", text: "No pick yet"
+        assert_select ".book-cover-fallback-rule, .book-cover-fallback-author", count: 0
+      end
       assert_select ".book-club-directory-cover img", count: 0
     end
     assert_select ".book-club-directory-cover img[src*='book-open']", count: 0
