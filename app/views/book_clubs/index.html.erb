@@ -27,8 +27,11 @@
             <% if book_club.current_book&.cover_image&.attached? %>
               <%= image_tag book_club.current_book.cover_image.variant(resize_to_fill: [ 102, 150 ]),
                     alt: "Cover of #{book_club.current_book.title}" %>
+            <% elsif book_club.current_book %>
+              <%= render "books/cover_fallback", title: book_club.current_book.title, author: book_club.current_book.author,
+                    seed: book_club.current_book.id, size: :medium, sizing_class: "book-club-cover-fill" %>
             <% else %>
-              <%= image_tag "book-open.svg", alt: "", class: "book-club-directory-cover-placeholder" %>
+              <%= render "book_clubs/no_pick_cover" %>
             <% end %>
           </div>
 

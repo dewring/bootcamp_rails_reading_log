@@ -49,6 +49,9 @@
                   <div class="book-club-past-pick-cover">
                     <% if entry[:book]&.cover_image&.attached? %>
                       <%= image_tag entry[:book].cover_image.variant(resize_to_fill: [ 36, 52 ]), alt: "" %>
+                    <% elsif entry[:book] %>
+                      <%= render "books/cover_fallback", title: entry[:book].title, author: entry[:book].author,
+                            seed: entry[:book].id, size: :small, sizing_class: "book-club-cover-fill" %>
                     <% else %>
                       <%= image_tag "book-open.svg", alt: "", class: "book-club-past-pick-placeholder" %>
                     <% end %>

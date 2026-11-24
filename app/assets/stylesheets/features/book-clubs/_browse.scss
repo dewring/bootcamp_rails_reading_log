@@ -93,12 +93,22 @@ main.container:has(> .book-clubs-page) {
     object-fit: cover;
   }
 
-  .book-club-directory-cover-placeholder {
-    width: 30px;
-    height: 30px;
-    object-fit: contain;
-    opacity: 0.55;
-  }
+}
+
+// Generated covers (books without an image, and clubs without a pick) fill
+// the club cover slot the same way a cover image does.
+.book-club-cover-fill {
+  flex: 1 1 auto;
+  align-self: stretch;
+  width: 100%;
+  height: 100%;
+}
+
+// A club without a pick gets a muted cover so it reads as "nothing yet",
+// not as a book.
+.book-club-no-pick-cover .book-cover-fallback-surface {
+  background: tokens.$gray-mid;
+  color: tokens.$text-muted;
 }
 
 .book-club-directory-information {
