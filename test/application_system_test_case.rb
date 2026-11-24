@@ -7,8 +7,17 @@ WebMock.disable_net_connect!(allow_localhost: true)
 Capybara.save_path = File.join(Dir.tmpdir, "reading-log-system-tests")
 
 class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
-  driven_by :selenium, using: :headless_chrome, screen_size: [ 1400, 1000 ] do |options|
+  DESKTOP_SCREEN_SIZE = [ 1400, 1000 ].freeze
+
+  driven_by :selenium, using: :headless_chrome, screen_size: DESKTOP_SCREEN_SIZE do |options|
     # External fonts/CDN styles are excluded; individual tests provide local fixtures.
     options.add_argument("--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE localhost, EXCLUDE 127.0.0.1")
+  end
+
+  # The browser is shared across tests, and some tests resize it for mobile
+  # layouts without restoring it. Start every test at the desktop size so
+  # layout assertions do not depend on which test ran before.
+  setup do
+    page.current_window.resize_to(*DESKTOP_SCREEN_SIZE)
   end
 end

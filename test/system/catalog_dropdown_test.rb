@@ -6,13 +6,12 @@ class CatalogDropdownTest < ApplicationSystemTestCase
   teardown do
     Warden.test_reset!
   end
-  test "hover and keyboard focus differ from selection while disabled options stay neutral" do
+  test "hover and keyboard focus differ from selection in the filter menu" do
     visit books_path(filter: "new_books")
     find("button[aria-controls='catalog-filter-menu']").click
 
     selected = find("#catalog-filter-menu .is-selected[aria-current='page']")
     other = find("#catalog-filter-menu a[href*='filter=most_read']")
-    disabled = find("#catalog-filter-menu [aria-disabled='true']")
 
     selected.hover
     assert_equal "rgba(253, 241, 239, 1)", selected.style("background-color").fetch("background-color")
@@ -21,9 +20,6 @@ class CatalogDropdownTest < ApplicationSystemTestCase
     other.hover
     assert_equal "rgba(243, 243, 243, 1)", other.style("background-color").fetch("background-color")
     assert_equal "rgba(44, 38, 35, 1)", other.style("color").fetch("color")
-
-    disabled.hover
-    assert_equal "rgba(255, 255, 255, 1)", disabled.style("background-color").fetch("background-color")
 
     find("button[aria-controls='catalog-filter-menu']").send_keys(:tab)
     assert_equal selected, find("#catalog-filter-menu a:focus")

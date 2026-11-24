@@ -745,6 +745,14 @@ class BookControllerTest < ActionDispatch::IntegrationTest
     assert_select ".catalog-sidebar-footer", count: 0
   end
 
+  test "guests see Discover under Find New Books as a disabled entry without a link" do
+    get books_path
+
+    assert_response :success
+    assert_select ".catalog-find-new-books a[href='#{discover_books_path}']", count: 0
+    assert_select ".catalog-find-new-books .catalog-external-link--disabled[aria-disabled='true']", text: /Discover/, count: 1
+  end
+
   test "catalog lists Discover under Find New Books after Search ISBN, not in the filter menu" do
     sign_in users(:leika)
 
