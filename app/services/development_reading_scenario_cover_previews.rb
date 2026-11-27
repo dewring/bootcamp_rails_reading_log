@@ -20,7 +20,7 @@ class DevelopmentReadingScenarioCoverPreviews
     verify_preview_plan(plan)
     @manifest["cover_previews"] = @previews
     @previews["unavailable_book_work_keys"] = @snapshot.fetch("selected").map { |entry| entry.fetch("work_key") } - @books.keys
-    @scenario_manifest.save_scenario
+    @scenario_manifest.save_scenario(@manifest)
     @previews.fetch("records").each do |key, record|
       book = @books[key]
       unless book
@@ -38,17 +38,17 @@ class DevelopmentReadingScenarioCoverPreviews
 
       # Persist intent before enqueueing; an interrupted request must not be sent twice.
       record["status"] = "requested"
-      @scenario_manifest.save_scenario
+      @scenario_manifest.save_scenario(@manifest)
       job = CoverAttachJob.perform_later(book, record.fetch("cover_id"))
       record["job_id"] = job.job_id
       record["status"] = "queued"
-      @scenario_manifest.save_scenario
+      @scenario_manifest.save_scenario(@manifest)
     end
     records = @previews.fetch("records").values
     statuses = records.map { |record| record["skip_reason"] ? "skipped" : record.fetch("status") }
     @previews["actual_counts"] = { "selected" => records.length, "statuses" => statuses.tally,
       "source_unavailable" => @previews.fetch("source_unavailable_work_keys").length }
-    @scenario_manifest.save_scenario
+    @scenario_manifest.save_scenario(@manifest)
     @manifest.deep_dup
   end
 

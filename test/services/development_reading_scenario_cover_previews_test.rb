@@ -134,15 +134,13 @@ class DevelopmentReadingScenarioCoverPreviewsTest < ActiveSupport::TestCase
   private
 
   def prepare_subset(unavailable_key:, reset_previews: false)
-    store = DevelopmentReadingScenarioManifest.new(path: @paths.fetch(:manifest_path), lock_path: @paths.fetch(:lock_path))
+    store = DevelopmentReadingScenarioManifest.new(path: @paths.fetch(:manifest_path))
     snapshot = JSON.parse(@paths.fetch(:snapshot_path).read)
     in_development do
-      store.with_exclusive_access do
-        manifest = store.prepare_scenario(snapshot_id: snapshot.fetch("snapshot_id"))
-        manifest.delete("cover_previews") if reset_previews
-        books = Book.where.not(id: @initial_books).where.not(ol_work_key: unavailable_key).with_attached_cover_image.index_by(&:ol_work_key)
-        DevelopmentReadingScenarioCoverPreviews.new(snapshot: snapshot, books: books, manifest: manifest, scenario_manifest: store).prepare_previews
-      end
+      manifest = store.prepare_scenario(snapshot_id: snapshot.fetch("snapshot_id"))
+      manifest.delete("cover_previews") if reset_previews
+      books = Book.where.not(id: @initial_books).where.not(ol_work_key: unavailable_key).with_attached_cover_image.index_by(&:ol_work_key)
+      DevelopmentReadingScenarioCoverPreviews.new(snapshot: snapshot, books: books, manifest: manifest, scenario_manifest: store).prepare_previews
     end
   end
 end

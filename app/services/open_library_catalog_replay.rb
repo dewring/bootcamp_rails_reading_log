@@ -3,49 +3,36 @@ class OpenLibraryCatalogReplay
 
   def initialize(snapshot_path: Rails.root.join("db/seeds/open_library_catalog.json"),
     manifest_path: DevelopmentReadingScenarioManifest::DEFAULT_PATH,
-    lock_path: DevelopmentReadingScenarioManifest::DEFAULT_LOCK_PATH,
-    as_of: DevelopmentReadingScenarioPlan.default_reference_time, manifest: nil)
+    as_of: DevelopmentReadingScenarioPlan.configured_reference_time, manifest: nil)
     @snapshot_path = Pathname.new(snapshot_path)
-    @scenario_manifest = manifest || DevelopmentReadingScenarioManifest.new(path: manifest_path, lock_path: lock_path, as_of: as_of)
+    @scenario_manifest = manifest || DevelopmentReadingScenarioManifest.new(path: manifest_path, as_of: as_of)
   end
 
   def replay_catalog
-    with_catalog_context do
-      @scenario_manifest.save_scenario
-      @plan.fetch("books").each { |entry| import_catalog_entry(entry) }
-      record_catalog_counts
-      record_skipped_book_conflicts
-      record_skipped_edition_conflicts
-      @manifest.fetch("catalog")["status"] = "complete"
-      @scenario_manifest.save_scenario
-      prepare_cover_previews
-      @manifest.deep_dup
-    end
-  end
-
-  def preflight_catalog
-    with_catalog_context { @manifest.fetch("catalog").deep_dup }
+    preflight = OpenLibraryCatalogPreflight.new(snapshot_path: @snapshot_path, manifest_path: @scenario_manifest.path)
+    @plan = preflight.preflight_catalog(skip_book_conflicts: true)
+    load_catalog_records
+    @manifest = @scenario_manifest.prepare_scenario(snapshot_id: @plan.fetch("snapshot_id"))
+    @manifest["catalog"] ||= planned_catalog
+    @scenario_manifest.save_scenario(@manifest)
+    @plan.fetch("books").each { |entry| import_catalog_entry(entry) }
+    record_catalog_counts
+    record_skipped_book_conflicts
+    record_skipped_edition_conflicts
+    @manifest.fetch("catalog")["status"] = "complete"
+    @scenario_manifest.save_scenario(@manifest)
+    prepare_cover_previews(preflight.snapshot)
+    @manifest
   end
 
   private
 
-  def prepare_cover_previews
+  def prepare_cover_previews(snapshot)
     books = Book.where(id: @books.values.map(&:id)).with_attached_cover_image.index_by(&:ol_work_key)
     DevelopmentReadingScenarioCoverPreviews.new(
-      snapshot: JSON.parse(@snapshot_path.read), books: books,
+      snapshot: snapshot, books: books,
       manifest: @manifest, scenario_manifest: @scenario_manifest
     ).prepare_previews
-  end
-
-  def with_catalog_context
-    @scenario_manifest.with_exclusive_access do
-      @plan = OpenLibraryCatalogPreflight.new(snapshot_path: @snapshot_path, manifest_path: @scenario_manifest.path).preflight_catalog(skip_book_conflicts: true)
-      load_catalog_records
-      @manifest = @scenario_manifest.prepare_scenario(snapshot_id: @plan.fetch("snapshot_id"))
-      @manifest["catalog"] ||= planned_catalog
-      verify_recorded_rows
-      yield
-    end
   end
 
   def load_catalog_records
@@ -90,25 +77,6 @@ class OpenLibraryCatalogReplay
     }
   end
 
-  def verify_recorded_rows
-    @plan.fetch("books").each do |entry|
-      next if entry["book_skip"]
-
-      key = entry.fetch("book_attributes").fetch("ol_work_key")
-      pair = @manifest.fetch("catalog").fetch("records").fetch(key)
-      book = @books[key]
-      verify_recorded_row(pair.fetch("book"), book, key)
-      next unless entry["edition_attributes"]
-
-      edition_key = entry.fetch("edition_attributes").fetch("ol_edition_key")
-      edition = @editions[edition_key]
-      verify_recorded_row(pair.fetch("edition"), edition, edition_key)
-      if edition && edition.book_id != book&.id
-        raise ReplayError, "Recorded Edition #{edition_key} belongs to an unexpected Book (ID #{edition.id})."
-      end
-    end
-  end
-
   def verify_recorded_row(record, row, key)
     if record["id"]
       row_key = row.is_a?(Book) ? row.ol_work_key : row&.ol_edition_key
@@ -135,7 +103,7 @@ class OpenLibraryCatalogReplay
     if entry["book_skip"]
       pair.fetch("book").merge!("result" => "skipped", "reason" => "book_unavailable", "conflicts" => entry.fetch("book_skip"))
       pair["edition"] = entry.fetch("edition_skip").merge("result" => "skipped") if entry["edition_skip"]
-      @scenario_manifest.save_scenario
+      @scenario_manifest.save_scenario(@manifest)
       return
     end
     book = @books[key]
@@ -144,8 +112,6 @@ class OpenLibraryCatalogReplay
     edition_result = edition ? "reused" : "imported"
 
     Book.transaction(requires_new: true) do
-      book.lock! if book
-      edition.lock! if edition
       verify_recorded_row(pair.fetch("book"), book, key)
       verify_recorded_row(pair.fetch("edition"), edition, edition_attributes.fetch("ol_edition_key")) if edition_attributes
       if edition && edition.book_id != book&.id
@@ -162,13 +128,15 @@ class OpenLibraryCatalogReplay
     record_saved_row(pair.fetch("book"), book, book_result)
     record_saved_row(pair.fetch("edition"), edition, edition_result) if edition
     pair["edition"] = entry.fetch("edition_skip").merge("result" => "skipped") if entry["edition_skip"]
-    @scenario_manifest.save_scenario
-  rescue ActiveRecord::RecordInvalid => error
-    kind = error.record.is_a?(BookEdition) ? "edition" : "book"
-    pair.fetch(kind)["result"] = "failed"
-    pair.fetch(kind)["errors"] = error.record.errors.full_messages
-    @scenario_manifest.save_scenario
-    raise
+    @scenario_manifest.save_scenario(@manifest)
+  rescue ActiveRecord::RecordInvalid, ActiveRecord::RecordNotUnique, ActiveRecord::RecordNotFound, ActiveRecord::InvalidForeignKey, ReplayError => error
+    # A Work and its representative Edition commit together. Retry the pair on the next run.
+    kind = error.is_a?(ActiveRecord::RecordInvalid) && error.record.is_a?(BookEdition) ? "edition" : "book"
+    reason = error.is_a?(ActiveRecord::StatementInvalid) ? "Catalog identity changed during import" : error.message
+    @books.delete(key)
+    @editions.delete(edition_attributes.fetch("ol_edition_key")) if edition_attributes
+    pair.fetch(kind).merge!("result" => "failed", "errors" => [ reason ])
+    @scenario_manifest.save_scenario(@manifest)
   end
 
   def record_saved_row(record, row, result)

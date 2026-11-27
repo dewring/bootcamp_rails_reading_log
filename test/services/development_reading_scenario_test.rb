@@ -3,420 +3,120 @@ require "tmpdir"
 
 class DevelopmentReadingScenarioTest < ActiveSupport::TestCase
   include ActiveJob::TestHelper
-  # Exercise real commits for the seed entry point and interrupted checkpoint recovery.
-  uses_transaction "test_the_seed_entry_point_creates_the_complete_offline_baseline_while_callbacks_remain_queued",
-    "test_the_complete_baseline_resumes_after_a_session_commit_preceding_its_checkpoint"
 
   setup do
-    @initial_users = User.pluck(:id)
-    @initial_books = Book.pluck(:id)
-    @initial_clubs = BookClub.pluck(:id)
-    @directory = Pathname.new(Dir.mktmpdir("booknook-baseline-"))
-    @paths = { snapshot_path: @directory.join("catalog.json"), manifest_path: @directory.join("manifest.json"), lock_path: @directory.join("scenario.lock") }
-    @scenario = DevelopmentReadingScenario.new(**@paths, password: "synthetic-scenario-test-password")
-    docs = Array.new(100) do |index|
-      key = DevelopmentReadingScenarioReactions::ANCHORS.values.map { |anchor| anchor.fetch("work_key") }[index] || "/works/OL#{205_000 + index}W"
-      { "key" => key, "title" => "Baseline source #{index}", "author_name" => [ "Source Author" ], "number_of_pages_median" => 1000 }
-    end
-    stub_request(:get, "https://openlibrary.org/search.json").with(query: hash_including(page: "1"))
-      .to_return(status: 200, body: { docs: docs }.to_json)
-    in_development do
-      OpenLibraryCatalogCapture.new(snapshot_path: @paths.fetch(:snapshot_path), lock_path: @directory.join("capture.lock"), contact_email: "contact@example.test").capture_catalog
-    end
-    WebMock.reset!
-    clear_enqueued_jobs
+    @directory = Pathname.new(Dir.mktmpdir("reading-simulation-"))
+    @path = @directory.join("manifest.json")
+    @scenario = DevelopmentReadingScenario.new(manifest_path: @path, password: "local-demo-password")
   end
 
-  teardown do
-    FileUtils.remove_entry(@directory)
-  end
+  teardown { FileUtils.remove_entry(@directory) }
 
-  test "the seed entry point creates the complete offline baseline while callbacks remain queued" do
-    output, = capture_io do
-      DevelopmentReadingScenario.stub(:new, @scenario) do
-        in_development { load Rails.root.join("db/seeds.rb") }
+  test "each run reuses static data and adds current sessions, reviews, reactions and discussions" do
+    first = simulate
+    assert_equal "complete", first.fetch("status"), first["skipped"].inspect
+    assert_equal 100, first.dig("static_counts", "books")
+    assert_equal({ "reading_sessions" => 30, "reviews" => 30, "reactions" => 30, "club_messages" => 4 }, first.fetch("added"))
+    ids = [ Book, BookEdition, User, Badge, Genre, BookGenre, BookClub, BookClubMembership, Challenge, UserChallenge ].to_h do |model|
+      [ model, model.order(:id).ids ]
+    end
+    existing = [ Review, Reaction ].to_h { |model| [ model, model.order(:id).map(&:attributes) ] }
+    travel 1.day do
+      assert_difference({ "ReadingSession.count" => 30, "Review.count" => 30, "Reaction.count" => 30, "ClubMessage.count" => 4 }) do
+        assert_equal first, simulate
       end
+      assert_equal 30, ReadingSession.where(read_on: Date.current, user: User.where("email LIKE 'reader%@example.test'")).count
     end
-    manifest = JSON.parse(@paths.fetch(:manifest_path).read)
-    baseline = manifest.fetch("baseline")
-    assert_equal({ "books" => 100, "book_editions" => 0, "users" => 31, "user_books" => 150, "reading_sessions" => 300,
-      "book_clubs" => 4, "book_club_memberships" => 24, "club_messages" => 80, "reviews" => 20 }, baseline.fetch("actual_counts"))
-    assert_equal baseline.fetch("expected_counts"), baseline.fetch("actual_counts")
-    assert_equal "complete", baseline.fetch("status")
-    assert_includes output, "complete"
-    assert_equal DevelopmentReadingScenarioReactions::COUNTS, manifest.dig("reactions", "actual_counts")
-    assert_equal({ "challenges" => 6, "user_challenges" => 40 }, manifest.dig("challenges", "actual_counts"))
-    assert_not manifest.fetch("reading").key?("callback_work")
-    assert_not_empty enqueued_jobs
-    assert_equal 12, manifest.dig("bootstrap", "actual_counts", "genres")
-    assert_equal 5, manifest.dig("bootstrap", "actual_counts", "badges")
-    actors = manifest.dig("bootstrap", "records", "users").values.map { |record| record.fetch("id") }
-    assert_equal 160, Reaction.where(user_id: actors).count
-    assert_equal 28, ReadingSession.where(user_id: actors).distinct.count(:read_on)
-    assert_equal 3, UserBook.where(user_id: actors).distinct.count(:status)
-    assert_equal 0, WebhookEndpoint.where(user_id: actors).count
-    assert_equal 0, enqueued_jobs.count { |job| job.fetch("job_class") == "CoverAttachJob" }
-    assert_not_requested :any, /https?:/
-  end
-
-  [ 300, 303 ].each do |session_count|
-    test "refreshing an old_hit reaction preserves #{session_count} scenario sessions and their progress meaning" do
-      in_development do
-        @scenario.seed_scenario
-        DevelopmentReadingScenarioTick.new(**@paths).advance_scenario(tick: "tick1") if session_count == 303
-        service = DevelopmentReadingScenarioReactions.new(**@paths)
-        before_manifest = JSON.parse(@paths.fetch(:manifest_path).read)
-        actors = before_manifest.dig("bootstrap", "records", "users").values.map { |record| record.fetch("id") }
-        assert_equal session_count, ReadingSession.where(user_id: actors).count
-        private_models = [ ReadingSession, UserBook, ClubMessage ]
-        before_rows = private_models.to_h { |model| [ model.name, model.order(:id).map(&:attributes) ] }
-        book_id = before_manifest.dig("reactions", "anchors", "old_hit", "book_id")
-        as_of = Time.iso8601(before_manifest.fetch("as_of")).in_time_zone
-        assert_equal 2, Book.where(id: book_id).trending(as_of: as_of).sole.trending_score
-
-        service.refresh_old_hit_reaction
-        refreshed = service.refresh_old_hit_reaction
-
-        assert_equal 3, Book.where(id: book_id).trending(as_of: as_of).sole.trending_score
-        assert_equal session_count, ReadingSession.where(user_id: actors).count
-        assert_equal before_rows, private_models.to_h { |model| [ model.name, model.order(:id).map(&:attributes) ] }
-        private_sections = [ "reading", "community", "baseline", "ticks" ]
-        assert_equal before_manifest.slice(*private_sections), refreshed.slice(*private_sections)
-        replayed = @scenario.seed_scenario
-        assert_equal before_manifest.dig("baseline", "actual_counts"), replayed.dig("baseline", "actual_counts")
-        assert_equal before_rows, private_models.to_h { |model| [ model.name, model.order(:id).map(&:attributes) ] }
-        assert_not_requested :any, /https?:/
-      end
-    end
-  end
-
-  test "refreshing an old_hit reaction preserves another reader's reaction and allows a later update" do
-    in_development do
-      manifest = @scenario.seed_scenario
-      book_id = manifest.dig("reactions", "anchors", "old_hit", "book_id")
-      independent = Reaction.create!(book_id: book_id, user: users(:leika), kind: "like")
-      original = independent.attributes
-
-      result = DevelopmentReadingScenarioReactions.new(**@paths).refresh_old_hit_reaction
-
-      assert_equal "complete", result.dig("reactions", DevelopmentReadingScenarioReactions::REFRESH_ACTION, "status")
-      assert_equal original, independent.reload.attributes
-
-      selected = ReactionSelection.new(user: users(:leika), target: Book.find(book_id)).select_kind(kind: "love")
-
-      assert_equal independent.id, selected.id
-      assert_equal "love", independent.reload.kind
-    end
-  end
-
-  test "one baseline command saves users books and shelves before reading sessions and community records" do
-    observed = {}
-    recorder_factory = ReadingSessionRecorder.method(:new)
-    club_factory = BookClubCreator.method(:new)
-    reading = ->(*arguments) {
-      observed[:before_reading] ||= {
-        users: User.where.not(id: @initial_users).count,
-        books: Book.where.not(id: @initial_books).count,
-        shelves: UserBook.where(user_id: User.where.not(id: @initial_users).select(:id)).count
-      }
-      recorder_factory.call(*arguments)
-    }
-    community = ->(**arguments) {
-      observed[:before_community] ||= ReadingSession.where(user_id: User.where.not(id: @initial_users).select(:id)).count
-      club_factory.call(**arguments)
-    }
-
-    ReadingSessionRecorder.stub(:new, reading) do
-      BookClubCreator.stub(:new, community) { seed }
-    end
-
-    assert_equal({ users: 31, books: 100, shelves: 150 }, observed.fetch(:before_reading))
-    assert_equal 300, observed.fetch(:before_community)
-    assert_equal 4, BookClub.where.not(id: @initial_clubs).count
-    assert_not_requested :any, /https?:/
-  end
-
-  test "the complete scenario seeds reactions only after the Day 1 reading and community records" do
-    factory = Reaction.method(:create!)
-    observed = nil
-    create = ->(attributes) {
-      observed ||= {
-        users: User.where.not(id: @initial_users).count,
-        books: Book.where.not(id: @initial_books).count,
-        sessions: ReadingSession.where.not(user_id: @initial_users).count,
-        posts: ClubMessage.where(user_id: User.where.not(id: @initial_users).select(:id)).count
-      }
-      factory.call(attributes)
-    }
-
-    result = Reaction.stub(:create!, create) { in_development { @scenario.seed_scenario } }
-
-    assert_equal({ users: 31, books: 100, sessions: 300, posts: 80 }, observed)
-    assert_equal DevelopmentReadingScenarioReactions::COUNTS, result.dig("reactions", "actual_counts")
-    assert_not_requested :any, /https?:/
-  end
-
-  test "reaction seeding after the existing tick preserves 303 sessions and 82 posts" do
-    seed
-    in_development { DevelopmentReadingScenarioTick.new(**@paths).advance_scenario(tick: "tick1") }
-    sessions = ReadingSession.order(:id).map(&:attributes)
-    posts = ClubMessage.order(:id).map(&:attributes)
-
-    result = in_development { @scenario.seed_scenario }
-
-    assert_equal 303, result.dig("baseline", "actual_counts", "reading_sessions")
-    assert_equal 82, result.dig("baseline", "actual_counts", "club_messages")
-    assert_equal sessions, ReadingSession.order(:id).map(&:attributes)
-    assert_equal posts, ClubMessage.order(:id).map(&:attributes)
-    assert_equal DevelopmentReadingScenarioReactions::COUNTS, result.dig("reactions", "actual_counts")
-  end
-
-  test "baseline replay preserves a synthetic reader's edited name" do
-    seed
-    user = User.find_by!(email: "reader30@example.test")
-    user.update!(first_name: "Changed by the reader")
-
-    assert_no_difference model_counts do
-      replayed = seed
-      assert_equal user.id, replayed.dig("bootstrap", "records", "users", "reader30", "id")
-    end
-    assert_equal "Changed by the reader", user.reload.first_name
-  end
-
-  test "baseline replay preserves an edited book page count without adding records" do
-    manifest = seed
-    book = Book.find(manifest.fetch("catalog").fetch("records").values.first.fetch("book").fetch("id"))
-    pages = book.total_pages + 1
-    book.update!(total_pages: pages)
-
-    assert_no_difference model_counts do
-      replayed = seed
-      assert_equal "complete", replayed.dig("baseline", "status")
-      assert_equal book.id, replayed.dig("catalog", "records", book.ol_work_key, "book", "id")
-    end
-    assert_equal pages, book.reload.total_pages
-    assert_not_requested :any, /https?:/
-  end
-
-  test "after normal jobs drain replay reports complete without duplicating records or queue work" do
-    first = seed
-    ids = selected_ids(first)
-    originals = User.where(id: @initial_users).order(:id).map(&:attributes)
-    5.times do
-      break if enqueued_jobs.empty?
-
-      perform_enqueued_jobs
-    end
-    assert_empty enqueued_jobs
-    result = nil
-    assert_no_difference model_counts do
-      result = seed
-    end
-    assert_equal "complete", result.dig("baseline", "status")
-    assert_equal first.dig("baseline", "actual_counts"), result.dig("baseline", "actual_counts")
-    assert_equal ids, selected_ids(result)
-    assert_empty enqueued_jobs
-    assert_equal originals, User.where(id: @initial_users).order(:id).map(&:attributes)
-    assert_not_requested :any, /https?:/
-  end
-
-
-  test "a fresh club collision preserves that club and completes unrelated baseline imports" do
-    club = BookClub.create!(name: "Reading Scenario Recent Readers")
-    result = seed
-    assert_equal "complete", result.dig("baseline", "status")
-    assert_equal 3, result.dig("baseline", "actual_counts", "book_clubs")
-    assert_equal [ club.id ], result.dig("community", "records", "book_clubs", "recent", "record_ids")
-    assert_empty club.book_club_memberships
-  end
-
-  test "the full import skips account and genre collisions and reports them without claiming existing records" do
-    existing = User.create!(first_name: "Real", last_name: "Reader", nickname: "existing_reader", email: "reader07@example.test", password: "existing-test-password")
-    attributes = existing.attributes
-    duplicates = 2.times.map { Genre.create!(name: "Fiction").id }
-    result = in_development { @scenario.seed_scenario }
-
-    assert_equal "complete", result.dig("baseline", "status")
-    assert_equal 30, result.dig("baseline", "actual_counts", "users")
-    account = result.dig("bootstrap", "records", "users", "reader07")
-    assert_equal "account_identity_collision", account.fetch("reason")
-    assert_equal [ existing.id ], account.fetch("record_ids")
-    assert_nil account.fetch("id")
-    summary = @scenario.import_summary(result)
-    assert_equal [ existing.id ], summary.dig("skipped", "bootstrap", "users", "reader07", "record_ids")
-    assert_equal 30, summary.dig("actual_counts", "bootstrap", "users")
-    assert_not_includes summary.to_json, "encrypted_password"
-    assert_equal 11, summary.dig("actual_counts", "bootstrap", "genres")
-    genre = summary.dig("skipped", "bootstrap", "genres", "Fiction")
-    assert_equal "genre_name_ambiguous", genre.fetch("reason")
-    assert_empty BookGenre.where(genre_id: duplicates)
-    assert_equal "owner_account_unavailable", result.dig("community", "records", "book_clubs", "steady", "reason")
-    assert_empty existing.reading_sessions
-    assert_empty existing.reactions
-    assert_empty existing.user_challenges
-    assert_equal attributes, existing.reload.attributes
-  end
-
-  test "missing credentials fail before catalog or account writes" do
-    scenario = DevelopmentReadingScenario.new(**@paths, password: nil)
-    assert_no_difference model_counts do
-      error = assert_raises(DevelopmentReadingScenarioBootstrap::BootstrapError) { in_development { scenario.seed_baseline } }
-      assert_includes error.message, "DEVELOPMENT_SCENARIO_PASSWORD"
-    end
-    assert_not @paths.fetch(:manifest_path).exist?
-  end
-
-  test "the complete baseline resumes after a session commit preceding its checkpoint" do
-    original = File.method(:rename)
-    File.stub(:rename, ->(source, destination) {
-      if Pathname.new(destination) == @paths.fetch(:manifest_path) && ReadingSession.where.not(user_id: @initial_users).exists?
-        raise IOError, "Interrupted after session commit"
-      end
-      original.call(source, destination)
-    }) do
-      assert_raises(IOError) { seed }
-    end
-    session = ReadingSession.where.not(user_id: @initial_users).sole
-    assert_equal 0, BookClub.where.not(id: @initial_clubs).count
-    assert_equal 0, ClubMessage.where(user_id: User.where.not(id: @initial_users).select(:id)).count
-    completed = seed
-    assert_includes completed.dig("reading", "records", "reading_sessions").values.map { |record| record.fetch("id") }, session.id
-    assert_equal 300, completed.dig("baseline", "actual_counts", "reading_sessions")
-    assert_equal 80, completed.dig("baseline", "actual_counts", "club_messages")
-    assert_equal 300, enqueued_jobs.count { |job| job.fetch("job_class") == "BookProgressJob" }
-  end
-
-
-  test "a revised review and the rest of the baseline survive replay without new jobs" do
-    manifest = seed
-    review_id = manifest.dig("community", "records", "reviews").values.last.fetch("id")
-    Review.find(review_id).update!(body: "A reader revised this review")
-    queue = enqueued_jobs.dup
-    assert_no_difference model_counts do
-      assert_equal "complete", seed.dig("baseline", "status")
-    end
-    assert_equal queue, enqueued_jobs
-    assert_equal "A reader revised this review", Review.find(review_id).body
-  end
-
-  test "an overlapping run is refused before baseline writes" do
-    File.open(@paths.fetch(:lock_path), File::RDWR | File::CREAT, 0o600) do |lock|
-      lock.flock(File::LOCK_EX | File::LOCK_NB)
-      assert_no_difference model_counts do
-        error = assert_raises(DevelopmentReadingScenarioManifest::ManifestError) { seed }
-        assert_includes error.message, "already running"
-      end
-    end
-    assert_not @paths.fetch(:manifest_path).exist?
-  end
-
-  test "a missing snapshot does not trigger capture or fall back to static books" do
-    File.rename(@paths.fetch(:snapshot_path), @directory.join("original.json"))
-    assert_no_difference model_counts do
-      error = assert_raises(OpenLibraryCatalogPreflight::PreflightError) { seed }
-      assert_includes error.message, "Snapshot is missing"
-    end
-    assert_not_requested :any, /https?:/
-  end
-
-  test "baseline errors retain the original exception object diagnostic report and origin" do
-    expected = OpenLibraryCatalogPreflight::PreflightError.new("Unable to read captured catalog", report: { "source" => "catalog snapshot" })
-    preflight = Object.new
-    preflight.define_singleton_method(:preflight_catalog) { |**| raise expected }
-
-    OpenLibraryCatalogPreflight.stub(:new, preflight) do
-      assert_no_difference model_counts do
-        actual = assert_raises(OpenLibraryCatalogPreflight::PreflightError) { seed }
-        assert_same expected, actual
-        assert_equal({ "source" => "catalog snapshot" }, actual.report)
-        assert_includes actual.backtrace.first, __FILE__
-      end
-    end
-  end
-
-  test "opted-in production seeds the complete scenario and replays without changing existing rows" do
-    models = [ Genre, Badge, User, Book, BookEdition, UserBook, ReadingSession, BookClub, BookClubMembership, ClubMessage, Review, Reaction, Challenge, UserChallenge ]
-    existing = models.to_h { |model| [ model, model.order(:id).map(&:attributes) ] }
-    reference = "2026-11-16T20:00:00Z"
-    variables = ENV.to_h.merge("ALLOW_PRODUCTION_SCENARIO" => "true", "READING_SCENARIO_AS_OF" => reference)
-
-    ENV.stub(:[], variables.method(:[])) do
-      # Exercise the production permission branch without changing lazy database connection selection.
-      Rails.env.stub(:production?, true) do
-        @scenario = DevelopmentReadingScenario.new(**@paths, password: "synthetic-scenario-test-password")
-        @scenario.seed_scenario
-        manifest = JSON.parse(@paths.fetch(:manifest_path).read)
-        assert_equal "complete", manifest.dig("baseline", "status")
-        assert_equal Time.iso8601(reference), Time.iso8601(manifest.fetch("as_of"))
-        book_id = manifest.dig("reactions", "anchors", "new_burst", "book_id")
-        assert_equal 12, Book.where(id: book_id).trending(as_of: Time.iso8601(reference)).sole.trending_score
-        assert_equal manifest.dig("baseline", "expected_counts"), manifest.dig("baseline", "actual_counts")
-        assert_equal DevelopmentReadingScenarioReactions::COUNTS, manifest.dig("reactions", "actual_counts")
-        saved = models.to_h { |model| [ model, model.order(:id).map(&:attributes) ] }
-
-        @scenario.seed_scenario
-
-        assert_equal saved, models.to_h { |model| [ model, model.order(:id).map(&:attributes) ] }
-      end
-    end
-
+    ids.each { |model, expected| assert_equal expected, model.order(:id).ids }
     existing.each do |model, rows|
-      assert_equal rows, model.where(id: rows.map { |row| row.fetch("id") }).order(:id).map(&:attributes)
+      assert_equal rows, model.where(id: rows.pluck("id")).order(:id).map(&:attributes)
     end
+    assert_not_includes first.to_json, "encrypted_password"
     assert_not_requested :any, /https?:/
   end
 
-  test "baseline replay without permission leaves the database unchanged and makes no HTTP requests" do
-    [ "test", "production" ].each do |environment|
-      assert_no_difference model_counts do
-        Rails.stub(:env, environment.inquiry) do
-          assert_raises(DevelopmentReadingScenario::ScenarioError) { @scenario.seed_baseline }
-        end
+  test "unavailable accounts and disabled reactions leave independent activity usable" do
+    real = User.create!(email: "reader07@example.test", nickname: "fixture_collision", first_name: "Existing", last_name: "Reader", password: "test-password")
+    ReactionType.update_all(enabled: false)
+    report = simulate
+    assert_equal "partial", report.fetch("status")
+    assert_equal "account_identity_collision", report.dig("skipped", "users/reader07")
+    assert_equal 29, report.dig("added", "reading_sessions")
+    assert_equal 29, report.dig("added", "reviews")
+    assert_equal 0, report.dig("added", "reactions")
+    assert_equal 3, report.dig("added", "club_messages")
+    assert_empty real.reading_sessions
+    assert_empty real.reviews
+  end
+
+  test "clubs reading the same book get different posts in each round and fresh posts on subsequent rounds" do
+    simulate
+    clubs = BookClub.where(id: JSON.parse(@path.read).fetch("simulation_clubs").values)
+    book = clubs.first.current_book
+    clubs.update_all(current_book_id: book.id)
+    require "faker"
+    Faker::Book.stub(:title, book.title) do
+      3.times do
+        previous_id = ClubMessage.maximum(:id)
+        simulate
+        posts = ClubMessage.where(book_club: clubs).where(id: (previous_id + 1)..)
+        assert_equal 4, posts.pluck(:body).uniq.size
       end
     end
-    assert_not @paths.fetch(:manifest_path).exist?
-    assert_empty enqueued_jobs
-    assert_not_requested :any, /https?:/
+    clubs.each do |club|
+      bodies = club.club_messages.order(id: :desc).limit(3).pluck(:body)
+      assert_equal 3, bodies.uniq.size
+    end
   end
 
-  test "production database preparation never starts the simulator even when explicitly enabled" do
-    variables = ENV.to_h.merge("ALLOW_PRODUCTION_SCENARIO" => "true")
+  test "saturated review and reaction pairs leave sessions and discussions available" do
+    assert_equal "complete", simulate.fetch("status")
+    manifest = JSON.parse(@path.read)
+    reader = User.find_by!(email: "reader01@example.test")
+    books = manifest.dig("catalog", "records").values.map { |pair| pair.dig("book", "id") }
+    (books - reader.reviews.pluck(:book_id)).each { |id| Review.create!(user: reader, book_id: id, rating: 4) }
+    (books - reader.reactions.pluck(:book_id)).each { |id| Reaction.create!(user: reader, book_id: id, kind: "like") }
 
-    ENV.stub(:[], variables.method(:[])) do
-      Rails.env.stub(:production?, true) do
-        DevelopmentReadingScenario.stub(:new, -> { flunk "Database setup started the demo simulator" }) do
-          assert load(Rails.root.join("db/seeds.rb"))
-        end
+    result = simulate
+
+    assert_equal({ "reading_sessions" => 30, "reviews" => 29, "reactions" => 29, "club_messages" => 4 }, result.fetch("added"))
+    assert_includes result.fetch("skipped"), "reviews/#{reader.id}"
+    assert_includes result.fetch("skipped"), "reactions/#{reader.id}"
+  end
+
+  test "a legacy manifest supplies the original club ids and reference date while new activity uses today" do
+    simulate
+    manifest = JSON.parse(@path.read)
+    clubs = manifest.delete("simulation_clubs")
+    manifest["as_of"] = "2026-10-30T12:00:00.000000Z"
+    manifest["community"] = { "records" => { "book_clubs" => clubs.transform_values { |id| { "id" => id, "result" => "imported" } } } }
+    @path.write(JSON.generate(manifest))
+    assert_no_difference [ "BookClub.count", "BookClubMembership.count" ] do
+      assert_difference("ReadingSession.count", 30) { assert_equal "complete", simulate.fetch("status") }
+    end
+    assert_equal manifest["as_of"], JSON.parse(@path.read).fetch("as_of")
+    assert_equal 2, ClubMessage.where(book_club_id: clubs.fetch("steady")).count
+  end
+
+  test "an unsafe manifest stops the simulator before writing" do
+    @path.write("invalid json")
+    assert_no_difference [ "User.count", "Book.count", "ReadingSession.count" ] do
+      assert_match(/invalid JSON/, simulate.fetch("reason"))
+    end
+    assert_equal "invalid json", @path.read
+  end
+
+  test "production database preparation does not run the simulator even with opt-in" do
+    Rails.env.stub(:production?, true) do
+      DevelopmentReadingScenario.stub(:new, -> { flunk "db:prepare started the simulator" }) do
+        assert load(Rails.root.join("db/seeds.rb"))
       end
     end
   end
 
   private
 
-  def queue_adapter_for_test
-    ActiveJob::QueueAdapters::TestAdapter.new
-  end
-
-  def in_development(&block)
-    Rails.stub(:env, "development".inquiry, &block)
-  end
-
-  def seed
-    in_development { @scenario.seed_baseline }
-  end
-
-  def model_counts
-    [ "Genre.count", "Badge.count", "User.count", "Book.count", "BookEdition.count", "UserBook.count", "ReadingSession.count", "BookClub.count", "BookClubMembership.count", "ClubMessage.count", "Review.count" ]
-  end
-
-  def selected_ids(manifest)
-    [ "bootstrap", "catalog", "reading", "community" ].to_h do |section|
-      records = manifest.fetch(section).fetch("records")
-      ids = records.transform_values do |group|
-        selected = section == "catalog" ? group.slice("book", "edition") : group
-        selected.transform_values { |record| record["id"] }
-      end
-      [ section, ids ]
-    end
+  def simulate
+    Rails.env.stub(:development?, true) { @scenario.seed_scenario }
   end
 end

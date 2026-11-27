@@ -4,7 +4,7 @@ require "tmpdir"
 class DevelopmentReadingScenarioGenresTest < ActionDispatch::IntegrationTest
   setup do
     @directory = Pathname.new(Dir.mktmpdir("booknook-genres-"))
-    @store = DevelopmentReadingScenarioManifest.new(path: @directory.join("manifest.json"), lock_path: @directory.join("scenario.lock"))
+    @store = DevelopmentReadingScenarioManifest.new(path: @directory.join("manifest.json"))
     @genres = Genre::GENRES.to_h { |name| [ name, Genre.find_or_create_by!(name: name) ] }
     @books = Genre::GENRES.each_with_index.to_h do |name, index|
       book = Book.create!(title: "Genre demo #{name}", author: "Demo Author", ol_work_key: "/works/OL#{400_000 + index}W", subjects: [ name ])
@@ -13,7 +13,7 @@ class DevelopmentReadingScenarioGenresTest < ActionDispatch::IntegrationTest
     with_scenario do |manifest|
       manifest["bootstrap"] = { "records" => { "genres" => @genres.transform_values { |genre| { "id" => genre.id } } } }
       manifest["catalog"] = { "records" => @books.values.to_h { |book| [ book.ol_work_key, { "book" => { "id" => book.id } } ] } }
-      @store.save_scenario
+      @store.save_scenario(manifest)
     end
   end
 
@@ -113,9 +113,7 @@ class DevelopmentReadingScenarioGenresTest < ActionDispatch::IntegrationTest
 
   def with_scenario
     Rails.stub(:env, "development".inquiry) do
-      @store.with_exclusive_access do
-        yield @store.prepare_scenario(snapshot_id: "genre-test")
-      end
+      yield @store.prepare_scenario(snapshot_id: "genre-test")
     end
   end
 
